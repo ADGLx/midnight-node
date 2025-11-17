@@ -2,7 +2,7 @@
   {
     "suri": "//Alice",
     "pub_key": "0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1",
-    "node_url": "ws://localhost:9933"
+    "node_url": "ws://localhost:9944"
   },
   {
     "suri": "//Bob",

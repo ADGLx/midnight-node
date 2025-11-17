@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use sp_consensus_beefy::{VersionedFinalityProof, ecdsa_crypto::Signature as EcdsaSignature};
 use sp_core::Bytes;
 use subxt::{
@@ -9,7 +11,7 @@ use subxt::{
 	},
 };
 
-use crate::{BlockNumber, Error, MmrProof};
+use crate::{BlockNumber, Error, MmrProof, justification::BeefyStakesInfo};
 
 pub type BlockHash = sp_core::H256;
 pub type BeefySignedCommitment = sp_consensus_beefy::SignedCommitment<BlockNumber, EcdsaSignature>;
@@ -56,17 +58,13 @@ impl Relayer {
 			parity_scale_codec::Decode::decode(&mut &justification[..])?;
 
 		// Identifies whether using from best block, or the commitment's block hash
-		let (best_block, at_block_hash) = self.choose_params(&beef_signed_commitment).await?;
+		let (_best_block, _at_block_hash) = self.choose_params(&beef_signed_commitment).await?;
 
-		// The commitment block number to create proof from
-		let block_to_query = beef_signed_commitment.commitment.block_number;
+		let beefy_stakes_info =
+			BeefyStakesInfo::try_from(beef_signed_commitment.commitment.payload)?;
 
-		// Generate the mmr proof
-		let mmr_proof = self.get_mmr_proof(block_to_query, best_block, at_block_hash).await?;
-		println!("Get MMR Proof: {mmr_proof:?}");
-
-		//todo: handle mmr proof
-
+		println!("BEEF STAKES: {beefy_stakes_info:#?}");
+		//todo: handle authorities
 		Ok(())
 	}
 
