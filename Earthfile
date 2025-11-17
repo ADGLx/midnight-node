@@ -58,6 +58,20 @@ generate-preview-keys:
 generate-preview-genesis-seeds:
     BUILD +generate-seeds --NETWORK=preview --OUTPUT_FILE=preview-genesis-seeds.json
 
+generate-preprod-keys:
+    BUILD +generate-keys \
+        --DEV=true \
+        --NETWORK=preprod \
+        --NUM_REGISTRATIONS=4 \
+        --NUM_PERMISSIONED=12 \
+        --D_REGISTERED=25 \
+        --D_PERMISSIONED=275 \
+        --NUM_BOOT_NODES=3 \
+        --NUM_VALIDATOR_NODES=12
+
+generate-preprod-genesis-seeds:
+    BUILD +generate-seeds --NETWORK=preprod --OUTPUT_FILE=preprod-genesis-seeds.json
+
 generate-keys:
     # D_PERMISSIONED + D_REGISTERED should be at least as large as slotsPerEpoch
     ARG DEV=false
@@ -95,7 +109,7 @@ generate-keys:
     SAVE ARTIFACT --if-exists secrets/keys-aws.json AS LOCAL secrets/$NETWORK-keys-aws.json
 
 subxt:
-    FROM rust:1.90-bookworm
+    FROM rust:1.90-trixie
     RUN rustup component add rustfmt
     # Install cargo binstall:
     # RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
@@ -113,6 +127,7 @@ get-metadata:
     ARG METADATA_IMAGE_NAME="localhost/node:latest"
     ARG METADATA_TARGET="${METADATA_IMAGE_NAME}=+load-image"
     FROM +subxt
+    DO github.com/EarthBuild/lib+INSTALL_DIND
     WITH DOCKER --load localhost/node:latest=+node-image
       RUN docker run --env CFG_PRESET=dev -p 9944:9944 localhost/node:latest & \
           sleep 5 && \
@@ -148,7 +163,7 @@ rebuild-sqlx:
 # rebuild-redemption-skeleton rebuilds the redemption skeleton contract using aiken
 rebuild-redemption-skeleton:
     # aiken doesn't support arm yet.
-    FROM --platform=linux/amd64 node:22-bookworm
+    FROM --platform=linux/amd64 node:22-trixie
     # renovate: datasource=npm packageName=aiken-lang/aiken
     ENV aiken_version=1.1.19
     RUN npm install -g @aiken-lang/aiken@${aiken_version}
@@ -329,10 +344,16 @@ rebuild-genesis-state-qanet:
         --NETWORK=qanet \
         --GENERATE_TEST_TXS=false
 
-# rebuild-genesis-state-testnet-02 rebuilds the genesis ledger state for testnet network - this MUST be followed by updating the chainspecs for CI to pass!
+# rebuild-genesis-state-preview rebuilds the genesis ledger state for preview network - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-genesis-state-preview:
     BUILD +rebuild-genesis-state \
         --NETWORK=preview \
+        --GENERATE_TEST_TXS=false
+
+# rebuild-genesis-state-preprod rebuilds the genesis ledger state for preprod network - this MUST be followed by updating the chainspecs for CI to pass!
+rebuild-genesis-state-preprod:
+    BUILD +rebuild-genesis-state \
+        --NETWORK=preprod \
         --GENERATE_TEST_TXS=false
 
 # rebuild-all-genesis-states rebuilds the genesis ledger state for all networks - this MUST be followed by updating the chainspecs for CI to pass!
@@ -341,6 +362,7 @@ rebuild-all-genesis-states:
     BUILD +rebuild-genesis-state-node-dev-01
     BUILD +rebuild-genesis-state-qanet
     BUILD +rebuild-genesis-state-preview
+    BUILD +rebuild-genesis-state-preprod
 
 # rebuild-chainspec for a given NETWORK
 rebuild-chainspec:
@@ -364,6 +386,7 @@ rebuild-all-chainspecs:
     BUILD +rebuild-chainspec --NETWORK=node-dev-01
     BUILD +rebuild-chainspec --NETWORK=qanet
     BUILD +rebuild-chainspec --NETWORK=preview
+    BUILD +rebuild-chainspec --NETWORK=preprod
 
 # rebuild-genesis Rebuild the initial ledger state genesis and chainspecs. Secrets required to rebuild prod/preprod geneses.
 rebuild-genesis:
@@ -418,7 +441,7 @@ node-ci-image:
 
 node-ci-image-single-platform:
     ARG NATIVEARCH
-    FROM rust:1.90-bookworm
+    FROM rust:1.90-trixie
 
     # Install build dependencies
     RUN apt-get update -qq && \
@@ -432,12 +455,12 @@ node-ci-image-single-platform:
         protobuf-compiler \
         pkg-config \
         grcov \
-        openssh-client \
-        gcc-aarch64-linux-gnu \
-        libc6-dev-arm64-cross \
-        gcc-x86-64-linux-gnu \
-        crossbuild-essential-amd64 \
-        libc6-amd64-cross
+        # openssh-client \
+        # gcc-aarch64-linux-gnu \
+        # libc6-dev-arm64-cross \
+        # gcc-x86-64-linux-gnu \
+        # crossbuild-essential-amd64 \
+        # libc6-amd64-cross
 
     RUN rustup target add wasm32v1-none aarch64-unknown-linux-gnu x86_64-unknown-linux-gnu
     RUN rustup component add rust-src rustfmt clippy llvm-tools-preview
@@ -503,7 +526,7 @@ prep:
 # prepares the toolkit-js, in time for testing
 toolkit-js-prep:
     ARG NATIVEARCH
-    FROM node:22-bookworm
+    FROM node:22-trixie
 
     COPY util/toolkit-js toolkit-js
     ENV COMPACTC_VERSION=$(cat toolkit-js/COMPACTC_VERSION)
@@ -571,6 +594,7 @@ check-rust:
 check-metadata:
     ARG NODE_IMAGE
     FROM +subxt
+    DO github.com/EarthBuild/lib+INSTALL_DIND
     WITH DOCKER --pull $NODE_IMAGE
       RUN docker run --env CFG_PRESET=dev -p 9944:9944 ${NODE_IMAGE} & \
           sleep 5 && \
@@ -877,15 +901,15 @@ audit-rust:
 
 audit-npm:
     ARG DIRECTORY
-    FROM node:22-bookworm
+    FROM node:22-trixie
     COPY ${DIRECTORY} ${DIRECTORY}
     WORKDIR ${DIRECTORY}
     RUN corepack enable
-    RUN --no-cache npm audit --severity high
+    RUN --no-cache npm audit --audit-level high
 
 audit-yarn:
     ARG DIRECTORY
-    FROM node:22-bookworm
+    FROM node:22-trixie
     COPY metadata/static metadata/static
     COPY ${DIRECTORY} ${DIRECTORY}
     WORKDIR ${DIRECTORY}
