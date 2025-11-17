@@ -69,7 +69,7 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_beefy::{
 	OpaqueKeyOwnershipProof,
 	ecdsa_crypto::{AuthorityId as BeefyId, Signature as BeefySignature},
-	mmr::MmrLeafVersion,
+	mmr::{BeefyAuthoritySet, BeefyNextAuthoritySet, MmrLeafVersion},
 };
 use sp_core::{ByteArray, OpaqueMetadata, crypto::KeyTypeId};
 use sp_governed_map::MainChainScriptsV1;
@@ -126,8 +126,8 @@ use pallet_federated_authority::{
 use runtime_common::governance::{AlwaysNo, MembershipHandler, MembershipObservationHandler};
 
 use crate::beefy::{
-	BeefStakes, compute_current_authority_set, compute_next_authority_set, current_beef_stakes,
-	next_beef_stakes,
+	BeefyStakes, compute_current_authority_set, compute_next_authority_set, current_beefy_stakes,
+	next_beefy_stakes,
 };
 
 /// An index to a block.
@@ -1198,22 +1198,29 @@ impl_runtime_apis! {
 		}
 	}
 
-	// Collects the (Current BeefStakes, Next BeefStakes)
-	impl crate::beefy::BeefStakesApi<Block, Hash> for Runtime {
-		fn current_beef_stakes() -> BeefStakes<Self> {
-			current_beef_stakes()
+	// Collects the (Current BeefyStakes, Next BeefyStakes)
+	impl crate::beefy::BeefyStakesApi<Block, Hash> for Runtime {
+		fn current_beefy_stakes() -> BeefyStakes<Self> {
+			current_beefy_stakes(None)
 		}
 
-		fn next_beef_stakes() -> BeefStakes<Self> {
-			next_beef_stakes()
+		fn next_beefy_stakes() -> Option<BeefyStakes<Self>> {
+			next_beefy_stakes(None)
 		}
 
-		fn compute_current_authority_set(beef_stakes: BeefStakes<Self>) -> sp_consensus_beefy::mmr::BeefyAuthoritySet<Hash> {
-			compute_current_authority_set(beef_stakes)
+		/// Returns the authority set based on the current beef stakes
+		fn compute_current_authority_set(
+			beefy_stakes: BeefyStakes<Runtime>,
+		) ->  BeefyAuthoritySet<Hash> {
+			compute_current_authority_set(beefy_stakes)
+
 		}
 
-		fn compute_next_authority_set(beef_stakes: BeefStakes<Self>) -> sp_consensus_beefy::mmr::BeefyAuthoritySet<Hash> {
-			compute_next_authority_set(beef_stakes)
+		/// Returns the authority set based on the next beef stakes
+		fn compute_next_authority_set(
+			beefy_stakes: BeefyStakes<Runtime>,
+		) -> BeefyNextAuthoritySet<Hash> {
+			compute_next_authority_set(beefy_stakes)
 		}
 	}
 

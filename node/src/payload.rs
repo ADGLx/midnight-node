@@ -1,45 +1,49 @@
-//! Custom Payload Provider definition, containing the BeefyIds and each their stakes (BeefStakes)
-//! The payload is scale encoded tuple of the (MMR Root, BeefStakes)
+//! Custom Payload Provider definition, containing the BeefyIds and each their stakes (BeefyStakes)
+//! The payload is scale encoded tuple of the (MMR Root, BeefyStakes)
 //!
 //!
 
 use core::marker::PhantomData;
 use std::sync::Arc;
 
-use midnight_node_runtime::beefy::{BeefStakes, BeefStakesApi};
+use midnight_node_runtime::beefy::{
+	BeefyStakes, BeefyStakesApi,
+	known_payloads::{
+		CURRENT_BEEFY_AUTHORITY_SET, CURRENT_BEEFY_STAKES_ID, NEXT_BEEFY_AUTHORITY_SET,
+		NEXT_BEEFY_STAKES_ID,
+	},
+};
 
 use parity_scale_codec::Encode;
 use sp_api::ProvideRuntimeApi;
 use sp_consensus_beefy::{
-	BeefyPayloadId, MmrRootHash, Payload, PayloadProvider, known_payloads,
-	mmr::find_mmr_root_digest,
+	MmrRootHash, Payload, PayloadProvider,
+	known_payloads::MMR_ROOT_ID,
+	mmr::{BeefyAuthoritySet, find_mmr_root_digest},
 };
 use sp_core::H256;
 use sp_mmr_primitives::MmrApi;
 use sp_runtime::traits::{Block, Header, NumberFor};
 
-/// Id to identify this custom payload
-pub const CURR_BEEF_STAKES_ID: BeefyPayloadId = *b"cs";
-pub const NEXT_BEEF_STAKES_ID: BeefyPayloadId = *b"ns";
-
-pub struct RootAndBeefStakesProvider<B, R> {
+/// Adds `current` beefy stakes and `next` beefy stakes along with the Mmr Root
+pub struct MmrRootAndBeefyStakesProvder<B, R> {
 	runtime: Arc<R>,
 	_phantom: PhantomData<B>,
 }
 
-impl<B, R> Clone for RootAndBeefStakesProvider<B, R> {
+impl<B, R> Clone for MmrRootAndBeefyStakesProvder<B, R> {
 	fn clone(&self) -> Self {
 		Self { runtime: self.runtime.clone(), _phantom: PhantomData }
 	}
 }
 
-impl<B, R> RootAndBeefStakesProvider<B, R>
+impl<B, R> MmrRootAndBeefyStakesProvder<B, R>
 where
 	B: Block,
 	R: ProvideRuntimeApi<B>,
-	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefStakesApi<B, H256>,
+	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefyStakesApi<B, H256>,
 {
-	/// Create new Payload provider with the tuple (MMR Root, BeefStakes) as payload.
+	/// Create new Payload provider with the tuple (MMR Root, BeefyStakes) as payload.
 	pub fn new(runtime: Arc<R>) -> Self {
 		Self { runtime, _phantom: PhantomData }
 	}
@@ -52,30 +56,30 @@ where
 	}
 
 	/// Gets the current Beef Stakes from client state
-	fn get_current_beef_stakes(
+	fn current_beefy_stakes(
 		&self,
 		header: &B::Header,
-	) -> Option<BeefStakes<midnight_node_runtime::Runtime>> {
-		self.runtime.runtime_api().current_beef_stakes(header.hash()).ok()
+	) -> Option<BeefyStakes<midnight_node_runtime::Runtime>> {
+		self.runtime.runtime_api().current_beefy_stakes(header.hash()).ok()
 	}
 
 	/// Gets the next Beef Stakes from client state
-	fn get_next_beef_stakes(
+	fn next_beefy_stakes(
 		&self,
 		header: &B::Header,
-	) -> Option<BeefStakes<midnight_node_runtime::Runtime>> {
-		self.runtime.runtime_api().next_beef_stakes(header.hash()).ok()
+	) -> Option<BeefyStakes<midnight_node_runtime::Runtime>> {
+		self.runtime.runtime_api().next_beefy_stakes(header.hash()).ok().unwrap_or(None)
 	}
 
 	/// Returns the authority set of the current beef stakes
 	fn compute_current_authority_set(
 		&self,
 		header: &B::Header,
-		beef_stakes: BeefStakes<midnight_node_runtime::Runtime>,
-	) -> Option<sp_consensus_beefy::mmr::BeefyAuthoritySet<H256>> {
+		beefy_stakes: BeefyStakes<midnight_node_runtime::Runtime>,
+	) -> Option<BeefyAuthoritySet<H256>> {
 		self.runtime
 			.runtime_api()
-			.compute_current_authority_set(header.hash(), beef_stakes)
+			.compute_current_authority_set(header.hash(), beefy_stakes)
 			.ok()
 	}
 
@@ -83,52 +87,53 @@ where
 	fn compute_next_authority_set(
 		&self,
 		header: &B::Header,
-		beef_stakes: BeefStakes<midnight_node_runtime::Runtime>,
-	) -> Option<sp_consensus_beefy::mmr::BeefyAuthoritySet<H256>> {
+		beefy_stakes: BeefyStakes<midnight_node_runtime::Runtime>,
+	) -> Option<BeefyAuthoritySet<H256>> {
 		self.runtime
 			.runtime_api()
-			.compute_next_authority_set(header.hash(), beef_stakes)
+			.compute_next_authority_set(header.hash(), beefy_stakes)
 			.ok()
 	}
 }
 
-impl<B: Block, R> PayloadProvider<B> for RootAndBeefStakesProvider<B, R>
+impl<B: Block, R> PayloadProvider<B> for MmrRootAndBeefyStakesProvder<B, R>
 where
 	B: Block,
 	R: ProvideRuntimeApi<B>,
-	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefStakesApi<B, H256>,
+	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefyStakesApi<B, H256>,
 {
-	fn payload(&self, header: &B::Header) -> Option<Payload> {
-		log::info!("XXXXXXXXXXXXXXXXXXXXXXXXXXXX Generating Beefy Payload:");
-
+	fn payload(&self, header: &<B as Block>::Header) -> Option<Payload> {
 		// get the mmr root
 		let mmr_root = self.mmr_root_from_digest_or_runtime(header)?;
 
-		// get the current and next beef stakes
-		let current_beef_stakes = self.get_current_beef_stakes(header)?;
-		let current_auth_proof =
-			self.compute_current_authority_set(header, current_beef_stakes.clone())?;
+		// get the current and next beefy stakes
+		let current_beefy_stakes = self.current_beefy_stakes(header)?;
+		log::info!("🥩 Current Beefy Stakes: {current_beefy_stakes:#?}");
 
-		let next_beef_stakes = self.get_next_beef_stakes(header)?;
-		let next_auth_proof = self.compute_next_authority_set(header, next_beef_stakes.clone())?;
+		let current_authority_set =
+			self.compute_current_authority_set(header, current_beefy_stakes.clone())?;
+		log::info!("🥩 Current Beefy Authority Set: {current_authority_set:#?}");
 
-		log::info!(
-			"XXXXXXXXXXXXXXXXXXXXXXXXXXXX Pushing current beefy stakes to payload: {:?}",
-			current_beef_stakes
-		);
-		log::info!("XXXXXXXXXXXXXXXXXXXXXXXXXXXX Pushing current auth set: {current_auth_proof:?}",);
+		match self.next_beefy_stakes(header) {
+			Some(next_beefy_stakes) => {
+				log::info!("🥩 Next Beefy Stakes: {next_beefy_stakes:#?}");
 
-		log::info!(
-			"XXXXXXXXXXXXXXXXXXXXXXXXXXXX Pushing next beefy stakes to payload: {:?}",
-			next_beef_stakes
-		);
-		log::info!("XXXXXXXXXXXXXXXXXXXXXXXXXXXX Pushing next auth set: {next_auth_proof:?}",);
-
-		// push to payload
-		Some(
-			Payload::from_single_entry(known_payloads::MMR_ROOT_ID, mmr_root.encode())
-				.push_raw(CURR_BEEF_STAKES_ID, (current_auth_proof, current_beef_stakes).encode())
-				.push_raw(NEXT_BEEF_STAKES_ID, (next_auth_proof, next_beef_stakes).encode()),
-		)
+				let next_authority_set =
+					self.compute_next_authority_set(header, next_beefy_stakes.clone())?;
+				log::info!("🥩 Next Beefy Authority Set: {next_authority_set:#?}");
+				Some(
+					Payload::from_single_entry(MMR_ROOT_ID, mmr_root.encode())
+						.push_raw(CURRENT_BEEFY_STAKES_ID, current_beefy_stakes.encode())
+						.push_raw(CURRENT_BEEFY_AUTHORITY_SET, current_authority_set.encode())
+						.push_raw(NEXT_BEEFY_STAKES_ID, next_beefy_stakes.encode())
+						.push_raw(NEXT_BEEFY_AUTHORITY_SET, next_authority_set.encode()),
+				)
+			},
+			None => Some(
+				Payload::from_single_entry(MMR_ROOT_ID, mmr_root.encode())
+					.push_raw(CURRENT_BEEFY_STAKES_ID, current_beefy_stakes.encode())
+					.push_raw(CURRENT_BEEFY_AUTHORITY_SET, current_authority_set.encode()),
+			),
+		}
 	}
 }

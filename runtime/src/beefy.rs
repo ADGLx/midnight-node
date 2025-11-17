@@ -13,7 +13,7 @@ use pallet_session_validator_management::{
 	CommitteeInfo, Config as SessionValidatorMngConfig, Pallet as SessionValidatorMngPallet,
 };
 use sp_consensus_beefy::{
-	ValidatorSetId,
+	OnNewValidatorSet, ValidatorSetId,
 	ecdsa_crypto::AuthorityId,
 	mmr::{BeefyAuthoritySet, BeefyNextAuthoritySet},
 };
@@ -36,122 +36,156 @@ pub type Stake = u64;
 pub type BeefyAuthoritySetOf<T> = BeefyAuthoritySet<MerkleRootOf<T>>;
 
 /// A List of tuple (Beefy Ids, stake)
-pub type BeefStakes<T> = Vec<(BeefyIdOf<T>, Stake)>;
+pub type BeefyStakes<T> = Vec<(BeefyIdOf<T>, Stake)>;
 
-/// A tuple of the (Current Beef Stakes, Next Beef Stakes)
-pub type DoubleBeefStakes<T> = (BeefStakes<T>, BeefStakes<T>);
-
-/// A tuple of the (Current Beef Stakes, Next Beef Stakes)
-pub type IdAndBeefStake<T> = (BeefStakes<T>, BeefStakes<T>);
-
-pub struct AuthoritiesProvider<T> {
-	_phantom: PhantomData<T>,
+/// Ids to identify Beefy stakes
+pub mod known_payloads {
+	pub const CURRENT_BEEFY_STAKES_ID: sp_consensus_beefy::BeefyPayloadId = *b"cs";
+	pub const CURRENT_BEEFY_AUTHORITY_SET: sp_consensus_beefy::BeefyPayloadId = *b"cb";
+	pub const NEXT_BEEFY_STAKES_ID: sp_consensus_beefy::BeefyPayloadId = *b"ns";
+	pub const NEXT_BEEFY_AUTHORITY_SET: sp_consensus_beefy::BeefyPayloadId = *b"nb";
 }
 
 // An api to be used and accessed by the Node
 sp_api::decl_runtime_apis! {
-	pub trait BeefStakesApi<H>
+	pub trait BeefyStakesApi<H>
 	where
 		BeefyAuthoritySet<H>: parity_scale_codec::Decode,
 	{
-		/// Gets the current beef stakes
-		fn current_beef_stakes() -> BeefStakes<Runtime>;
+		/// Gets the current beefy stakes
+		fn current_beefy_stakes() -> BeefyStakes<Runtime>;
 
-		/// Gets the next beef stakes
-		fn next_beef_stakes() -> BeefStakes<Runtime>;
+		/// Gets the next beefy stakes
+		fn next_beefy_stakes() -> Option<BeefyStakes<Runtime>>;
 
 		/// Returns the authority set based on the current beef stakes
 		fn compute_current_authority_set(
-			beef_stakes: BeefStakes<Runtime>,
+			beefy_stakes: BeefyStakes<Runtime>,
 		) ->  BeefyAuthoritySet<H>;
 
 		/// Returns the authority set based on the next beef stakes
 		fn compute_next_authority_set(
-			beef_stakes: BeefStakes<Runtime>,
+			beef_stakes: BeefyStakes<Runtime>,
 		) -> BeefyNextAuthoritySet<H>;
 	}
 }
 
-pub fn current_beef_stakes() -> BeefStakes<Runtime> {
-	// Similar set of validators of pallet beefy fn validator_set();
-	// the benefit of this is being an unwrapped value of Vec<Public>
-	let current_validators = pallet_beefy::pallet::Authorities::<Runtime>::get().to_vec();
+pub fn current_beefy_stakes(validators: Option<Vec<BeefyIdOf<Runtime>>>) -> BeefyStakes<Runtime> {
+	let current_validators = validators.unwrap_or(
+		// Similar set of validators of pallet beefy fn validator_set();
+		// the benefit of this is being an unwrapped value of Vec<Public>
+		pallet_beefy::pallet::Authorities::<Runtime>::get().to_vec(),
+	);
 
 	let current_committee = SessionValidatorMngPallet::<Runtime>::current_committee_storage();
 
-	compute_beef_stakes(current_validators, current_committee)
+	compute_beefy_stakes(current_validators, current_committee)
 }
 
-pub fn next_beef_stakes() -> BeefStakes<Runtime> {
-	let next_validators = pallet_beefy::pallet::NextAuthorities::<Runtime>::get().to_vec();
+pub fn next_beefy_stakes(
+	next_validators: Option<Vec<BeefyIdOf<Runtime>>>,
+) -> Option<BeefyStakes<Runtime>> {
+	let next_validators =
+		next_validators.unwrap_or(pallet_beefy::pallet::NextAuthorities::<Runtime>::get().to_vec());
 
-	match SessionValidatorMngPallet::<Runtime>::next_committee_storage() {
-		Some(next_committee) => {
-			log::info!("XXXXXXXXXXXXXXXXXXXXXXXXXXXX NEXT VALIDATORS: {next_validators:?}");
+	SessionValidatorMngPallet::<Runtime>::next_committee_storage().map(|committee| {
+		let beefy_stakes = compute_beefy_stakes(next_validators, committee);
 
-			compute_beef_stakes(next_validators, next_committee)
-		},
-		None => {
-			log::info!("XXXXXXXXXXXXXXXXXXXXXXXXXXXX No Next Committee, setting stakes to 0");
-			next_validators.into_iter().map(|v| (v, 0)).collect()
-		},
-	}
+		let result = pallet_beefy_mmr::pallet::BeefyNextAuthorities::<Runtime>::get();
+
+		// This is mostly during first run of the chain, where BeefyNextAuthorities was not set.
+		if result.keyset_commitment.0 == [0u8; 32] {
+			let current_validator_set_id = pallet_beefy::pallet::ValidatorSetId::<Runtime>::get();
+
+			// increment by 1
+			let next_set_id = current_validator_set_id + 1;
+
+			let next_authority_set = compute_authority_set(next_set_id, beefy_stakes.clone());
+
+			pallet_beefy_mmr::pallet::BeefyNextAuthorities::<Runtime>::put(&next_authority_set);
+			log::info!(
+				"🥩 Out-of-session update on the \"Next\" authority set: {next_authority_set:?}"
+			);
+		}
+
+		beefy_stakes
+	})
 }
 
 pub fn compute_current_authority_set(
-	beef_stakes: BeefStakes<Runtime>,
+	beefy_stakes: BeefyStakes<Runtime>,
 ) -> BeefyAuthoritySetOf<Runtime> {
 	// get the validator set id
 	let authority_proof = BeefyMmrPallet::<Runtime>::authority_set_proof();
 	let id = authority_proof.id;
 
-	compute_authority_set(id, beef_stakes)
+	compute_authority_set(id, beefy_stakes)
 }
 
 pub fn compute_next_authority_set(
-	beef_stakes: BeefStakes<Runtime>,
+	beefy_stakes: BeefyStakes<Runtime>,
 ) -> BeefyAuthoritySetOf<Runtime> {
 	let authority_proof = BeefyMmrPallet::<Runtime>::next_authority_set_proof();
 	let id = authority_proof.id;
 
-	compute_authority_set(id, beef_stakes)
+	compute_authority_set(id, beefy_stakes)
 }
 
-fn compute_beef_stakes(
+pub struct AuthoritiesProvider<T> {
+	_phantom: PhantomData<T>,
+}
+
+impl OnNewValidatorSet<BeefyIdOf<Runtime>> for AuthoritiesProvider<Runtime> {
+	fn on_new_validator_set(
+		validator_set: &sp_consensus_beefy::ValidatorSet<BeefyIdOf<Runtime>>,
+		next_validator_set: &sp_consensus_beefy::ValidatorSet<BeefyIdOf<Runtime>>,
+	) {
+		log::info!("🥩 Updating Beefy MMR Authorities....");
+
+		let curr_validators = validator_set.validators().to_vec();
+		let beefy_stakes = current_beefy_stakes(Some(curr_validators));
+		let curr_authority_set = compute_authority_set(validator_set.id(), beefy_stakes);
+
+		log::info!("🥩 New \"Current\" authority set: {curr_authority_set:?}");
+
+		let next_validators = next_validator_set.validators().to_vec();
+		if let Some(next_beefy_stakes) = next_beefy_stakes(Some(next_validators)) {
+			let next_authority_set =
+				compute_authority_set(next_validator_set.id(), next_beefy_stakes);
+			log::info!("🥩 New \"Next\" authority set: {next_authority_set:?}");
+
+			pallet_beefy_mmr::pallet::BeefyNextAuthorities::<Runtime>::put(&next_authority_set);
+		} else {
+			log::info!("🥩 No \"Next\" committee found. No update on `BeefyNextAuthorities`");
+		}
+
+		pallet_beefy_mmr::pallet::BeefyAuthorities::<Runtime>::put(&curr_authority_set);
+	}
+}
+
+fn compute_beefy_stakes(
 	validators: Vec<BeefyIdOf<Runtime>>,
 	committee: CommitteeInfoOf<Runtime>,
-) -> BeefStakes<Runtime> {
+) -> BeefyStakes<Runtime> {
 	let mut committee_members = committee.committee;
 
 	let mut beefy_with_stakes = Vec::new();
 
 	for validator in validators {
-		log::info!("XXXXXXXXXXXXXXXXXXXXXXXXXXXX Check if Validator({validator}): in committee:");
-		let position = committee_members.iter().position(|elem| match elem {
-			CommitteeMember::Permissioned { id, .. } => {
-				// convert to beefy
-				let committee_id = xchain_public_to_beefy(id.clone());
-				if committee_id == validator {
-					beefy_with_stakes.push((
-						committee_id,
-						// default stake
-						1,
-					));
-					// remove from the list
-					true
-				} else {
-					false
-				}
-			},
-			CommitteeMember::Registered { .. } => false,
+		let position = committee_members.iter().position(|member| match member {
+			CommitteeMember::Permissioned { id, .. } => is_ids_equal(id.clone(), validator.clone()),
+			CommitteeMember::Registered { id, .. } => is_ids_equal(id.clone(), validator.clone()),
 		});
 
+		// if a position found, remove from the committee list; it will shorten the search in the next iteration
 		if let Some(pos) = position {
 			let _ = committee_members.remove(pos);
+			beefy_with_stakes.push((
+				validator, // default stake
+				1,
+			));
 		} else {
-			log::info!(
-				"XXXXXXXXXXXXXXXXXXXXXXXXXXXX No match found for Validator({validator}), set stake to 0"
-			);
+			log::warn!("🥩 No match found for {validator}, setting stake to 0");
 			beefy_with_stakes.push((validator, 0));
 		}
 	}
@@ -161,11 +195,11 @@ fn compute_beef_stakes(
 
 fn compute_authority_set(
 	id: ValidatorSetId,
-	beef_stakes: BeefStakes<Runtime>,
+	beefy_stakes: BeefyStakes<Runtime>,
 ) -> BeefyAuthoritySetOf<Runtime> {
-	let len = beef_stakes.len();
+	let len = beefy_stakes.len();
 
-	let beef_stakes_as_bytes = beef_stakes
+	let beefy_stakes_as_bytes = beefy_stakes
 		.into_iter()
 		.map(|(id, stake)| {
 			let mut data_bytes =
@@ -180,12 +214,18 @@ fn compute_authority_set(
 		})
 		.collect::<Vec<_>>();
 
-	let keyset_commitment =
-		binary_merkle_tree::merkle_root::<<Runtime as MmrConfig>::Hashing, _>(beef_stakes_as_bytes);
-
-	log::info!("XXXXXXXXXXXXXXXXXXXXXXXXXXXX KEYSET_COMMITMENT: {keyset_commitment}");
+	let keyset_commitment = binary_merkle_tree::merkle_root::<<Runtime as MmrConfig>::Hashing, _>(
+		beefy_stakes_as_bytes,
+	);
 
 	BeefyAuthoritySet { id, len: len as u32, keyset_commitment }
+}
+
+fn is_ids_equal(committee_id: CrossChainPublic, validator: AuthorityId) -> bool {
+	// convert to a datatype similar to the validator
+	let committee_beefy_key = xchain_public_to_beefy(committee_id);
+
+	committee_beefy_key == validator
 }
 
 fn xchain_public_to_beefy(xchain_pub_key: CrossChainPublic) -> AuthorityId {
