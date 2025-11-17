@@ -11,27 +11,63 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{Error, Event, mock::*};
+use crate::{
+	CouncilMainchainMembers, Error, Event, MainchainMember, TechnicalCommitteeMainchainMembers,
+	mock::*,
+};
+use core::str::FromStr;
 use frame_support::inherent::ProvideInherent;
 use frame_support::{BoundedVec, assert_noop, assert_ok};
 use midnight_primitives_federated_authority_observation::{
 	AuthorityMemberPublicKey, FederatedAuthorityData, INHERENT_IDENTIFIER,
 };
 use parity_scale_codec::Encode;
-use sidechain_domain::McBlockHash;
+use sidechain_domain::{MainchainAddress, McBlockHash, PolicyId};
 use sp_inherents::InherentData;
 use sp_runtime::traits::Dispatchable;
 
+// Helper function to convert Vec<u64> to Vec<(u64, MainchainMember)>
+fn with_mainchain_members(account_ids: &[u64]) -> Vec<(u64, MainchainMember)> {
+	account_ids
+		.iter()
+		.enumerate()
+		.map(|(i, &id)| {
+			let mut bytes = [0u8; 28];
+			bytes[0] = i as u8;
+			(id, PolicyId(bytes))
+		})
+		.collect()
+}
+
+// Helper function to create mainchain members with different policy IDs
+fn with_different_mainchain_members(account_ids: &[u64]) -> Vec<(u64, MainchainMember)> {
+	let offset = 100u8;
+	account_ids
+		.iter()
+		.enumerate()
+		.map(|(i, &id)| {
+			let mut bytes = [0u8; 28];
+			bytes[0] = (i as u8) + offset;
+			(id, PolicyId(bytes))
+		})
+		.collect()
+}
+
 // Helper function to create inherent data
-fn create_inherent_data(council: Vec<u64>, technical_committee: Vec<u64>) -> InherentData {
+fn create_inherent_data(
+	council: Vec<(u64, MainchainMember)>,
+	technical_committee: Vec<(u64, MainchainMember)>,
+) -> InherentData {
 	let mut inherent_data = InherentData::new();
 
-	let council_keys: Vec<AuthorityMemberPublicKey> =
-		council.into_iter().map(|id| AuthorityMemberPublicKey(id.encode())).collect();
-
-	let tc_keys: Vec<AuthorityMemberPublicKey> = technical_committee
+	let council_keys: Vec<(AuthorityMemberPublicKey, MainchainMember)> = council
 		.into_iter()
-		.map(|id| AuthorityMemberPublicKey(id.encode()))
+		.map(|(id, mainchain_member)| (AuthorityMemberPublicKey(id.encode()), mainchain_member))
+		.collect();
+
+	let tc_keys: Vec<(AuthorityMemberPublicKey, MainchainMember)> = technical_committee
+		.into_iter()
+		.map(|(id, mainchain_member)| (AuthorityMemberPublicKey(id.encode()), mainchain_member))
 		.collect();
 
 	let fed_auth_data = FederatedAuthorityData {
@@ -55,8 +91,8 @@ fn reset_council_and_tc_members_works() {
 
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			council_members.clone(),
-			tc_members.clone(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
 		));
 
 		// Verify members were set via MembershipHandler in both the membership and collective pallets
@@ -68,14 +104,26 @@ fn reset_council_and_tc_members_works() {
 			tc_members
 		);
 
+		let council_members_unzip: (Vec<_>, Vec<_>) =
+			with_mainchain_members(&council_members).into_iter().unzip();
+		let council_members_mainchain = council_members_unzip.1;
+
+		let tc_members_unzip: (Vec<_>, Vec<_>) =
+			with_mainchain_members(&tc_members).into_iter().unzip();
+		let tc_members_mainchain = tc_members_unzip.1;
+
 		// Verify events were emitted
 		System::assert_has_event(
-			Event::CouncilMembersReset { members: BoundedVec::try_from(council_members).unwrap() }
-				.into(),
+			Event::CouncilMembersReset {
+				members: BoundedVec::try_from(council_members).unwrap(),
+				members_mainchain: BoundedVec::try_from(council_members_mainchain).unwrap(),
+			}
+			.into(),
 		);
 		System::assert_has_event(
 			Event::TechnicalCommitteeMembersReset {
 				members: BoundedVec::try_from(tc_members).unwrap(),
+				members_mainchain: BoundedVec::try_from(tc_members_mainchain).unwrap(),
 			}
 			.into(),
 		);
@@ -92,8 +140,8 @@ fn reset_members_requires_none_origin() {
 		assert_noop!(
 			FederatedAuthorityObservation::reset_members(
 				frame_system::RawOrigin::Signed(1).into(),
-				council_members.clone(),
-				tc_members.clone(),
+				with_mainchain_members(&council_members),
+				with_mainchain_members(&tc_members),
 			),
 			sp_runtime::DispatchError::BadOrigin
 		);
@@ -102,8 +150,8 @@ fn reset_members_requires_none_origin() {
 		assert_noop!(
 			FederatedAuthorityObservation::reset_members(
 				frame_system::RawOrigin::Root.into(),
-				council_members,
-				tc_members,
+				with_mainchain_members(&council_members),
+				with_mainchain_members(&tc_members),
 			),
 			sp_runtime::DispatchError::BadOrigin
 		);
@@ -121,8 +169,8 @@ fn reset_members_fails_with_too_many_council_members() {
 		assert_noop!(
 			FederatedAuthorityObservation::reset_members(
 				frame_system::RawOrigin::None.into(),
-				too_many_members,
-				tc_members,
+				with_mainchain_members(&too_many_members),
+				with_mainchain_members(&tc_members),
 			),
 			Error::<Test>::TooManyMembers
 		);
@@ -140,8 +188,8 @@ fn reset_members_fails_with_too_many_technical_committee_members() {
 		assert_noop!(
 			FederatedAuthorityObservation::reset_members(
 				frame_system::RawOrigin::None.into(),
-				council_members,
-				too_many_members,
+				with_mainchain_members(&council_members),
+				with_mainchain_members(&too_many_members),
 			),
 			Error::<Test>::TooManyMembers
 		);
@@ -158,8 +206,8 @@ fn reset_members_sorts_members() {
 
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			unsorted_council,
-			unsorted_tc,
+			with_mainchain_members(&unsorted_council),
+			with_mainchain_members(&unsorted_tc),
 		));
 
 		// Verify members are sorted
@@ -182,8 +230,8 @@ fn no_event_when_same_members() {
 		// Set initial members
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			council_members.clone(),
-			tc_members.clone(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
 		));
 
 		// Reset events
@@ -192,8 +240,8 @@ fn no_event_when_same_members() {
 		// Call with same members
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			council_members.clone(),
-			tc_members.clone(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
 		));
 
 		// Members should remain unchanged
@@ -221,12 +269,15 @@ fn create_inherent_works_when_council_changes() {
 		// Initialize with some members first
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			initial_council,
-			initial_tc,
+			with_mainchain_members(&initial_council),
+			with_mainchain_members(&initial_tc),
 		));
 
 		// Now create inherent with different members
-		let inherent_data = create_inherent_data(new_council.clone(), new_tc.clone());
+		let inherent_data = create_inherent_data(
+			with_mainchain_members(&new_council),
+			with_mainchain_members(&new_tc),
+		);
 
 		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
 		assert!(call.is_some(), "Should create inherent when members change");
@@ -253,15 +304,18 @@ fn create_inherent_with_same_members_emits_no_events() {
 		// Initialize with some members first
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			council_members.clone(),
-			tc_members.clone(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
 		));
 
 		// Reset events
 		System::reset_events();
 
 		// Create inherent data with same members
-		let inherent_data = create_inherent_data(council_members, tc_members);
+		let inherent_data = create_inherent_data(
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
+		);
 		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
 
 		// Call is created but should not emit events when dispatched since members are the same
@@ -287,12 +341,15 @@ fn create_inherent_works_when_only_council_changes() {
 		// Set initial state
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			initial_council,
-			tc_members.clone(),
+			with_mainchain_members(&initial_council),
+			with_mainchain_members(&tc_members),
 		));
 
 		// Create inherent with changed council but same TC
-		let inherent_data = create_inherent_data(new_council.clone(), tc_members.clone());
+		let inherent_data = create_inherent_data(
+			with_mainchain_members(&new_council),
+			with_mainchain_members(&tc_members),
+		);
 		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
 
 		assert!(call.is_some(), "Should create inherent when council changes");
@@ -323,12 +380,15 @@ fn create_inherent_works_when_only_technical_committee_changes() {
 		// Set initial state
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			council_members.clone(),
-			initial_tc,
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&initial_tc),
 		));
 
 		// Create inherent with same council but changed TC
-		let inherent_data = create_inherent_data(council_members.clone(), new_tc.clone());
+		let inherent_data = create_inherent_data(
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&new_tc),
+		);
 		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
 
 		assert!(call.is_some(), "Should create inherent when TC changes");
@@ -347,6 +407,193 @@ fn create_inherent_works_when_only_technical_committee_changes() {
 }
 
 #[test]
+fn reset_members_emits_event_when_only_council_mainchain_members_change() {
+	new_test_ext().execute_with(|| {
+		let council_members = vec![1, 2, 3];
+		let tc_members = vec![4, 5, 6];
+
+		// Initialize with some members first
+		assert_ok!(FederatedAuthorityObservation::reset_members(
+			frame_system::RawOrigin::None.into(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
+		));
+
+		// Reset events
+		System::reset_events();
+
+		// Create inherent with same account IDs but different mainchain members for council only
+		let inherent_data = create_inherent_data(
+			with_different_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
+		);
+		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
+
+		assert!(call.is_some(), "Should create inherent when council mainchain members change");
+
+		if let Some(call) = call {
+			let runtime_call = RuntimeCall::FederatedAuthorityObservation(call);
+			assert_ok!(runtime_call.dispatch(frame_system::RawOrigin::None.into()));
+		}
+
+		// Should emit only CouncilMembersReset event
+		let events = System::events();
+		assert_eq!(events.len(), 1);
+		assert!(matches!(
+			events[0].event,
+			RuntimeEvent::FederatedAuthorityObservation(Event::CouncilMembersReset { .. })
+		));
+
+		// Account members should remain the same
+		assert_eq!(CouncilMembership::members().to_vec(), council_members);
+		assert_eq!(TechnicalCommitteeMembership::members().to_vec(), tc_members);
+
+		// Mainchain members should be updated for council
+		let stored_council_mainchain = CouncilMainchainMembers::<Test>::get().into_inner();
+		let expected_council_mainchain: Vec<MainchainMember> =
+			with_different_mainchain_members(&council_members)
+				.into_iter()
+				.map(|(_, mc)| mc)
+				.collect();
+		assert_eq!(stored_council_mainchain, expected_council_mainchain);
+
+		// TC mainchain members should remain the same
+		let stored_tc_mainchain = TechnicalCommitteeMainchainMembers::<Test>::get().into_inner();
+		let expected_tc_mainchain: Vec<MainchainMember> =
+			with_mainchain_members(&tc_members).into_iter().map(|(_, mc)| mc).collect();
+		assert_eq!(stored_tc_mainchain, expected_tc_mainchain);
+	});
+}
+
+#[test]
+fn reset_members_emits_event_when_only_tc_mainchain_members_change() {
+	new_test_ext().execute_with(|| {
+		let council_members = vec![1, 2, 3];
+		let tc_members = vec![4, 5, 6];
+
+		// Initialize with some members first
+		assert_ok!(FederatedAuthorityObservation::reset_members(
+			frame_system::RawOrigin::None.into(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
+		));
+
+		// Reset events
+		System::reset_events();
+
+		// Create inherent with same account IDs but different mainchain members for TC only
+		let inherent_data = create_inherent_data(
+			with_mainchain_members(&council_members),
+			with_different_mainchain_members(&tc_members),
+		);
+		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
+
+		assert!(call.is_some(), "Should create inherent when TC mainchain members change");
+
+		if let Some(call) = call {
+			let runtime_call = RuntimeCall::FederatedAuthorityObservation(call);
+			assert_ok!(runtime_call.dispatch(frame_system::RawOrigin::None.into()));
+		}
+
+		// Should emit only TechnicalCommitteeMembersReset event
+		let events = System::events();
+		assert_eq!(events.len(), 1);
+		assert!(matches!(
+			events[0].event,
+			RuntimeEvent::FederatedAuthorityObservation(
+				Event::TechnicalCommitteeMembersReset { .. }
+			)
+		));
+
+		// Account members should remain the same
+		assert_eq!(CouncilMembership::members().to_vec(), council_members);
+		assert_eq!(TechnicalCommitteeMembership::members().to_vec(), tc_members);
+
+		// Council mainchain members should remain the same
+		let stored_council_mainchain = CouncilMainchainMembers::<Test>::get().into_inner();
+		let expected_council_mainchain: Vec<MainchainMember> =
+			with_mainchain_members(&council_members).into_iter().map(|(_, mc)| mc).collect();
+		assert_eq!(stored_council_mainchain, expected_council_mainchain);
+
+		// Mainchain members should be updated for TC
+		let stored_tc_mainchain = TechnicalCommitteeMainchainMembers::<Test>::get().into_inner();
+		let expected_tc_mainchain: Vec<MainchainMember> =
+			with_different_mainchain_members(&tc_members)
+				.into_iter()
+				.map(|(_, mc)| mc)
+				.collect();
+		assert_eq!(stored_tc_mainchain, expected_tc_mainchain);
+	});
+}
+
+#[test]
+fn reset_members_emits_both_events_when_both_mainchain_members_change() {
+	new_test_ext().execute_with(|| {
+		let council_members = vec![1, 2, 3];
+		let tc_members = vec![4, 5, 6];
+
+		// Initialize with some members first
+		assert_ok!(FederatedAuthorityObservation::reset_members(
+			frame_system::RawOrigin::None.into(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
+		));
+
+		// Reset events
+		System::reset_events();
+
+		// Create inherent with same account IDs but different mainchain members for both
+		let inherent_data = create_inherent_data(
+			with_different_mainchain_members(&council_members),
+			with_different_mainchain_members(&tc_members),
+		);
+		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
+
+		assert!(call.is_some(), "Should create inherent when both mainchain members change");
+
+		if let Some(call) = call {
+			let runtime_call = RuntimeCall::FederatedAuthorityObservation(call);
+			assert_ok!(runtime_call.dispatch(frame_system::RawOrigin::None.into()));
+		}
+
+		// Should emit both events
+		let events = System::events();
+		assert_eq!(events.len(), 2);
+		assert!(matches!(
+			events[0].event,
+			RuntimeEvent::FederatedAuthorityObservation(Event::CouncilMembersReset { .. })
+		));
+		assert!(matches!(
+			events[1].event,
+			RuntimeEvent::FederatedAuthorityObservation(
+				Event::TechnicalCommitteeMembersReset { .. }
+			)
+		));
+
+		// Account members should remain the same
+		assert_eq!(CouncilMembership::members().to_vec(), council_members);
+		assert_eq!(TechnicalCommitteeMembership::members().to_vec(), tc_members);
+
+		// Both mainchain members should be updated
+		let stored_council_mainchain = CouncilMainchainMembers::<Test>::get().into_inner();
+		let expected_council_mainchain: Vec<MainchainMember> =
+			with_different_mainchain_members(&council_members)
+				.into_iter()
+				.map(|(_, mc)| mc)
+				.collect();
+		assert_eq!(stored_council_mainchain, expected_council_mainchain);
+
+		let stored_tc_mainchain = TechnicalCommitteeMainchainMembers::<Test>::get().into_inner();
+		let expected_tc_mainchain: Vec<MainchainMember> =
+			with_different_mainchain_members(&tc_members)
+				.into_iter()
+				.map(|(_, mc)| mc)
+				.collect();
+		assert_eq!(stored_tc_mainchain, expected_tc_mainchain);
+	});
+}
+
+#[test]
 fn membership_changed_callbacks_are_called() {
 	new_test_ext().execute_with(|| {
 		let council_members = vec![1, 2, 3];
@@ -354,8 +601,8 @@ fn membership_changed_callbacks_are_called() {
 
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			council_members.clone(),
-			tc_members.clone(),
+			with_mainchain_members(&council_members),
+			with_mainchain_members(&tc_members),
 		));
 
 		// Verify members were set via MembershipHandler in both the membership and collective pallets
@@ -395,7 +642,7 @@ fn empty_council_members_list_fails() {
 			FederatedAuthorityObservation::reset_members(
 				frame_system::RawOrigin::None.into(),
 				vec![],
-				tc_members,
+				with_mainchain_members(&tc_members),
 			),
 			Error::<Test>::EmptyMembers
 		);
@@ -411,7 +658,7 @@ fn empty_tc_members_list_fails() {
 		assert_noop!(
 			FederatedAuthorityObservation::reset_members(
 				frame_system::RawOrigin::None.into(),
-				council_members,
+				with_mainchain_members(&council_members),
 				vec![],
 			),
 			Error::<Test>::EmptyMembers
@@ -430,8 +677,8 @@ fn duplicate_members_are_allowed() {
 
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			members_with_duplicates,
-			tc_members,
+			with_mainchain_members(&members_with_duplicates),
+			with_mainchain_members(&tc_members),
 		));
 
 		// After sorting, duplicates remain
@@ -450,12 +697,15 @@ fn inherent_check_validates_data() {
 		// Initialize with some members first
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			initial_council,
-			initial_tc,
+			with_mainchain_members(&initial_council),
+			with_mainchain_members(&initial_tc),
 		));
 
 		// Create inherent data with different members
-		let inherent_data = create_inherent_data(new_council, new_tc);
+		let inherent_data = create_inherent_data(
+			with_mainchain_members(&new_council),
+			with_mainchain_members(&new_tc),
+		);
 		let call = FederatedAuthorityObservation::create_inherent(&inherent_data);
 
 		assert!(call.is_some());
@@ -474,8 +724,8 @@ fn is_inherent_identifies_reset_members_call() {
 		let tc_members = vec![4, 5, 6];
 
 		let call = crate::Call::<Test>::reset_members {
-			council_authorities: council_members,
-			technical_committee_authorities: tc_members,
+			council_authorities: with_mainchain_members(&council_members),
+			technical_committee_authorities: with_mainchain_members(&tc_members),
 		};
 
 		assert!(FederatedAuthorityObservation::is_inherent(&call));
@@ -493,15 +743,15 @@ fn multiple_consecutive_resets_work() {
 		// First reset
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			first_council,
-			first_tc,
+			with_mainchain_members(&first_council),
+			with_mainchain_members(&first_tc),
 		));
 
 		// Second reset
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			second_council.clone(),
-			second_tc.clone(),
+			with_mainchain_members(&second_council),
+			with_mainchain_members(&second_tc),
 		));
 
 		// Verify the second set of members is active
@@ -528,8 +778,8 @@ fn membership_handler_integration_test() {
 
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			initial_council.clone(),
-			initial_tc.clone(),
+			with_mainchain_members(&initial_council),
+			with_mainchain_members(&initial_tc),
 		));
 
 		// Verify members were set via MembershipHandler in both the membership and collective pallets
@@ -557,8 +807,8 @@ fn membership_handler_integration_test() {
 
 		assert_ok!(FederatedAuthorityObservation::reset_members(
 			frame_system::RawOrigin::None.into(),
-			new_council.clone(),
-			new_tc.clone(),
+			with_mainchain_members(&new_council),
+			with_mainchain_members(&new_tc),
 		));
 
 		// Verify members were set via MembershipHandler in both the membership and collective pallets
@@ -621,5 +871,223 @@ fn membership_handler_integration_test() {
 			"Continuing TC member {} should still have 1 sufficient",
 			continuing_tc_member
 		);
+	});
+}
+
+#[test]
+fn set_council_address_works() {
+	new_test_ext().execute_with(|| {
+		let address = "addr_test1wzxc44c4lly82v5ta02y3calrlgdn7j3rakymxntwl2ezjcsndcha";
+		let mainchain_address = MainchainAddress::from_str(address).expect("Valid address");
+
+		assert_ok!(FederatedAuthorityObservation::set_council_address(
+			frame_system::RawOrigin::Root.into(),
+			mainchain_address.clone()
+		));
+
+		// Verify the address was set
+		assert_eq!(crate::MainChainCouncilAddress::<Test>::get(), mainchain_address);
+	});
+}
+
+#[test]
+fn set_council_address_requires_root() {
+	new_test_ext().execute_with(|| {
+		let address = "addr_test1wzxc44c4lly82v5ta02y3calrlgdn7j3rakymxntwl2ezjcsndcha";
+		let mainchain_address = MainchainAddress::from_str(address).expect("Valid address");
+
+		// Should fail with signed origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_council_address(
+				frame_system::RawOrigin::Signed(1).into(),
+				mainchain_address.clone()
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+
+		// Should fail with None origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_council_address(
+				frame_system::RawOrigin::None.into(),
+				mainchain_address
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn set_technical_committee_address_works() {
+	new_test_ext().execute_with(|| {
+		let address = "addr_test1wruef4lsh5rvqnvumksksmm3f5n8j7e2sp5xc384y29ac2q2lrux2";
+		let mainchain_address = MainchainAddress::from_str(address).expect("Valid address");
+
+		assert_ok!(FederatedAuthorityObservation::set_technical_committee_address(
+			frame_system::RawOrigin::Root.into(),
+			mainchain_address.clone()
+		));
+
+		// Verify the address was set
+		assert_eq!(crate::MainChainTechnicalCommitteeAddress::<Test>::get(), mainchain_address);
+	});
+}
+
+#[test]
+fn set_technical_committee_address_requires_root() {
+	new_test_ext().execute_with(|| {
+		let address = "addr_test1wruef4lsh5rvqnvumksksmm3f5n8j7e2sp5xc384y29ac2q2lrux2";
+		let mainchain_address = MainchainAddress::from_str(address).expect("Valid address");
+
+		// Should fail with signed origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_technical_committee_address(
+				frame_system::RawOrigin::Signed(1).into(),
+				mainchain_address.clone()
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+
+		// Should fail with None origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_technical_committee_address(
+				frame_system::RawOrigin::None.into(),
+				mainchain_address
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn set_council_policy_id_works() {
+	new_test_ext().execute_with(|| {
+		let policy_id_str = "8d8ad715ffc875328bebd448e3bf1fd0d9fa511f6c4d9a6b77d5914b";
+		let policy_id = PolicyId::from_str(policy_id_str).expect("Valid policy ID");
+
+		assert_ok!(FederatedAuthorityObservation::set_council_policy_id(
+			frame_system::RawOrigin::Root.into(),
+			policy_id.clone()
+		));
+
+		// Verify the policy ID was set
+		assert_eq!(crate::MainChainCouncilPolicyId::<Test>::get(), policy_id);
+	});
+}
+
+#[test]
+fn set_council_policy_id_requires_root() {
+	new_test_ext().execute_with(|| {
+		let policy_id_str = "8d8ad715ffc875328bebd448e3bf1fd0d9fa511f6c4d9a6b77d5914b";
+		let policy_id = PolicyId::from_str(policy_id_str).expect("Valid policy ID");
+
+		// Should fail with signed origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_council_policy_id(
+				frame_system::RawOrigin::Signed(1).into(),
+				policy_id.clone()
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+
+		// Should fail with None origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_council_policy_id(
+				frame_system::RawOrigin::None.into(),
+				policy_id
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn set_technical_committee_policy_id_works() {
+	new_test_ext().execute_with(|| {
+		let policy_id_str = "f994d7f0bd06c04d9cdda1686f714d26797b2a80686c44f5228bdc28";
+		let policy_id = PolicyId::from_str(policy_id_str).expect("Valid policy ID");
+
+		assert_ok!(FederatedAuthorityObservation::set_technical_committee_policy_id(
+			frame_system::RawOrigin::Root.into(),
+			policy_id.clone()
+		));
+
+		// Verify the policy ID was set
+		assert_eq!(crate::MainChainTechnicalCommitteePolicyId::<Test>::get(), policy_id);
+	});
+}
+
+#[test]
+fn set_technical_committee_policy_id_requires_root() {
+	new_test_ext().execute_with(|| {
+		let policy_id_str = "f994d7f0bd06c04d9cdda1686f714d26797b2a80686c44f5228bdc28";
+		let policy_id = PolicyId::from_str(policy_id_str).expect("Valid policy ID");
+
+		// Should fail with signed origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_technical_committee_policy_id(
+				frame_system::RawOrigin::Signed(1).into(),
+				policy_id.clone()
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+
+		// Should fail with None origin
+		assert_noop!(
+			FederatedAuthorityObservation::set_technical_committee_policy_id(
+				frame_system::RawOrigin::None.into(),
+				policy_id
+			),
+			sp_runtime::DispatchError::BadOrigin
+		);
+	});
+}
+
+#[test]
+fn set_council_address_can_be_updated() {
+	new_test_ext().execute_with(|| {
+		let address1 = "addr_test1wzxc44c4lly82v5ta02y3calrlgdn7j3rakymxntwl2ezjcsndcha";
+		let address2 = "addr_test1wruef4lsh5rvqnvumksksmm3f5n8j7e2sp5xc384y29ac2q2lrux2";
+
+		let mainchain_address1 = MainchainAddress::from_str(address1).expect("Valid address");
+		let mainchain_address2 = MainchainAddress::from_str(address2).expect("Valid address");
+
+		// Set initial address
+		assert_ok!(FederatedAuthorityObservation::set_council_address(
+			frame_system::RawOrigin::Root.into(),
+			mainchain_address1.clone()
+		));
+		assert_eq!(crate::MainChainCouncilAddress::<Test>::get(), mainchain_address1);
+
+		// Update to new address
+		assert_ok!(FederatedAuthorityObservation::set_council_address(
+			frame_system::RawOrigin::Root.into(),
+			mainchain_address2.clone()
+		));
+		assert_eq!(crate::MainChainCouncilAddress::<Test>::get(), mainchain_address2);
+	});
+}
+
+#[test]
+fn set_council_policy_id_can_be_updated() {
+	new_test_ext().execute_with(|| {
+		let policy_id_str1 = "8d8ad715ffc875328bebd448e3bf1fd0d9fa511f6c4d9a6b77d5914b";
+		let policy_id_str2 = "f994d7f0bd06c04d9cdda1686f714d26797b2a80686c44f5228bdc28";
+
+		let policy_id1 = PolicyId::from_str(policy_id_str1).expect("Valid policy ID");
+		let policy_id2 = PolicyId::from_str(policy_id_str2).expect("Valid policy ID");
+
+		// Set initial policy ID
+		assert_ok!(FederatedAuthorityObservation::set_council_policy_id(
+			frame_system::RawOrigin::Root.into(),
+			policy_id1.clone()
+		));
+		assert_eq!(crate::MainChainCouncilPolicyId::<Test>::get(), policy_id1);
+
+		// Update to new policy ID
+		assert_ok!(FederatedAuthorityObservation::set_council_policy_id(
+			frame_system::RawOrigin::Root.into(),
+			policy_id2.clone()
+		));
+		assert_eq!(crate::MainChainCouncilPolicyId::<Test>::get(), policy_id2);
 	});
 }

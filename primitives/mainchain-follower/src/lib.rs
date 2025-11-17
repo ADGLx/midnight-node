@@ -42,7 +42,9 @@ pub use {
 pub mod inherent_provider {
 	use super::*;
 	use midnight_primitives_cnight_observation::{CNightAddresses, CardanoPosition, ObservedUtxos};
-	use midnight_primitives_federated_authority_observation::FederatedAuthorityData;
+	use midnight_primitives_federated_authority_observation::{
+		FederatedAuthorityData, FederatedAuthorityObservationConfig,
+	};
 	use sidechain_domain::McBlockHash;
 
 	#[async_trait::async_trait]
@@ -52,16 +54,17 @@ pub mod inherent_provider {
 		async fn get_utxos_up_to_capacity(
 			&self,
 			config: &CNightAddresses,
-			start_position: CardanoPosition,
+			start_position: &CardanoPosition,
 			current_tip: McBlockHash,
 			capacity: usize,
 		) -> Result<ObservedUtxos, Box<dyn std::error::Error + Send + Sync>>;
 	}
 
 	#[async_trait::async_trait]
-	pub trait FederatedAuthorityObservationDataSource<FA = ()>: Send + Sync {
+	pub trait FederatedAuthorityObservationDataSource {
 		async fn get_federated_authority_data(
 			&self,
+			config: &FederatedAuthorityObservationConfig,
 			mc_block_hash: &McBlockHash,
 		) -> Result<FederatedAuthorityData, Box<dyn std::error::Error + Send + Sync>>;
 	}

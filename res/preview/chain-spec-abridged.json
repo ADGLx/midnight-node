@@ -24,7 +24,7 @@
           "authorities": []
         },
         "sidechain": {
-          "genesisUtxo": "63bd37d9abdfa7a9d0daa33e9d4294174d82dcd7669e2440b07d7ea05d83ac13#1",
+          "genesisUtxo": "623d4aa68a836a7572ff3886da4a273d35aa97fa78fce3b3ce63fd35ed4754b8#1",
           "slotsPerEpoch": 300
         },
         "midnight": {
@@ -164,15 +164,15 @@
             }
           ],
           "mainChainScripts": {
-            "committee_candidate_address": "addr_test1wzw2tyeh80ensdevq42f77u9fkt3qwk7slpvc2h85fm69fskfzntm",
-            "d_parameter_policy_id": "0xf77b313df3fd610343712b39c396237cd801546d08b5bf6b56fed0e8",
-            "permissioned_candidates_policy_id": "0x4c0ae043bc351bca77af3e63bb1f7817c08406d3292d61609452c316"
+            "committee_candidate_address": "addr_test1wpjk64an8tdr07jzt0pu8nc3prh9fu4gwkgl05cs9xgeqtgclvru6",
+            "d_parameter_policy_id": "0x03417b48a605e8b3f5475c42b6c2643822607e6593d02cc5c8da9326",
+            "permissioned_candidates_policy_id": "0x5fb62dd789b4f311a3bef9be54f19170976041af6c3093187646cd02"
           }
         },
         "cNightObservation": {
           "config": {
             "addresses": {
-              "mapping_validator_address": "addr_test1wral0lzw5kpjytmw0gmsdcgctx09au24nt85zma38py8g3crwvpwe",
+              "mapping_validator_address": "addr_test1wp5ac30f95jxl6hj85d40h7rkyen6ksy3r8adqwcrr4xkncremdyk",
               "redemption_validator_address": "addr_test1wz3t0v4r0kwdfnh44m87z4rasp4nj0rcplfpmwxvhhrzhdgl45vx4",
               "cnight_policy_id": "03cf16101d110dcad9cacb225f0d1e63a8809979e7feb60426995414",
               "cnight_asset_name": ""
@@ -270,8 +270,8 @@
         },
         "governedMap": {
           "mainChainScripts": {
-            "validator_address": "addr_test1wrhvxryjlcrqwerjuqm7vkujclcr2ufp2z7nmpml6a85m6sk7uvnc",
-            "asset_policy_id": "0x241de44669f252606e36944b9203f525b66386de921507a7e66df1e1"
+            "validator_address": "addr_test1wrhyyutqn7s4trm3njctlasmctlfh8zdupmepctxw34688qqw9ds4",
+            "asset_policy_id": "0x4a2b38c5811e3a7f3bd403d3ddcc3b23c562c13967f61725e7eb2eee"
           },
           "marker": null
         },
@@ -294,6 +294,12 @@
             "5CmERLtyg9uzUeeosoU1jK9jZY2TAqgZ1SntKs9941SgM4S2",
             "5EL8yFZJnjDR1Lw5UkBVrt3FV5w17nvq7gnRAs7jSdraNHT2"
           ]
+        },
+        "federatedAuthorityObservation": {
+          "councilAddress": "addr_test1wp9tvrk7r7huz045gcuprapwsyzqude7sa0emu0k8fm2gysrdzp9q",
+          "councilPolicyId": "0x4ab60ede1fafc13eb4463811f42e81040e373e875f9df1f63a76a412",
+          "technicalCommitteeAddress": "addr_test1wrcpur4j3uh5z2gnscqwscm2t50jcgk43un9q2vnyj2funqqcyw3d",
+          "technicalCommitteePolicyId": "0xf01e0eb28f2f4129138600e8636a5d1f2c22d58f2650299324949e4c"
         }
       }
     }
