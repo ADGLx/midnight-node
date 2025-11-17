@@ -16,7 +16,7 @@ pub type MmrProof = mmr_rpc::LeavesProof<sp_core::H256>;
 #[command(author, version, about, long_about = None)]
 struct Cli {
 	/// Node WebSocket endpoint (e.g. ws://localhost:9944)
-	#[arg(short, long, default_value = "ws://localhost:9944")]
+	#[arg(short, long, default_value = "ws://localhost:9933")]
 	node_url: String,
 
 	/// File path of the beefy keys
