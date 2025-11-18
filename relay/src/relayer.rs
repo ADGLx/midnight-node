@@ -1,6 +1,5 @@
 #![allow(dead_code)]
 
-use parity_scale_codec::Encode;
 use sp_consensus_beefy::{VersionedFinalityProof, ecdsa_crypto::Signature as EcdsaSignature};
 use sp_core::Bytes;
 use subxt::{
@@ -10,10 +9,14 @@ use subxt::{
 		client::{RpcParams, RpcSubscription},
 		rpc_params,
 	},
-	utils::to_hex,
+	runtime_api::Payload as SubxtPayload
 };
 
-use crate::{BlockNumber, Error, MmrProof, justification::BeefyStakesInfo};
+use crate::{
+	BeefySignedCommitment, BeefyValidatorSet, BlockNumber, Error, MmrProof,
+	authorities::AuthoritiesProof, helper::MnMetaConversion,
+	mn_meta,
+};
 
 pub type BlockHash = sp_core::H256;
 
@@ -60,16 +63,13 @@ impl Relayer {
 			parity_scale_codec::Decode::decode(&mut &justification[..])?;
 
 		// Identifies whether using from best block, or the commitment's block hash
-		let (_best_block, _at_block_hash) = self.choose_params(&beef_signed_commitment).await?;
+		let (_best_block, at_block_hash) = self.choose_params(&beef_signed_commitment).await?;
 
-		let payload = &beef_signed_commitment.commitment.payload;
-		let payload_bytes = payload.encode();
-		let payload_hex = to_hex(&payload_bytes);
-		println!("PAYLOAD: {payload_hex}");
-		let beefy_stakes_info = BeefyStakesInfo::try_from(payload)?;
+		let validator_set = self.get_beefy_validator_set(at_block_hash).await?;
 
-		println!("BEEF STAKES: {beefy_stakes_info:#?}");
-		//todo: handle authorities
+		let authorities_proof = AuthoritiesProof::try_new(&beef_signed_commitment, &validator_set)?;
+
+		println!("authorities proof: {authorities_proof:#?}");
 		Ok(())
 	}
 
@@ -155,7 +155,7 @@ impl Relayer {
 	}
 
 	/// Helper function for querying via the runtime api
-	async fn runtime_api<T: Payload>(
+	async fn runtime_api<T: SubxtPayload>(
 		&self,
 		at_block_hash: Option<BlockHash>,
 		payload: T,

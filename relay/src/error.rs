@@ -36,4 +36,7 @@ pub enum Error {
 
 	#[error("No \"Next\" Beefy AuthoritySet found in the payload")]
 	MissingNextAuthoritySet,
+
+	#[error("Chain did not return any validator set")]
+	EmptyValidatorSet,
 }

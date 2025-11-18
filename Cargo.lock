@@ -6985,7 +6985,6 @@ name = "midnight-beefy-relay"
 version = "0.1.0"
 dependencies = [
  "clap",
- "hex",
  "midnight-node-metadata",
  "mmr-rpc",
  "parity-scale-codec",
@@ -6994,6 +6993,7 @@ dependencies = [
  "serde_json",
  "sp-consensus-beefy",
  "sp-core",
+ "sp-mmr-primitives",
  "subxt 0.44.0",
  "thiserror 1.0.69",
  "tokio",
