@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use parity_scale_codec::Encode;
 use sp_consensus_beefy::{VersionedFinalityProof, ecdsa_crypto::Signature as EcdsaSignature};
 use sp_core::Bytes;
 use subxt::{
@@ -9,7 +10,7 @@ use subxt::{
 		client::{RpcParams, RpcSubscription},
 		rpc_params,
 	},
-	runtime_api::Payload,
+	utils::to_hex,
 };
 
 use crate::{BlockNumber, Error, MmrProof, justification::BeefyStakesInfo};
@@ -61,8 +62,11 @@ impl Relayer {
 		// Identifies whether using from best block, or the commitment's block hash
 		let (_best_block, _at_block_hash) = self.choose_params(&beef_signed_commitment).await?;
 
-		let beefy_stakes_info =
-			BeefyStakesInfo::try_from(beef_signed_commitment.commitment.payload)?;
+		let payload = &beef_signed_commitment.commitment.payload;
+		let payload_bytes = payload.encode();
+		let payload_hex = to_hex(&payload_bytes);
+		println!("PAYLOAD: {payload_hex}");
+		let beefy_stakes_info = BeefyStakesInfo::try_from(payload)?;
 
 		println!("BEEF STAKES: {beefy_stakes_info:#?}");
 		//todo: handle authorities
