@@ -4,7 +4,7 @@ mod authorities;
 mod beefy_keys;
 mod error;
 mod helper;
-mod mmr;
+mod justification;
 mod relayer;
 
 use clap::Parser;
