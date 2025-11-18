@@ -6,7 +6,7 @@ on:
       network:
         description: "Target Midnight network namespace"
         required: true
-        default: qanet
+        default: node-dev-01
       # upgrade_order:
       #   description: "Execution order for runtime and client upgrades"
       #   type: choice
@@ -17,9 +17,6 @@ on:
       runtime_wasm:
         description: "Path to the runtime WASM artifact"
         required: true
-      runtime_sudo_uri:
-        description: "Key URI used to submit the sudo runtime upgrade"
-        required: false
       runtime_delay_blocks:
         description: "Blocks to wait before submitting the runtime upgrade"
         required: false
@@ -42,7 +39,9 @@ on:
       snapshot_s3_endpoint_url:
         description: "Override the snapshot S3 endpoint URL (defaults to secret)"
         required: false
-
+      release_tag:
+        description: "Git tag of the release to fetch (leave blank to use latest)"
+        required: false
 jobs:
   orchestrate-upgrade:
     runs-on: ubuntu-latest
@@ -59,6 +58,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Install Teleport tsh
+        run: |
+
+          curl https://goteleport.com/static/install.sh | bash -s 16.1.0
+          command -v tsh
+          tsh version
+
+      - name: Install kubectl
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y kubectl
+
+      - name: Configure kubeconfig
+        run: |
+          mkdir -p "$HOME/.kube"
+          printf '%s' "${{ secrets.MN_KUBECONFIG_B64 }}" | base64 -d > "$HOME/.kube/config"
+          chmod 600 "$HOME/.kube/config"
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -90,10 +107,6 @@ jobs:
 
           if [ -n "${{ inputs.runtime_rpc_url }}" ]; then
             args+=("--runtime-rpc-url" "${{ inputs.runtime_rpc_url }}")
-          fi
-
-          if [ -n "${{ inputs.runtime_sudo_uri }}" ]; then
-            args+=("--runtime-sudo-uri" "${{ inputs.runtime_sudo_uri }}")
           fi
 
           if [ -n "${{ inputs.runtime_delay_blocks }}" ]; then

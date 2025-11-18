@@ -319,10 +319,7 @@ program
     "--rpc-url <url>",
     "WebSocket RPC endpoint (default ws://localhost:9944)",
   )
-  .option(
-    "--sudo-uri <uri>",
-    "Keyring URI used to submit the sudo upgrade,
-  )
+  .option("--sudo-uri <uri>", "Keyring URI used to submit the sudo upgrade (default env or //Alice)")
   .option(
     "--delay-blocks <value>",
     "Blocks to wait from the current head before sending the upgrade",
