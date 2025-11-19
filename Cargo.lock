@@ -7381,7 +7381,6 @@ dependencies = [
  "frame-try-runtime",
  "log",
  "midnight-node-ledger",
- "midnight-primitives",
  "midnight-primitives-beefy",
  "midnight-primitives-cnight-observation",
  "midnight-primitives-federated-authority-observation",
@@ -7617,11 +7616,6 @@ dependencies = [
 name = "midnight-primitives-beefy"
 version = "0.1.0"
 dependencies = [
- "log",
- "pallet-beefy",
- "pallet-beefy-mmr",
- "pallet-mmr",
- "pallet-session-validator-management",
  "parity-scale-codec",
  "sp-api",
  "sp-consensus-beefy",
