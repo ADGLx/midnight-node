@@ -83,6 +83,8 @@ midnight-node-ledger.workspace = true
 pallet-midnight.workspace = true
 pallet-midnight-system.workspace = true
 pallet-version.workspace = true
+midnight-primitives.workspace = true
+midnight-primitives-beefy.workspace = true
 midnight-primitives-federated-authority-observation.workspace = true
 pallet-cnight-observation.workspace = true
 midnight-primitives-cnight-observation.workspace = true
@@ -165,6 +167,7 @@ std = [
     "sidechain-domain/std",
     "sidechain-slots/std",
     "sp-io/std",
+    "midnight-primitives-beefy/std",
     "midnight-primitives-cnight-observation/std",
     "runtime-common/std"
 ]

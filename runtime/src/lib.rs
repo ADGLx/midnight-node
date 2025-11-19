@@ -49,6 +49,7 @@ pub use frame_support::{
 pub use frame_system::Call as SystemCall;
 use frame_system::{EnsureNone, EnsureRoot};
 use midnight_node_ledger::types::{GasCost, StorageCost, Tx, active_version::LedgerApiError};
+use midnight_primitives_beefy::BeefyStakes;
 use midnight_primitives_cnight_observation::CardanoPosition;
 use opaque::{CrossChainKey, SessionKeys};
 pub use pallet_cnight_observation::Call as CNightObservationCall;
@@ -126,7 +127,7 @@ use pallet_federated_authority::{
 use runtime_common::governance::{AlwaysNo, MembershipHandler, MembershipObservationHandler};
 
 use crate::beefy::{
-	BeefyStakes, compute_current_authority_set, compute_next_authority_set, current_beefy_stakes,
+	compute_current_authority_set, compute_next_authority_set, current_beefy_stakes,
 	next_beefy_stakes,
 };
 
@@ -1199,26 +1200,27 @@ impl_runtime_apis! {
 	}
 
 	// Collects the (Current BeefyStakes, Next BeefyStakes)
-	impl crate::beefy::BeefyStakesApi<Block, Hash> for Runtime {
-		fn current_beefy_stakes() -> BeefyStakes<Self> {
+	impl midnight_primitives_beefy::BeefyStakesApi<Block, Hash, BeefyId> for Runtime {
+		/// Gets the current beefy stakes
+		fn current_beefy_stakes() -> BeefyStakes<BeefyId> {
 			current_beefy_stakes(None)
 		}
 
-		fn next_beefy_stakes() -> Option<BeefyStakes<Self>> {
+		/// Gets the next beefy stakes
+		fn next_beefy_stakes() -> Option<BeefyStakes<BeefyId>> {
 			next_beefy_stakes(None)
 		}
 
 		/// Returns the authority set based on the current beef stakes
 		fn compute_current_authority_set(
-			beefy_stakes: BeefyStakes<Runtime>,
+			beefy_stakes: BeefyStakes<BeefyId>,
 		) ->  BeefyAuthoritySet<Hash> {
 			compute_current_authority_set(beefy_stakes)
-
 		}
 
 		/// Returns the authority set based on the next beef stakes
 		fn compute_next_authority_set(
-			beefy_stakes: BeefyStakes<Runtime>,
+			beefy_stakes: BeefyStakes<BeefyId>,
 		) -> BeefyNextAuthoritySet<Hash> {
 			compute_next_authority_set(beefy_stakes)
 		}
