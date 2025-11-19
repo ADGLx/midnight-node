@@ -6,7 +6,7 @@
 use core::marker::PhantomData;
 use std::sync::Arc;
 
-use midnight_node_runtime::beefy::{
+use midnight_primitives_beefy::{
 	BeefyStakes, BeefyStakesApi,
 	known_payloads::{
 		CURRENT_BEEFY_AUTHORITY_SET, CURRENT_BEEFY_STAKES_ID, NEXT_BEEFY_AUTHORITY_SET,
@@ -18,6 +18,7 @@ use parity_scale_codec::Encode;
 use sp_api::ProvideRuntimeApi;
 use sp_consensus_beefy::{
 	MmrRootHash, Payload, PayloadProvider,
+	ecdsa_crypto::AuthorityId,
 	known_payloads::MMR_ROOT_ID,
 	mmr::{BeefyAuthoritySet, find_mmr_root_digest},
 };
@@ -41,7 +42,7 @@ impl<B, R> MmrRootAndBeefyStakesProvder<B, R>
 where
 	B: Block,
 	R: ProvideRuntimeApi<B>,
-	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefyStakesApi<B, H256>,
+	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefyStakesApi<B, H256, AuthorityId>,
 {
 	/// Create new Payload provider with the tuple (MMR Root, BeefyStakes) as payload.
 	pub fn new(runtime: Arc<R>) -> Self {
@@ -56,18 +57,12 @@ where
 	}
 
 	/// Gets the current Beef Stakes from client state
-	fn current_beefy_stakes(
-		&self,
-		header: &B::Header,
-	) -> Option<BeefyStakes<midnight_node_runtime::Runtime>> {
+	fn current_beefy_stakes(&self, header: &B::Header) -> Option<BeefyStakes<AuthorityId>> {
 		self.runtime.runtime_api().current_beefy_stakes(header.hash()).ok()
 	}
 
 	/// Gets the next Beef Stakes from client state
-	fn next_beefy_stakes(
-		&self,
-		header: &B::Header,
-	) -> Option<BeefyStakes<midnight_node_runtime::Runtime>> {
+	fn next_beefy_stakes(&self, header: &B::Header) -> Option<BeefyStakes<AuthorityId>> {
 		self.runtime.runtime_api().next_beefy_stakes(header.hash()).ok().unwrap_or(None)
 	}
 
@@ -75,7 +70,7 @@ where
 	fn compute_current_authority_set(
 		&self,
 		header: &B::Header,
-		beefy_stakes: BeefyStakes<midnight_node_runtime::Runtime>,
+		beefy_stakes: BeefyStakes<AuthorityId>,
 	) -> Option<BeefyAuthoritySet<H256>> {
 		self.runtime
 			.runtime_api()
@@ -87,7 +82,7 @@ where
 	fn compute_next_authority_set(
 		&self,
 		header: &B::Header,
-		beefy_stakes: BeefyStakes<midnight_node_runtime::Runtime>,
+		beefy_stakes: BeefyStakes<AuthorityId>,
 	) -> Option<BeefyAuthoritySet<H256>> {
 		self.runtime
 			.runtime_api()
@@ -100,7 +95,7 @@ impl<B: Block, R> PayloadProvider<B> for MmrRootAndBeefyStakesProvder<B, R>
 where
 	B: Block,
 	R: ProvideRuntimeApi<B>,
-	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefyStakesApi<B, H256>,
+	R::Api: MmrApi<B, MmrRootHash, NumberFor<B>> + BeefyStakesApi<B, H256, AuthorityId>,
 {
 	fn payload(&self, header: &<B as Block>::Header) -> Option<Payload> {
 		// get the mmr root
