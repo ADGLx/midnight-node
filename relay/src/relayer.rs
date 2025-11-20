@@ -9,13 +9,12 @@ use subxt::{
 		client::{RpcParams, RpcSubscription},
 		rpc_params,
 	},
-	runtime_api::Payload as SubxtPayload
+	runtime_api::Payload as SubxtPayload,
 };
 
 use crate::{
 	BeefySignedCommitment, BeefyValidatorSet, BlockNumber, Error, MmrProof,
-	authorities::AuthoritiesProof, helper::MnMetaConversion,
-	mn_meta,
+	authorities::AuthoritiesProof, helper::MnMetaConversion, mn_meta,
 };
 
 pub type BlockHash = sp_core::H256;
