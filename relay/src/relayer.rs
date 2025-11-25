@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+use midnight_primitives_beefy::BEEFY_LOG_TARGET;
 use parity_scale_codec::Encode;
 use sp_consensus_beefy::{VersionedFinalityProof, ecdsa_crypto::Signature as EcdsaSignature};
 use sp_core::Bytes;
@@ -17,6 +18,7 @@ use crate::{BlockNumber, Error, MmrProof, justification::BeefyStakesInfo};
 
 pub type BlockHash = sp_core::H256;
 pub type BeefySignedCommitment = sp_consensus_beefy::SignedCommitment<BlockNumber, EcdsaSignature>;
+
 pub struct Relayer {
 	// Shared RPC client interface for the relayer
 	rpc: RpcClient,
@@ -26,7 +28,7 @@ pub struct Relayer {
 
 impl Relayer {
 	pub async fn new(node_url: &str) -> Result<Self, Error> {
-		println!("Connecting to {node_url}");
+		log::info!("Connecting to {node_url}");
 
 		let api = OnlineClient::<PolkadotConfig>::from_insecure_url(node_url).await?;
 
@@ -65,10 +67,11 @@ impl Relayer {
 		let payload = &beef_signed_commitment.commitment.payload;
 		let payload_bytes = payload.encode();
 		let payload_hex = to_hex(&payload_bytes);
-		println!("PAYLOAD: {payload_hex}");
-		let beefy_stakes_info = BeefyStakesInfo::try_from(payload)?;
+		log::debug!(target: BEEFY_LOG_TARGET, "🥩 payload: {payload_hex}");
 
-		println!("BEEF STAKES: {beefy_stakes_info:#?}");
+		let beefy_stakes_info = BeefyStakesInfo::try_from(payload)?;
+		log::debug!(target: BEEFY_LOG_TARGET, "🥩 beefy stakes: {beefy_stakes_info:#?}");
+
 		//todo: handle authorities
 		Ok(())
 	}
@@ -102,11 +105,11 @@ impl Relayer {
 
 		let at_block_hash = match &best_block {
 			None => {
-				println!("Cannot retrieve best block; try using Commitment block hash...");
+				log::debug!(target: BEEFY_LOG_TARGET, "🥩 Cannot retrieve best block; try using Commitment block hash...");
 				self.get_block_hash(commitment_block).await
 			},
 			Some(block_number) => {
-				println!("\nQuerying from the best block number: {block_number}");
+				log::debug!(target: BEEFY_LOG_TARGET, "🥩 Querying from the best block number: {block_number}");
 				None
 			},
 		};
@@ -120,7 +123,7 @@ impl Relayer {
 		match self.api.blocks().at_latest().await.map(|block| block.number()) {
 			Ok(block) => Some(block),
 			Err(e) => {
-				println!("WARNING: Failed to get best block number: {e:?}");
+				log::warn!("Failed to get best block number: {e:?}");
 				None
 			},
 		}
@@ -134,7 +137,7 @@ impl Relayer {
 		match self.rpc.request("chain_getBlockHash", params).await {
 			Ok(result) => result,
 			Err(e) => {
-				println!("WARNING: Failed to get block hash for block({block}: {e:?})");
+				log::warn!("Failed to get block hash for block({block}: {e:?})");
 				None
 			},
 		}
