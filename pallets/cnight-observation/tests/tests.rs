@@ -787,6 +787,7 @@ fn emits_deregistration_and_mapping_removed_on_last_mapping_removed() {
 	});
 }
 
+// TODO: Reviewing to determine if they are still valid test cases - https://shielded.atlassian.net/browse/PM-20679
 // #[test]
 // fn no_registered_event_when_still_invalid_after_removal() {
 // 	new_test_ext().execute_with(|| {
