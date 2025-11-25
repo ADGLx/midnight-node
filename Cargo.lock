@@ -6987,6 +6987,9 @@ version = "0.1.0"
 dependencies = [
  "clap",
  "midnight-node-metadata",
+ "env_logger",
+ "log",
+ "midnight-primitives-beefy",
  "mmr-rpc",
  "parity-scale-codec",
  "rs_merkle",
