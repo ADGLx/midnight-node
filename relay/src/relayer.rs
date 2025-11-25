@@ -1,7 +1,6 @@
 #![allow(dead_code)]
 
 use midnight_primitives_beefy::BEEFY_LOG_TARGET;
-use parity_scale_codec::Encode;
 use sp_consensus_beefy::{VersionedFinalityProof, ecdsa_crypto::Signature as EcdsaSignature};
 use sp_core::Bytes;
 use subxt::{
@@ -70,7 +69,7 @@ impl Relayer {
 
 		let authorities_proof = AuthoritiesProof::try_new(&beef_signed_commitment, &validator_set)?;
 
-		println!("authorities proof: {authorities_proof:#?}");
+		log::info!(target: BEEFY_LOG_TARGET, "🥩 Authorities proof: {authorities_proof:#?}");
 		Ok(())
 	}
 
