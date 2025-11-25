@@ -1,3 +1,7 @@
+<!-- Available GitHub Bot commands (Leave a comment on your PR, let the bot do the rest):
+- /bot rebuild-metadata
+-->
+
 # Overview
 
 <!-- Describe your changes briefly here, with some context as to why this is needed. -->
