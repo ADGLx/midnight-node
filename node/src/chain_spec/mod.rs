@@ -22,9 +22,9 @@ use midnight_node_ledger_helpers::{
 };
 
 use midnight_node_runtime::{
-	AccountId, BeefyConfig, Block, CNightObservationCall, CNightObservationConfig, CouncilConfig,
-	CouncilMembershipConfig, CrossChainPublic, FederatedAuthorityObservationConfig, MidnightCall,
-	MidnightConfig, MidnightSystemCall, RuntimeCall, RuntimeGenesisConfig,
+	AccountId, BeefyConfig, Block, BridgeConfig, CNightObservationCall, CNightObservationConfig,
+	CouncilConfig, CouncilMembershipConfig, CrossChainPublic, FederatedAuthorityObservationConfig,
+	MidnightCall, MidnightConfig, MidnightSystemCall, RuntimeCall, RuntimeGenesisConfig,
 	SessionCommitteeManagementConfig, SessionConfig, SidechainConfig, Signature, SudoConfig,
 	TechnicalCommitteeConfig, TechnicalCommitteeMembershipConfig, TimestampCall,
 	UncheckedExtrinsic, WASM_BINARY, opaque::SessionKeys,
@@ -32,10 +32,11 @@ use midnight_node_runtime::{
 
 use midnight_primitives_cnight_observation::ObservedUtxos;
 use sc_chain_spec::{ChainSpecExtension, GenericChainSpec};
-use sidechain_domain::MainchainAddress;
+use sidechain_domain::{AssetName, MainchainAddress, PolicyId};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{Encode, H256, Pair, Public};
+use sp_partner_chains_bridge::MainChainScripts as BridgeMainChainScripts;
 use sp_runtime::traits::{IdentifyAccount, One, Verify};
 use sp_session_validator_management::MainChainScripts;
 use std::{fmt, str::FromStr};
@@ -245,6 +246,19 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 		ChainSpecInitError::ParseError(format!("failed to validate cnight genesis config: {e}"))
 	})?;
 
+	let bridge_main_chain_scripts = BridgeMainChainScripts {
+		token_policy_id: PolicyId::from_str(
+			"ba6f51de77af4e6360332c501ce601c6be0923565b9db89c6bd3ea9a",
+		)
+		.expect("Failed to decode bridge token policy id"),
+		token_asset_name: AssetName::from_str("")
+			.expect("Failed to decode bridge token asset name"),
+		illiquid_circulation_supply_validator_address: MainchainAddress::from_str(
+			"addr_test1wza75w7w7h5ucmqxk9q88xq8rtuzfr2edemwyud0f74xsqtefmj",
+		)
+		.expect("Failed to decode bridge contract address"),
+	};
+
 	let config = RuntimeGenesisConfig {
 		system: Default::default(),
 		aura: Default::default(),
@@ -348,7 +362,11 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 				.clone(),
 			..Default::default()
 		},
-		bridge: Default::default(),
+		bridge: BridgeConfig {
+			main_chain_scripts: Some(bridge_main_chain_scripts),
+			initial_checkpoint: None,
+			..Default::default()
+		},
 	};
 
 	Ok(serde_json::to_value(config).expect("Genesis config must be serialized correctly"))

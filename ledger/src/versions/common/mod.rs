@@ -79,6 +79,7 @@ use {lazy_static::lazy_static, moka::sync::Cache};
 
 pub const LOG_TARGET: &str = "midnight::ledger_v2";
 pub const MINT_COINS_DOMAIN_SEPARATOR: &[u8; 10] = b"mint_coins";
+pub const CLAIM_NIGHT_DOMAIN_SEPARATOR: &[u8; 10] = b"claimnight";
 
 #[cfg(feature = "std")]
 lazy_static! {
@@ -662,6 +663,22 @@ where
 		let events: Result<Vec<CNightGeneratesDustEvent>, LedgerApiError> =
 			events.iter().map(|e| api.tagged_deserialize(e)).collect();
 		let system_tx = SystemTransaction::CNightGeneratesDustUpdate { events: events? };
+		api.tagged_serialize(&system_tx)
+	}
+
+	pub fn construct_claim_night_system_tx(
+		amount: u128,
+		recipient: Vec<u8>,
+		block_hash: Vec<u8>,
+		output_index: u8,
+	) -> Result<Vec<u8>, LedgerApiError> {
+		let api = api::new();
+		let target_address = api.night_address(recipient)?;
+		let nonce = create_nonce(CLAIM_NIGHT_DOMAIN_SEPARATOR, &block_hash, output_index);
+		let system_tx = SystemTransaction::DistributeNight(
+			ClaimKind::CardanoBridge,
+			vec![api::OutputInstructionUnshielded { amount, target_address, nonce }],
+		);
 		api.tagged_serialize(&system_tx)
 	}
 }

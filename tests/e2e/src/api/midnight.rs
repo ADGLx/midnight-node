@@ -151,8 +151,8 @@ impl MidnightClient {
         let start = Instant::now();
         loop {
             let current_value = self.query_night_utxo_owners(utxo.clone()).await?;
-            if current_value.as_ref().map(|v| v.0.0.clone())
-                != initial_value.as_ref().map(|v| v.0.0.clone())
+            if current_value.as_ref().map(|v| v.0.clone())
+                != initial_value.as_ref().map(|v| v.0.clone())
             {
                 println!("UtxoOwners storage changed: {:?}", current_value);
                 return Ok(current_value);

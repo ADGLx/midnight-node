@@ -48,8 +48,10 @@ pub use frame_support::{
 };
 pub use frame_system::Call as SystemCall;
 use frame_system::{EnsureNone, EnsureRoot};
-use midnight_node_ledger::types::{GasCost, StorageCost, Tx, active_version::LedgerApiError};
-use midnight_primitives::BridgeRecipient;
+use midnight_node_ledger::types::{
+	GasCost, StorageCost, Tx, active_ledger_bridge as LedgerApi, active_version::LedgerApiError,
+};
+use midnight_primitives::{BridgeRecipient, MidnightSystemTransactionExecutor};
 use midnight_primitives_beefy::BeefyStakes;
 use midnight_primitives_cnight_observation::CardanoPosition;
 use opaque::{CrossChainKey, SessionKeys};
@@ -83,6 +85,7 @@ use sp_partner_chains_bridge::{
 //use sp_block_rewards::GetBlockRewardPoints;
 #[cfg(any(feature = "std", test))]
 pub use sp_runtime::BuildStorage;
+use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::{Convert, Keccak256};
 use sp_runtime::{
 	ApplyExtrinsicResult, Cow, MultiSignature, OpaqueValue, generic, impl_opaque_keys,
@@ -863,7 +866,55 @@ impl pallet_partner_chains_bridge::TransferHandler<BridgeRecipient>
 	for MidnightTokenTransferHandler
 {
 	fn handle_incoming_transfer(transfer: BridgeTransferV1<BridgeRecipient>) {
-		log::debug!("Bridge token transfer received {:?}", transfer);
+		let block_hash = frame_system::Pallet::<Runtime>::parent_hash();
+		let output_index: u8 =
+			frame_system::Pallet::<Runtime>::event_count().saturated_into::<u8>();
+
+		match transfer {
+			BridgeTransferV1::UserTransfer { token_amount, recipient } => {
+				let amount: u128 = token_amount.into();
+				let recipient: Vec<u8> = recipient.as_ref().to_vec();
+				let block_hash: Vec<u8> = block_hash.as_ref().to_vec();
+				match LedgerApi::construct_claim_night_system_tx(
+					amount,
+					recipient,
+					block_hash,
+					output_index,
+				) {
+					Ok(system_tx) => {
+						if let Err(error) = MidnightSystem::execute_system_transaction(system_tx) {
+							log::error!(
+								target: "midnight::bridge",
+								"Failed to execute ClaimNight system transaction: {:?}",
+								error
+							);
+						}
+					},
+					Err(error) => {
+						log::error!(
+							target: "midnight::bridge",
+							"Failed to construct ClaimNight system transaction: {:?}",
+							error
+						);
+					},
+				}
+			},
+			BridgeTransferV1::ReserveTransfer { token_amount } => {
+				log::warn!(
+					target: "midnight::bridge",
+					"Ignoring reserve bridge transfer of {} (not yet handled)",
+					token_amount
+				);
+			},
+			BridgeTransferV1::InvalidTransfer { token_amount, utxo_id } => {
+				log::warn!(
+					target: "midnight::bridge",
+					"Ignoring invalid bridge transfer {:?} with amount {}",
+					utxo_id,
+					token_amount
+				);
+			},
+		}
 	}
 }
 

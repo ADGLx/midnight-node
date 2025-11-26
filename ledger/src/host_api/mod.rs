@@ -265,6 +265,20 @@ pub trait LedgerBridge {
 	) -> AllocateAndReturnByCodec<Result<Vec<u8>, latest::types::LedgerApiError>> {
 		latest::Bridge::<Signature, Database>::construct_cnight_generates_dust_system_tx(events)
 	}
+
+	fn construct_claim_night_system_tx(
+		amount: PassFatPointerAndDecode<u128>,
+		recipient: PassFatPointerAndRead<Vec<u8>>,
+		block_hash: PassFatPointerAndDecode<Vec<u8>>,
+		output_index: u8,
+	) -> AllocateAndReturnByCodec<Result<Vec<u8>, latest::types::LedgerApiError>> {
+		latest::Bridge::<Signature, Database>::construct_claim_night_system_tx(
+			amount,
+			recipient,
+			block_hash,
+			output_index,
+		)
+	}
 }
 
 #[runtime_interface]
@@ -429,6 +443,20 @@ pub trait LedgerBridgeHf {
 	) -> AllocateAndReturnByCodec<Result<Vec<u8>, hard_fork_test::types::LedgerApiError>> {
 		hard_fork_test::Bridge::<SignatureHF, DatabaseHF>::construct_cnight_generates_dust_system_tx(
 			events,
+		)
+	}
+
+	fn construct_claim_night_system_tx(
+		amount: PassFatPointerAndDecode<u128>,
+		recipient: PassFatPointerAndRead<Vec<u8>>,
+		block_hash: PassFatPointerAndDecode<Vec<u8>>,
+		output_index: u8,
+	) -> AllocateAndReturnByCodec<Result<Vec<u8>, hard_fork_test::types::LedgerApiError>> {
+		hard_fork_test::Bridge::<SignatureHF, DatabaseHF>::construct_claim_night_system_tx(
+			amount,
+			recipient,
+			block_hash,
+			output_index,
 		)
 	}
 
