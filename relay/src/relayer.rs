@@ -15,7 +15,9 @@ use subxt::{
 
 use crate::{
 	BeefySignedCommitment, BeefyValidatorSet, BlockNumber, Error, MmrProof,
-	authorities::AuthoritiesProof, helper::MnMetaConversion, mn_meta,
+	cardano_encoding::{RelayChainProof, ToPlutusData},
+	helper::{HexExt, MnMetaConversion},
+	mn_meta,
 };
 
 pub type BlockHash = sp_core::H256;
@@ -65,11 +67,19 @@ impl Relayer {
 		// Identifies whether using from best block, or the commitment's block hash
 		let (_best_block, at_block_hash) = self.choose_params(&beef_signed_commitment).await?;
 
+		// retrieve necessary data in creating the proof
 		let validator_set = self.get_beefy_validator_set(at_block_hash).await?;
+		log::trace!(target: BEEFY_LOG_TARGET, "🥩 Get Validator Set: {validator_set:?}");
 
-		let authorities_proof = AuthoritiesProof::try_new(&beef_signed_commitment, &validator_set)?;
+		// generate the proof
+		let relay_chain_proof = RelayChainProof::generate(beef_signed_commitment, validator_set)?;
 
-		log::info!(target: BEEFY_LOG_TARGET, "🥩 Authorities proof: {authorities_proof:#?}");
+		// display the proofs
+		let plutus_data = relay_chain_proof.to_plutus_data();
+
+		log::info!("🥩 RelaychainProof plutus: {}", plutus_data.as_hex());
+		log::info!(target: BEEFY_LOG_TARGET, "🥩 Relaychain: {relay_chain_proof:#?}");
+
 		Ok(())
 	}
 
