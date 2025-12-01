@@ -146,11 +146,11 @@ See `res/cfg/*.toml` for network-specific presets (dev, qanet, preview).
         v
 +------------------+     +------------------+
 | Runtime          | --> | Ledger Storage   |
-| (WASM)           |     | (RocksDB)        |
+| (WASM)           |     | (ParityDB)       |
 +------------------+     +------------------+
 ```
 
-> **⚠️** Architecture diagram is a high-level conceptual view. Verify actual service composition in `node/src/service.rs`.
+**Sources**: Service builder [`node/src/service.rs#L209-L283`](https://github.com/m2ux/midnight-node/blob/mc_study/node/src/service.rs#L209-L283), Ledger init [`node/src/service.rs#L217-L223`](https://github.com/m2ux/midnight-node/blob/mc_study/node/src/service.rs#L217-L223), Consensus [`node/src/service.rs#L327-L360`](https://github.com/m2ux/midnight-node/blob/mc_study/node/src/service.rs#L327-L360)
 
 ## Cargo Features
 

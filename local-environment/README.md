@@ -108,35 +108,34 @@ earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 +--------+---------+
          |
          v
-+------------------+     Images pulled from
-| Cardano Node     | <-- public repositories
++------------------+
+| Cardano Node     |
 | (private testnet)|
 +--------+---------+
          |
-         v (synced)
-+------------------+     +------------------+
-| Ogmios           | --> | DB-Sync          |
-+------------------+     +--------+---------+
-                                  |
-                                  v
-                         +------------------+
-                         | PostgreSQL       |
-                         +--------+---------+
-                                  |
-                                  v
-                         +------------------+
-                         | pc-contracts-cli |
-                         | (D-param, keys)  |
-                         +--------+---------+
-                                  |
-                                  v (after 2 MC epochs)
-                         +------------------+
-                         | Midnight Nodes   |
-                         | (block production)|
-                         +------------------+
+    +----+----+
+    |         |
+    v         v
++--------+ +--------+     +------------------+
+| Ogmios | |DB-Sync | --> | PostgreSQL       |
++--------+ +---+----+     +------------------+
+    |          |
+    +----+-----+
+         |
+         v
++------------------+
+| midnight-setup   |
+| (chain spec gen) |
++--------+---------+
+         |
+         v (service_completed_successfully)
++------------------+
+| Midnight Nodes   |
+| (x5 validators)  |
++------------------+
 ```
 
-> **⚠️** Startup sequence is a conceptual representation. Actual orchestration depends on Docker Compose files and `pc-contracts-cli` configuration. Timing (e.g., "after 2 MC epochs") varies by environment.
+**Sources**: [`docker-compose.yml`](https://github.com/m2ux/midnight-node/blob/mc_study/local-environment/src/networks/local-env/docker-compose.yml) - Cardano Node (L2-42), Ogmios (L66-95), DB-Sync (L97-157), midnight-setup (L454-481), Midnight Nodes (L279-453)
 
 ### Component Summary
 
@@ -146,8 +145,8 @@ earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 | Ogmios | Cardano chain sync API |
 | [db-sync](../GLOSSARY.md#db-sync) | Cardano to PostgreSQL indexer |
 | PostgreSQL | Cardano data storage |
-| pc-contracts-cli | D-parameter and key registration |
-| Midnight Node(s) | Sidechain block production |
+| midnight-setup | Chain spec generation and initialization |
+| Midnight Node(s) | Sidechain block production (5 validators) |
 
 ## Configuration
 

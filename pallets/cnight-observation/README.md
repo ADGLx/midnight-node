@@ -88,7 +88,7 @@ Data Types:
 +------------------+
 ```
 
-> **⚠️** Observation flow is a conceptual representation. Verify actual inherent data provider implementation in `node/src/` and `primitives/mainchain-follower/`.
+**Sources**: [`primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33`](https://github.com/m2ux/midnight-node/blob/mc_study/primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33), [`node/src/inherent_data.rs#L141`](https://github.com/m2ux/midnight-node/blob/mc_study/node/src/inherent_data.rs#L141)
 
 ## Usage
 

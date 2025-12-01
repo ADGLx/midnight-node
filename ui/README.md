@@ -107,7 +107,7 @@ Two methods:
                                                   +------------------+
 ```
 
-> **⚠️** Architecture is a simplified view of React/Polkadot.js integration. Actual component hierarchy in `src/substrate-lib/`.
+**Sources**: [`src/substrate-lib/SubstrateContext.jsx`](https://github.com/m2ux/midnight-node/blob/mc_study/ui/src/substrate-lib/SubstrateContext.jsx) - useSubstrate hook (L182), ApiPromise connection (L82-83), keyring loading (L111-142)
 
 ### Directory Structure
 
