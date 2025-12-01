@@ -8,6 +8,8 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ## Architecture Overview
 
+### Data Flow
+
 ```mermaid
 flowchart LR
     subgraph compilation["Stage 1: Compilation"]
@@ -31,6 +33,56 @@ flowchart LR
         I --> J["Node RPC<br/>(WebSocket)"]
         J --> K["pallet-midnight<br/>(send_mn_tx)"]
         K --> L["Ledger State<br/>(Updated)"]
+    end
+```
+
+### Participant Interactions
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant Dev as Developer
+    participant Compiler as compactc
+    participant Toolkit as toolkit-js
+    participant CLI as midnight-toolkit
+    participant Prover as Proof Server
+    participant RPC as Node RPC
+    participant Pallet as pallet-midnight
+    participant Ledger as Ledger State
+
+    rect rgb(240, 248, 255)
+        Note over Dev,Compiler: Stage 1: Compilation
+        Dev->>Compiler: compile(counter.compact)
+        Compiler-->>Dev: contract/, zkir/, keys/
+    end
+
+    rect rgb(255, 248, 240)
+        Note over Dev,Toolkit: Stage 2: Intent Generation
+        Dev->>Toolkit: createDeployIntent(contract, witnesses)
+        Toolkit->>Toolkit: serialize state & circuit inputs
+        Toolkit-->>Dev: intent.bin
+    end
+
+    rect rgb(240, 255, 240)
+        Note over Dev,Prover: Stage 3: Proving
+        Dev->>CLI: prove(intent.bin, keys)
+        CLI->>Prover: generate ZK proof
+        Prover->>Prover: execute circuit (PLONK)
+        Prover-->>CLI: proof + public inputs
+        CLI->>CLI: sign transaction
+        CLI-->>Dev: proven_tx.bin
+    end
+
+    rect rgb(255, 240, 255)
+        Note over Dev,Ledger: Stage 4: Submission
+        Dev->>RPC: submit(proven_tx)
+        RPC->>Pallet: send_mn_tx(tx_bytes)
+        Pallet->>Pallet: verify ZK proof
+        Pallet->>Pallet: validate state transitions
+        Pallet->>Ledger: apply_operations()
+        Ledger-->>Pallet: new state root
+        Pallet-->>RPC: tx_hash
+        RPC-->>Dev: confirmation
     end
 ```
 
