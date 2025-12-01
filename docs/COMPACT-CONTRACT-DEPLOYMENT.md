@@ -179,7 +179,7 @@ flowchart TB
     end
 
     subgraph midnight_network["🌙 Midnight Network"]
-        direction TB
+        direction LR
         subgraph node["Midnight Node"]
             rpc["RPC Interface<br/>(WebSocket :9944)"]
             runtime["Runtime"]
@@ -189,17 +189,13 @@ flowchart TB
             end
             ledger["Ledger State"]
         end
-        subgraph validators["Validator Network"]
-            v1["Validator 1"]
-            v2["Validator 2"]
-            v3["Validator N..."]
-        end
+        validators["Validator Network<br/>(N validators)"]
     end
 
     subgraph cardano["🔷 Cardano Network"]
-        direction TB
-        mainchain["Cardano Mainchain"]
+        direction LR
         settlement["Settlement Layer"]
+        mainchain["Cardano Mainchain"]
     end
 
     dev --> compiler
@@ -492,7 +488,7 @@ Current State Root → Apply Transaction → New State Root
                             v
                      +----------------+
                      | Update:        |
-                     | - [ZSwap](../GLOSSARY.md#zswap) tree |
+                     | - ZSwap tree   |
                      | - Contract     |
                      |   state        |
                      | - UTXOs        |
