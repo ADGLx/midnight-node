@@ -10,17 +10,17 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ### Data Flow
 
-The deployment process transforms Compact source code through four stages: compilation produces executable artifacts, intent generation creates transaction intents, proving generates zero-knowledge proofs, and submission writes the proven transaction to the ledger.
+Contract deployment and interaction follow distinct but related flows. **Developers** compile source code once and deploy; **Users** interact with deployed contracts. Both deployment and contract calls share the intent → prove → submit pipeline.
 
 ```mermaid
 flowchart LR
-    subgraph compilation["Stage 1: Compilation"]
+    subgraph compilation["Stage 1: Compilation (Developer Only)"]
         A["Compact Source<br/>(.compact)"] --> B["compactc<br/>(Compiler)"]
         B --> C["Compiled Assets<br/>contract/, zkir/, keys/"]
     end
 
     subgraph intent["Stage 2: Intent Generation"]
-        C --> D["contract.config.ts<br/>(Witnesses)"]
+        C --> D["Witnesses &<br/>Private Inputs"]
         D --> E["toolkit-js<br/>(Intent Gen)"]
         E --> F["Intent File<br/>(.bin)"]
     end
@@ -36,16 +36,24 @@ flowchart LR
         J --> K["pallet-midnight<br/>(send_mn_tx)"]
         K --> L["Ledger State<br/>(Updated)"]
     end
+
+    style compilation fill:#e1f5fe
+    style intent fill:#fff3e0
+    style proving fill:#e8f5e9
+    style submission fill:#fce4ec
 ```
+
+**Note:** Stages 2-4 apply to both deployment (by Developer) and contract calls (by Users).
 
 ### Participant Interactions
 
-This sequence diagram shows the temporal flow of operations between all participants. The developer orchestrates each stage, invoking tools that communicate with proving infrastructure and ultimately the Midnight node to deploy the contract.
+Two distinct workflows share infrastructure: **Deployment** (one-time, by Developer) and **Contract Calls** (ongoing, by Users). The Developer compiles and deploys; Users interact with deployed contracts via the same prove/submit pipeline.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Dev as Developer
+    participant User as Contract User
     participant Compiler as compactc
     participant Toolkit as toolkit-js
     participant CLI as midnight-toolkit
@@ -55,54 +63,83 @@ sequenceDiagram
     participant Ledger as Ledger State
 
     rect rgb(240, 248, 255)
-        Note over Dev,Compiler: Stage 1: Compilation
+        Note over Dev,Compiler: Deployment: Stage 1 - Compilation (Developer Only)
         Dev->>Compiler: compile(counter.compact)
         Compiler-->>Dev: contract/, zkir/, keys/
     end
 
     rect rgb(255, 248, 240)
-        Note over Dev,Toolkit: Stage 2: Intent Generation
-        Dev->>Toolkit: createDeployIntent(contract, witnesses)
-        Toolkit->>Toolkit: serialize state & circuit inputs
-        Toolkit-->>Dev: intent.bin
+        Note over Dev,Toolkit: Deployment: Stage 2 - Deploy Intent
+        Dev->>Toolkit: createDeployIntent(contract, initialState)
+        Toolkit-->>Dev: deploy_intent.bin
     end
 
     rect rgb(240, 255, 240)
-        Note over Dev,Prover: Stage 3: Proving
-        Dev->>CLI: prove(intent.bin, keys)
+        Note over Dev,Prover: Deployment: Stage 3 - Prove & Sign
+        Dev->>CLI: prove(deploy_intent.bin)
         CLI->>Prover: generate ZK proof
-        Prover->>Prover: execute circuit (PLONK)
         Prover-->>CLI: proof + public inputs
-        CLI->>CLI: sign transaction
-        CLI-->>Dev: proven_tx.bin
+        CLI-->>Dev: proven_deploy_tx.bin
     end
 
     rect rgb(255, 240, 255)
-        Note over Dev,Ledger: Stage 4: Submission
-        Dev->>RPC: submit(proven_tx)
-        RPC->>Pallet: send_mn_tx(tx_bytes)
+        Note over Dev,Ledger: Deployment: Stage 4 - Submit
+        Dev->>RPC: submit(proven_deploy_tx)
+        RPC->>Pallet: send_mn_tx(deploy)
+        Pallet->>Ledger: create contract state
+        Ledger-->>Pallet: contract_address
+        RPC-->>Dev: ContractDeploy event
+    end
+
+    Note over Dev,User: Contract is now deployed and available for users
+
+    rect rgb(255, 253, 231)
+        Note over User,Toolkit: Contract Call: Intent Generation (User)
+        User->>Toolkit: createCallIntent(contract_address, entrypoint, args)
+        Toolkit-->>User: call_intent.bin
+    end
+
+    rect rgb(232, 245, 233)
+        Note over User,Prover: Contract Call: Prove & Sign (User)
+        User->>CLI: prove(call_intent.bin)
+        CLI->>Prover: generate ZK proof
+        Prover-->>CLI: proof + public inputs
+        CLI-->>User: proven_call_tx.bin
+    end
+
+    rect rgb(243, 229, 245)
+        Note over User,Ledger: Contract Call: Submit (User)
+        User->>RPC: submit(proven_call_tx)
+        RPC->>Pallet: send_mn_tx(call)
         Pallet->>Pallet: verify ZK proof
-        Pallet->>Pallet: validate state transitions
-        Pallet->>Ledger: apply_operations()
+        Pallet->>Ledger: apply state transition
         Ledger-->>Pallet: new state root
-        Pallet-->>RPC: tx_hash
-        RPC-->>Dev: confirmation
+        RPC-->>User: ContractCall event
     end
 ```
 
 ### Deployment Architecture
 
-The deployment spans multiple environments: developers run tools locally, proving can occur on local or remote servers, transactions flow through the Midnight validator network, and settlement anchors to the Cardano mainchain.
+The system spans multiple environments with distinct actors. **Developers** compile and deploy contracts; **Users** interact with deployed contracts. Both share the proving infrastructure and submit transactions to the Midnight network, which settles to Cardano.
 
 ```mermaid
 flowchart TB
-    subgraph user["👤 Developer Environment"]
+    subgraph dev_env["👨‍💻 Developer Environment"]
         direction TB
         dev["Developer"]
         subgraph devtools["Development Tools"]
             compiler["compactc<br/>(Compiler)"]
-            toolkit["toolkit-js<br/>(TypeScript SDK)"]
-            cli["midnight-toolkit<br/>(Rust CLI)"]
+            toolkit_dev["toolkit-js"]
+            cli_dev["midnight-toolkit"]
+        end
+    end
+
+    subgraph user_env["👤 User Environment"]
+        direction TB
+        user["Contract User"]
+        subgraph usertools["Client Tools"]
+            toolkit_user["toolkit-js"]
+            cli_user["midnight-toolkit"]
         end
     end
 
@@ -141,11 +178,16 @@ flowchart TB
     end
 
     dev --> compiler
-    dev --> toolkit
-    dev --> cli
-    cli -.->|"local proving"| local
-    cli -.->|"remote proving"| remote
-    cli -->|"submit tx"| rpc
+    dev --> toolkit_dev
+    dev --> cli_dev
+    user --> toolkit_user
+    user --> cli_user
+    cli_dev -.->|"prove deploy"| local
+    cli_dev -.->|"prove deploy"| remote
+    cli_user -.->|"prove call"| local
+    cli_user -.->|"prove call"| remote
+    cli_dev -->|"deploy tx"| rpc
+    cli_user -->|"call tx"| rpc
     rpc --> runtime
     runtime --> pallet_mn
     pallet_mn --> ledger
