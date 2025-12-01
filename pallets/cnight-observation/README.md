@@ -88,6 +88,8 @@ Data Types:
 +------------------+
 ```
 
+> **⚠️** Observation flow is a conceptual representation. Verify actual inherent data provider implementation in `node/src/` and `primitives/mainchain-follower/`.
+
 ## Usage
 
 ### Runtime Configuration

@@ -136,6 +136,8 @@ earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
                          +------------------+
 ```
 
+> **⚠️** Startup sequence is a conceptual representation. Actual orchestration depends on Docker Compose files and `pc-contracts-cli` configuration. Timing (e.g., "after 2 MC epochs") varies by environment.
+
 ### Component Summary
 
 | Component | Purpose |

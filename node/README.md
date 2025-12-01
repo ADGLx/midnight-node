@@ -150,6 +150,8 @@ See `res/cfg/*.toml` for network-specific presets (dev, qanet, preview).
 +------------------+     +------------------+
 ```
 
+> **⚠️** Architecture diagram is a high-level conceptual view. Verify actual service composition in `node/src/service.rs`.
+
 ## Cargo Features
 
 | Feature | Default | Description |

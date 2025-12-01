@@ -107,6 +107,8 @@ Two methods:
                                                   +------------------+
 ```
 
+> **⚠️** Architecture is a simplified view of React/Polkadot.js integration. Actual component hierarchy in `src/substrate-lib/`.
+
 ### Directory Structure
 
 ```
