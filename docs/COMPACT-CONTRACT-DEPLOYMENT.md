@@ -103,6 +103,8 @@ export default {
 
 ### Generating Deploy Intent (toolkit-js)
 
+Generate a deploy intent using the JavaScript toolkit:
+
 ```bash
 midnight-node-toolkit-js deploy \
   -c contract.config.ts \
@@ -154,6 +156,8 @@ Midnight uses a **PLONK-based proof system with KZG polynomial commitments** [[1
 
 ### Local Proving
 
+Prove transactions locally using the toolkit's built-in prover:
+
 ```bash
 midnight-node-toolkit send-intent \
   --intent-file intent.bin \
@@ -161,6 +165,8 @@ midnight-node-toolkit send-intent \
 ```
 
 ### Remote Proving
+
+Offload proving to a dedicated proof server for better performance:
 
 ```bash
 midnight-node-toolkit send-intent \
@@ -338,7 +344,11 @@ pub trait MidnightApi<BlockHash> {
 
 ### Usage Examples
 
+Examples of calling Midnight RPC methods using curl.
+
 #### Get Contract State
+
+Retrieve the current state of a deployed contract:
 
 ```bash
 curl -X POST http://localhost:9933 \
@@ -353,6 +363,8 @@ curl -X POST http://localhost:9933 \
 
 #### Response
 
+The RPC returns the serialized contract state as a hex string:
+
 ```json
 {
   "jsonrpc": "2.0",
@@ -362,6 +374,8 @@ curl -X POST http://localhost:9933 \
 ```
 
 ### Standard Substrate RPC
+
+Standard Substrate RPC methods also available on Midnight nodes:
 
 | Method | Description |
 |--------|-------------|
@@ -402,6 +416,8 @@ pub enum Event {
 
 ### Subscribing to Events
 
+Subscribe to Midnight events using the Polkadot.js API:
+
 ```javascript
 const api = await ApiPromise.create({ provider: wsProvider });
 api.query.system.events((events) => {
@@ -418,13 +434,19 @@ api.query.system.events((events) => {
 
 ## Complete Deployment Example
 
+A step-by-step walkthrough of deploying a Compact contract from source to on-chain state.
+
 ### 1. Compile Contract
+
+Compile the Compact source file to generate contract artifacts:
 
 ```bash
 compactc counter.compact ./managed/counter
 ```
 
 ### 2. Generate Intent
+
+Create a deploy intent with initial constructor arguments:
 
 ```bash
 midnight-node-toolkit generate-intent deploy \
@@ -439,6 +461,8 @@ midnight-node-toolkit generate-intent deploy \
 
 ### 3. Build and Send Transaction
 
+Prove the intent and submit the transaction to the node:
+
 ```bash
 midnight-node-toolkit send-intent \
   --intent-file out/deploy_intent.bin \
@@ -447,6 +471,8 @@ midnight-node-toolkit send-intent \
 
 ### 4. Get Contract Address
 
+Extract the contract address from the deployment transaction:
+
 ```bash
 midnight-node-toolkit contract-address \
   --src-file deploy_tx.mn
@@ -454,6 +480,8 @@ midnight-node-toolkit contract-address \
 ```
 
 ### 5. Query Contract State
+
+Fetch the current contract state from the node:
 
 ```bash
 midnight-node-toolkit contract-state \
@@ -468,6 +496,8 @@ After deployment, contract authority holders can update verifier keys or transfe
 
 ### Update Signing Authority
 
+Transfer contract maintenance authority to a new signing key:
+
 ```bash
 midnight-node-toolkit generate-intent maintain-contract \
   --contract-address <address> \
@@ -476,6 +506,8 @@ midnight-node-toolkit generate-intent maintain-contract \
 ```
 
 ### Update Circuit Verifier
+
+Replace the verifier key for a specific circuit entrypoint:
 
 ```bash
 midnight-node-toolkit generate-intent maintain-circuit \
@@ -554,6 +586,8 @@ pub enum MalformedError {
 
 ### Proving Time
 
+Typical proof generation times vary based on circuit complexity:
+
 | Operation | Typical Duration |
 |-----------|------------------|
 | Deploy (simple) | 10-30 seconds |
@@ -563,6 +597,8 @@ pub enum MalformedError {
 > **⚠️** Duration estimates are approximate and based on general PLONK proving characteristics. Actual times depend on circuit complexity, hardware, and proving configuration. The `midnight-proofs` crate supports parallelism via `RAYON_NUM_THREADS` [[19]](#ref-19).
 
 ### Optimization Tips
+
+Strategies to improve deployment and transaction performance:
 
 1. Use remote proof server for faster proving
 2. Batch multiple operations where possible
