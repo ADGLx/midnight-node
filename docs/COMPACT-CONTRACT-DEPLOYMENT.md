@@ -10,6 +10,8 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ### Data Flow
 
+The deployment process transforms Compact source code through four stages: compilation produces executable artifacts, intent generation creates transaction intents, proving generates zero-knowledge proofs, and submission writes the proven transaction to the ledger.
+
 ```mermaid
 flowchart LR
     subgraph compilation["Stage 1: Compilation"]
@@ -37,6 +39,8 @@ flowchart LR
 ```
 
 ### Participant Interactions
+
+This sequence diagram shows the temporal flow of operations between all participants. The developer orchestrates each stage, invoking tools that communicate with proving infrastructure and ultimately the Midnight node to deploy the contract.
 
 ```mermaid
 sequenceDiagram
@@ -87,6 +91,8 @@ sequenceDiagram
 ```
 
 ### Deployment Architecture
+
+The deployment spans multiple environments: developers run tools locally, proving can occur on local or remote servers, transactions flow through the Midnight validator network, and settlement anchors to the Cardano mainchain.
 
 ```mermaid
 flowchart TB
