@@ -164,7 +164,7 @@ flowchart TB
             local["Proof Server<br/>(localhost:6300)"]
         end
         subgraph remote_prover["Remote Option"]
-            remote["Cloud Proof Server<br/>(proof.midnight.network)"]
+            remote["Cloud Proof Server<br/>(&lt;remote_url&gt;:6300)"]
         end
     end
 
