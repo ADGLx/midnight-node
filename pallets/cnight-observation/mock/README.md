@@ -1,0 +1,61 @@
+# pallet-cnight-observation-mock
+
+Mock runtime for testing pallet-cnight-observation.
+
+## Overview
+
+This crate provides a minimal mock runtime that configures `pallet-cnight-observation` for unit and integration testing. It sets up all required pallets (System, Timestamp, Midnight, MidnightSystem) with test-friendly configurations.
+
+## Usage
+
+### In Tests
+
+```rust
+use pallet_cnight_observation_mock::{new_test_ext, Test, CNightObservation};
+
+#[test]
+fn test_registration() {
+    new_test_ext().execute_with(|| {
+        // Test code using the mock runtime
+        // CNightObservation is the configured pallet instance
+    });
+}
+```
+
+### Provided Components
+
+| Component | Description |
+|-----------|-------------|
+| `Test` | Mock runtime type |
+| `new_test_ext()` | Creates test externalities with genesis state |
+| `CNightObservation` | Pallet instance alias |
+
+## Configuration
+
+The mock runtime includes:
+
+- `frame_system` - Core system pallet
+- `pallet_timestamp` - Timestamp for block context
+- `pallet_midnight` - Ledger state management
+- `pallet_midnight_system` - System transaction execution
+- `pallet_cnight_observation` - The pallet under test
+
+Genesis state is initialized from `midnight-node-res` test fixtures.
+
+## Integration
+
+### Dependencies
+
+- `pallet-cnight-observation` - Pallet under test
+- `midnight-node-res` - Test genesis data
+- `pallet-midnight` / `pallet-midnight-system` - Required pallets
+
+### Used By
+
+- `pallet-cnight-observation` tests
+- Integration tests requiring Cardano observation simulation
+
+## See Also
+
+- [pallet-cnight-observation](../README.md) - Main pallet
+

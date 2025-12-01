@@ -1,0 +1,137 @@
+# pallet-cnight-observation
+
+Pallet for observing cNIGHT token movements on Cardano and generating DUST on Midnight.
+
+## Overview
+
+This pallet bridges Cardano mainchain observations to the Midnight ledger. It tracks:
+
+- **cNIGHT registrations** - Wallet mappings between Cardano reward addresses and DUST public keys
+- **cNIGHT UTXOs** - Token holdings that generate DUST over time
+- **Glacier Drop redemptions** - One-time token claims
+
+Observations arrive via inherents from the mainchain follower data source. The pallet generates Cardano Midnight System Transactions (CMSTs) that are applied to the ledger state.
+
+## API Specification
+
+### Storage Items
+
+| Name | Type | Description |
+|------|------|-------------|
+| `NextCardanoPosition` | `CardanoPosition` | Next block/tx to process |
+| `MainChainRedemptionValidatorAddress` | `BoundedVec<u8>` | Glacier Drop contract address |
+| `MainChainMappingValidatorAddress` | `BoundedVec<u8>` | Registration mapping contract |
+| `CNightIdentifier` | `(PolicyId, AssetName)` | cNIGHT token identifier |
+| `MainChainAuthTokenAssetName` | `BoundedVec<u8>` | Auth token asset name |
+| `CardanoTxCapacityPerBlock` | `u32` | Max Cardano txs per block |
+| `CardanoBlockWindowSize` | `u32` | Observation window size |
+
+### Events
+
+| Event | Description |
+|-------|-------------|
+| `Registration` | New Cardano-to-DUST wallet mapping |
+| `Deregistration` | Wallet mapping removed |
+| `MappingAdded` | UTXO mapping created |
+| `MappingRemoved` | UTXO mapping spent |
+| `SystemTransactionApplied` | CMST applied to ledger |
+
+### Errors
+
+| Error | Description |
+|-------|-------------|
+| `MaxCardanoAddrLengthExceeded` | Address too long (>108 chars) |
+| `MaxRegistrationsExceeded` | Too many registrations in block |
+| `LedgerApiError` | Ledger operation failed |
+
+### Config Trait
+
+| Associated Type | Description |
+|-----------------|-------------|
+| `MidnightSystemTransactionExecutor` | Interface to apply system transactions |
+
+### Inherent
+
+| Identifier | Data Type | Description |
+|------------|-----------|-------------|
+| `ntobsrve` | `MidnightObservationTokenMovement` | Observed UTXOs and next position |
+
+### Cargo Features
+
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `std` | Yes | Standard library support |
+
+## Architecture
+
+```
+Observation Flow:
++------------------+     +------------------+     +------------------+
+| db-sync          | --> | Inherent Data    | --> | pallet-cnight-   |
+| (PostgreSQL)     |     | Provider         |     | observation      |
++------------------+     +------------------+     +------------------+
+                                                          |
+                                                          v
+                         +------------------+     +------------------+
+                         | MidnightSystem:: | <-- | Generate CMST    |
+                         | execute_system_tx|     | (Registration/   |
+                         +------------------+     |  UTXO changes)   |
+                                                  +------------------+
+
+Data Types:
++------------------+     +------------------+
+| ObservedUtxo     |     | CardanoPosition  |
+|  - header        |     |  - block_hash    |
+|  - data (enum)   |     |  - block_number  |
+|    - Registration|     |  - tx_index      |
+|    - Create/Spend|     +------------------+
++------------------+
+```
+
+## Usage
+
+### Runtime Configuration
+
+```rust
+impl pallet_cnight_observation::Config for Runtime {
+    type MidnightSystemTransactionExecutor = MidnightSystem;
+}
+```
+
+### Genesis Configuration
+
+```rust
+CNightObservation::initialize_genesis(CNightGenesis {
+    redemption_validator_address: "addr_test1...",
+    mapping_validator_address: "addr_test1...",
+    cnight_policy_id: [...],
+    cnight_asset_name: "",
+    auth_token_asset_name: "...",
+});
+```
+
+## Integration
+
+### Dependencies
+
+- `midnight-primitives-cnight-observation` - Shared types
+- `midnight-primitives-mainchain-follower` - Data source traits
+- `pallet-midnight-system` - System transaction execution
+
+### Used By
+
+- `runtime` - Inherent provider
+- `midnight-node` - Data source wiring
+
+## Testing
+
+```bash
+cargo test -p pallet-cnight-observation
+```
+
+## See Also
+
+- [pallet-cnight-observation-mock](mock/README.md) - Test mock runtime
+- [primitives-cnight-observation](../../primitives/cnight-observation/README.md) - Shared types
+- [primitives-mainchain-follower](../../primitives/mainchain-follower/README.md) - Data source
+
