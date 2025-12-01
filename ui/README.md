@@ -1,123 +1,164 @@
-# Polkadot SDK Front End Template
+# ui
 
-This is a barebones UI that can be used to interact with the midnight blockchain.
-It is based off the now archived [Substrate front end template](https://github.com/jimmychu0807/substrate-front-end-template).
+React-based frontend for interacting with the Midnight blockchain.
 
+## Overview
 
-### Installation
+A barebones UI based on the [Substrate front end template](https://github.com/jimmychu0807/substrate-front-end-template) that provides a web interface for:
 
-The codebase is installed using [yarn](https://yarnpkg.com/). It's assumed you have installed yarn globally prior to installing it within the subdirectories. For the most recent version and how to install yarn, please refer to [Yarn](https://yarnpkg.com/) documentation and installation guides.
+- Connecting to Midnight nodes via WebSocket
+- Account selection and balance display
+- Transaction submission
+- Chain state queries
+
+## Installation
 
 ```bash
 yarn install
 ```
 
-### Usage
+## Usage
 
-You can start the template in development mode to connect to a locally running node
+### Development Mode
+
+Connect to a locally running node:
 
 ```bash
 yarn start
 ```
 
-You can also build the app in production mode,
+### Production Build
 
 ```bash
 yarn build
 ```
 
-and open `build/index.html` in your favorite browser.
+Open `build/index.html` in your browser.
+
+## API Specification
+
+### React Hooks
+
+| Hook | Description |
+|------|-------------|
+| `useSubstrate()` | Access to Polkadot.js API, keyring, and blockchain |
+| `useSubstrateState()` | Shorthand for read-only state access |
+
+### useSubstrate State
+
+```javascript
+{
+  socket,        // Remote provider WebSocket URL
+  keyring,       // Available accounts keyring
+  keyringState,  // "READY" | "ERROR"
+  api,           // Polkadot.js API instance
+  apiState,      // "CONNECTING" | "READY" | "ERROR"
+  currentAccount,// Selected account pair
+  setCurrentAccount // Function to update selection
+}
+```
+
+### Components
+
+| Component | Description |
+|-----------|-------------|
+| `TxButton` | Handles query and transaction requests |
+| `AccountSelector` | Unified account selection with balance display |
 
 ## Configuration
 
-The template's configuration is stored in the `src/config` directory, with
-`common.json` being loaded first, then the environment-specific json file,
-and finally environment variables, with precedence.
+Configuration is loaded in order (later overrides earlier):
+1. `src/config/common.json`
+2. Environment-specific JSON (`development.json`, `test.json`, `production.json`)
+3. Environment variables
 
-- `development.json` affects the development environment
-- `test.json` affects the test environment, triggered in `yarn test` command.
-- `production.json` affects the production environment, triggered in
-  `yarn build` command.
+### Config Files
 
-Some environment variables are read and integrated in the template `config` object,
-including:
+| File | Environment |
+|------|-------------|
+| `development.json` | `yarn start` |
+| `test.json` | `yarn test` |
+| `production.json` | `yarn build` |
 
-- `VITE_PROVIDER_SOCKET` overriding `config[PROVIDER_SOCKET]`
+### Environment Variables
 
-More on [Vite environment variables](https://vite.dev/guide/env-and-mode.html#env-variables).
+| Variable | Config Key | Description |
+|----------|------------|-------------|
+| `VITE_PROVIDER_SOCKET` | `PROVIDER_SOCKET` | WebSocket endpoint |
 
-When writing and deploying your own front end, you should configure:
+### Specifying WebSocket Connection
 
-- `PROVIDER_SOCKET` in `src/config/production.json` pointing to your own
-  deployed node.
+Two methods:
+1. Set `PROVIDER_SOCKET` in config JSON files
+2. URL query parameter: `?rpc=ws://localhost:9944` (overrides config)
 
-### Specifying Connecting WebSocket
+## Architecture
 
-There are two ways to specify it:
+```
++------------------+     +------------------+     +------------------+
+| React Components | --> | useSubstrate     | --> | Polkadot.js API  |
+| (UI)             |     | Hook             |     |                  |
++------------------+     +------------------+     +------------------+
+                                                          |
+                                                          v
+                                                  +------------------+
+                                                  | Midnight Node    |
+                                                  | (WebSocket RPC)  |
+                                                  +------------------+
+```
 
-- With `PROVIDER_SOCKET` in `{common, development, production}.json`.
-- With `rpc=<ws or wss connection>` query parameter after the URL. This overrides the above setting.
+### Directory Structure
 
-## Reusable Components
+```
+ui/
++-- src/
+|   +-- config/           # Environment configs
+|   +-- substrate-lib/    # Polkadot.js integration
+|   |   +-- components/   # TxButton, etc.
+|   +-- AccountSelector.js
+|   +-- Transfer.js       # Transaction example
++-- public/
++-- tests/
+```
 
-### useSubstrate Custom Hook
+## Integration
 
-The custom hook `useSubstrate()` provides access to the Polkadot js API and thus the
-keyring and the blockchain itself. Specifically it exposes this API.
+### Dependencies
 
-```js
+- `@polkadot/api` - Substrate RPC client
+- `@polkadot/keyring` - Account management
+- React + Vite - Frontend framework
+
+### Used By
+
+- Developers for local testing
+- Demo and debugging purposes
+
+## Browser Compatibility
+
+Polkadot.js depends on `BigInt`. Update `package.json` for compatibility:
+
+```json
 {
-  setCurrentAccount: func(acct) {...}
-  state: {
-    socket,
-    keyring,
-    keyringState,
-    api,
-    apiState,
-    currentAccount
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not ie <= 99",
+      "not android <= 4.4.4",
+      "not dead",
+      "not op_mini all"
+    ]
   }
 }
 ```
 
-- `socket` - The remote provider socket it is connecting to.
-- `keyring` - A keyring of accounts available to the user.
-- `keyringState` - One of `"READY"` or `"ERROR"` states. `keyring` is valid
-  only when `keyringState === "READY"`.
-- `api` - The remote api to the connected node.
-- `apiState` - One of `"CONNECTING"`, `"READY"`, or `"ERROR"` states. `api` is valid
-  only when `apiState === "READY"`.
-- `currentAccount` - The current selected account pair in the application context.
-- `setCurrentAccount` - Function to update the `currentAccount` value in the application context.
+## Testing
 
-If you are only interested in reading the `state`, there is a shorthand `useSubstrateState()` just to retrieve the state.
+```bash
+yarn test
+```
 
-### TxButton Component
+## See Also
 
-The [TxButton](./src/substrate-lib/components/TxButton.js) handles basic [query](https://polkadot.js.org/docs/api/start/api.query) and [transaction](https://polkadot.js.org/docs/api/start/api.tx) requests to the connected node.
-You can reuse this component for a wide variety of queries and transactions. See [src/Transfer.js](./src/Transfer.js) for a transaction example.
-
-### Account Selector
-
-The [Account Selector](./src/AccountSelector.js) provides the user with a unified way to
-select their account from a keyring. If the Balances module is installed in the runtime,
-it also displays the user's token balance. It is included in the template already.
-
-## Miscellaneous
-
-- Polkadot-js API and related crypto libraries depend on [`BigInt`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/BigInt) that is only supported by modern browsers. To ensure that react-scripts properly transpile your webapp code, update the `package.json` file:
-
-  ```json
-  {
-    "browserslist": {
-      "production": [
-        ">0.2%",
-        "not ie <= 99",
-        "not android <= 4.4.4",
-        "not dead",
-        "not op_mini all"
-      ]
-    }
-  }
-  ```
-
-  Refer to [this doc page](https://github.com/vacp2p/docs.wakuconnect.dev/blob/develop/content/docs/guides/07_reactjs_relay.md).
+- [node](../node/README.md) - Midnight node documentation
+- [Polkadot.js Documentation](https://polkadot.js.org/docs/) - API reference

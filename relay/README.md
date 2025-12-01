@@ -1,57 +1,127 @@
-# Midnight Relayer
+# midnight-beefy-relay
 
-1. Start node with the following args:
+[BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) key management and relay service for cross-chain bridge operations.
+
+## Overview
+
+This crate provides tooling for managing [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) consensus keys required for Midnight's cross-chain bridge with Cardano. [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) produces compact finality proofs that can be efficiently verified on external chains.
+
+## Prerequisites
+
+Start the Midnight node with archival settings:
+
+```bash
+midnight-node \
+    --state-pruning archive \
+    --blocks-pruning archive \
+    --enable-offchain-indexing true
 ```
-        --state-pruning archive
-        --blocks-pruning archive
-        --enable-offchain-indexing true
+
+Ensure [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) keys are inserted and the first session has passed.
+
+## API Specification
+
+### CLI Commands
+
+| Command | Description |
+|---------|-------------|
+| `midnight-beefy-relay --keys-path <file>` | Insert [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) keys from JSON file |
+
+### Key File Format
+
+```json
+[
+  {
+    "suri": "//Alice",
+    "pub_key": "0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1",
+    "node_url": "ws://localhost:9937"
+  }
+]
 ```
 
-2. Ensure that [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) begins. The node must have relevant [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) keys inserted, and the first session must have passed.
+| Field | Description |
+|-------|-------------|
+| `suri` | Secret URI (seed phrase or dev account) |
+| `pub_key` | ECDSA public key in hex format |
+| `node_url` | WebSocket URL of the target node |
 
-### Run with local node
-You may need to insert the [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) key manually, after the node starts.  
+### Cargo Features
 
-Note: Omit `--unsafe-rpc-external` when running the midnight node. This is to allow unsafe rpc calls, like `author_insertKey`.  
+| Feature | Default | Description |
+|---------|---------|-------------|
+| `std` | Yes | Standard library support |
 
-#### How to insert
-Make sure to have ready the following details:
-* keyType: beef
-* suri: < secret seed >
-* publicKey: < `ECDSA` public key of the secret seed, in 0x.. format > 
+## Usage
 
-1. Via polkadot js:
-   1. Go to Developer -> RPC Calls
-   2. Select `author` endpoint and `insertKey` method
-   3. Input your corresponding data
-2. Via curl:
-   ```      
-    curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d \
-        '{
-        "jsonrpc":"2.0",
-        "id":1,
-        "method":"author_insertKey",
-        "params":["beef","<suri>","<publicKey>"]
-        }'
-   ```
-3. Via this relayer:  
-   1. Prepare json file of all the beefy keys and their corresponding urls
-      * ```json
-         [
-          {
-           "suri": "//Alice",
-           "pub_key": "0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1",
-           "node_url": "ws://localhost:9937"
-          }
-         ]
-        ```
-      * see example [beefy-keys-mock.json](../res/mock-bridge-data/beefy-keys-mock.json)
-   2. Execute:  
-      ```
-       cargo run --bin midnight-beefy-relay -- --keys-path=<file_path>
-      ```
-In the logs it will display: 
+### Inserting BEEFY Keys
+
+#### Via this Relayer
+
+```bash
+cargo run --bin midnight-beefy-relay -- --keys-path=./beefy-keys.json
+```
+
+Output:
 ```
 Added beefy key: 0x020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a1 to ws://localhost:9933
-Added beefy key: ...
 ```
+
+#### Via Polkadot.js
+
+1. Go to Developer → RPC Calls
+2. Select `author` endpoint and `insertKey` method
+3. Input: keyType=`beef`, suri=`<secret>`, publicKey=`<ECDSA pubkey>`
+
+#### Via curl
+
+```bash
+curl http://localhost:9933 -H "Content-Type:application/json;charset=utf-8" -d '{
+    "jsonrpc":"2.0",
+    "id":1,
+    "method":"author_insertKey",
+    "params":["beef","<suri>","<publicKey>"]
+}'
+```
+
+### Example Key Files
+
+See `res/mock-bridge-data/beefy-keys-mock.json` for example configuration.
+
+## Architecture
+
+```
++------------------+     +------------------+     +------------------+
+| BEEFY Key JSON   | --> | midnight-beefy-  | --> | Node RPC         |
+| (keys + URLs)    |     | relay            |     | author_insertKey |
++------------------+     +------------------+     +------------------+
+                                                          |
+                                                          v
+                                                  +------------------+
+                                                  | BEEFY Consensus  |
+                                                  | Key Storage      |
+                                                  +------------------+
+```
+
+## Integration
+
+### Dependencies
+
+- Midnight node with [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) enabled
+- ECDSA key pairs for each validator
+
+### Used By
+
+- Validator operators for key management
+- CI/CD for test network setup
+
+## Testing
+
+```bash
+cargo test -p relay
+```
+
+## See Also
+
+- [GLOSSARY - BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) - Protocol description
+- [res/mock-bridge-data](../res/mock-bridge-data/) - Example key files
+- [node](../node/README.md) - Node configuration
