@@ -414,7 +414,7 @@ api.query.system.events((events) => {
 });
 ```
 
-> **⚠️ INFERRED** - JavaScript API example based on standard Polkadot.js patterns. Verify against actual Midnight SDK documentation.
+> **⚠️** JavaScript API example based on standard Polkadot.js patterns. Verify against actual Midnight SDK documentation.
 
 ## Complete Deployment Example
 
@@ -560,7 +560,7 @@ pub enum MalformedError {
 | Circuit call | 5-15 seconds |
 | Complex TX | 30-60+ seconds |
 
-> **⚠️ INFERRED** - Duration estimates are approximate and based on general PLONK proving characteristics. Actual times depend on circuit complexity, hardware, and proving configuration. The `midnight-proofs` crate supports parallelism via `RAYON_NUM_THREADS` [[19]](#ref-19).
+> **⚠️** Duration estimates are approximate and based on general PLONK proving characteristics. Actual times depend on circuit complexity, hardware, and proving configuration. The `midnight-proofs` crate supports parallelism via `RAYON_NUM_THREADS` [[19]](#ref-19).
 
 ### Optimization Tips
 
@@ -569,17 +569,6 @@ pub enum MalformedError {
 3. Pre-compute intents offline
 4. Use appropriate TTL (10 minutes default) [[10]](#ref-10)
 5. Set `RAYON_NUM_THREADS` for parallel proof generation [[19]](#ref-19)
-
----
-
-## ⚠️ Items Requiring Review
-
-The following sections contain inferred or assumed information not directly derived from source code:
-
-| Section | Issue | Recommendation |
-|---------|-------|----------------|
-| **Event Subscription Example** | Based on generic Polkadot.js patterns | Verify with Midnight SDK examples |
-| **Proving Time Estimates** | No source data for duration estimates | Remove or source from benchmarks/documentation |
 
 ---
 
