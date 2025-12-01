@@ -10,7 +10,12 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ### Data Flow
 
-Contract deployment and interaction follow distinct but related flows [[2]](#ref-2). **Developers** compile source code once and deploy [[7]](#ref-7); **Users** interact with deployed contracts [[21]](#ref-21). Both deployment and contract calls share the intent → prove → submit pipeline [[6]](#ref-6) [[8]](#ref-8).
+Contract deployment and interaction follow distinct but related flows [[2]](#ref-2).
+
+* **Developers** compile source code once and deploy [[7]](#ref-7);    
+* **Users** interact with deployed contracts [[21]](#ref-21).
+
+Both deployment and contract calls share the intent → prove → submit pipeline [[6]](#ref-6) [[8]](#ref-8).
 
 ```mermaid
 flowchart LR
@@ -135,7 +140,12 @@ sequenceDiagram
 
 ### Deployment Architecture
 
-The system spans multiple environments with distinct actors [[2]](#ref-2) [[3]](#ref-3). **Developers** compile and deploy contracts [[7]](#ref-7); **Users** interact with deployed contracts [[21]](#ref-21). Both share the proving infrastructure [[9]](#ref-9) [[18]](#ref-18) and submit transactions to the Midnight network [[12]](#ref-12) [[13]](#ref-13), which settles to Cardano.
+The system spans multiple environments with distinct actors [[2]](#ref-2) [[3]](#ref-3).
+
+* **Developers** compile and deploy contracts [[7]](#ref-7);  
+* **Users** interact with deployed contracts [[21]](#ref-21).
+
+Both share the proving infrastructure [[9]](#ref-9) [[18]](#ref-18) and submit transactions to the Midnight network [[12]](#ref-12) [[13]](#ref-13), which settles to Cardano.
 
 ```mermaid
 flowchart TB
