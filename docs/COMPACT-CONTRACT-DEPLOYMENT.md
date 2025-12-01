@@ -91,7 +91,7 @@ sequenceDiagram
         RPC-->>Dev: ContractDeploy event
     end
 
-    Note over Dev,User: Contract is now deployed and available for users
+    Note over Dev,Ledger: Contract is now deployed and available for users
 
     rect rgb(255, 253, 231)
         Note over User,Toolkit: Contract Call: Intent Generation (User)
