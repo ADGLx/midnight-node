@@ -10,7 +10,7 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ### Data Flow
 
-Contract deployment and interaction follow distinct but related flows. **Developers** compile source code once and deploy; **Users** interact with deployed contracts. Both deployment and contract calls share the intent → prove → submit pipeline.
+Contract deployment and interaction follow distinct but related flows [[2]](#ref-2). **Developers** compile source code once and deploy [[7]](#ref-7); **Users** interact with deployed contracts [[21]](#ref-21). Both deployment and contract calls share the intent → prove → submit pipeline [[6]](#ref-6) [[8]](#ref-8).
 
 ```mermaid
 flowchart LR
@@ -47,7 +47,7 @@ flowchart LR
 
 ### Developer Deployment Flow
 
-The deployment workflow is a one-time process where the developer compiles Compact source code, generates a deploy intent, proves the transaction, and submits it to create the on-chain contract.
+The deployment workflow is a one-time process where the developer compiles Compact source code [[20]](#ref-20), generates a deploy intent [[3]](#ref-3) [[6]](#ref-6), proves the transaction [[7]](#ref-7) [[8]](#ref-8), and submits it to create the on-chain contract [[5]](#ref-5) [[13]](#ref-13).
 
 ```mermaid
 sequenceDiagram
@@ -95,7 +95,7 @@ sequenceDiagram
 
 ### User Contract Call Flow
 
-After deployment, users interact with the contract by generating call intents, proving their transactions, and submitting them. This flow can occur repeatedly for each contract interaction.
+After deployment, users interact with the contract by generating call intents [[3]](#ref-3), proving their transactions [[21]](#ref-21) [[8]](#ref-8), and submitting them [[13]](#ref-13). This flow can occur repeatedly for each contract interaction.
 
 ```mermaid
 sequenceDiagram
@@ -135,7 +135,7 @@ sequenceDiagram
 
 ### Deployment Architecture
 
-The system spans multiple environments with distinct actors. **Developers** compile and deploy contracts; **Users** interact with deployed contracts. Both share the proving infrastructure and submit transactions to the Midnight network, which settles to Cardano.
+The system spans multiple environments with distinct actors [[2]](#ref-2) [[3]](#ref-3). **Developers** compile and deploy contracts [[7]](#ref-7); **Users** interact with deployed contracts [[21]](#ref-21). Both share the proving infrastructure [[9]](#ref-9) [[18]](#ref-18) and submit transactions to the Midnight network [[12]](#ref-12) [[13]](#ref-13), which settles to Cardano.
 
 ```mermaid
 flowchart TB
@@ -821,3 +821,4 @@ Strategies to improve deployment and transaction performance:
 | <a id="ref-18"></a>[18] | Midnight ZK - Proof System | [`midnight-zk/README.md`](https://github.com/m2ux/midnight-zk/blob/main/README.md), [`midnight-zk/proofs/README.md`](https://github.com/m2ux/midnight-zk/blob/main/proofs/README.md) |
 | <a id="ref-19"></a>[19] | Midnight Proofs - PLONK Implementation | [`midnight-zk/proofs/Cargo.toml`](https://github.com/m2ux/midnight-zk/blob/main/proofs/Cargo.toml) |
 | <a id="ref-20"></a>[20] | Compiled Contract Example | [`static/contracts/simple-merkle-tree/`](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/) |
+| <a id="ref-21"></a>[21] | Contract Call Builder | [`util/toolkit/src/tx_generator/builder/builders/contract_call.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_call.rs) |
