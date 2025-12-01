@@ -4,7 +4,7 @@ A detailed guide to deploying [Compact](../GLOSSARY.md#compact) smart contracts 
 
 ## Overview
 
-Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for defining privacy-preserving smart contracts [1]. The deployment process involves several stages: compilation, intent generation, proving, and submission to the node. This document covers the complete lifecycle from source code to on-chain contract state.
+Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for defining privacy-preserving smart contracts [[1]](#ref-1). The deployment process involves several stages: compilation, intent generation, proving, and submission to the node. This document covers the complete lifecycle from source code to on-chain contract state.
 
 ## Architecture Overview
 
@@ -38,7 +38,7 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ### Compiling Compact Source
 
-The `compactc` compiler transforms Compact source code into executable artifacts [2]:
+The `compactc` compiler transforms Compact source code into executable artifacts [[2]](#ref-2):
 
 ```bash
 compactc counter.compact ./output/counter
@@ -46,18 +46,18 @@ compactc counter.compact ./output/counter
 
 ### Generated Artifacts
 
-> **⚠️ INFERRED** - Artifact names based on toolkit-js imports and typical compactc output patterns. Verify against official compactc documentation.
-
 | Artifact | Description |
 |----------|-------------|
-| `contract/index.cjs` | JavaScript contract interface [3] |
-| `keys/*.zkir` | Zero-knowledge circuit definitions |
+| `contract/index.cjs` | JavaScript contract interface [[3]](#ref-3) |
+| `keys/*.zkir` | Zero-knowledge intermediate representation circuits [[18]](#ref-18) |
 | `keys/*.prover` | Prover keys for each circuit |
 | `keys/*.verifier` | Verifier keys for on-chain verification |
 
+> **⚠️ INFERRED** - Artifact names based on toolkit-js imports and typical compactc output patterns. Verify against official compactc documentation.
+
 ### Version Compatibility
 
-Contract artifacts are version-locked. Check compatibility [4]:
+Contract artifacts are version-locked. Check compatibility [[4]](#ref-4):
 
 ```bash
 midnight-node-toolkit version
@@ -68,11 +68,11 @@ midnight-node-toolkit version
 
 ## Stage 2: Intent Generation
 
-An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions [5].
+An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions [[5]](#ref-5).
 
 ### Configuration File (contract.config.ts)
 
-The configuration file binds compiled contract output to witness implementations [3]:
+The configuration file binds compiled contract output to witness implementations [[3]](#ref-3):
 
 ```typescript
 import { CompiledContract, ContractExecutable } from '@midnight-ntwrk/compact-js/effect';
@@ -115,7 +115,7 @@ midnight-node-toolkit-js deploy \
 
 ### Generating Deploy Intent (Rust toolkit)
 
-The Rust toolkit delegates to toolkit-js for intent generation [6]:
+The Rust toolkit delegates to toolkit-js for intent generation [[6]](#ref-6):
 
 ```bash
 midnight-node-toolkit generate-intent deploy \
@@ -130,7 +130,7 @@ midnight-node-toolkit generate-intent deploy \
 
 ### Intent Structure
 
-The intent encapsulates [5][7]:
+The intent encapsulates [[5]](#ref-5)[[7]](#ref-7):
 
 | Component | Description |
 |-----------|-------------|
@@ -141,7 +141,17 @@ The intent encapsulates [5][7]:
 
 ## Stage 3: Transaction Proving
 
-Proving generates [SNARK](../GLOSSARY.md#snark-succinct-non-interactive-argument-of-knowledge) proofs for the transaction, ensuring privacy guarantees hold [8].
+Proving generates [SNARK](../GLOSSARY.md#snark-succinct-non-interactive-argument-of-knowledge) proofs for the transaction, ensuring privacy guarantees hold [[8]](#ref-8).
+
+### Proving System
+
+Midnight uses a **PLONK-based proof system with KZG polynomial commitments** [[18]](#ref-18)[[19]](#ref-19). The system is implemented in the `midnight-proofs` crate and uses:
+
+- **BLS12-381** elliptic curve for pairings
+- **JubJub** embedded curve for in-circuit operations
+- **KZG commitments** for polynomial commitment scheme
+- Support for **committed instances** (proving statements on committed data)
+- **Truncated challenges** for efficient recursive proof verification
 
 ### Local Proving
 
@@ -162,29 +172,26 @@ midnight-node-toolkit send-intent \
 
 ### Proof Generation Flow
 
-The proof server (local or remote) generates SNARK proofs [9]:
-
-> **⚠️ INFERRED** - "Halo2" proving system inferred from GLOSSARY and external Midnight documentation. The codebase references `ProofProvider` abstraction without specifying the underlying proving system.
+The proof server (local or remote) generates PLONK proofs with KZG commitments [[9]](#ref-9)[[18]](#ref-18):
 
 ```
 Intent → Unproven Transaction → Proof Server → Proven Transaction
                                      |
                                      v
-                              +-------------+
-                              | SNARK       |
-                              | Proving     |
-                              +-------------+
+                              +------------------+
+                              | PLONK Prover     |
+                              | (KZG Commits)    |
+                              +------------------+
                                      |
                                      v
-                              +-------------+
-                              | Proof       |
-                              | Attached    |
-                              +-------------+
+                              +------------------+
+                              | Proof Attached   |
+                              +------------------+
 ```
 
 ### Transaction Components
 
-A finalized transaction contains [10]:
+A finalized transaction contains [[10]](#ref-10):
 
 | Component | Description |
 |-----------|-------------|
@@ -192,14 +199,14 @@ A finalized transaction contains [10]:
 | `intents` | Map of segment ID → Intent (deploy/call actions) |
 | `guaranteed_offer` | Shielded coin transfers (always applied) |
 | `fallible_offer` | Conditional transfers (may fail) |
-| `proofs` | SNARK proofs for each circuit invocation |
+| `proofs` | PLONK proofs with KZG commitments for each circuit |
 | `ttl` | Timestamp after which TX is invalid (default: 600 seconds / 10 min) |
 
 ## Stage 4: Node Submission
 
 ### WebSocket RPC Connection
 
-Transactions are submitted via WebSocket to the node's JSON-RPC interface [11]:
+Transactions are submitted via WebSocket to the node's JSON-RPC interface [[11]](#ref-11):
 
 ```
 Default endpoint: ws://127.0.0.1:9944
@@ -207,7 +214,7 @@ Default endpoint: ws://127.0.0.1:9944
 
 ### Submission Flow
 
-The toolkit uses `subxt` to create and submit unsigned extrinsics [12]:
+The toolkit uses `subxt` to create and submit unsigned extrinsics [[12]](#ref-12):
 
 ```rust
 // From util/toolkit/src/sender.rs (lines 118-131)
@@ -220,7 +227,7 @@ let tx_progress = unsigned_extrinsic.submit_and_watch().await?;
 
 ### Transaction Lifecycle
 
-Derived from sender.rs logging statements [12]:
+Derived from sender.rs logging statements [[12]](#ref-12):
 
 ```
 SENDING → SENT → BEST_BLOCK → FINALIZED
@@ -233,7 +240,7 @@ SENDING → SENT → BEST_BLOCK → FINALIZED
 
 ### pallet-midnight Extrinsic
 
-The `send_mn_transaction` extrinsic processes Midnight transactions [13]:
+The `send_mn_transaction` extrinsic processes Midnight transactions [[13]](#ref-13):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 353-412)
@@ -261,7 +268,7 @@ pub fn send_mn_transaction(_origin: OriginFor<T>, midnight_tx: Vec<u8>) -> Dispa
 
 ### Validation (Pre-dispatch)
 
-Before inclusion in a block, the transaction is validated against the current ledger state [13]:
+Before inclusion in a block, the transaction is validated against the current ledger state [[13]](#ref-13):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 515-540)
@@ -284,7 +291,7 @@ fn validate_unsigned(call: &Call<T>, block_context: BlockContext) -> Transaction
 
 ### Ledger State Update
 
-The ledger bridge applies transactions via host functions [14]:
+The ledger bridge applies transactions via host functions [[14]](#ref-14):
 
 ```
 Current State Root → Apply Transaction → New State Root
@@ -303,7 +310,7 @@ Current State Root → Apply Transaction → New State Root
 
 ### Midnight-Specific RPC Methods
 
-The pallet-midnight-rpc crate exposes custom JSON-RPC methods [15]:
+The pallet-midnight-rpc crate exposes custom JSON-RPC methods [[15]](#ref-15):
 
 ```rust
 // From pallets/midnight/rpc/src/lib.rs (lines 32-49)
@@ -368,7 +375,7 @@ curl -X POST http://localhost:9933 \
 
 ### Contract Events
 
-Events emitted by pallet-midnight [13]:
+Events emitted by pallet-midnight [[13]](#ref-13):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 216-235)
@@ -396,8 +403,6 @@ pub enum Event {
 
 ### Subscribing to Events
 
-> **⚠️ INFERRED** - JavaScript API example based on standard Polkadot.js patterns. Verify against actual Midnight SDK documentation.
-
 ```javascript
 const api = await ApiPromise.create({ provider: wsProvider });
 api.query.system.events((events) => {
@@ -409,6 +414,8 @@ api.query.system.events((events) => {
   });
 });
 ```
+
+> **⚠️ INFERRED** - JavaScript API example based on standard Polkadot.js patterns. Verify against actual Midnight SDK documentation.
 
 ## Complete Deployment Example
 
@@ -458,7 +465,7 @@ midnight-node-toolkit contract-state \
 
 ## Contract Maintenance
 
-After deployment, contract authority holders can update verifier keys or transfer authority [16]:
+After deployment, contract authority holders can update verifier keys or transfer authority [[16]](#ref-16):
 
 ### Update Signing Authority
 
@@ -483,7 +490,7 @@ midnight-node-toolkit generate-intent maintain-circuit \
 
 ### Pallet Errors
 
-Errors defined in pallet-midnight [13]:
+Errors defined in pallet-midnight [[13]](#ref-13):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 238-264)
@@ -513,7 +520,7 @@ pub enum Error<T> {
 
 ### Transaction Validation Errors
 
-From `ledger/src/versions/common/types.rs` [17]:
+From `ledger/src/versions/common/types.rs` [[17]](#ref-17):
 
 ```rust
 pub enum TransactionError {
@@ -548,20 +555,21 @@ pub enum MalformedError {
 
 ### Proving Time
 
-> **⚠️ INFERRED** - Duration estimates are approximate and based on general SNARK proving characteristics. Actual times depend on circuit complexity, hardware, and proving system configuration. No source data available in codebase.
-
 | Operation | Typical Duration |
 |-----------|------------------|
 | Deploy (simple) | 10-30 seconds |
 | Circuit call | 5-15 seconds |
 | Complex TX | 30-60+ seconds |
 
+> **⚠️ INFERRED** - Duration estimates are approximate and based on general PLONK proving characteristics. Actual times depend on circuit complexity, hardware, and proving configuration. The `midnight-proofs` crate supports parallelism via `RAYON_NUM_THREADS` [[19]](#ref-19).
+
 ### Optimization Tips
 
 1. Use remote proof server for faster proving
 2. Batch multiple operations where possible
 3. Pre-compute intents offline
-4. Use appropriate TTL (10 minutes default) [10]
+4. Use appropriate TTL (10 minutes default) [[10]](#ref-10)
+5. Set `RAYON_NUM_THREADS` for parallel proof generation [[19]](#ref-19)
 
 ---
 
@@ -572,9 +580,8 @@ The following sections contain inferred or assumed information not directly deri
 | Section | Issue | Recommendation |
 |---------|-------|----------------|
 | **Generated Artifacts** | Artifact names (`.zkir`, `.prover`, `.verifier`) inferred from patterns | Verify against official `compactc` documentation |
-| **Proof Generation Flow** | "Halo2" proving system mentioned | Confirm with Midnight documentation or remove specific reference |
-| **Proving Time Estimates** | No source data for duration estimates | Remove or source from benchmarks/documentation |
 | **Event Subscription Example** | Based on generic Polkadot.js patterns | Verify with Midnight SDK examples |
+| **Proving Time Estimates** | No source data for duration estimates | Remove or source from benchmarks/documentation |
 
 ---
 
@@ -593,20 +600,22 @@ The following sections contain inferred or assumed information not directly deri
 
 | # | Source | Path/URL |
 |---|--------|----------|
-| [1] | Midnight Official Documentation | https://docs.midnight.network |
-| [2] | Midnight Toolkit README - Custom Contracts | `util/toolkit/README.md` |
-| [3] | Toolkit-JS README - Configuration | `util/toolkit-js/README.md` |
-| [4] | Midnight Toolkit README - Version Check | `util/toolkit/README.md` |
-| [5] | Ledger Helpers - Contract Deploy | `ledger/helpers/src/versions/common/contract/deploy.rs` |
-| [6] | Generate Intent Command | `util/toolkit/src/commands/generate_intent.rs` |
-| [7] | Contract Deploy Builder | `util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs` |
-| [8] | Send Intent Command | `util/toolkit/src/commands/send_intent.rs` |
-| [9] | Genesis Generator - Proof Server | `util/toolkit/src/genesis_generator.rs` (lines 304-342) |
-| [10] | Transaction Builder - TTL | `ledger/helpers/src/versions/common/transaction.rs` (line 170: `Duration::from_secs(600)`) |
-| [11] | Destination Module - Default URL | `util/toolkit/src/tx_generator/destination.rs` (line 24) |
-| [12] | Sender Module - TX Submission | `util/toolkit/src/sender.rs` (lines 113-143) |
-| [13] | Pallet Midnight - Extrinsics, Events, Errors | `pallets/midnight/src/lib.rs` |
-| [14] | Ledger State Management | `ledger/src/versions/common/mod.rs` |
-| [15] | Pallet Midnight RPC | `pallets/midnight/rpc/src/lib.rs` (lines 32-49) |
-| [16] | Contract Maintenance | `ledger/helpers/src/versions/common/contract/maintenance.rs` |
-| [17] | Transaction Error Types | `ledger/src/versions/common/types.rs` (lines 30-91, 127-131) |
+| <a id="ref-1"></a>[1] | Midnight Official Documentation | https://docs.midnight.network |
+| <a id="ref-2"></a>[2] | Midnight Toolkit README - Custom Contracts | `util/toolkit/README.md` |
+| <a id="ref-3"></a>[3] | Toolkit-JS README - Configuration | `util/toolkit-js/README.md` |
+| <a id="ref-4"></a>[4] | Midnight Toolkit README - Version Check | `util/toolkit/README.md` |
+| <a id="ref-5"></a>[5] | Ledger Helpers - Contract Deploy | `ledger/helpers/src/versions/common/contract/deploy.rs` |
+| <a id="ref-6"></a>[6] | Generate Intent Command | `util/toolkit/src/commands/generate_intent.rs` |
+| <a id="ref-7"></a>[7] | Contract Deploy Builder | `util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs` |
+| <a id="ref-8"></a>[8] | Send Intent Command | `util/toolkit/src/commands/send_intent.rs` |
+| <a id="ref-9"></a>[9] | Genesis Generator - Proof Server | `util/toolkit/src/genesis_generator.rs` (lines 304-342) |
+| <a id="ref-10"></a>[10] | Transaction Builder - TTL | `ledger/helpers/src/versions/common/transaction.rs` (line 170: `Duration::from_secs(600)`) |
+| <a id="ref-11"></a>[11] | Destination Module - Default URL | `util/toolkit/src/tx_generator/destination.rs` (line 24) |
+| <a id="ref-12"></a>[12] | Sender Module - TX Submission | `util/toolkit/src/sender.rs` (lines 113-143) |
+| <a id="ref-13"></a>[13] | Pallet Midnight - Extrinsics, Events, Errors | `pallets/midnight/src/lib.rs` |
+| <a id="ref-14"></a>[14] | Ledger State Management | `ledger/src/versions/common/mod.rs` |
+| <a id="ref-15"></a>[15] | Pallet Midnight RPC | `pallets/midnight/rpc/src/lib.rs` (lines 32-49) |
+| <a id="ref-16"></a>[16] | Contract Maintenance | `ledger/helpers/src/versions/common/contract/maintenance.rs` |
+| <a id="ref-17"></a>[17] | Transaction Error Types | `ledger/src/versions/common/types.rs` (lines 30-91, 127-131) |
+| <a id="ref-18"></a>[18] | Midnight ZK - Proof System | `midnight-zk/README.md`, `midnight-zk/proofs/README.md` |
+| <a id="ref-19"></a>[19] | Midnight Proofs - PLONK Implementation | `midnight-zk/proofs/Cargo.toml` (PLONK with KZG, BLS12-381, rayon parallelism) |
