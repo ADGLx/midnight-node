@@ -120,9 +120,9 @@ The Rust toolkit delegates to toolkit-js for intent generation [[6]](#ref-6):
 
 ```bash
 midnight-node-toolkit generate-intent deploy \
-  -c ../toolkit-js/test/contract/contract.config.ts \
-  --toolkit-js-path ../toolkit-js/ \
-  --coin-public aa0d72bb77ea46f986a800c66d75c4e428a95bd7e1244f1ed059374e6266eb98 \
+  -c contract.config.ts \
+  --toolkit-js-path ./toolkit-js/ \
+  --coin-public <public_key> \
   --output-intent out/intent.bin \
   --output-private-state out/private_state.json \
   --output-zswap-state out/zswap.json \
@@ -146,7 +146,7 @@ Proving generates [SNARK](../GLOSSARY.md#snark-succinct-non-interactive-argument
 
 ### Proving System
 
-Midnight uses a **PLONK-based proof system with KZG polynomial commitments** [[18]](#ref-18)[[19]](#ref-19). The system is implemented in the `midnight-proofs` crate and uses:
+Midnight uses a **[PLONK](../GLOSSARY.md#plonk)-based proof system with [KZG](../GLOSSARY.md#kzg-commitment) polynomial commitments** [[18]](#ref-18)[[19]](#ref-19). The system is implemented in the `midnight-proofs` crate and uses:
 
 - **BLS12-381** elliptic curve for pairings
 - **JubJub** embedded curve for in-circuit operations
@@ -304,7 +304,7 @@ Current State Root → Apply Transaction → New State Root
                             v
                      +----------------+
                      | Update:        |
-                     | - ZSwap tree   |
+                     | - [ZSwap](../GLOSSARY.md#zswap) tree |
                      | - Contract     |
                      |   state        |
                      | - UTXOs        |

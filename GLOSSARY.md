@@ -166,9 +166,17 @@ A cryptographic scheme that allows one to commit to a value while keeping it hid
 
 A zero-knowledge proving system used by Midnight's ledger. Halo2 enables efficient proof generation and verification without a trusted setup.
 
+### KZG Commitment
+
+A polynomial commitment scheme named after Kate, Zaverucha, and Goldberg. KZG commitments allow a prover to commit to a polynomial and later prove evaluations of that polynomial at specific points. Midnight uses KZG commitments with the PLONK proof system for efficient zero-knowledge proofs.
+
 ### [Merkle Tree](https://docs.midnight.network/learn/glossary#merkle-tree)
 
 A tree data structure where each leaf node is a hash of data, and each non-leaf node is a hash of its children. Used for efficient verification of data integrity.
+
+### PLONK
+
+A zero-knowledge proof system whose name derives from "Permutations over Lagrange-bases for Oecumenical Noninteractive arguments of Knowledge". Midnight uses a PLONK-based proof system with KZG polynomial commitments for efficient proof generation and verification.
 
 ### [Prover](https://docs.midnight.network/learn/glossary#prover)
 
