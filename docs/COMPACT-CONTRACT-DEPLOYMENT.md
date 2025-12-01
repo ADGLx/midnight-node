@@ -11,8 +11,8 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 ```
 +-------------------+     +-------------------+     +-------------------+
 |   Compact Source  | --> |     compactc      | --> | Compiled Assets   |
-|   (.compact)      |     |   (Compiler)      |     | (.cjs, .zkir,     |
-|                   |     |                   |     |  .prover, .verifier)|
+|   (.compact)      |     |   (Compiler)      |     | contract/, zkir/, |
+|                   |     |                   |     | keys/             |
 +-------------------+     +-------------------+     +-------------------+
                                                             |
                                                             v
@@ -49,11 +49,10 @@ compactc counter.compact ./output/counter
 | Artifact | Description |
 |----------|-------------|
 | `contract/index.cjs` | JavaScript contract interface [[3]](#ref-3) |
-| `keys/*.zkir` | Zero-knowledge intermediate representation circuits [[18]](#ref-18) |
+| `zkir/*.zkir` | Zero-knowledge intermediate representation circuits [[18]](#ref-18) |
+| `zkir/*.bzkir` | Binary ZKIR format (optimized) |
 | `keys/*.prover` | Prover keys for each circuit |
-| `keys/*.verifier` | Verifier keys for on-chain verification |
-
-> **⚠️ INFERRED** - Artifact names based on toolkit-js imports and typical compactc output patterns. Verify against official compactc documentation.
+| `keys/*.verifier` | Verifier keys for on-chain verification [[20]](#ref-20) |
 
 ### Version Compatibility
 
@@ -579,7 +578,6 @@ The following sections contain inferred or assumed information not directly deri
 
 | Section | Issue | Recommendation |
 |---------|-------|----------------|
-| **Generated Artifacts** | Artifact names (`.zkir`, `.prover`, `.verifier`) inferred from patterns | Verify against official `compactc` documentation |
 | **Event Subscription Example** | Based on generic Polkadot.js patterns | Verify with Midnight SDK examples |
 | **Proving Time Estimates** | No source data for duration estimates | Remove or source from benchmarks/documentation |
 
@@ -619,3 +617,4 @@ The following sections contain inferred or assumed information not directly deri
 | <a id="ref-17"></a>[17] | Transaction Error Types | [`ledger/src/versions/common/types.rs#L30-L91`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/versions/common/types.rs#L30-L91), [`#L127-L131`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/versions/common/types.rs#L127-L131) |
 | <a id="ref-18"></a>[18] | Midnight ZK - Proof System | [`midnight-zk/README.md`](https://github.com/m2ux/midnight-zk/blob/main/README.md), [`midnight-zk/proofs/README.md`](https://github.com/m2ux/midnight-zk/blob/main/proofs/README.md) |
 | <a id="ref-19"></a>[19] | Midnight Proofs - PLONK Implementation | [`midnight-zk/proofs/Cargo.toml`](https://github.com/m2ux/midnight-zk/blob/main/proofs/Cargo.toml) |
+| <a id="ref-20"></a>[20] | Compiled Contract Example | [`static/contracts/simple-merkle-tree/`](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/) |
