@@ -10,11 +10,11 @@ This glossary defines domain-specific terms and jargon used throughout the Midni
 
 A domain-specific programming language designed by Midnight for writing privacy-preserving smart contracts. Compact is TypeScript-like in syntax and compiles to zero-knowledge circuits. Contracts written in Compact can protect sensitive data while still enabling on-chain verification.
 
-### [cNIGHT](https://docs.midnight.network/learn/introduction/native-token/about-dust)
+### [cNIGHT](https://docs.midnight.network/about-dust)
 
 A wrapped representation of NIGHT tokens on the Cardano blockchain. cNIGHT tokens can be observed by the Midnight node to generate DUST tokens, enabling cross-chain token economics between Cardano and Midnight.
 
-### [DUST](https://docs.midnight.network/learn/introduction/native-token/about-dust)
+### [DUST](https://docs.midnight.network/about-dust)
 
 The native utility token of the Midnight network, used for:
 - Paying transaction fees (gas)
@@ -31,7 +31,7 @@ A token distribution mechanism allowing eligible participants to claim DUST toke
 
 The core state machine managing Midnight's privacy-preserving transactions. The ledger uses the Halo2 proving system and maintains both public blockchain state and private user state through zero-knowledge proofs.
 
-### [NIGHT](https://docs.midnight.network/learn/introduction/native-token/about-dust)
+### [NIGHT](https://docs.midnight.network/about-dust)
 
 The primary token of the Midnight ecosystem. NIGHT exists on both Midnight (as DUST) and Cardano (as cNIGHT), with bridge mechanisms enabling cross-chain functionality.
 
@@ -39,7 +39,7 @@ The primary token of the Midnight ecosystem. NIGHT exists on both Midnight (as D
 
 A transaction where the amounts, participants, or other details are hidden using zero-knowledge proofs. Only the validity of the transaction is publicly verifiable, not its contents.
 
-### [tDUST](https://docs.midnight.network/develop/tutorial/1-using/faucet)
+### [tDUST](https://docs.midnight.network/develop/how-to/acquire-tokens)
 
 Test DUST tokens used on Midnight testnets (devnet, testnet). tDUST has no monetary value and is obtained from faucets for development and testing purposes.
 
@@ -130,7 +130,7 @@ A measure of computational resources consumed by an operation in Substrate. Weig
 
 A component that follows the Cardano blockchain and stores data in a PostgreSQL database. Midnight nodes query db-sync to observe Cardano state for cNIGHT tokens and governance data.
 
-### [Main Chain](https://docs.midnight.network/learn/what-is-midnight/high-level-arch)
+### [Main Chain](https://docs.midnight.network/learn/what-is-midnight/midnight-combined-model)
 
 In the context of Midnight, refers to the Cardano blockchain. Midnight operates as a "partner chain" to Cardano, observing mainchain state for cross-chain functionality.
 
@@ -138,7 +138,7 @@ In the context of Midnight, refers to the Cardano blockchain. Midnight operates 
 
 Main chain (Cardano) block hash and transaction hash types. Used to track positions and references to Cardano blockchain data.
 
-### [Partner Chain](https://docs.midnight.network/learn/what-is-midnight/high-level-arch)
+### [Partner Chain](https://docs.midnight.network/learn/what-is-midnight/midnight-combined-model)
 
 A blockchain that operates alongside Cardano, leveraging its security and infrastructure while providing specialized functionality. Midnight is a partner chain focused on data protection.
 
@@ -224,7 +224,7 @@ Runtime information about the current block being processed, including:
 - Current timestamp
 - Block number
 
-### [CardanoPosition](https://docs.midnight.network/learn/what-is-midnight/high-level-arch)
+### [CardanoPosition](https://docs.midnight.network/learn/what-is-midnight/midnight-combined-model)
 
 A data structure tracking the sync position on Cardano:
 - Block hash
@@ -233,7 +233,7 @@ A data structure tracking the sync position on Cardano:
 
 Used to ensure deterministic processing of Cardano observations.
 
-### [CMST (Cardano Midnight System Transaction)](https://docs.midnight.network/learn/what-is-midnight/high-level-arch)
+### [CMST (Cardano Midnight System Transaction)](https://docs.midnight.network/learn/what-is-midnight/midnight-combined-model)
 
 A system-level transaction generated from Cardano observations. CMSTs update Midnight state based on events observed on Cardano (registrations, token movements, etc.).
 
@@ -249,7 +249,7 @@ A cryptographic hash representing the current state of the Midnight ledger. Used
 
 The cost of storing data on-chain, measured separately from computational (gas) costs.
 
-### [System Transaction](https://docs.midnight.network/learn/what-is-midnight/high-level-arch)
+### [System Transaction](https://docs.midnight.network/learn/what-is-midnight/midnight-combined-model)
 
 A privileged transaction type that can modify state without user signatures. Used for applying Cardano-observed state changes to the Midnight ledger.
 
@@ -265,7 +265,7 @@ A model for tracking token ownership where each "output" of a transaction can on
 
 A JSON configuration file defining the genesis state and parameters of a blockchain network. Includes initial balances, authorities, and runtime configuration.
 
-### [Devnet](https://docs.midnight.network/develop/tutorial/1-using)
+### Devnet
 
 A development network for early-stage testing. Less stable than testnet, used for active development.
 
@@ -273,7 +273,7 @@ A development network for early-stage testing. Less stable than testnet, used fo
 
 The initial state of a blockchain at block 0. Includes initial account balances, authority configurations, and runtime parameters.
 
-### [Mainnet](https://docs.midnight.network/learn/what-is-midnight)
+### Mainnet
 
 The production network where real value transactions occur. Midnight mainnet is the live deployment with actual NIGHT/DUST tokens.
 
@@ -281,7 +281,7 @@ The production network where real value transactions occur. Midnight mainnet is 
 
 A quality assurance network used for integration testing before testnet deployment.
 
-### [Testnet](https://docs.midnight.network/develop/tutorial/1-using)
+### Testnet
 
 A public test network that simulates mainnet conditions. Uses test tokens (tDUST) with no real value.
 
