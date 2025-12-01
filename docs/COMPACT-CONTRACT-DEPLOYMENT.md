@@ -182,12 +182,13 @@ flowchart TB
         direction LR
         subgraph node["Midnight Node"]
             rpc["RPC Interface<br/>(WebSocket :9944)"]
-            runtime["Runtime"]
-            subgraph pallets["Pallets"]
-                pallet_mn["pallet-midnight"]
-                pallet_contracts["pallet-contracts"]
+            subgraph runtime["Runtime"]
+                subgraph pallets["Pallets"]
+                    pallet_mn["pallet-midnight"]
+                    pallet_contracts["pallet-contracts"]
+                end
+                ledger["Ledger State"]
             end
-            ledger["Ledger State"]
         end
         validators["Validator Network<br/>(N validators)"]
     end
@@ -209,10 +210,9 @@ flowchart TB
     cli_user -.->|"prove call"| remote
     cli_dev -->|"deploy tx"| rpc
     cli_user -->|"call tx"| rpc
-    rpc --> runtime
-    runtime --> pallet_mn
+    rpc --> pallet_mn
+    rpc --> pallet_contracts
     pallet_mn --> ledger
-    runtime --> pallet_contracts
     node <-->|"consensus"| validators
     node <-->|"cross-chain"| settlement
     settlement <--> mainchain
