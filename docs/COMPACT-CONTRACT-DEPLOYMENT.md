@@ -4,7 +4,7 @@ A detailed guide to deploying [Compact](../GLOSSARY.md#compact) smart contracts 
 
 ## Overview
 
-Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for defining privacy-preserving smart contracts. The deployment process involves several stages: compilation, intent generation, proving, and submission to the node. This document covers the complete lifecycle from source code to on-chain contract state.
+Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for defining privacy-preserving smart contracts [1]. The deployment process involves several stages: compilation, intent generation, proving, and submission to the node. This document covers the complete lifecycle from source code to on-chain contract state.
 
 ## Architecture Overview
 
@@ -38,7 +38,7 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ### Compiling Compact Source
 
-The `compactc` compiler transforms Compact source code into executable artifacts:
+The `compactc` compiler transforms Compact source code into executable artifacts [2]:
 
 ```bash
 compactc counter.compact ./output/counter
@@ -48,14 +48,14 @@ compactc counter.compact ./output/counter
 
 | Artifact | Description |
 |----------|-------------|
-| `contract/index.cjs` | JavaScript contract interface |
+| `contract/index.cjs` | JavaScript contract interface [3] |
 | `keys/*.zkir` | Zero-knowledge circuit definitions |
 | `keys/*.prover` | Prover keys for each circuit |
 | `keys/*.verifier` | Verifier keys for on-chain verification |
 
 ### Version Compatibility
 
-Contract artifacts are version-locked. Check compatibility:
+Contract artifacts are version-locked. Check compatibility [4]:
 
 ```bash
 midnight-node-toolkit version
@@ -66,9 +66,11 @@ midnight-node-toolkit version
 
 ## Stage 2: Intent Generation
 
-An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions.
+An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions [5].
 
 ### Configuration File (contract.config.ts)
+
+The configuration file binds compiled contract output to witness implementations [3]:
 
 ```typescript
 import { CompiledContract, ContractExecutable } from '@midnight-ntwrk/compact-js/effect';
@@ -111,6 +113,8 @@ midnight-node-toolkit-js deploy \
 
 ### Generating Deploy Intent (Rust toolkit)
 
+The Rust toolkit delegates to toolkit-js for intent generation [6]:
+
 ```bash
 midnight-node-toolkit generate-intent deploy \
   -c ../toolkit-js/test/contract/contract.config.ts \
@@ -124,7 +128,7 @@ midnight-node-toolkit generate-intent deploy \
 
 ### Intent Structure
 
-The intent encapsulates:
+The intent encapsulates [7]:
 
 | Component | Description |
 |-----------|-------------|
@@ -135,7 +139,7 @@ The intent encapsulates:
 
 ## Stage 3: Transaction Proving
 
-Proving generates [SNARK](../GLOSSARY.md#snark-succinct-non-interactive-argument-of-knowledge) proofs for the transaction, ensuring privacy guarantees hold.
+Proving generates [SNARK](../GLOSSARY.md#snark-succinct-non-interactive-argument-of-knowledge) proofs for the transaction, ensuring privacy guarantees hold [8].
 
 ### Local Proving
 
@@ -156,6 +160,8 @@ midnight-node-toolkit send-intent \
 
 ### Proof Generation Flow
 
+The proof server (local or remote) generates Halo2 SNARK proofs [9]:
+
 ```
 Intent → Unproven Transaction → Proof Server → Proven Transaction
                                      |
@@ -174,7 +180,7 @@ Intent → Unproven Transaction → Proof Server → Proven Transaction
 
 ### Transaction Components
 
-A finalized transaction contains:
+A finalized transaction contains [10]:
 
 | Component | Description |
 |-----------|-------------|
@@ -189,13 +195,15 @@ A finalized transaction contains:
 
 ### WebSocket RPC Connection
 
-Transactions are submitted via WebSocket to the node's JSON-RPC interface:
+Transactions are submitted via WebSocket to the node's JSON-RPC interface [11]:
 
 ```
 Default endpoint: ws://127.0.0.1:9944
 ```
 
 ### Submission Flow
+
+The toolkit uses `subxt` to create and submit unsigned extrinsics [12]:
 
 ```rust
 // From util/toolkit/src/sender.rs
@@ -217,7 +225,7 @@ SENDING → SENT → BEST_BLOCK → FINALIZED
 
 ### pallet-midnight Extrinsic
 
-The `send_mn_transaction` extrinsic processes Midnight transactions:
+The `send_mn_transaction` extrinsic processes Midnight transactions [13]:
 
 ```rust
 #[pallet::call_index(0)]
@@ -234,7 +242,7 @@ pub fn send_mn_transaction(
 
 ### Validation (Pre-dispatch)
 
-Before inclusion in a block, the transaction is validated:
+Before inclusion in a block, the transaction is validated against the current ledger state [13]:
 
 ```rust
 fn validate_unsigned(call: &Call<T>, block_context: BlockContext) -> TransactionValidity {
@@ -245,6 +253,8 @@ fn validate_unsigned(call: &Call<T>, block_context: BlockContext) -> Transaction
 ```
 
 ### Ledger State Update
+
+The ledger bridge applies transactions via host functions [14]:
 
 ```
 Current State Root → Apply Transaction → New State Root
@@ -262,6 +272,8 @@ Current State Root → Apply Transaction → New State Root
 ## API Endpoints
 
 ### Midnight-Specific RPC Methods
+
+The pallet-midnight-rpc crate exposes custom JSON-RPC methods [15]:
 
 | Method | Description | Parameters |
 |--------|-------------|------------|
@@ -307,6 +319,8 @@ curl -X POST http://localhost:9933 \
 ## Events
 
 ### Contract Events
+
+Events emitted by pallet-midnight [13]:
 
 | Event | Emitted When |
 |-------|--------------|
@@ -384,7 +398,7 @@ midnight-node-toolkit contract-state \
 
 ## Contract Maintenance
 
-After deployment, contract authority holders can update:
+After deployment, contract authority holders can update verifier keys or transfer authority [16]:
 
 ### Update Signing Authority
 
@@ -408,6 +422,8 @@ midnight-node-toolkit generate-intent maintain-circuit \
 ## Error Handling
 
 ### Common Errors
+
+Errors defined in the pallet-midnight error enum [13]:
 
 | Error | Cause | Resolution |
 |-------|-------|------------|
@@ -444,7 +460,7 @@ pub enum TransactionError {
 1. Use remote proof server for faster proving
 2. Batch multiple operations where possible
 3. Pre-compute intents offline
-4. Use appropriate TTL (10 minutes default)
+4. Use appropriate TTL (10 minutes default) [10]
 
 ## See Also
 
@@ -455,3 +471,25 @@ pub enum TransactionError {
 - [GLOSSARY](../GLOSSARY.md) - Term definitions
 - [Compact Language Reference](https://docs.midnight.network/develop/reference/compact) - Official Compact documentation
 
+---
+
+## References
+
+| # | Source | Path/URL |
+|---|--------|----------|
+| [1] | Midnight Official Documentation | https://docs.midnight.network |
+| [2] | Midnight Toolkit README - Custom Contracts | `util/toolkit/README.md` (lines 261-293) |
+| [3] | Toolkit-JS README - Configuration | `util/toolkit-js/README.md` (lines 1-77) |
+| [4] | Midnight Toolkit README - Version Check | `util/toolkit/README.md` (lines 44-53) |
+| [5] | Ledger Helpers - Contract Deploy | `ledger/helpers/src/versions/common/contract/deploy.rs` |
+| [6] | Generate Intent Command | `util/toolkit/src/commands/generate_intent.rs` (lines 122-176) |
+| [7] | Contract Deploy Builder | `util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs` |
+| [8] | Send Intent Command | `util/toolkit/src/commands/send_intent.rs` |
+| [9] | Genesis Generator - Proof Server | `util/toolkit/src/genesis_generator.rs` (lines 304-342) |
+| [10] | Transaction Builder | `ledger/helpers/src/versions/common/transaction.rs` (lines 163-223) |
+| [11] | Destination Module - RPC URL | `util/toolkit/src/tx_generator/destination.rs` (line 24) |
+| [12] | Sender Module - TX Submission | `util/toolkit/src/sender.rs` (lines 113-143) |
+| [13] | Pallet Midnight - Extrinsics & Events | `pallets/midnight/src/lib.rs` (lines 347-412, 216-264) |
+| [14] | Ledger State Management | `ledger/src/versions/common/mod.rs` (lines 331-393) |
+| [15] | Pallet Midnight RPC | `pallets/midnight/rpc/src/lib.rs` (lines 32-49, 235-313) |
+| [16] | Contract Maintenance | `ledger/helpers/src/versions/common/contract/maintenance.rs` |
