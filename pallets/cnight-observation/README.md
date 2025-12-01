@@ -100,17 +100,26 @@ impl pallet_cnight_observation::Config for Runtime {
 
 ### Genesis Configuration
 
-```rust
-CNightObservation::initialize_genesis(CNightGenesis {
-    redemption_validator_address: "addr_test1...",
-    mapping_validator_address: "addr_test1...",
-    cnight_policy_id: [...],
-    cnight_asset_name: "",
-    auth_token_asset_name: "...",
-});
+From `pallets/cnight-observation/src/config.rs` - genesis is configured via JSON:
+
+```json
+{
+  "addresses": {
+    "mapping_validator_address": "addr_test1...",
+    "redemption_validator_address": "addr_test1...",
+    "auth_token_asset_name": "",
+    "cnight_policy_id": "03cf16101d110dcad9cacb225f0d1e63a8809979e7feb60426995414",
+    "cnight_asset_name": ""
+  },
+  "observed_utxos": { "start": {...}, "end": {...}, "utxos": [] },
+  "mappings": {},
+  "utxo_owners": {},
+  "next_cardano_position": { "block_hash": "...", "block_number": 0, ... },
+  "system_tx": null
+}
 ```
 
-> **⚠️** Genesis configuration example is illustrative. Verify actual genesis structure in `runtime/src/lib.rs` and chain spec files.
+See `pallets/cnight-observation/src/config.rs` for full `CNightGenesis` structure.
 
 ## Integration
 

@@ -97,20 +97,30 @@ impl pallet_midnight::Config for Runtime {
 }
 ```
 
-### Querying State (via Runtime API)
+### Querying State (via RPC)
+
+RPC methods defined in `pallets/midnight/rpc/src/lib.rs`:
 
 ```rust
-// Get contract state
-let state = Midnight::get_contract_state(&contract_address)?;
+// RPC: midnight_contractState
+fn get_state(contract_address: String, at: Option<BlockHash>) -> Result<String, StateRpcError>;
 
-// Get network ID
-let network = Midnight::get_network_id();
+// RPC: midnight_zswapStateRoot  
+fn get_zswap_state_root(at: Option<BlockHash>) -> Result<Vec<u8>, StateRpcError>;
 
-// Get ledger version
-let version = Midnight::get_ledger_version();
+// RPC: midnight_ledgerVersion
+fn get_ledger_version(at: Option<BlockHash>) -> Result<String, BlockRpcError>;
+
+// RPC: midnight_apiVersions
+fn get_supported_api_versions() -> RpcResult<Vec<u32>>;
 ```
 
-> **⚠️** Usage examples are illustrative patterns. Verify exact API signatures against `pallets/midnight/rpc/src/lib.rs`.
+**Example curl usage:**
+```bash
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"midnight_contractState","params":["<hex_address>"],"id":1}' \
+  http://localhost:9944
+```
 
 ## Integration
 

@@ -100,14 +100,19 @@ impl LedgerStateProviderMut for MyPallet {
 
 ### Using Well-Known Keys
 
+From `primitives/midnight/src/lib.rs` (L59-L67):
+
 ```rust
-use midnight_primitives::well_known_keys::MIDNIGHT_STATE_KEY;
+use midnight_primitives::well_known_keys::{MIDNIGHT_STATE_KEY, MIDNIGHT_NETWORK_ID_KEY};
+
+// Key values (32-byte hashes):
+// MIDNIGHT_STATE_KEY:      0x2a760f9a...021f43d9c
+// MIDNIGHT_NETWORK_ID_KEY: 0x2a760f9a...efce9fc4
 
 // Direct storage access (e.g., in host functions)
 let state = sp_io::storage::get(MIDNIGHT_STATE_KEY);
+let network_id = sp_io::storage::get(MIDNIGHT_NETWORK_ID_KEY);
 ```
-
-> **⚠️** Usage examples are illustrative patterns. Verify exact key values and usage against `primitives/midnight/src/lib.rs`.
 
 ## Integration
 

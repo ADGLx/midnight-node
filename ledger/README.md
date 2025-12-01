@@ -105,16 +105,20 @@ let result = LedgerApi::apply_transaction(
 let state = LedgerApi::get_contract_state(&state_key, &contract_addr)?;
 ```
 
-### JSON Serialization (std only)
+### JSON Transformation (std only)
+
+The json module provides utilities for transforming JSON values (from `ledger/src/json.rs`):
 
 ```rust
 use midnight_node_ledger::json;
+use serde_json::Value;
 
-let tx = json::deserialize_tx(&bytes)?;
-let json_str = json::serialize_tx(&tx)?;
+// Transform byte arrays in JSON to hex strings
+let json_value: Value = serde_json::from_str(&json_str)?;
+let transformed = json::transform(json_value);
 ```
 
-> **⚠️** Usage examples are illustrative patterns. Verify exact API against `ledger/src/json.rs`.
+The `transform` function converts byte arrays to hex strings (e.g., `[0x24, 0x42]` → `"0x2442"`).
 
 ## Integration
 

@@ -104,14 +104,14 @@ The runtime is the "business logic" of the chain—validators execute it identic
 
 ### Consensus Configuration
 
-| Parameter | Value | Description |
-|-----------|-------|-------------|
-| `SLOT_DURATION` | 6000ms | Block time |
-| `SLOTS_PER_EPOCH` | 300 | Slots before committee rotation |
-| `MaxAuthorities` | 10,000 | Maximum validator set size |
-| `MOTION_DURATION` | 5 days | Governance motion lifetime |
+Values from `runtime/src/lib.rs`:
 
-> **⚠️** Configuration values should be verified against `runtime/src/lib.rs`. Values may change between releases.
+| Parameter | Value | Source Line | Description |
+|-----------|-------|-------------|-------------|
+| `SLOT_DURATION` | 6000ms | L323 | Block time (`6 * 1000`) |
+| `SLOTS_PER_EPOCH` | 300 | L112 | Slots before committee rotation |
+| `MaxAuthorities` | 10,000 | L687 | Maximum validator set size |
+| `MOTION_DURATION` | 5 days | L840 | Governance motion lifetime (`5 * DAYS`) |
 
 ## Usage
 

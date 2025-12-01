@@ -94,17 +94,25 @@ fn process_transaction(ext: &mut LedgerMetricsExt, tx: &[u8]) {
 
 ## Histogram Buckets
 
-The crate uses hybrid linear+exponential buckets for precise measurements:
+The crate uses hybrid linear+exponential buckets for precise measurements.
+
+Constants from `primitives/ledger/src/lib.rs` (L41-L52):
 
 **Time buckets:**
-- Linear: 0-1s in 50ms steps
-- Exponential: 1s-60s with 1.5x growth
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `TIME_INTERVAL_LINEAR` | 0.05 (50ms) | Linear step size |
+| `TIME_MAX_LINEAR` | 1.0 (1s) | Switch to exponential |
+| `TIME_INCREASE_EXP` | 1.5 | Exponential growth factor |
+| `TIME_MAX_EXP` | 60.0 (1min) | Maximum bucket |
 
 **Size buckets:**
-- Linear: 0-200KB in 10KB steps
-- Exponential: 200KB-5MB with 1.5x growth
-
-> **⚠️** Bucket values are approximate. Verify exact values in `primitives/ledger/src/lib.rs`.
+| Constant | Value | Description |
+|----------|-------|-------------|
+| `SIZE_INTERVAL_LINEAR` | 10 KiB | Linear step size |
+| `SIZE_MAX_LINEAR` | 200 KiB | Switch to exponential |
+| `SIZE_INCREASE_EXP` | 1.5 | Exponential growth factor |
+| `SIZE_MAX_EXP` | 5 MiB | Maximum bucket |
 
 ## Integration
 

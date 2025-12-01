@@ -60,14 +60,14 @@ impl pallet_midnight_system::Config for Runtime {
 
 ### Via MidnightSystemTransactionExecutor Trait
 
+From `pallets/midnight-system/src/lib.rs` (L94-L96):
+
 ```rust
 use midnight_primitives::MidnightSystemTransactionExecutor;
 
-// Called by pallet-cnight-observation
+// Signature: fn execute_system_transaction(Vec<u8>) -> Result<Hash, DispatchError>
 let tx_hash = MidnightSystem::execute_system_transaction(serialized_tx)?;
 ```
-
-> **⚠️** Usage examples are illustrative. Verify trait implementation in `pallets/midnight-system/src/lib.rs`.
 
 ## Architecture
 

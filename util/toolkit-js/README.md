@@ -63,19 +63,26 @@ npm start -- <command> [options]
 
 ### Contract Configuration File
 
-Create `contract.config.ts`:
+Create `contract.config.ts` (from `util/toolkit-js/test/contract/contract.config.ts`):
 
 ```typescript
-import { CompiledContract, ContractExecutable } from '@midnight-ntwrk/compact-js/effect';
-import { Contract as CounterContract } from './managed/counter/contract/index.cjs';
+import { CompiledContract, ContractExecutable, type Contract } from '@midnight-ntwrk/compact-js/effect';
+import { Contract as C_ } from './managed/counter/contract/index.js';
 
 type PrivateState = { count: number };
+type CounterContract = C_<PrivateState>;
+const CounterContract = C_;
 
-const witnesses = {
-  private_increment: ({ privateState }) => [
-    { count: privateState.count + 1 }, 
+const witnesses: Contract.Contract.Witnesses<CounterContract> = {
+  private_increment: ({ privateState }, amount) => [
+    { count: privateState.count + Number(amount) }, 
     []
-  ]
+  ],
+  private_decrement: ({ privateState }, amount) => [
+    { count: privateState.count - Number(amount) },
+    []
+  ],
+  private_reset: () => [{ count: 0 }, []]
 };
 
 const createInitialPrivateState = () => ({ count: 0 });
@@ -95,8 +102,6 @@ export default {
   }
 };
 ```
-
-> **⚠️** Configuration example is illustrative. Verify exact API against `@midnight-ntwrk/compact-js` documentation and `example-counter` reference implementation.
 
 ### Deploying a Contract
 

@@ -97,20 +97,36 @@ Configuration can be provided via:
 
 ### Example Config
 
+Based on `res/cfg/default.toml`:
+
 ```toml
-[node]
-name = "my-node"
-chain = "qanet"
+# Node behavior
+wipe_chain_state = false
+use_main_chain_follower_mock = false
+validator = false
 
-[rpc]
-port = 9944
-cors = ["*"]
+# Mainchain epoch configuration
+mc__first_epoch_timestamp_millis = 1666656000000
+mc__first_epoch_number = 0
+mc__epoch_duration_millis = 86400000
+mc__first_slot_number = 0
+mc__slot_duration_millis = 1000
 
-[network]
-bootnodes = ["/dns/bootnode.example.com/tcp/30333/p2p/..."]
+# Cardano parameters
+cardano_security_parameter = 432
+cardano_active_slots_coeff = 0.05
+block_stability_margin = 10
+
+# Storage
+storage_cache_size = 0
+trie_cache_size = 0
+
+# CLI arguments (passed to Substrate)
+argv = []
+bootnodes = []
 ```
 
-> **⚠️** Configuration format is illustrative. Verify supported options via `midnight-node --help` or Substrate documentation.
+See `res/cfg/*.toml` for network-specific presets (dev, qanet, preview).
 
 ## Architecture
 
