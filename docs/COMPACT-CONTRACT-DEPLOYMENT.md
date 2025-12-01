@@ -13,7 +13,9 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 Contract deployment and interaction follow distinct but related flows [[2]](#ref-2).
 
 * **Developers** compile source code once and deploy [[7]](#ref-7);    
-* **Users** interact with deployed contracts [[21]](#ref-21). Both deployment and contract calls share the intent → prove → submit pipeline [[6]](#ref-6) [[8]](#ref-8).
+* **Users** interact with deployed contracts [[21]](#ref-21).
+
+Both deployment and contract calls share the intent → prove → submit pipeline [[6]](#ref-6) [[8]](#ref-8).
 
 ```mermaid
 flowchart LR
