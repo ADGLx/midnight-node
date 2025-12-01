@@ -23,7 +23,7 @@ The native utility token of the Midnight network, used for:
 
 DUST can be generated from cNIGHT holdings observed on Cardano through the "cNIGHT generates DUST" mechanism.
 
-### Glacier Drop
+### [Glacier Drop](https://www.midnight.gd)
 
 A token distribution mechanism allowing eligible participants to claim DUST tokens. The Glacier Drop uses Cardano-based redemption contracts that are observed by the Midnight node to credit tokens to users.
 
