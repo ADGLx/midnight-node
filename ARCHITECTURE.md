@@ -156,6 +156,9 @@ Test fixture for Glacier Drop redemption contract validation.
 ### [docs/](docs/README.md)
 **docs** - Documentation crate for compile-time doc testing plus markdown documentation files.
 
+### [docs/COMPACT-CONTRACT-DEPLOYMENT.md](docs/COMPACT-CONTRACT-DEPLOYMENT.md)
+**Compact Contract Deployment Guide** - Comprehensive guide to deploying Compact smart contracts: compilation, intent generation, proving, node submission, and API usage.
+
 ### [docs/signatures/](docs/signatures/README.md)
 GPG signatures for release verification.
 
@@ -226,6 +229,8 @@ ZSwap test fixtures and scenarios.
 
 - [CONTRIBUTING.md](CONTRIBUTING.md) - Contribution guidelines
 - [CHANGELOG.md](CHANGELOG.md) - Version history
+- [GLOSSARY.md](GLOSSARY.md) - Domain-specific terminology
+- [docs/COMPACT-CONTRACT-DEPLOYMENT.md](docs/COMPACT-CONTRACT-DEPLOYMENT.md) - Contract deployment guide
 - [docs/development-workflow.md](docs/development-workflow.md) - Development workflow
 - [docs/chain_specs.md](docs/chain_specs.md) - Chain specification documentation
 
