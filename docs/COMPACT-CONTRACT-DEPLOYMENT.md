@@ -46,6 +46,8 @@ compactc counter.compact ./output/counter
 
 ### Generated Artifacts
 
+> **⚠️ INFERRED** - Artifact names based on toolkit-js imports and typical compactc output patterns. Verify against official compactc documentation.
+
 | Artifact | Description |
 |----------|-------------|
 | `contract/index.cjs` | JavaScript contract interface [3] |
@@ -128,13 +130,13 @@ midnight-node-toolkit generate-intent deploy \
 
 ### Intent Structure
 
-The intent encapsulates [7]:
+The intent encapsulates [5][7]:
 
 | Component | Description |
 |-----------|-------------|
-| Contract Deploy Data | ZKIR circuits, verifier keys, initial state |
-| Authority Committee | Maintenance authority public keys |
-| Committee Threshold | Required signatures for maintenance |
+| Contract Deploy Data | Verifier keys, initial state |
+| Authority Committee | Maintenance authority public keys (`Vec<VerifyingKey>`) |
+| Committee Threshold | Required signatures for maintenance (`u32`) |
 | Time-to-Live (TTL) | Transaction validity window |
 
 ## Stage 3: Transaction Proving
@@ -160,14 +162,16 @@ midnight-node-toolkit send-intent \
 
 ### Proof Generation Flow
 
-The proof server (local or remote) generates Halo2 SNARK proofs [9]:
+The proof server (local or remote) generates SNARK proofs [9]:
+
+> **⚠️ INFERRED** - "Halo2" proving system inferred from GLOSSARY and external Midnight documentation. The codebase references `ProofProvider` abstraction without specifying the underlying proving system.
 
 ```
 Intent → Unproven Transaction → Proof Server → Proven Transaction
                                      |
                                      v
                               +-------------+
-                              | Halo2 SNARK |
+                              | SNARK       |
                               | Proving     |
                               +-------------+
                                      |
@@ -189,7 +193,7 @@ A finalized transaction contains [10]:
 | `guaranteed_offer` | Shielded coin transfers (always applied) |
 | `fallible_offer` | Conditional transfers (may fail) |
 | `proofs` | SNARK proofs for each circuit invocation |
-| `ttl` | Timestamp after which TX is invalid |
+| `ttl` | Timestamp after which TX is invalid (default: 600 seconds / 10 min) |
 
 ## Stage 4: Node Submission
 
@@ -206,13 +210,17 @@ Default endpoint: ws://127.0.0.1:9944
 The toolkit uses `subxt` to create and submit unsigned extrinsics [12]:
 
 ```rust
-// From util/toolkit/src/sender.rs
-let mn_tx = mn_meta::tx().midnight().send_mn_transaction(tx_serialize);
-let unsigned_extrinsic = api.tx().create_unsigned(&mn_tx)?;
+// From util/toolkit/src/sender.rs (lines 118-131)
+let midnight_tx_hash = tx.transaction_hash();
+let tx_serialize = tx.serialize_inner().map_err(|e| self.error(e.into()))?;
+let mn_tx = mn_meta::tx().midnight().send_mn_transaction(tx_serialize.clone());
+let unsigned_extrinsic = self.api.tx().create_unsigned(&mn_tx)?;
 let tx_progress = unsigned_extrinsic.submit_and_watch().await?;
 ```
 
 ### Transaction Lifecycle
+
+Derived from sender.rs logging statements [12]:
 
 ```
 SENDING → SENT → BEST_BLOCK → FINALIZED
@@ -228,15 +236,26 @@ SENDING → SENT → BEST_BLOCK → FINALIZED
 The `send_mn_transaction` extrinsic processes Midnight transactions [13]:
 
 ```rust
+// From pallets/midnight/src/lib.rs (lines 353-412)
 #[pallet::call_index(0)]
-pub fn send_mn_transaction(
-    _origin: OriginFor<T>, 
-    midnight_tx: Vec<u8>
-) -> DispatchResult {
-    // 1. Deserialize and validate transaction
-    // 2. Apply to ledger state  
-    // 3. Emit events for operations
-    // 4. Update state root
+#[pallet::weight(ConfigurableTransactionSizeWeight::<T>::get())]
+pub fn send_mn_transaction(_origin: OriginFor<T>, midnight_tx: Vec<u8>) -> DispatchResult {
+    let state_key = StateKey::<T>::get().expect("Failed to get state key");
+    let block_context = Self::get_block_context();
+    let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
+
+    let result = LedgerApi::apply_transaction(
+        &state_key,
+        &midnight_tx,
+        block_context,
+        runtime_version,
+    ).map_err(Error::<T>::from)?;
+
+    // Update state root
+    StateKey::<T>::put(result.state_root);
+    
+    // Emit events for each operation type
+    // ... ContractCall, ContractDeploy, ContractMaintain, etc.
 }
 ```
 
@@ -245,10 +264,21 @@ pub fn send_mn_transaction(
 Before inclusion in a block, the transaction is validated against the current ledger state [13]:
 
 ```rust
+// From pallets/midnight/src/lib.rs (lines 515-540)
 fn validate_unsigned(call: &Call<T>, block_context: BlockContext) -> TransactionValidity {
-    // Validate transaction against current ledger state
-    // Check proofs, balances, TTL
-    // Return transaction hash as "provides" tag
+    if let Call::send_mn_transaction { midnight_tx } = call {
+        let (tx_hash, _) = LedgerApi::validate_transaction(
+            &state_key,
+            midnight_tx,
+            block_context,
+            runtime_version,
+        ).map_err(|e| Self::invalid_transaction(e.into()))?;
+        
+        ValidTransaction::with_tag_prefix("Midnight")
+            .longevity(600)  // Max 600 blocks in pool
+            .and_provides(tx_hash)
+            .build()
+    }
 }
 ```
 
@@ -274,6 +304,24 @@ Current State Root → Apply Transaction → New State Root
 ### Midnight-Specific RPC Methods
 
 The pallet-midnight-rpc crate exposes custom JSON-RPC methods [15]:
+
+```rust
+// From pallets/midnight/rpc/src/lib.rs (lines 32-49)
+#[rpc(client, server)]
+pub trait MidnightApi<BlockHash> {
+    #[method(name = "midnight_contractState")]
+    fn get_state(&self, contract_address: String, at: Option<BlockHash>) -> Result<String, StateRpcError>;
+
+    #[method(name = "midnight_zswapStateRoot")]
+    fn get_zswap_state_root(&self, at: Option<BlockHash>) -> Result<Vec<u8>, StateRpcError>;
+
+    #[method(name = "midnight_apiVersions")]
+    fn get_supported_api_versions(&self) -> RpcResult<Vec<u32>>;
+
+    #[method(name = "midnight_ledgerVersion")]
+    fn get_ledger_version(&self, at: Option<BlockHash>) -> Result<String, BlockRpcError>;
+}
+```
 
 | Method | Description | Parameters |
 |--------|-------------|------------|
@@ -322,21 +370,33 @@ curl -X POST http://localhost:9933 \
 
 Events emitted by pallet-midnight [13]:
 
+```rust
+// From pallets/midnight/src/lib.rs (lines 216-235)
+#[pallet::event]
+pub enum Event {
+    ContractCall(CallDetails),           // tx_hash, contract_address
+    ContractDeploy(DeploymentDetails),   // tx_hash, contract_address
+    TxApplied(TxAppliedDetails),         // tx_hash
+    ContractMaintain(MaintainDetails),   // tx_hash, contract_address
+    PayoutMinted(PayoutDetails),         // amount, receiver
+    ClaimRewards(ClaimRewardsDetails),   // tx_hash, value
+    UnshieldedTokens(UnshieldedTokensDetails), // spent, created
+    TxPartialSuccess(TxAppliedDetails),  // tx_hash
+}
+```
+
 | Event | Emitted When |
 |-------|--------------|
 | `ContractDeploy { tx_hash, contract_address }` | New contract deployed |
 | `ContractCall { tx_hash, contract_address }` | Contract entrypoint invoked |
 | `ContractMaintain { tx_hash, contract_address }` | Authority or verifier updated |
-
-### Transaction Events
-
-| Event | Emitted When |
-|-------|--------------|
 | `TxApplied { tx_hash }` | Transaction fully applied |
 | `TxPartialSuccess { tx_hash }` | Guaranteed part applied, fallible failed |
 | `UnshieldedTokens { spent, created }` | UTXO transfers |
 
 ### Subscribing to Events
+
+> **⚠️ INFERRED** - JavaScript API example based on standard Polkadot.js patterns. Verify against actual Midnight SDK documentation.
 
 ```javascript
 const api = await ApiPromise.create({ provider: wsProvider });
@@ -421,33 +481,74 @@ midnight-node-toolkit generate-intent maintain-circuit \
 
 ## Error Handling
 
-### Common Errors
+### Pallet Errors
 
-Errors defined in the pallet-midnight error enum [13]:
+Errors defined in pallet-midnight [13]:
+
+```rust
+// From pallets/midnight/src/lib.rs (lines 238-264)
+#[pallet::error]
+pub enum Error<T> {
+    NewStateOutOfBounds,
+    Deserialization(DeserializationError),
+    Serialization(SerializationError),
+    Transaction(TransactionError),
+    LedgerCacheError,
+    NoLedgerState,
+    LedgerStateScaleDecodingError,
+    ContractCallCostError,
+    BlockLimitExceededError,
+    FeeCalculationError,
+    HostApiError,
+    NetworkIdNotString,
+}
+```
 
 | Error | Cause | Resolution |
 |-------|-------|------------|
 | `Deserialization` | Invalid transaction format | Check compactc version compatibility |
-| `Transaction` | Ledger validation failed | Verify proofs and balances |
+| `Transaction` | Ledger validation failed | See TransactionError sub-types below |
 | `BlockLimitExceededError` | TX too large for block | Split transaction or reduce operations |
-| `FeeCalculationError` | Insufficient DUST | Fund wallet with DUST tokens |
+| `FeeCalculationError` | Fee computation failed | Check DUST balance |
 
 ### Transaction Validation Errors
 
+From `ledger/src/versions/common/types.rs` [17]:
+
 ```rust
 pub enum TransactionError {
+    Invalid(InvalidError),      // Semantic validation failures
+    Malformed(MalformedError),  // Structural/proof failures
+    SystemTransaction(SystemTransactionError),
+}
+
+pub enum InvalidError {
+    EffectsMismatch,
+    ContractAlreadyDeployed,
+    ContractNotPresent,
+    Zswap,
+    Transcript,
+    InsufficientClaimable,
+    VerifierKeyNotFound,
+    VerifierKeyAlreadyPresent,
+    ReplayCounterMismatch,
+    UnknownError,
+}
+
+pub enum MalformedError {
     InvalidProof,
-    InsufficientBalance,
-    ExpiredTTL,
-    InvalidNetworkId,
-    InvalidContractAddress,
-    // ...
+    NotNormalized,
+    Unbalanced,
+    ThresholdMissed,
+    // ... and more
 }
 ```
 
 ## Performance Considerations
 
 ### Proving Time
+
+> **⚠️ INFERRED** - Duration estimates are approximate and based on general SNARK proving characteristics. Actual times depend on circuit complexity, hardware, and proving system configuration. No source data available in codebase.
 
 | Operation | Typical Duration |
 |-----------|------------------|
@@ -461,6 +562,21 @@ pub enum TransactionError {
 2. Batch multiple operations where possible
 3. Pre-compute intents offline
 4. Use appropriate TTL (10 minutes default) [10]
+
+---
+
+## ⚠️ Items Requiring User Review
+
+The following sections contain inferred or assumed information not directly derived from source code:
+
+| Section | Issue | Recommendation |
+|---------|-------|----------------|
+| **Generated Artifacts** | Artifact names (`.zkir`, `.prover`, `.verifier`) inferred from patterns | Verify against official `compactc` documentation |
+| **Proof Generation Flow** | "Halo2" proving system mentioned | Confirm with Midnight documentation or remove specific reference |
+| **Proving Time Estimates** | No source data for duration estimates | Remove or source from benchmarks/documentation |
+| **Event Subscription Example** | Based on generic Polkadot.js patterns | Verify with Midnight SDK examples |
+
+---
 
 ## See Also
 
@@ -478,18 +594,19 @@ pub enum TransactionError {
 | # | Source | Path/URL |
 |---|--------|----------|
 | [1] | Midnight Official Documentation | https://docs.midnight.network |
-| [2] | Midnight Toolkit README - Custom Contracts | `util/toolkit/README.md` (lines 261-293) |
-| [3] | Toolkit-JS README - Configuration | `util/toolkit-js/README.md` (lines 1-77) |
-| [4] | Midnight Toolkit README - Version Check | `util/toolkit/README.md` (lines 44-53) |
+| [2] | Midnight Toolkit README - Custom Contracts | `util/toolkit/README.md` |
+| [3] | Toolkit-JS README - Configuration | `util/toolkit-js/README.md` |
+| [4] | Midnight Toolkit README - Version Check | `util/toolkit/README.md` |
 | [5] | Ledger Helpers - Contract Deploy | `ledger/helpers/src/versions/common/contract/deploy.rs` |
-| [6] | Generate Intent Command | `util/toolkit/src/commands/generate_intent.rs` (lines 122-176) |
+| [6] | Generate Intent Command | `util/toolkit/src/commands/generate_intent.rs` |
 | [7] | Contract Deploy Builder | `util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs` |
 | [8] | Send Intent Command | `util/toolkit/src/commands/send_intent.rs` |
 | [9] | Genesis Generator - Proof Server | `util/toolkit/src/genesis_generator.rs` (lines 304-342) |
-| [10] | Transaction Builder | `ledger/helpers/src/versions/common/transaction.rs` (lines 163-223) |
-| [11] | Destination Module - RPC URL | `util/toolkit/src/tx_generator/destination.rs` (line 24) |
+| [10] | Transaction Builder - TTL | `ledger/helpers/src/versions/common/transaction.rs` (line 170: `Duration::from_secs(600)`) |
+| [11] | Destination Module - Default URL | `util/toolkit/src/tx_generator/destination.rs` (line 24) |
 | [12] | Sender Module - TX Submission | `util/toolkit/src/sender.rs` (lines 113-143) |
-| [13] | Pallet Midnight - Extrinsics & Events | `pallets/midnight/src/lib.rs` (lines 347-412, 216-264) |
-| [14] | Ledger State Management | `ledger/src/versions/common/mod.rs` (lines 331-393) |
-| [15] | Pallet Midnight RPC | `pallets/midnight/rpc/src/lib.rs` (lines 32-49, 235-313) |
+| [13] | Pallet Midnight - Extrinsics, Events, Errors | `pallets/midnight/src/lib.rs` |
+| [14] | Ledger State Management | `ledger/src/versions/common/mod.rs` |
+| [15] | Pallet Midnight RPC | `pallets/midnight/rpc/src/lib.rs` (lines 32-49) |
 | [16] | Contract Maintenance | `ledger/helpers/src/versions/common/contract/maintenance.rs` |
+| [17] | Transaction Error Types | `ledger/src/versions/common/types.rs` (lines 30-91, 127-131) |
