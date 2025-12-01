@@ -190,7 +190,11 @@ flowchart TB
                 ledger["Ledger State"]
             end
         end
-        validators["Validator Network<br/>(N validators)"]
+        subgraph validators["Validator Network"]
+            v1((" "))
+            v2((" "))
+            v3((" "))
+        end
     end
 
     subgraph cardano["🔷 Cardano Network"]
