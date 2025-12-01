@@ -89,3 +89,6 @@ dist
 
 # Handy to locally save images
 .bin
+.ai
+.specstory
+.cursorindexingignore
