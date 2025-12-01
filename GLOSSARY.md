@@ -6,7 +6,7 @@ This glossary defines domain-specific terms and jargon used throughout the Midni
 
 ## Midnight-Specific Terms
 
-### [Compact](https://docs.midnight.network/compact)
+### [Compact](https://docs.midnight.network/learn/glossary#compact)
 
 A domain-specific programming language designed by Midnight for writing privacy-preserving smart contracts. Compact is TypeScript-like in syntax and compiles to zero-knowledge circuits. Contracts written in Compact can protect sensitive data while still enabling on-chain verification.
 
@@ -27,7 +27,7 @@ DUST can be generated from cNIGHT holdings observed on Cardano through the "cNIG
 
 A token distribution mechanism allowing eligible participants to claim DUST tokens. The Glacier Drop uses Cardano-based redemption contracts that are observed by the Midnight node to credit tokens to users.
 
-### [Midnight Ledger](https://docs.midnight.network/learn/understanding-midnights-technology/ledgers)
+### [Midnight Ledger](https://docs.midnight.network/learn/glossary#ledger)
 
 The core state machine managing Midnight's privacy-preserving transactions. The ledger uses the Halo2 proving system and maintains both public blockchain state and private user state through zero-knowledge proofs.
 
@@ -35,7 +35,7 @@ The core state machine managing Midnight's privacy-preserving transactions. The 
 
 The primary token of the Midnight ecosystem. NIGHT exists on both Midnight (as DUST) and Cardano (as cNIGHT), with bridge mechanisms enabling cross-chain functionality.
 
-### [Shielded Transaction](https://docs.midnight.network/develop/how-midnight-works/keeping-data-private)
+### [Shielded Transaction](https://docs.midnight.network/learn/glossary#shielded)
 
 A transaction where the amounts, participants, or other details are hidden using zero-knowledge proofs. Only the validity of the transaction is publicly verifiable, not its contents.
 
@@ -47,7 +47,7 @@ Test DUST tokens used on Midnight testnets (devnet, testnet). tDUST has no monet
 
 A transaction where amounts and participants are publicly visible on the blockchain, similar to traditional blockchain transactions. Midnight supports both shielded and unshielded transactions.
 
-### [ZSwap](https://docs.midnight.network/learn/understanding-midnights-technology/zswap)
+### [ZSwap](https://docs.midnight.network/learn/glossary#zswap)
 
 The zero-knowledge swap/transfer protocol used by Midnight for privacy-preserving token transfers. ZSwap manages UTXOs (Unspent Transaction Outputs) with cryptographic commitments, enabling private value transfers while maintaining verifiable correctness.
 
@@ -154,42 +154,42 @@ A Cardano address used for staking rewards. In Midnight, reward addresses are us
 
 ## Cryptographic Terms
 
-### [Circuit](https://docs.midnight.network/learn/understanding-midnights-technology/zero-knowledge-proofs)
+### [Circuit](https://docs.midnight.network/learn/glossary#zero-knowledge-zk-circuit)
 
 In zero-knowledge cryptography, a representation of a computation as a series of gates and wires. Compact contracts compile to circuits that can be proven and verified.
 
-### [Commitment](https://docs.midnight.network/learn/understanding-midnights-technology/zero-knowledge-proofs)
+### [Commitment](https://docs.midnight.network/learn/glossary#pedersen-commitments)
 
 A cryptographic scheme that allows one to commit to a value while keeping it hidden, with the ability to reveal it later. Used in ZSwap for hiding transaction amounts.
 
-### [Halo2](https://docs.midnight.network/learn/understanding-midnights-technology/zero-knowledge-proofs)
+### [Halo2](https://docs.midnight.network/learn/glossary#halo-2)
 
 A zero-knowledge proving system used by Midnight's ledger. Halo2 enables efficient proof generation and verification without a trusted setup.
 
-### Merkle Tree
+### [Merkle Tree](https://docs.midnight.network/learn/glossary#merkle-tree)
 
 A tree data structure where each leaf node is a hash of data, and each non-leaf node is a hash of its children. Used for efficient verification of data integrity.
 
-### [Prover](https://docs.midnight.network/learn/understanding-midnights-technology/zero-knowledge-proofs)
+### [Prover](https://docs.midnight.network/learn/glossary#prover)
 
 In zero-knowledge systems, the entity that generates a proof to convince a verifier of a statement's truth without revealing the underlying data.
 
-### [SNARK (Succinct Non-interactive ARgument of Knowledge)](https://docs.midnight.network/learn/understanding-midnights-technology/zero-knowledge-proofs)
+### [SNARK (Succinct Non-interactive ARgument of Knowledge)](https://docs.midnight.network/learn/glossary#zk-snarks)
 
 A type of zero-knowledge proof that is:
 - **Succinct**: Proofs are small and quick to verify
 - **Non-interactive**: No back-and-forth communication required
 - **Argument of Knowledge**: Proves knowledge of secret data
 
-### [Verifier](https://docs.midnight.network/learn/understanding-midnights-technology/zero-knowledge-proofs)
+### [Verifier](https://docs.midnight.network/learn/glossary#verifier)
 
 In zero-knowledge systems, the entity that checks the validity of a proof without learning the secret information.
 
-### [Witness](https://docs.midnight.network/compact/writing)
+### [Witness](https://docs.midnight.network/learn/glossary#witness)
 
 Private inputs to a zero-knowledge circuit that are used to generate a proof but are not revealed publicly. In Compact contracts, witnesses provide secret data for computations.
 
-### [Zero-Knowledge Proof (ZKP)](https://docs.midnight.network/learn/understanding-midnights-technology/zero-knowledge-proofs)
+### [Zero-Knowledge Proof (ZKP)](https://docs.midnight.network/learn/glossary#zero-knowledge-proof-zkp)
 
 A cryptographic method allowing one party (the prover) to prove to another (the verifier) that a statement is true without revealing any information beyond the statement's validity.
 
@@ -241,7 +241,7 @@ A system-level transaction generated from Cardano observations. CMSTs update Mid
 
 The computational cost of executing a transaction, measured in gas units. Used alongside storage costs to calculate total transaction fees.
 
-### [State Root / State Key](https://docs.midnight.network/learn/understanding-midnights-technology/ledgers)
+### [State Root / State Key](https://docs.midnight.network/learn/glossary#state)
 
 A cryptographic hash representing the current state of the Midnight ledger. Used to verify state integrity and track state transitions.
 
@@ -253,7 +253,7 @@ The cost of storing data on-chain, measured separately from computational (gas) 
 
 A privileged transaction type that can modify state without user signatures. Used for applying Cardano-observed state changes to the Midnight ledger.
 
-### [UTXO (Unspent Transaction Output)](https://docs.midnight.network/learn/understanding-midnights-technology/utxo)
+### [UTXO (Unspent Transaction Output)](https://docs.midnight.network/learn/glossary#qualified-coin)
 
 A model for tracking token ownership where each "output" of a transaction can only be spent once. ZSwap uses a UTXO model with cryptographic commitments for privacy.
 
@@ -265,7 +265,7 @@ A model for tracking token ownership where each "output" of a transaction can on
 
 A JSON configuration file defining the genesis state and parameters of a blockchain network. Includes initial balances, authorities, and runtime configuration.
 
-### Devnet
+### [Devnet](https://docs.midnight.network/learn/glossary#devnet)
 
 A development network for early-stage testing. Less stable than testnet, used for active development.
 
@@ -273,7 +273,7 @@ A development network for early-stage testing. Less stable than testnet, used fo
 
 The initial state of a blockchain at block 0. Includes initial account balances, authority configurations, and runtime parameters.
 
-### Mainnet
+### [Mainnet](https://docs.midnight.network/learn/glossary#mainnet)
 
 The production network where real value transactions occur. Midnight mainnet is the live deployment with actual NIGHT/DUST tokens.
 
@@ -281,7 +281,7 @@ The production network where real value transactions occur. Midnight mainnet is 
 
 A quality assurance network used for integration testing before testnet deployment.
 
-### Testnet
+### [Testnet](https://docs.midnight.network/learn/glossary#testnet)
 
 A public test network that simulates mainnet conditions. Uses test tokens (tDUST) with no real value.
 
