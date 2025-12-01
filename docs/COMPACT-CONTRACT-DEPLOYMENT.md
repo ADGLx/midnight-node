@@ -86,6 +86,69 @@ sequenceDiagram
     end
 ```
 
+### Deployment Architecture
+
+```mermaid
+flowchart TB
+    subgraph user["👤 Developer Environment"]
+        direction TB
+        dev["Developer"]
+        subgraph devtools["Development Tools"]
+            compiler["compactc<br/>(Compiler)"]
+            toolkit["toolkit-js<br/>(TypeScript SDK)"]
+            cli["midnight-toolkit<br/>(Rust CLI)"]
+        end
+    end
+
+    subgraph prover_env["🔐 Proving Environment"]
+        direction TB
+        subgraph local_prover["Local Option"]
+            local["Proof Server<br/>(localhost:6300)"]
+        end
+        subgraph remote_prover["Remote Option"]
+            remote["Cloud Proof Server<br/>(proof.midnight.network)"]
+        end
+    end
+
+    subgraph midnight_network["🌙 Midnight Network"]
+        direction TB
+        subgraph node["Midnight Node"]
+            rpc["RPC Interface<br/>(WebSocket :9944)"]
+            runtime["Runtime"]
+            subgraph pallets["Pallets"]
+                pallet_mn["pallet-midnight"]
+                pallet_contracts["pallet-contracts"]
+            end
+            ledger["Ledger State"]
+        end
+        subgraph validators["Validator Network"]
+            v1["Validator 1"]
+            v2["Validator 2"]
+            v3["Validator N..."]
+        end
+    end
+
+    subgraph cardano["🔷 Cardano Network"]
+        direction TB
+        mainchain["Cardano Mainchain"]
+        settlement["Settlement Layer"]
+    end
+
+    dev --> compiler
+    dev --> toolkit
+    dev --> cli
+    cli -.->|"local proving"| local
+    cli -.->|"remote proving"| remote
+    cli -->|"submit tx"| rpc
+    rpc --> runtime
+    runtime --> pallet_mn
+    pallet_mn --> ledger
+    runtime --> pallet_contracts
+    node <-->|"consensus"| validators
+    node <-->|"cross-chain"| settlement
+    settlement <--> mainchain
+```
+
 ## Stage 1: Contract Compilation
 
 ### Compiling Compact Source
