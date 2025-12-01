@@ -573,7 +573,7 @@ pub enum MalformedError {
 
 ---
 
-## ⚠️ Items Requiring User Review
+## ⚠️ Items Requiring Review
 
 The following sections contain inferred or assumed information not directly derived from source code:
 
