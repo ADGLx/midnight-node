@@ -31,7 +31,7 @@ A token distribution mechanism allowing eligible participants to claim DUST toke
 
 The core state machine managing Midnight's privacy-preserving transactions. The ledger uses the Halo2 proving system and maintains both public blockchain state and private user state through zero-knowledge proofs.
 
-### [NIGHT](https://docs.midnight.network/about-dust)
+### [NIGHT](https://docs.midnight.network/learn/what-is-midnight/midnight-combined-model#the-night-token-and-dust-resource)
 
 The primary token of the Midnight ecosystem. NIGHT exists on both Midnight (as DUST) and Cardano (as cNIGHT), with bridge mechanisms enabling cross-chain functionality.
 
