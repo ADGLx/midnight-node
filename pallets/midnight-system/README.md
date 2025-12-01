@@ -1,10 +1,10 @@
 # pallet-midnight-system
 
-FRAME pallet for executing Midnight System Transactions with root privileges.
+[FRAME](../../GLOSSARY.md#frame-framework-for-runtime-aggregation-of-modularized-entities) pallet for executing Midnight System Transactions with root privileges.
 
 ## Overview
 
-This pallet provides a privileged interface for applying system-level transactions to the Midnight ledger. System transactions are generated from Cardano observations (e.g., cNIGHT registrations, DUST generation) and require root origin to execute. The pallet implements `MidnightSystemTransactionExecutor` trait used by observation pallets.
+This pallet provides a privileged interface for applying system-level transactions to the Midnight ledger. System transactions are generated from Cardano observations (e.g., [cNIGHT](../../GLOSSARY.md#cnight) registrations, [DUST](../../GLOSSARY.md#dust) generation) and require root origin to execute. The pallet implements `MidnightSystemTransactionExecutor` trait used by observation pallets.
 
 ## API Specification
 
@@ -92,7 +92,7 @@ Cardano Observation Flow:
 
 ### Used By
 
-- `pallet-cnight-observation` - Executes DUST registration system transactions
+- `pallet-cnight-observation` - Executes [DUST](../../GLOSSARY.md#dust) registration system transactions
 
 ## See Also
 

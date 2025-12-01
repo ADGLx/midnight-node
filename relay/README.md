@@ -7,10 +7,10 @@
         --enable-offchain-indexing true
 ```
 
-2. Ensure that BEEFY begins. The node must have relevant BEEFY keys inserted, and the first session must have passed.
+2. Ensure that [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) begins. The node must have relevant [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) keys inserted, and the first session must have passed.
 
 ### Run with local node
-You may need to insert the BEEFY key manually, after the node starts.  
+You may need to insert the [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) key manually, after the node starts.  
 
 Note: Omit `--unsafe-rpc-external` when running the midnight node. This is to allow unsafe rpc calls, like `author_insertKey`.  
 

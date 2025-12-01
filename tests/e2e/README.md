@@ -104,5 +104,5 @@ async fn test_feature() {
 ## See Also
 
 - [node](../../node/README.md) - Node being tested
-- [runtime](../../runtime/README.md) - Runtime being tested
+- [runtime](../../runtime/README.md) - [Runtime](../../GLOSSARY.md#runtime) being tested
 - [ledger/helpers](../../ledger/helpers/README.md) - Test utilities

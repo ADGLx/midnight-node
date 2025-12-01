@@ -1,6 +1,6 @@
 # pallet-version
 
-Pallet that records runtime spec version in block digests for monitoring and upgrade tracking.
+[Pallet](../../GLOSSARY.md#pallet) that records runtime spec version in block digests for monitoring and upgrade tracking.
 
 ## Overview
 
@@ -97,5 +97,5 @@ cargo test -p pallet-version
 
 ## See Also
 
-- [runtime](../../runtime/README.md) - Runtime version configuration
+- [runtime](../../runtime/README.md) - [Runtime](../../GLOSSARY.md#runtime) version configuration
 

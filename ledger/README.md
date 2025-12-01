@@ -1,12 +1,12 @@
 # midnight-node-ledger
 
-Bridge between Substrate runtime and Midnight's ZSwap ledger.
+Bridge between Substrate runtime and Midnight's [ZSwap](../GLOSSARY.md#zswap) ledger.
 
 ## Overview
 
 This crate provides host functions that allow the WASM runtime to interact with the Midnight ledger. It handles:
 
-- **Transaction processing** - Apply and validate ZSwap transactions
+- **Transaction processing** - Apply and validate [ZSwap](../GLOSSARY.md#zswap) transactions
 - **State management** - Read/write ledger state with caching
 - **Versioning** - Support multiple ledger versions for hard forks
 

@@ -94,6 +94,6 @@ upgrader \
 
 ## See Also
 
-- [runtime](../../runtime/README.md) - Runtime being upgraded
+- [runtime](../../runtime/README.md) - [Runtime](../../GLOSSARY.md#runtime) being upgraded
 - [images/hardfork-test-upgrader](../../images/hardfork-test-upgrader/Dockerfile) - Docker image
 

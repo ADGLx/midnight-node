@@ -1,14 +1,14 @@
 # pallet-cnight-observation
 
-Pallet for observing cNIGHT token movements on Cardano and generating DUST on Midnight.
+[Pallet](../../GLOSSARY.md#pallet) for observing [cNIGHT](../../GLOSSARY.md#cnight) token movements on Cardano and generating [DUST](../../GLOSSARY.md#dust) on Midnight.
 
 ## Overview
 
 This pallet bridges Cardano mainchain observations to the Midnight ledger. It tracks:
 
-- **cNIGHT registrations** - Wallet mappings between Cardano reward addresses and DUST public keys
-- **cNIGHT UTXOs** - Token holdings that generate DUST over time
-- **Glacier Drop redemptions** - One-time token claims
+- **[cNIGHT](../../GLOSSARY.md#cnight) registrations** - Wallet mappings between Cardano reward addresses and [DUST](../../GLOSSARY.md#dust) public keys
+- **[cNIGHT](../../GLOSSARY.md#cnight) UTXOs** - Token holdings that generate [DUST](../../GLOSSARY.md#dust) over time
+- **[Glacier Drop](../../GLOSSARY.md#glacier-drop) redemptions** - One-time token claims
 
 Observations arrive via inherents from the mainchain follower data source. The pallet generates Cardano Midnight System Transactions (CMSTs) that are applied to the ledger state.
 

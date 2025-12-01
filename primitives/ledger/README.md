@@ -114,7 +114,7 @@ The crate uses hybrid linear+exponential buckets for precise measurements:
 ### Used By
 
 - `midnight-node` - Metric registration
-- `midnight-node-ledger` - Host function metrics
+- `midnight-node-ledger` - [Host function](../../GLOSSARY.md#host-function) metrics
 
 ## See Also
 

@@ -57,7 +57,7 @@ subxt metadata -f bytes > metadata/static/midnight_metadata_X_Y_Z.scale
 
 - `util/toolkit` - Transaction building CLI
 - `util/toolkit-js` - JavaScript/TypeScript bindings
-- `util/upgrader` - Runtime upgrade tool
+- `util/upgrader` - [Runtime](../GLOSSARY.md#runtime) upgrade tool
 
 ## See Also
 

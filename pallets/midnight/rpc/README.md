@@ -4,7 +4,7 @@ JSON-RPC interface for querying Midnight ledger state.
 
 ## Overview
 
-This crate provides WebSocket/HTTP RPC methods for external clients to query contract state, ledger version, and ZSwap state root. It bridges the runtime API (`MidnightRuntimeApi`) to JSON-RPC endpoints accessible via the node's RPC server.
+This crate provides WebSocket/HTTP RPC methods for external clients to query contract state, ledger version, and [ZSwap](../../../GLOSSARY.md#zswap) state root. It bridges the [runtime API](../../../GLOSSARY.md#runtime-api) (`MidnightRuntimeApi`) to JSON-RPC endpoints accessible via the node's RPC server.
 
 ## API Specification
 

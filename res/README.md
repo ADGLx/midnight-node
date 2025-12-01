@@ -6,7 +6,7 @@ Static resources, network definitions, and configuration management for the Midn
 
 This crate provides all static data required to bootstrap and configure Midnight networks:
 
-- **Genesis data** - Pre-built genesis blocks and ledger states for each network
+- **[Genesis](../GLOSSARY.md#genesis) data** - Pre-built genesis blocks and ledger states for each network
 - **Network definitions** - Configuration for local, testnet, and production environments
 - **Chain specifications** - Substrate chain specs for each network
 - **Configuration files** - TOML-based node configuration
@@ -35,7 +35,7 @@ The crate uses `include_bytes!` to embed genesis data at compile time, ensuring 
 | `CustomNetwork` | Runtime-configurable network definition |
 | `InitialAuthorityData` | Validator public keys (aura, grandpa, crosschain, beefy) |
 | `MainChainScripts` | Cardano script addresses and policy IDs |
-| `EndowedAccount` | Genesis account with initial balance |
+| `EndowedAccount` | [Genesis](../GLOSSARY.md#genesis) account with initial balance |
 
 ### MidnightNetwork Trait
 
@@ -187,7 +187,7 @@ cargo test -p midnight-node-res --features test
 
 ## See Also
 
-- [runtime](../runtime/README.md) - Runtime that uses these resources
-- [Chain Specifications](../docs/chain_specs.md) - Chain spec documentation
+- [runtime](../runtime/README.md) - [Runtime](../GLOSSARY.md#runtime) that uses these resources
+- [Chain Specifications](../docs/chain_specs.md) - [Chain spec](../GLOSSARY.md#chain-spec--chain-specification) documentation
 - [node](../node/README.md) - Node that loads these resources
 

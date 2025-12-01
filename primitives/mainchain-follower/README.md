@@ -4,9 +4,9 @@ Data source traits and types for following Cardano mainchain state.
 
 ## Overview
 
-This crate defines the interface between Midnight node and Cardano data sources (db-sync PostgreSQL or mock). It provides:
+This crate defines the interface between Midnight node and Cardano data sources ([db-sync](../../GLOSSARY.md#db-sync) PostgreSQL or mock). It provides:
 
-- **Observation types** - UTXO data structures matching Cardano observations
+- **Observation types** - [UTXO](../../GLOSSARY.md#utxo-unspent-transaction-output) data structures matching Cardano observations
 - **Re-exports** - Types from `midnight-primitives-cnight-observation` for convenience
 
 ## Compile-Time Checked Database Queries

@@ -6,7 +6,7 @@ Core primitive types and traits shared across Midnight node components.
 
 This crate defines the fundamental abstractions for Midnight's ledger interaction:
 
-- **Traits** for ledger state mutation and block context access
+- **Traits** for ledger state mutation and [block context](../../GLOSSARY.md#block-context) access
 - **Transaction type enums** for runtime transaction classification
 - **Well-known storage keys** for direct state access
 

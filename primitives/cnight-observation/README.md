@@ -1,10 +1,10 @@
 # midnight-primitives-cnight-observation
 
-Shared types for cNIGHT token observation between Cardano and Midnight.
+Shared types for [cNIGHT](../../GLOSSARY.md#cnight) token observation between Cardano and Midnight.
 
 ## Overview
 
-This crate defines types for tracking cNIGHT token movements on Cardano:
+This crate defines types for tracking [cNIGHT](../../GLOSSARY.md#cnight) token movements on Cardano:
 
 - **Position tracking** - `CardanoPosition` for sync state
 - **UTXO observation** - Types for registrations, redemptions, and token transfers
@@ -133,6 +133,6 @@ if current_position < target_position {
 
 ## See Also
 
-- [pallet-cnight-observation](../../pallets/cnight-observation/README.md) - Pallet implementation
+- [pallet-cnight-observation](../../pallets/cnight-observation/README.md) - [Pallet](../../GLOSSARY.md#pallet) implementation
 - [primitives-mainchain-follower](../mainchain-follower/README.md) - Data source traits
 

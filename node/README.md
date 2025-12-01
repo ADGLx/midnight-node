@@ -6,10 +6,10 @@ Midnight blockchain node executable.
 
 This is the main entry point for running a Midnight node. It integrates:
 
-- **Consensus** - AURA (block production), GRANDPA (finality), BEEFY (bridge)
-- **Runtime** - `midnight-node-runtime` WASM execution
+- **Consensus** - [AURA](../GLOSSARY.md#aura-authority-round) (block production), [GRANDPA](../GLOSSARY.md#grandpa-ghost-based-recursive-ancestor-deriving-prefix-agreement) (finality), [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) (bridge)
+- **[Runtime](../GLOSSARY.md#runtime)** - `midnight-node-runtime` WASM execution
 - **RPC** - JSON-RPC endpoints for state queries and transactions
-- **Data Sources** - db-sync PostgreSQL for Cardano observations
+- **Data Sources** - [db-sync](../GLOSSARY.md#db-sync) PostgreSQL for Cardano observations
 - **CLI** - Configuration and operational commands
 
 ## Installation
@@ -164,7 +164,7 @@ cargo test -p midnight-node
 
 ## See Also
 
-- [runtime](../runtime/README.md) - Runtime logic
+- [runtime](../runtime/README.md) - [Runtime](../GLOSSARY.md#runtime) logic
 - [Chain Specs](chain/README.md) - Chain specification details
-- [docs/chain_specs.md](../docs/chain_specs.md) - Chain spec documentation
+- [docs/chain_specs.md](../docs/chain_specs.md) - [Chain spec](../GLOSSARY.md#chain-spec--chain-specification) documentation
 

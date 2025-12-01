@@ -1,6 +1,6 @@
 # pallet-midnight
 
-Core FRAME pallet managing Midnight ledger state and transaction execution.
+Core [FRAME](../../GLOSSARY.md#frame-framework-for-runtime-aggregation-of-modularized-entities) pallet managing Midnight ledger state and transaction execution.
 
 ## Overview
 
@@ -122,7 +122,7 @@ let version = Midnight::get_ledger_version();
 
 - `runtime` - Wired as primary transaction processor
 - `pallet-midnight-rpc` - RPC interface to ledger queries
-- `pallet-cnight-observation` - System transaction execution
+- `pallet-cnight-observation` - [System transaction](../../GLOSSARY.md#system-transaction) execution
 
 ## Testing
 

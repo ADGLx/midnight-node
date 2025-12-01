@@ -427,7 +427,7 @@ If this isn't done, the transaction will succeed, but no coins will be visible i
 
 ### Register DUST Address
 
-- Register a seed's DUST address to start generating DUST based on owned NIGHT. This also spends all NIGHT UTxOs owned by the wallet and recreates them, allowing them to start generating DUST.
+- Register a seed's [DUST](../../GLOSSARY.md#dust) address to start generating [DUST](../../GLOSSARY.md#dust) based on owned NIGHT. This also spends all NIGHT UTxOs owned by the wallet and recreates them, allowing them to start generating [DUST](../../GLOSSARY.md#dust).
 
 ```bash
 midnight-node-toolkit \

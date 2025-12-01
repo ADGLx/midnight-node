@@ -4,12 +4,12 @@ The WASM runtime that defines the Midnight blockchain's state transition functio
 
 ## Overview
 
-This crate compiles to WebAssembly (WASM) and executes within the Substrate executor to process blocks and transactions. It composes FRAME pallets into a complete blockchain runtime, defining:
+This crate compiles to WebAssembly (WASM) and executes within the Substrate executor to process blocks and transactions. It composes [FRAME](../GLOSSARY.md#frame-framework-for-runtime-aggregation-of-modularized-entities) pallets into a complete blockchain runtime, defining:
 
-- **Pallet composition** - Which pallets are included and how they're configured
-- **Consensus parameters** - AURA (6-second blocks), GRANDPA finality, BEEFY bridge support
+- **[Pallet](../GLOSSARY.md#pallet) composition** - Which pallets are included and how they're configured
+- **Consensus parameters** - [AURA](../GLOSSARY.md#aura-authority-round) (6-second blocks), [GRANDPA](../GLOSSARY.md#grandpa-ghost-based-recursive-ancestor-deriving-prefix-agreement) finality, [BEEFY](../GLOSSARY.md#beefy-bridge-efficiency-enabling-finality-yielder) bridge support
 - **Type definitions** - Account IDs, balances, block numbers, signatures
-- **Runtime APIs** - Interfaces for RPC queries and off-chain interactions
+- **[Runtime](../GLOSSARY.md#runtime) APIs** - Interfaces for RPC queries and off-chain interactions
 - **Storage migrations** - Upgrade logic for runtime changes
 
 The runtime is the "business logic" of the chain—validators execute it identically to reach consensus on state transitions.
@@ -88,7 +88,7 @@ The runtime is the "business logic" of the chain—validators execute it identic
 
 ### Pallet Index Map
 
-| Index | Pallet | Purpose |
+| Index | [Pallet](../GLOSSARY.md#pallet) | Purpose |
 |-------|--------|---------|
 | 0 | System | Core frame system |
 | 1 | Timestamp | Block timestamps |
@@ -97,10 +97,10 @@ The runtime is the "business logic" of the chain—validators execute it identic
 | 5 | Midnight | Ledger state and transactions |
 | 6 | MidnightSystem | System-level ledger operations |
 | 7 | Sudo | Administrative operations |
-| 11 | NodeVersion | Runtime version tracking |
-| 13 | CNightObservation | cNIGHT token bridge |
+| 11 | NodeVersion | [Runtime](../GLOSSARY.md#runtime) version tracking |
+| 13 | CNightObservation | [cNIGHT](../GLOSSARY.md#cnight) token bridge |
 | 21-23 | Beefy/Mmr | Bridge support |
-| 40-45 | Governance | Council, TC, Federated Authority |
+| 40-45 | Governance | [Council](../GLOSSARY.md#council), TC, [Federated Authority](../GLOSSARY.md#federated-authority) |
 
 ### Consensus Configuration
 
@@ -190,5 +190,5 @@ cargo test -p midnight-node-runtime --features try-runtime
 - [runtime-common](common/README.md) - Shared runtime components
 - [pallet-midnight](../pallets/midnight/README.md) - Core ledger pallet
 - [Chain Specifications](../docs/chain_specs.md) - Network configurations
-- [Weights Documentation](../docs/weights.md) - Benchmarking guide
+- [Weights Documentation](../docs/weights.md) - [Benchmarking](../GLOSSARY.md#benchmarking) guide
 

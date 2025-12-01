@@ -1,10 +1,10 @@
 # midnight-primitives-federated-authority-observation
 
-Shared types for observing federated authority membership from Cardano.
+Shared types for observing [federated authority](../../GLOSSARY.md#federated-authority) membership from Cardano.
 
 ## Overview
 
-This crate defines types for synchronizing governance body membership (Council, Technical Committee) from Cardano to Midnight. Membership changes observed on Cardano are propagated via inherents to update the corresponding `pallet_membership` instances.
+This crate defines types for synchronizing governance body membership ([Council](../../GLOSSARY.md#council), [Technical Committee](../../GLOSSARY.md#technical-committee)) from Cardano to Midnight. Membership changes observed on Cardano are propagated via inherents to update the corresponding `pallet_membership` instances.
 
 ## API Specification
 
@@ -16,7 +16,7 @@ This crate defines types for synchronizing governance body membership (Council, 
 | `AuthorityMemberPublicKey` | Member's sr25519 public key (wrapped) |
 | `MainchainMember` | 28-byte PolicyId identifying member on Cardano |
 | `FederatedAuthorityObservationConfig` | Genesis configuration |
-| `AuthBodyConfig` | Per-body configuration (Council or TC) |
+| `AuthBodyConfig` | Per-body configuration ([Council](../../GLOSSARY.md#council) or TC) |
 
 ### FederatedAuthorityData
 
@@ -124,7 +124,7 @@ fn process_authority_data(data: FederatedAuthorityData) {
 
 - `pallet-federated-authority-observation` - Inherent processing
 - `midnight-node` - Data source configuration
-- `midnight-node-res` - Genesis config loading
+- `midnight-node-res` - [Genesis](../../GLOSSARY.md#genesis) config loading
 
 ## See Also
 
