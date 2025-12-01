@@ -45,15 +45,14 @@ flowchart LR
 
 **Note:** Stages 2-4 apply to both deployment (by Developer) and contract calls (by Users).
 
-### Participant Interactions
+### Developer Deployment Flow
 
-Two distinct workflows share infrastructure: **Deployment** (one-time, by Developer) and **Contract Calls** (ongoing, by Users). The Developer compiles and deploys; Users interact with deployed contracts via the same prove/submit pipeline.
+The deployment workflow is a one-time process where the developer compiles Compact source code, generates a deploy intent, proves the transaction, and submits it to create the on-chain contract.
 
 ```mermaid
 sequenceDiagram
     autonumber
     participant Dev as Developer
-    participant User as Contract User
     participant Compiler as compactc
     participant Toolkit as toolkit-js
     participant CLI as midnight-toolkit
@@ -63,19 +62,19 @@ sequenceDiagram
     participant Ledger as Ledger State
 
     rect rgb(240, 248, 255)
-        Note over Dev,Compiler: Deployment: Stage 1 - Compilation (Developer Only)
+        Note over Dev,Compiler: Stage 1 - Compilation
         Dev->>Compiler: compile(counter.compact)
         Compiler-->>Dev: contract/, zkir/, keys/
     end
 
     rect rgb(255, 248, 240)
-        Note over Dev,Toolkit: Deployment: Stage 2 - Deploy Intent
+        Note over Dev,Toolkit: Stage 2 - Deploy Intent
         Dev->>Toolkit: createDeployIntent(contract, initialState)
         Toolkit-->>Dev: deploy_intent.bin
     end
 
     rect rgb(240, 255, 240)
-        Note over Dev,Prover: Deployment: Stage 3 - Prove & Sign
+        Note over Dev,Prover: Stage 3 - Prove & Sign
         Dev->>CLI: prove(deploy_intent.bin)
         CLI->>Prover: generate ZK proof
         Prover-->>CLI: proof + public inputs
@@ -83,7 +82,7 @@ sequenceDiagram
     end
 
     rect rgb(255, 240, 255)
-        Note over Dev,Ledger: Deployment: Stage 4 - Submit
+        Note over Dev,Ledger: Stage 4 - Submit
         Dev->>RPC: submit(proven_deploy_tx)
         RPC->>Pallet: send_mn_tx(deploy)
         Pallet->>Ledger: create contract state
@@ -92,15 +91,31 @@ sequenceDiagram
     end
 
     Note over Dev,Ledger: Contract is now deployed and available for users
+```
+
+### User Contract Call Flow
+
+After deployment, users interact with the contract by generating call intents, proving their transactions, and submitting them. This flow can occur repeatedly for each contract interaction.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant User as Contract User
+    participant Toolkit as toolkit-js
+    participant CLI as midnight-toolkit
+    participant Prover as Proof Server
+    participant RPC as Node RPC
+    participant Pallet as pallet-midnight
+    participant Ledger as Ledger State
 
     rect rgb(255, 253, 231)
-        Note over User,Toolkit: Contract Call: Intent Generation (User)
+        Note over User,Toolkit: Stage 1 - Call Intent
         User->>Toolkit: createCallIntent(contract_address, entrypoint, args)
         Toolkit-->>User: call_intent.bin
     end
 
     rect rgb(232, 245, 233)
-        Note over User,Prover: Contract Call: Prove & Sign (User)
+        Note over User,Prover: Stage 2 - Prove & Sign
         User->>CLI: prove(call_intent.bin)
         CLI->>Prover: generate ZK proof
         Prover-->>CLI: proof + public inputs
@@ -108,7 +123,7 @@ sequenceDiagram
     end
 
     rect rgb(243, 229, 245)
-        Note over User,Ledger: Contract Call: Submit (User)
+        Note over User,Ledger: Stage 3 - Submit
         User->>RPC: submit(proven_call_tx)
         RPC->>Pallet: send_mn_tx(call)
         Pallet->>Pallet: verify ZK proof
