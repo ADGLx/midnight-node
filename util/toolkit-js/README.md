@@ -96,6 +96,8 @@ export default {
 };
 ```
 
+> **⚠️** Configuration example is illustrative. Verify exact API against `@midnight-ntwrk/compact-js` documentation and `example-counter` reference implementation.
+
 ### Deploying a Contract
 
 ```bash

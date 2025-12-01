@@ -111,6 +111,8 @@ The runtime is the "business logic" of the chain—validators execute it identic
 | `MaxAuthorities` | 10,000 | Maximum validator set size |
 | `MOTION_DURATION` | 5 days | Governance motion lifetime |
 
+> **⚠️** Configuration values should be verified against `runtime/src/lib.rs`. Values may change between releases.
+
 ## Usage
 
 ### Build

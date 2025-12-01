@@ -110,6 +110,8 @@ cors = ["*"]
 bootnodes = ["/dns/bootnode.example.com/tcp/30333/p2p/..."]
 ```
 
+> **⚠️** Configuration format is illustrative. Verify supported options via `midnight-node --help` or Substrate documentation.
+
 ## Architecture
 
 ```

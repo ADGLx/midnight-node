@@ -107,6 +107,8 @@ use midnight_primitives::well_known_keys::MIDNIGHT_STATE_KEY;
 let state = sp_io::storage::get(MIDNIGHT_STATE_KEY);
 ```
 
+> **⚠️** Usage examples are illustrative patterns. Verify exact key values and usage against `primitives/midnight/src/lib.rs`.
+
 ## Integration
 
 ### Dependencies

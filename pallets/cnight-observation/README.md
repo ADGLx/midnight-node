@@ -110,6 +110,8 @@ CNightObservation::initialize_genesis(CNightGenesis {
 });
 ```
 
+> **⚠️** Genesis configuration example is illustrative. Verify actual genesis structure in `runtime/src/lib.rs` and chain spec files.
+
 ## Integration
 
 ### Dependencies

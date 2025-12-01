@@ -104,6 +104,8 @@ The crate uses hybrid linear+exponential buckets for precise measurements:
 - Linear: 0-200KB in 10KB steps
 - Exponential: 200KB-5MB with 1.5x growth
 
+> **⚠️** Bucket values are approximate. Verify exact values in `primitives/ledger/src/lib.rs`.
+
 ## Integration
 
 ### Dependencies

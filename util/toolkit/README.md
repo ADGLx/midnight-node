@@ -26,6 +26,8 @@ A comprehensive command-line toolkit supporting transaction generation, wallet m
 | Ledger fork support | ⏳ |
 | Fallible/Composable contracts | ⏳ |
 
+> **⚠️** Implementation status reflects development state as of documentation creation. Verify current status against codebase and release notes.
+
 ## API Specification
 
 ### Commands
@@ -131,7 +133,7 @@ Custom contracts require [toolkit-js](../toolkit-js/README.md). Set `TOOLKIT_JS_
 ```bash
 # Get coin-public-key
 midnight-node-toolkit show-address \
-  --network undeployed \
+    --network undeployed \
   --seed 0000...0001 \
   --coin-public
 
@@ -151,10 +153,10 @@ midnight-node-toolkit send-intent \
 
 ```bash
 midnight-node-toolkit generate-txs \
-  --src-files "res/genesis/genesis_block_undeployed.mn" \
-  --dest-file "register.mn" \
-  --to-bytes \
-  register-dust-address \
+    --src-files "res/genesis/genesis_block_undeployed.mn" \
+    --dest-file "register.mn" \
+    --to-bytes \
+    register-dust-address \
   --wallet-seed "0000...0000" \
   --funding-seed "0000...0001"
 ```

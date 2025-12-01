@@ -67,6 +67,8 @@ use midnight_primitives::MidnightSystemTransactionExecutor;
 let tx_hash = MidnightSystem::execute_system_transaction(serialized_tx)?;
 ```
 
+> **⚠️** Usage examples are illustrative. Verify trait implementation in `pallets/midnight-system/src/lib.rs`.
+
 ## Architecture
 
 ```

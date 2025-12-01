@@ -110,6 +110,8 @@ let network = Midnight::get_network_id();
 let version = Midnight::get_ledger_version();
 ```
 
+> **⚠️** Usage examples are illustrative patterns. Verify exact API signatures against `pallets/midnight/rpc/src/lib.rs`.
+
 ## Integration
 
 ### Dependencies

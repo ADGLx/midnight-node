@@ -114,6 +114,8 @@ let tx = json::deserialize_tx(&bytes)?;
 let json_str = json::serialize_tx(&tx)?;
 ```
 
+> **⚠️** Usage examples are illustrative patterns. Verify exact API against `ledger/src/json.rs`.
+
 ## Integration
 
 ### Dependencies (Native)
