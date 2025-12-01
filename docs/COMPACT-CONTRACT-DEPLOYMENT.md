@@ -8,30 +8,30 @@ Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for 
 
 ## Architecture Overview
 
-```
-+-------------------+     +-------------------+     +-------------------+
-|   Compact Source  | --> |     compactc      | --> | Compiled Assets   |
-|   (.compact)      |     |   (Compiler)      |     | contract/, zkir/, |
-|                   |     |                   |     | keys/             |
-+-------------------+     +-------------------+     +-------------------+
-                                                            |
-                                                            v
-+-------------------+     +-------------------+     +-------------------+
-| Intent File       | <-- | toolkit-js        | <-- | contract.config.ts|
-| (.bin)            |     | (Intent Gen)      |     | (Witnesses)       |
-+-------------------+     +-------------------+     +-------------------+
-         |
-         v
-+-------------------+     +-------------------+     +-------------------+
-| Proven TX         | <-- | Proof Server      | <-- | midnight-toolkit  |
-| (Signed)          |     | (Local/Remote)    |     | (Rust CLI)        |
-+-------------------+     +-------------------+     +-------------------+
-         |
-         v
-+-------------------+     +-------------------+     +-------------------+
-| Node RPC          | --> | pallet-midnight   | --> | Ledger State      |
-| (WebSocket)       |     | (send_mn_tx)      |     | (Updated)         |
-+-------------------+     +-------------------+     +-------------------+
+```mermaid
+flowchart LR
+    subgraph compilation["Stage 1: Compilation"]
+        A["Compact Source<br/>(.compact)"] --> B["compactc<br/>(Compiler)"]
+        B --> C["Compiled Assets<br/>contract/, zkir/, keys/"]
+    end
+
+    subgraph intent["Stage 2: Intent Generation"]
+        C --> D["contract.config.ts<br/>(Witnesses)"]
+        D --> E["toolkit-js<br/>(Intent Gen)"]
+        E --> F["Intent File<br/>(.bin)"]
+    end
+
+    subgraph proving["Stage 3: Proving"]
+        F --> G["midnight-toolkit<br/>(Rust CLI)"]
+        G --> H["Proof Server<br/>(Local/Remote)"]
+        H --> I["Proven TX<br/>(Signed)"]
+    end
+
+    subgraph submission["Stage 4: Submission"]
+        I --> J["Node RPC<br/>(WebSocket)"]
+        J --> K["pallet-midnight<br/>(send_mn_tx)"]
+        K --> L["Ledger State<br/>(Updated)"]
+    end
 ```
 
 ## Stage 1: Contract Compilation
