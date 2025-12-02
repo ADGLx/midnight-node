@@ -14,7 +14,7 @@ pub const BEEFY_LOG_TARGET: &str = "midnight-beefy";
 pub type Stake = u64;
 pub type BeefyAuthoritySetOf<Hash> = BeefyAuthoritySet<Hash>;
 
-pub type BeefyStake<AuthorityId> = (AuthorityId,Stake);
+pub type BeefyStake<AuthorityId> = (AuthorityId, Stake);
 
 /// A List of tuple (Beefy Ids, stake)
 pub type BeefyStakes<AuthorityId> = Vec<BeefyStake<AuthorityId>>;

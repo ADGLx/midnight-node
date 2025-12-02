@@ -1,14 +1,12 @@
 #![allow(dead_code)]
 
-use midnight_primitives_beefy::{BeefyStake, BeefyStakes, BEEFY_LOG_TARGET};
+use midnight_primitives_beefy::{BEEFY_LOG_TARGET, BeefyStake, BeefyStakes};
 use rs_merkle::proof_tree::ProofNode;
 use sp_consensus_beefy::{BeefySignatureHasher, ValidatorSet, ecdsa_crypto::Public as EcdsaPublic};
 use sp_core::keccak_256;
 use subxt::utils::to_hex;
 
-use crate::{
-	justification::BeefyStakesInfo, BeefyId, BeefySignedCommitment, Error
-};
+use crate::{BeefyId, BeefySignedCommitment, Error, justification::BeefyStakesInfo};
 
 pub type Hash = [u8; 32];
 pub type RootHash = sp_core::H256;
@@ -138,12 +136,14 @@ fn collect_signature_indices(
 mod test {
 	use super::Hash;
 	use midnight_primitives_beefy::BeefyStakes;
-use sp_consensus_beefy::ValidatorSetId;
+	use sp_consensus_beefy::ValidatorSetId;
 	use sp_core::bytes::from_hex;
 	use subxt::utils::to_hex;
 
 	use crate::{
-		authorities::{collect_signature_indices, prep_leaf_hash, prep_merkle_leaves}, helper::test::{decode, get_ecdsa, ECDSA_ALICE, ECDSA_BOB, ECDSA_CHARLIE, ECDSA_DAVE}, BeefyId, BeefySignedCommitment, BeefyValidatorSet
+		BeefyId, BeefySignedCommitment, BeefyValidatorSet,
+		authorities::{collect_signature_indices, prep_leaf_hash, prep_merkle_leaves},
+		helper::test::{ECDSA_ALICE, ECDSA_BOB, ECDSA_CHARLIE, ECDSA_DAVE, decode, get_ecdsa},
 	};
 
 	const ENCODED_BEEFY_COMMITMENT: &str = "0x146362b00000000000000000040000007f0c9b27381104febfb4a6be51e8fc0f08ba70060531fc5fcf60dcbed1f4e5f96373950210020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a100000000000000000390084fdbf27d2b79d26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f2701000000000000000389411795514af1627765eceffcbd002719f031604fadd7d188e2dc585b4e1afb010000000000000003bc9d0ca094bd5b8b3225d7651eac5d18c1c04bf8ae8f8b263eebca4e1410ed0c00000000000000006d68805d6013253f0020cdae55a436208887cbd691f9cf93278497fc5e10aae814c4d06e62b0010000000000000004000000a5d8a7ba3b85661890415507aed407f1b3e7f86c0133b195ac43612171f5daca6e73950210020a1091341fe5664bfa1782d5e04779689068c916b04cb365ec3153755684d9a101000000000000000390084fdbf27d2b79d26a4f13f0ccd982cb755a661969143c37cbc49ef5b91f2700000000000000000389411795514af1627765eceffcbd002719f031604fadd7d188e2dc585b4e1afb010000000000000003bc9d0ca094bd5b8b3225d7651eac5d18c1c04bf8ae8f8b263eebca4e1410ed0c000000000000000081040000000000000000000004d0040000000cb128f92056bf1af3f4762e80071a6f42c55dee9f9c5044fb45173a86325ebd8c53d2478e29685cb3dfe929f0f887129d36865a116573c66c4edfd83384d3a3bd01691f180f0ff53d3fde30c992ff4fb3cad2a01089c1885e11d72a507a0c08ce9d2a412c772ba4877775a6521bb4cdca1a8809a9b8df7116c9abe6c0d67df7dd40014b768e1b85bcd09e1d562c59a24b12cafc8d4bab0b11c92873631c0552bbe379005eafcf82f25ba800a57e3debea0069e106d4eb85b73d207631756d84c8d1fe01";
