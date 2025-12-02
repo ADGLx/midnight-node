@@ -95,15 +95,16 @@ The `motion_revoke` [extrinsic](../../GLOSSARY.md#extrinsic) allows an authority
 ## Architecture
 
 ```
-+-------------------+     +-------------------+     +-------------------+
-|     Council       |     | Technical         |     | Other Authority   |
-|     Collective    |     | Committee         |     | Body              |
-+--------+----------+     +--------+----------+     +--------+----------+
-         |                         |                         |
-         v                         v                         v
-+--------+-------------------------+-------------------------+----------+
-|                         motion_approve()                              |
-+-----------------------------------------------------------------------+
++-------------------+                       +-------------------+
+|     Council       |                       | Technical         |
+|   (2/3 approval)  |                       | Committee         |
++--------+----------+                       | (2/3 approval)    |
+         |                                  +--------+----------+
+         |                                           |
+         v                                           v
++--------+-------------------------------------------+----------+
+|                      motion_approve()                         |
++---------------------------------------------------------------+
                                    |
                                    v
                     +------------------------------+
@@ -116,7 +117,7 @@ The `motion_revoke` [extrinsic](../../GLOSSARY.md#extrinsic) allows an authority
                     |  +-----------------------+   |
                     +------------------------------+
                                    |
-                    (when all required approvals collected)
+                    (when both bodies have approved)
                                    |
                                    v
                     +------------------------------+
@@ -124,6 +125,10 @@ The `motion_revoke` [extrinsic](../../GLOSSARY.md#extrinsic) allows an authority
                     |     Execute with Root        |
                     +------------------------------+
 ```
+
+**Sources**: 
+- Dispatchables: [`pallets/federated-authority/src/lib.rs#L125-L280`](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/federated-authority/src/lib.rs#L125-L280) - `motion_approve` (L133), `motion_close` (L261)
+- Runtime config: [`runtime/src/lib.rs#L916-L954`](https://github.com/m2ux/midnight-node/blob/mc_study/runtime/src/lib.rs#L916-L954) - Council and TechnicalCommittee authority bodies
 
 ## Usage
 
