@@ -163,6 +163,7 @@ that we are still in the process of being release. As such:
 [Proposals](docs/proposals)
 [Decisions](docs/decisions)
 
+- [Compact Contract Deployment](docs/COMPACT-CONTRACT-DEPLOYMENT.md) - Complete guide to deploying privacy-preserving smart contracts
 - [Development Workflow](docs/development-workflow.md) - Best practices for cargo vs earthly, debugging, and common tasks
 - [Rust Installation](docs/rust-setup.md) - Setup instructions and toolchain information
 - [Chain Specifications](docs/chain_specs.md) - Working with different networks
