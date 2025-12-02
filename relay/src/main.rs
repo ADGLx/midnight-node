@@ -5,6 +5,7 @@ mod beefy_keys;
 mod cardano_encoding;
 mod error;
 mod helper;
+
 mod justification;
 mod relayer;
 
@@ -14,18 +15,7 @@ use midnight_node_metadata::midnight_metadata_latest as mn_meta;
 pub use error::Error;
 
 pub type BlockNumber = u32;
-pub type Stake = u64;
-
 pub type MmrProof = mmr_rpc::LeavesProof<sp_core::H256>;
-
-pub type BeefyValidatorSet =
-	sp_consensus_beefy::ValidatorSet<sp_consensus_beefy::ecdsa_crypto::Public>;
-pub type BeefySignedCommitment =
-	sp_consensus_beefy::SignedCommitment<BlockNumber, sp_consensus_beefy::ecdsa_crypto::Signature>;
-
-pub type BeefyId = sp_consensus_beefy::ecdsa_crypto::AuthorityId;
-pub type BeefyStake = (BeefyId, u64);
-pub type BeefyStakes = Vec<BeefyStake>;
 
 /// BEEFY Relayer CLI
 #[derive(Parser, Debug)]
