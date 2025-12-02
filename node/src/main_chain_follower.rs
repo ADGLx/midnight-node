@@ -20,7 +20,7 @@ use partner_chains_db_sync_data_sources::{
 };
 use partner_chains_mock_data_sources::{
 	AuthoritySelectionDataSourceMock, BlockDataSourceMock, GovernedMapDataSourceMock,
-	McHashDataSourceMock, SidechainRpcDataSourceMock, TokenBridgeDataSourceMock,
+	McHashDataSourceMock, SidechainRpcDataSourceMock,
 };
 use sc_service::error::Error as ServiceError;
 use sidechain_mc_hash::McHashDataSource;
@@ -37,6 +37,7 @@ use midnight_primitives_mainchain_follower::{
 	CNightObservationDataSourceMock, FederatedAuthorityObservationDataSource,
 	FederatedAuthorityObservationDataSourceImpl, FederatedAuthorityObservationDataSourceMock,
 	MidnightCNightObservationDataSource, MidnightCNightObservationDataSourceImpl,
+	MidnightTokenBridgeDataSourceMock,
 };
 
 // TODO: Decide if it should be experimental
@@ -98,12 +99,12 @@ pub async fn create_mock_data_sources(
 		mc_hash: Arc::new(McHashDataSourceMock::new(block)),
 		authority_selection: Arc::new(authority_selection_data_source_mock),
 		cnight_observation: Arc::new(CNightObservationDataSourceMock::new()),
-		governed_map: Arc::new(GovernedMapDataSourceMock::default()),
-		federated_authority_observation: Arc::new(
-			FederatedAuthorityObservationDataSourceMock::new(),
-		),
-		bridge: Arc::new(TokenBridgeDataSourceMock::<BridgeRecipient>::new()),
-	})
+	governed_map: Arc::new(GovernedMapDataSourceMock::default()),
+	federated_authority_observation: Arc::new(
+		FederatedAuthorityObservationDataSourceMock::new(),
+	),
+	bridge: Arc::new(MidnightTokenBridgeDataSourceMock::new()),
+})
 }
 
 pub const CANDIDATES_FOR_EPOCH_CACHE_SIZE: usize = 64;

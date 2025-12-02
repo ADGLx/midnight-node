@@ -18,6 +18,7 @@ sp-runtime.workspace = true
 sp-inherents.workspace = true
 sp-core.workspace = true
 sp-keyring.workspace = true
+sp-partner-chains-bridge.workspace = true
 thiserror = { workspace = true, optional = true }
 cardano-serialization-lib = { workspace = true, optional = true }
 sqlx = { version = "0.8.5",  optional = true,  default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "chrono", "migrate", "bigdecimal", "json"]}

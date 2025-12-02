@@ -7693,6 +7693,7 @@ dependencies = [
  "sp-core",
  "sp-inherents",
  "sp-keyring",
+ "sp-partner-chains-bridge",
  "sp-runtime",
  "sp-std",
  "sqlx",

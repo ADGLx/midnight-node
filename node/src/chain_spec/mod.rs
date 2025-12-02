@@ -32,7 +32,7 @@ use midnight_node_runtime::{
 
 use midnight_primitives_cnight_observation::ObservedUtxos;
 use sc_chain_spec::{ChainSpecExtension, GenericChainSpec};
-use sidechain_domain::{AssetName, MainchainAddress, PolicyId};
+use sidechain_domain::{AssetName, MainchainAddress, PolicyId, UtxoId};
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sp_core::{Encode, H256, Pair, Public};
@@ -259,6 +259,11 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 		.expect("Failed to decode bridge contract address"),
 	};
 
+	let initial_checkpoint = Some(
+		UtxoId::from_str("4843cf2e582b2f9ce37600e5ab4cc678991f988f8780fed05407f9537f7712bd#0")
+			.expect("valid UTXO id"),
+	);
+
 	let config = RuntimeGenesisConfig {
 		system: Default::default(),
 		aura: Default::default(),
@@ -364,7 +369,7 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 		},
 		bridge: BridgeConfig {
 			main_chain_scripts: Some(bridge_main_chain_scripts),
-			initial_checkpoint: None,
+			initial_checkpoint,
 			..Default::default()
 		},
 	};

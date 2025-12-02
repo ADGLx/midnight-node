@@ -32,6 +32,7 @@ pub use {
 	data_source::{
 		CNightObservationDataSourceMock, FederatedAuthorityObservationDataSourceImpl,
 		FederatedAuthorityObservationDataSourceMock, MidnightCNightObservationDataSourceImpl,
+		MidnightTokenBridgeDataSourceMock,
 	},
 	inherent_provider::*,
 	partner_chains_db_sync_data_sources,

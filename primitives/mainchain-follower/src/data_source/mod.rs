@@ -19,6 +19,7 @@ pub mod cnight_observation;
 pub mod cnight_observation_mock;
 pub mod federated_authority_observation;
 pub mod federated_authority_observation_mock;
+pub mod pallet_partner_chains_bridge_mock;
 
 pub use cnight_observation::{
 	MidnightCNightObservationDataSourceError, MidnightCNightObservationDataSourceImpl, TxHash,
@@ -27,6 +28,7 @@ pub use cnight_observation::{
 pub use cnight_observation_mock::CNightObservationDataSourceMock;
 pub use federated_authority_observation::FederatedAuthorityObservationDataSourceImpl;
 pub use federated_authority_observation_mock::FederatedAuthorityObservationDataSourceMock;
+pub use pallet_partner_chains_bridge_mock::MidnightTokenBridgeDataSourceMock;
 
 pub use sqlx::PgPool;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
