@@ -18,30 +18,45 @@ Contract deployment and interaction follow distinct but related flows [[2]](#ref
 Both deployment and contract calls share the intent → prove → submit pipeline [[6]](#ref-6) [[8]](#ref-8).
 
 ```mermaid
-flowchart LR
-    subgraph compilation["Stage 1: Compilation (Developer Only)"]
-        A["Compact Source<br/>(.compact)"] --> B["compactc<br/>(Compiler)"]
-        B --> C["Compiled Assets<br/>contract/, zkir/, keys/"]
+flowchart TB
+    subgraph row1[" "]
+        direction LR
+        subgraph compilation["Stage 1: Compilation (Developer Only)"]
+            direction LR
+            A["Compact Source<br/>(.compact)"] --> B["compactc<br/>(Compiler)"]
+            B --> C["Compiled Assets<br/>contract/, zkir/, keys/"]
+        end
+
+        subgraph intent["Stage 2: Intent Generation"]
+            direction LR
+            D["Witnesses &<br/>Private Inputs"] --> E["toolkit-js<br/>(Intent Gen)"]
+            E --> F["Intent File<br/>(.bin)"]
+        end
+
+        compilation --> intent
     end
 
-    subgraph intent["Stage 2: Intent Generation"]
-        C --> D["Witnesses &<br/>Private Inputs"]
-        D --> E["toolkit-js<br/>(Intent Gen)"]
-        E --> F["Intent File<br/>(.bin)"]
+    subgraph row2[" "]
+        direction LR
+        subgraph proving["Stage 3: Proving"]
+            direction LR
+            G["midnight-toolkit<br/>(Rust CLI)"] --> H["Proof Server<br/>(Local/Remote)"]
+            H --> I["Proven TX<br/>(Signed)"]
+        end
+
+        subgraph submission["Stage 4: Submission"]
+            direction LR
+            J["Node RPC<br/>(WebSocket)"] --> K["pallet-midnight<br/>(send_mn_tx)"]
+            K --> L["Ledger State<br/>(Updated)"]
+        end
+
+        proving --> submission
     end
 
-    subgraph proving["Stage 3: Proving"]
-        F --> G["midnight-toolkit<br/>(Rust CLI)"]
-        G --> H["Proof Server<br/>(Local/Remote)"]
-        H --> I["Proven TX<br/>(Signed)"]
-    end
+    row1 --> row2
 
-    subgraph submission["Stage 4: Submission"]
-        I --> J["Node RPC<br/>(WebSocket)"]
-        J --> K["pallet-midnight<br/>(send_mn_tx)"]
-        K --> L["Ledger State<br/>(Updated)"]
-    end
-
+    style row1 fill:none,stroke:none
+    style row2 fill:none,stroke:none
     style compilation fill:#e1f5fe
     style intent fill:#fff3e0
     style proving fill:#e8f5e9
