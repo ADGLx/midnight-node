@@ -79,9 +79,11 @@ When compiled for WASM (`no_std`), it only includes `host_api` and minimal stubs
                                  v
                          +------------------+
                          | ledger-storage   |
-                         | (RocksDB)        |
+                         | (ParityDB)       |
                          +------------------+
 ```
+
+**Sources**: Host functions [`ledger/src/lib.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/lib.rs), storage init [`node/src/service.rs#L217-L223`](https://github.com/m2ux/midnight-node/blob/mc_study/node/src/service.rs#L217-L223)
 
 ## Usage
 

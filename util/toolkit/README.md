@@ -195,6 +195,8 @@ midnight-node-toolkit dust-balance \
                          +------------------+
 ```
 
+**Sources**: [`util/toolkit/src/tx_generator/mod.rs#L51`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/mod.rs#L51) - `TxGenerator`, [`util/toolkit/src/tx_generator/builder/mod.rs#L16-L18`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/mod.rs#L16-L18) - builder modules
+
 ### Data Flow Modes
 
 | Mode | Source | Destination | Use Case |

@@ -102,6 +102,8 @@ See `res/mock-bridge-data/beefy-keys-mock.json` for example configuration.
                                                   +------------------+
 ```
 
+**Sources**: [`relay/src/main.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/relay/src/main.rs) - CLI entry, [`relay/src/beefy_keys.rs#L37`](https://github.com/m2ux/midnight-node/blob/mc_study/relay/src/beefy_keys.rs#L37) - `insert_key`
+
 ## Integration
 
 ### Dependencies

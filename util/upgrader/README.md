@@ -62,6 +62,8 @@ upgrader \
                                                   +------------------+
 ```
 
+**Sources**: [`util/upgrader/src/main.rs#L58-L66`](https://github.com/m2ux/midnight-node/blob/mc_study/util/upgrader/src/main.rs#L58-L66) - `/execute` handler, [`util/upgrader/src/lib.rs#L40`](https://github.com/m2ux/midnight-node/blob/mc_study/util/upgrader/src/lib.rs#L40) - `execute_upgrade`
+
 ## Example Workflow
 
 1. Start a Midnight node:

@@ -143,6 +143,8 @@ midnight-node-toolkit-js maintain circuit --input state.bin -s <signing_key> <ad
 +------------------+     +------------------+
 ```
 
+**Sources**: [`util/toolkit-js/src/bin.ts`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/src/bin.ts) - CLI entry point, [`util/toolkit-js/test/contract/contract.config.ts`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/test/contract/contract.config.ts) - config example
+
 ### Configuration Resolution
 
 ```

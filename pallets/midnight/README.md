@@ -86,6 +86,8 @@ Block Lifecycle:
 +------------------+     +------------------+     +------------------+
 ```
 
+**Sources**: [`pallets/midnight/src/lib.rs#L288-L306`](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L288-L306) - `on_initialize` (L288), `on_finalize` (L296), [`send_mn_transaction`](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L355) (L355)
+
 ## Usage
 
 ### Runtime Configuration

@@ -86,6 +86,8 @@ The runtime is the "business logic" of the chain—validators execute it identic
 +-----------------------------------------------------------------------+
 ```
 
+**Sources**: [`runtime/src/lib.rs#L992-L1090`](https://github.com/m2ux/midnight-node/blob/mc_study/runtime/src/lib.rs#L992-L1090) - `#[frame_support::runtime]` pallet declarations
+
 ### Pallet Index Map
 
 | Index | [Pallet](../GLOSSARY.md#pallet) | Purpose |
