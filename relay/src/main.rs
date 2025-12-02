@@ -14,6 +14,12 @@ use midnight_node_metadata::midnight_metadata_latest as mn_meta;
 
 pub use error::Error;
 
+pub type BeefyValidatorSet =
+	sp_consensus_beefy::ValidatorSet<sp_consensus_beefy::ecdsa_crypto::Public>;
+pub type BeefySignedCommitment =
+	sp_consensus_beefy::SignedCommitment<BlockNumber, sp_consensus_beefy::ecdsa_crypto::Signature>;
+pub type BeefyId = sp_consensus_beefy::ecdsa_crypto::AuthorityId;
+
 pub type BlockNumber = u32;
 pub type MmrProof = mmr_rpc::LeavesProof<sp_core::H256>;
 
