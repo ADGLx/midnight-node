@@ -9,7 +9,9 @@
         "members_mainchain": [
             "d390ef0f34b32040dc4e9d65a05c609310e06d78ea7a96746326f870",
             "1985f4819b7c4ef72207aa6f923ddd572e30d24da7253907ade9500e"
-        ]
+        ],
+        "governance_address": "",
+        "governance_policy_id": ""
     },
     "technical_committee": {
         "address": "addr_test1wruef4lsh5rvqnvumksksmm3f5n8j7e2sp5xc384y29ac2q2lrux2",
@@ -21,6 +23,8 @@
         "members_mainchain": [
             "d4a36042b35d53d44414099ec60e9706ce67ac9058b6ca12de4dc253",
             "c8675a815cea6702583ae738abf7fd50e21e499bdedb5a9962b42e78"
-        ]
+        ],
+        "governance_address": "",
+        "governance_policy_id": ""
     }
 }

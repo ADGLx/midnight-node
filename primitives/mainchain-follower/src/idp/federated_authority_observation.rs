@@ -40,28 +40,33 @@ impl FederatedAuthorityInherentDataProvider {
 	{
 		let api = client.runtime_api();
 
-		let council_address = api.get_council_address(parent_hash)?.bytes();
-		let council_address = String::from_utf8(council_address)?;
-
-		let council_policy_id = api.get_council_policy_id(parent_hash)?;
-
-		let technical_committee_address = api.get_technical_committee_address(parent_hash)?.bytes();
-		let technical_committee_address = String::from_utf8(technical_committee_address)?;
-
-		let technical_committee_policy_id = api.get_technical_committee_policy_id(parent_hash)?;
+		// Get Council scripts
+		let council_scripts = api.get_council_scripts(parent_hash)?;
+		let council_address = String::from_utf8(council_scripts.address.bytes())?;
+		let council_governance_address =
+			String::from_utf8(council_scripts.governance_address.bytes())?;
 
 		let council = AuthBodyConfig {
 			address: council_address,
-			policy_id: council_policy_id,
+			policy_id: council_scripts.policy_id,
 			members: vec![],
 			members_mainchain: vec![],
+			governance_address: council_governance_address,
+			governance_policy_id: council_scripts.governance_policy_id,
 		};
 
+		// Get Technical Committee scripts
+		let tc_scripts = api.get_technical_committee_scripts(parent_hash)?;
+		let tc_address = String::from_utf8(tc_scripts.address.bytes())?;
+		let tc_governance_address = String::from_utf8(tc_scripts.governance_address.bytes())?;
+
 		let technical_committee = AuthBodyConfig {
-			address: technical_committee_address,
-			policy_id: technical_committee_policy_id,
+			address: tc_address,
+			policy_id: tc_scripts.policy_id,
 			members: vec![],
 			members_mainchain: vec![],
+			governance_address: tc_governance_address,
+			governance_policy_id: tc_scripts.governance_policy_id,
 		};
 
 		let config = FederatedAuthorityObservationConfig { council, technical_committee };
@@ -81,6 +86,8 @@ impl sp_inherents::InherentDataProvider for FederatedAuthorityInherentDataProvid
 		inherent_data.put_data(
 			midnight_primitives_federated_authority_observation::INHERENT_IDENTIFIER,
 			&FederatedAuthorityData {
+				council_round: self.data.council_round,
+				technical_committee_round: self.data.technical_committee_round,
 				council_authorities: self.data.council_authorities.clone(),
 				technical_committee_authorities: self.data.technical_committee_authorities.clone(),
 				mc_block_hash: self.data.mc_block_hash.clone(),

@@ -25,10 +25,9 @@ use frame_support::{
 use frame_system::pallet_prelude::*;
 use midnight_primitives_federated_authority_observation::{
 	AuthorityMemberPublicKey, FederatedAuthorityData, INHERENT_IDENTIFIER, InherentError,
-	MainchainMember,
+	MainChainScripts, MainchainMember, RoundInfo,
 };
 pub use pallet::*;
-use sidechain_domain::{MainchainAddress, PolicyId};
 use sp_std::vec::Vec;
 
 #[cfg(test)]
@@ -51,21 +50,13 @@ pub mod pallet {
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 	#[pallet::storage]
-	/// Script address for managing Council members on Cardano
-	pub type MainChainCouncilAddress<T: Config> = StorageValue<_, MainchainAddress, ValueQuery>;
+	/// Mainchain scripts for Council (address, policy_id, governance_address, governance_policy_id)
+	pub type CouncilMainChainScripts<T: Config> = StorageValue<_, MainChainScripts, ValueQuery>;
 
 	#[pallet::storage]
-	/// Policy ID for Council members on Cardano
-	pub type MainChainCouncilPolicyId<T: Config> = StorageValue<_, PolicyId, ValueQuery>;
-
-	#[pallet::storage]
-	/// Script address for managing Council members on Cardano
-	pub type MainChainTechnicalCommitteeAddress<T: Config> =
-		StorageValue<_, MainchainAddress, ValueQuery>;
-
-	#[pallet::storage]
-	/// Policy ID for Technical Committee members on Cardano
-	pub type MainChainTechnicalCommitteePolicyId<T: Config> = StorageValue<_, PolicyId, ValueQuery>;
+	/// Mainchain scripts for Technical Committee (address, policy_id, governance_address, governance_policy_id)
+	pub type TechnicalCommitteeMainChainScripts<T: Config> =
+		StorageValue<_, MainChainScripts, ValueQuery>;
 
 	#[pallet::storage]
 	/// Mainchain member identifiers for Council members
@@ -76,6 +67,14 @@ pub mod pallet {
 	/// Mainchain member identifiers for Technical Committee members
 	pub type TechnicalCommitteeMainchainMembers<T: Config> =
 		StorageValue<_, BoundedVec<MainchainMember, T::TechnicalCommitteeMaxMembers>, ValueQuery>;
+
+	#[pallet::storage]
+	/// Council round information for contract upgrades (previous, current, next)
+	pub type CouncilRound<T: Config> = StorageValue<_, RoundInfo, ValueQuery>;
+
+	#[pallet::storage]
+	/// Technical Committee round information for contract upgrades (previous, current, next)
+	pub type TechnicalCommitteeRound<T: Config> = StorageValue<_, RoundInfo, ValueQuery>;
 
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
@@ -103,11 +102,13 @@ pub mod pallet {
 	#[pallet::genesis_config]
 	#[derive(frame_support::DefaultNoBound)]
 	pub struct GenesisConfig<T: Config> {
-		pub council_address: MainchainAddress,
-		pub council_policy_id: PolicyId,
-		pub technical_committee_address: MainchainAddress,
-		pub technical_committee_policy_id: PolicyId,
+		/// Council mainchain scripts configuration
+		pub council_scripts: MainChainScripts,
+		/// Technical Committee mainchain scripts configuration
+		pub technical_committee_scripts: MainChainScripts,
+		/// Initial Council mainchain member identifiers
 		pub council_members_mainchain: Vec<MainchainMember>,
+		/// Initial Technical Committee mainchain member identifiers
 		pub technical_committee_members_mainchain: Vec<MainchainMember>,
 		#[serde(skip)]
 		pub _config: core::marker::PhantomData<T>,
@@ -116,12 +117,9 @@ pub mod pallet {
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
-			MainChainCouncilAddress::<T>::set(self.council_address.clone());
-			MainChainCouncilPolicyId::<T>::set(self.council_policy_id.clone());
-			MainChainTechnicalCommitteeAddress::<T>::set(self.technical_committee_address.clone());
-			MainChainTechnicalCommitteePolicyId::<T>::set(
-				self.technical_committee_policy_id.clone(),
-			);
+			// Set mainchain scripts for Council and Technical Committee
+			CouncilMainChainScripts::<T>::set(self.council_scripts.clone());
+			TechnicalCommitteeMainChainScripts::<T>::set(self.technical_committee_scripts.clone());
 
 			// Set mainchain members
 			let council_mainchain_members: BoundedVec<MainchainMember, T::CouncilMaxMembers> = self
@@ -140,6 +138,10 @@ pub mod pallet {
 				.try_into()
 				.expect("Technical committee mainchain members exceeds max members");
 			TechnicalCommitteeMainchainMembers::<T>::set(technical_committee_mainchain_members);
+
+			// Initialize round values to 0 for both bodies
+			CouncilRound::<T>::set(RoundInfo::default());
+			TechnicalCommitteeRound::<T>::set(RoundInfo::default());
 		}
 	}
 
@@ -156,6 +158,14 @@ pub mod pallet {
 			members: BoundedVec<T::AccountId, T::TechnicalCommitteeMaxMembers>,
 			members_mainchain: BoundedVec<MainchainMember, T::TechnicalCommitteeMaxMembers>,
 		},
+		/// Council contract upgrade round updated
+		CouncilRoundUpdated { previous_round: u8, current_round: u8, next_round: u8 },
+		/// Technical Committee contract upgrade round updated
+		TechnicalCommitteeRoundUpdated { previous_round: u8, current_round: u8, next_round: u8 },
+		/// Council next round value set by privileged call
+		CouncilNextRoundSet { next_round: u8 },
+		/// Technical Committee next round value set by privileged call
+		TechnicalCommitteeNextRoundSet { next_round: u8 },
 	}
 
 	#[pallet::error]
@@ -164,6 +174,10 @@ pub mod pallet {
 		TooManyMembers,
 		/// Membership set is empty
 		EmptyMembers,
+		/// Council round value is less than current round
+		InvalidCouncilRound,
+		/// Technical Committee round value is less than current round
+		InvalidTechnicalCommitteeRound,
 	}
 
 	#[pallet::hooks]
@@ -179,10 +193,22 @@ pub mod pallet {
 		#[allow(clippy::useless_conversion)]
 		pub fn reset_members(
 			origin: OriginFor<T>,
+			council_round: Option<u8>,
+			technical_committee_round: Option<u8>,
 			council_authorities: Vec<(T::AccountId, MainchainMember)>,
 			technical_committee_authorities: Vec<(T::AccountId, MainchainMember)>,
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
+
+			// Handle Council round validation and update
+			if let Some(new_council_round) = council_round {
+				Self::validate_and_update_round(new_council_round, GovernanceBody::Council)?;
+			}
+
+			// Handle Technical Committee round validation and update
+			if let Some(new_tc_round) = technical_committee_round {
+				Self::validate_and_update_round(new_tc_round, GovernanceBody::TechnicalCommittee)?;
+			}
 
 			let (council_account_ids, council_mainchain_members): (Vec<_>, Vec<_>) =
 				council_authorities.into_iter().unzip();
@@ -327,51 +353,78 @@ pub mod pallet {
 			Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::No })
 		}
 
-		/// Changes the mainchain address for the Council
+		/// Sets the mainchain scripts for the Council
 		#[pallet::call_index(1)]
 		#[pallet::weight((T::WeightInfo::set_council_address(), DispatchClass::Operational))]
-		pub fn set_council_address(
+		pub fn set_council_scripts(
 			origin: OriginFor<T>,
-			address: MainchainAddress,
+			scripts: MainChainScripts,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			MainChainCouncilAddress::<T>::set(address);
+			CouncilMainChainScripts::<T>::set(scripts);
 
 			Ok(())
 		}
 
-		/// Changes the mainchain address for the Technical Committee
+		/// Sets the mainchain scripts for the Technical Committee
 		#[pallet::call_index(2)]
 		#[pallet::weight((T::WeightInfo::set_technical_committee_address(), DispatchClass::Operational))]
-		pub fn set_technical_committee_address(
+		pub fn set_technical_committee_scripts(
 			origin: OriginFor<T>,
-			address: MainchainAddress,
+			scripts: MainChainScripts,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			MainChainTechnicalCommitteeAddress::<T>::set(address);
+			TechnicalCommitteeMainChainScripts::<T>::set(scripts);
 
 			Ok(())
 		}
 
-		/// Changes the mainchain policy id for the Council
+		/// Sets the next expected contract upgrade round for Council
+		///
+		/// This privileged call allows setting the Council NextRound value, which indicates
+		/// the expected next round value from the Cardano governance contract.
+		/// If Round == NextRound, it means the pallet is not expecting a new contract version,
+		/// and therefore a runtime upgrade should wait for it.
 		#[pallet::call_index(3)]
-		#[pallet::weight((T::WeightInfo::set_council_policy_id(), DispatchClass::Operational))]
-		pub fn set_council_policy_id(origin: OriginFor<T>, policy_id: PolicyId) -> DispatchResult {
+		#[pallet::weight((T::WeightInfo::set_council_address(), DispatchClass::Operational))]
+		pub fn set_council_next_round(origin: OriginFor<T>, next_round: u8) -> DispatchResult {
 			ensure_root(origin)?;
-			MainChainCouncilPolicyId::<T>::set(policy_id);
+
+			let mut round_info = CouncilRound::<T>::get();
+			ensure!(next_round >= round_info.current_round, Error::<T>::InvalidCouncilRound);
+
+			round_info.next_round = next_round;
+			CouncilRound::<T>::set(round_info);
+
+			Self::deposit_event(Event::<T>::CouncilNextRoundSet { next_round });
 
 			Ok(())
 		}
 
-		/// Changes the mainchain policy id for the Technical Committee
+		/// Sets the next expected contract upgrade round for Technical Committee
+		///
+		/// This privileged call allows setting the Technical Committee NextRound value, which indicates
+		/// the expected next round value from the Cardano governance contract.
+		/// If Round == NextRound, it means the pallet is not expecting a new contract version,
+		/// and therefore a runtime upgrade should wait for it.
 		#[pallet::call_index(4)]
-		#[pallet::weight((T::WeightInfo::set_technical_committee_policy_id(), DispatchClass::Operational))]
-		pub fn set_technical_committee_policy_id(
+		#[pallet::weight((T::WeightInfo::set_technical_committee_address(), DispatchClass::Operational))]
+		pub fn set_technical_committee_next_round(
 			origin: OriginFor<T>,
-			policy_id: PolicyId,
+			next_round: u8,
 		) -> DispatchResult {
 			ensure_root(origin)?;
-			MainChainTechnicalCommitteePolicyId::<T>::set(policy_id);
+
+			let mut round_info = TechnicalCommitteeRound::<T>::get();
+			ensure!(
+				next_round >= round_info.current_round,
+				Error::<T>::InvalidTechnicalCommitteeRound
+			);
+
+			round_info.next_round = next_round;
+			TechnicalCommitteeRound::<T>::set(round_info);
+
+			Self::deposit_event(Event::<T>::TechnicalCommitteeNextRoundSet { next_round });
 
 			Ok(())
 		}
@@ -387,6 +440,34 @@ pub mod pallet {
 			// Extract and validate the federated authority data from inherent
 			let fed_auth_data = Self::get_data_from_inherent_data(data).unwrap_or_default()?;
 
+			// Validate council round value
+			if let Some(council_round) = fed_auth_data.council_round {
+				let round_info = CouncilRound::<T>::get();
+				if council_round < round_info.current_round {
+					log::error!(
+						target: "federated-authority-observation",
+						"Received council round {} is less than current round {}, skipping inherent",
+						council_round,
+						round_info.current_round
+					);
+					return None;
+				}
+			}
+
+			// Validate technical committee round value
+			if let Some(tc_round) = fed_auth_data.technical_committee_round {
+				let round_info = TechnicalCommitteeRound::<T>::get();
+				if tc_round < round_info.current_round {
+					log::error!(
+						target: "federated-authority-observation",
+						"Received technical committee round {} is less than current round {}, skipping inherent",
+						tc_round,
+						round_info.current_round
+					);
+					return None;
+				}
+			}
+
 			let council_authorities =
 				Self::decode_auth_accounts(fed_auth_data.council_authorities).ok()?;
 
@@ -394,7 +475,12 @@ pub mod pallet {
 				Self::decode_auth_accounts(fed_auth_data.technical_committee_authorities).ok()?;
 
 			if !council_authorities.is_empty() && !technical_committee_authorities.is_empty() {
-				Some(Call::reset_members { council_authorities, technical_committee_authorities })
+				Some(Call::reset_members {
+					council_round: fed_auth_data.council_round,
+					technical_committee_round: fed_auth_data.technical_committee_round,
+					council_authorities,
+					technical_committee_authorities,
+				})
 			} else {
 				None
 			}
@@ -410,12 +496,35 @@ pub mod pallet {
 		) -> Result<(), Self::Error> {
 			// Validate the federated authority data from inherent
 			if let Some(fed_auth_data) = Self::get_data_from_inherent_data(data)? {
+				// Validate council round value
+				if let Some(council_round) = fed_auth_data.council_round {
+					let round_info = CouncilRound::<T>::get();
+					if council_round < round_info.current_round {
+						return Err(InherentError::InvalidCouncilRound);
+					}
+				}
+
+				// Validate technical committee round value
+				if let Some(tc_round) = fed_auth_data.technical_committee_round {
+					let round_info = TechnicalCommitteeRound::<T>::get();
+					if tc_round < round_info.current_round {
+						return Err(InherentError::InvalidTechnicalCommitteeRound);
+					}
+				}
+
 				let _ = Self::decode_auth_accounts(fed_auth_data.council_authorities)?;
 				let _ = Self::decode_auth_accounts(fed_auth_data.technical_committee_authorities)?;
 			}
 
 			Ok(())
 		}
+	}
+
+	/// Enum to identify which governance body a round update is for
+	#[derive(Clone, Copy)]
+	pub enum GovernanceBody {
+		Council,
+		TechnicalCommittee,
 	}
 
 	impl<T: Config> Pallet<T> {
@@ -445,6 +554,67 @@ pub mod pallet {
 						})
 				})
 				.collect::<Result<Vec<_>, _>>()
+		}
+
+		/// Validate and update round for a governance body
+		///
+		/// Returns Ok(()) if the round is valid (>= current), Err if invalid (< current).
+		/// Updates storage and emits event if the round is greater than current.
+		fn validate_and_update_round(new_round: u8, body: GovernanceBody) -> Result<(), Error<T>> {
+			let (round_info, body_name) = match body {
+				GovernanceBody::Council => (CouncilRound::<T>::get(), "council"),
+				GovernanceBody::TechnicalCommittee => {
+					(TechnicalCommitteeRound::<T>::get(), "technical committee")
+				},
+			};
+
+			// If round is less than current round, this is an error
+			if new_round < round_info.current_round {
+				log::error!(
+					target: "federated-authority-observation",
+					"Received {} round {} is less than current round {}",
+					body_name,
+					new_round,
+					round_info.current_round
+				);
+				return match body {
+					GovernanceBody::Council => Err(Error::<T>::InvalidCouncilRound),
+					GovernanceBody::TechnicalCommittee => {
+						Err(Error::<T>::InvalidTechnicalCommitteeRound)
+					},
+				};
+			}
+
+			// If round is greater than current round, update the round values
+			if new_round > round_info.current_round {
+				let new_round_info = RoundInfo {
+					previous_round: round_info.current_round,
+					current_round: new_round,
+					next_round: new_round,
+				};
+
+				match body {
+					GovernanceBody::Council => {
+						CouncilRound::<T>::set(new_round_info.clone());
+						Self::deposit_event(Event::<T>::CouncilRoundUpdated {
+							previous_round: new_round_info.previous_round,
+							current_round: new_round_info.current_round,
+							next_round: new_round_info.next_round,
+						});
+					},
+					GovernanceBody::TechnicalCommittee => {
+						TechnicalCommitteeRound::<T>::set(new_round_info.clone());
+						Self::deposit_event(Event::<T>::TechnicalCommitteeRoundUpdated {
+							previous_round: new_round_info.previous_round,
+							current_round: new_round_info.current_round,
+							next_round: new_round_info.next_round,
+						});
+					},
+				}
+			}
+			// If round == current_round, nothing to do
+
+			Ok(())
 		}
 	}
 }

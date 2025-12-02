@@ -63,6 +63,8 @@ impl FederatedAuthorityObservationDataSource for FederatedAuthorityObservationDa
 		let charlie_mainchain = ed25519_to_mainchain_member(Ed25519Keyring::Charlie.public());
 
 		Ok(FederatedAuthorityData {
+			council_round: None,
+			technical_committee_round: None,
 			council_authorities: vec![
 				(dave, dave_mainchain),
 				(eve, eve_mainchain),

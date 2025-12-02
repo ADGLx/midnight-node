@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::{FederatedAuthorityObservationDataSource, db::get_governance_body_utxo};
+use crate::{FederatedAuthorityObservationDataSource, db::get_contract_utxo};
 use cardano_serialization_lib::PlutusData;
 use derive_new::new;
 use midnight_primitives_federated_authority_observation::{
@@ -48,7 +48,7 @@ impl FederatedAuthorityObservationDataSource for FederatedAuthorityObservationDa
 		};
 
 		// Query council UTXO
-		let council_utxo = get_governance_body_utxo(
+		let council_utxo = get_contract_utxo(
 			&self.pool,
 			&config.council.address,
 			&config.council.policy_id,
@@ -83,7 +83,7 @@ impl FederatedAuthorityObservationDataSource for FederatedAuthorityObservationDa
 		};
 
 		// Query technical committee UTXO
-		let technical_committee_utxo = get_governance_body_utxo(
+		let technical_committee_utxo = get_contract_utxo(
 			&self.pool,
 			&config.technical_committee.address,
 			&config.technical_committee.policy_id,
@@ -120,7 +120,85 @@ impl FederatedAuthorityObservationDataSource for FederatedAuthorityObservationDa
 			},
 		};
 
+		// Query the governance contract for the council round value
+		let council_governance_utxo = get_contract_utxo(
+			&self.pool,
+			&config.council.governance_address,
+			&config.council.governance_policy_id,
+			block_number,
+		)
+		.await?;
+
+		let council_round = match council_governance_utxo {
+			Some(utxo) => match Self::decode_round_datum(&utxo.full_datum.0) {
+				Ok(round) => {
+					log::info!(
+						"Successfully decoded council governance round {} from block {}",
+						round,
+						utxo.block_number.0
+					);
+					Some(round)
+				},
+				Err(e) => {
+					log::warn!(
+						"Failed to decode council governance round datum: {}. Skipping round.",
+						e
+					);
+					None
+				},
+			},
+			None => {
+				log::debug!(
+					"No council governance round UTXO found for block {} (address: {}, policy_id: {}). Skipping round.",
+					block_number,
+					config.council.governance_address,
+					config.council.governance_policy_id
+				);
+				None
+			},
+		};
+
+		// Query the governance contract for the technical committee round value
+		let technical_committee_governance_utxo = get_contract_utxo(
+			&self.pool,
+			&config.technical_committee.governance_address,
+			&config.technical_committee.governance_policy_id,
+			block_number,
+		)
+		.await?;
+
+		let technical_committee_round = match technical_committee_governance_utxo {
+			Some(utxo) => match Self::decode_round_datum(&utxo.full_datum.0) {
+				Ok(round) => {
+					log::info!(
+						"Successfully decoded technical committee governance round {} from block {}",
+						round,
+						utxo.block_number.0
+					);
+					Some(round)
+				},
+				Err(e) => {
+					log::warn!(
+						"Failed to decode technical committee governance round datum: {}. Skipping round.",
+						e
+					);
+					None
+				},
+			},
+			None => {
+				log::debug!(
+					"No technical committee governance round UTXO found for block {} (address: {}, policy_id: {}). Skipping round.",
+					block_number,
+					config.technical_committee.governance_address,
+					config.technical_committee.governance_policy_id
+				);
+				None
+			},
+		};
+
 		Ok(FederatedAuthorityData {
+			council_round,
+			technical_committee_round,
 			council_authorities,
 			technical_committee_authorities,
 			mc_block_hash: mc_block_hash.clone(),
@@ -129,6 +207,38 @@ impl FederatedAuthorityObservationDataSource for FederatedAuthorityObservationDa
 }
 
 impl FederatedAuthorityObservationDataSourceImpl {
+	/// Decode PlutusData containing governance round value
+	///
+	/// Expected format: The round value is last element of a `PlutusList`
+	fn decode_round_datum(
+		datum: &PlutusData,
+	) -> Result<u8, Box<dyn std::error::Error + Send + Sync>> {
+		// The datum must be a list
+		let list = datum.as_list().ok_or_else(|| {
+			log::warn!("Governance round datum is not a PlutusList");
+			"Expected governance round datum to be a PlutusList"
+		})?;
+
+		let list_vec: Vec<PlutusData> = list.into_iter().cloned().collect();
+		let last = list_vec.last().ok_or_else(|| {
+			log::warn!("Governance round datum list is empty");
+			"Governance round datum list is empty"
+		})?;
+
+		// The last element should be an integer representing the round value
+		let big_int = last.as_integer().ok_or_else(|| {
+			log::warn!("Last element of governance round datum is not an integer");
+			"Expected last element of governance round datum to be an integer"
+		})?;
+
+		let round_str = big_int.to_str();
+		let round: u8 = round_str
+			.parse()
+			.map_err(|_| format!("Round value {} does not fit in u8", round_str))?;
+
+		Ok(round)
+	}
+
 	/// Decode PlutusData containing governance body members
 	///
 	/// Expected format: `[total_signers: Int, [...(CborBytes, Sr25519Keys)]]`

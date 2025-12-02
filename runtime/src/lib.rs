@@ -63,8 +63,8 @@ pub use pallet_version::VERSION_ID;
 use parity_scale_codec::Encode;
 use session_manager::ValidatorManagementSessionManager;
 use sidechain_domain::{
-	MainchainAddress, PermissionedCandidateData, PolicyId, RegistrationData, ScEpochNumber,
-	ScSlotNumber, StakeDelegation, StakePoolPublicKey, UtxoId, byte_string::ByteString,
+	PermissionedCandidateData, RegistrationData, ScEpochNumber, ScSlotNumber, StakeDelegation,
+	StakePoolPublicKey, UtxoId, byte_string::ByteString,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -1549,20 +1549,20 @@ impl_runtime_apis! {
 	}
 
 	impl midnight_primitives_federated_authority_observation::FederatedAuthorityObservationApi<Block> for Runtime {
-		fn get_council_address() -> MainchainAddress {
-			pallet_federated_authority_observation::MainChainCouncilAddress::<Runtime>::get()
+		fn get_council_scripts() -> midnight_primitives_federated_authority_observation::MainChainScripts {
+			pallet_federated_authority_observation::CouncilMainChainScripts::<Runtime>::get()
 		}
 
-		fn get_council_policy_id() -> PolicyId {
-			pallet_federated_authority_observation::MainChainCouncilPolicyId::<Runtime>::get()
+		fn get_technical_committee_scripts() -> midnight_primitives_federated_authority_observation::MainChainScripts {
+			pallet_federated_authority_observation::TechnicalCommitteeMainChainScripts::<Runtime>::get()
 		}
 
-		fn get_technical_committee_address() -> MainchainAddress {
-			pallet_federated_authority_observation::MainChainTechnicalCommitteeAddress::<Runtime>::get()
+		fn get_council_round_info() -> midnight_primitives_federated_authority_observation::RoundInfo {
+			pallet_federated_authority_observation::CouncilRound::<Runtime>::get()
 		}
 
-		fn get_technical_committee_policy_id() -> PolicyId {
-			pallet_federated_authority_observation::MainChainTechnicalCommitteePolicyId::<Runtime>::get()
+		fn get_technical_committee_round_info() -> midnight_primitives_federated_authority_observation::RoundInfo {
+			pallet_federated_authority_observation::TechnicalCommitteeRound::<Runtime>::get()
 		}
 	}
 }
