@@ -317,7 +317,7 @@ A Substrate tool for testing runtime upgrades by simulating them against live ch
 
 ## See Also
 
-- [ARCHITECTURE.md](ARCHITECTURE.md) - Package index and architecture overview
+- [pallets/](pallets/README.md) - Pallet package index
 - [Midnight Documentation](https://docs.midnight.network) - Official Midnight documentation
 - [Substrate Documentation](https://docs.substrate.io) - Substrate framework documentation
 - [Polkadot Wiki](https://wiki.polkadot.network) - Polkadot ecosystem documentation
