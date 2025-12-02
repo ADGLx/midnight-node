@@ -67,7 +67,7 @@ flowchart TB
 
 ### Developer Deployment Flow
 
-The deployment workflow is a one-time process where the developer compiles Compact source code, generates a deploy intent, proves the transaction, and submits it to create the on-chain contract. [[3]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/test/contract/contract.config.ts#L1-L68),[[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs#L22),[[6]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/generate_intent.rs#L83),[[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs#L28),[[8]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/send_intent.rs#L13),[[12]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/sender.rs#L113-L143),[[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L351-L412),[[20]](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/compiler/contract-info.json#L1-L40),[[22]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/mod.rs#L152-L164),[[23]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L360-L394),[[24]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L220-L222)
+The deployment workflow is a one-time process where the developer compiles Compact source code, generates a deploy intent, proves the transaction, and submits it to create the on-chain contract. [[3]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/test/contract/contract.config.ts#L1-L68),[[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/intent.rs#L43-L48),[[6]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/generate_intent.rs#L83),[[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs#L28),[[8]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/send_intent.rs#L13),[[12]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/sender.rs#L113-L143),[[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L351-L412),[[20]](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/compiler/contract-info.json#L1-L40),[[22]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/mod.rs#L152-L164),[[23]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L360-L394),[[24]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L220-L222)
 
 ```mermaid
 sequenceDiagram
@@ -266,7 +266,7 @@ midnight-node-toolkit version
 
 ## Stage 2: Intent Generation
 
-An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions [[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs#L22).
+An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions [[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/intent.rs#L43-L48).
 
 ### Configuration File (contract.config.ts)
 
@@ -330,7 +330,7 @@ midnight-node-toolkit generate-intent deploy \
 
 ### Intent Structure
 
-The intent encapsulates [[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs#L22)[[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs#L28):
+The intent encapsulates [[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/intent.rs#L43-L48)[[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs#L28):
 
 | Component | Description |
 |-----------|-------------|
@@ -826,7 +826,7 @@ Strategies to improve deployment and transaction performance:
 | <a id="ref-2"></a>[2] | Custom Contract Builder | [`util/toolkit/src/tx_generator/builder/builders/contract_custom.rs#L35`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_custom.rs#L35) |
 | <a id="ref-3"></a>[3] | Contract Configuration Example | [`util/toolkit-js/test/contract/contract.config.ts#L1-L68`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/test/contract/contract.config.ts#L1-L68) |
 | <a id="ref-4"></a>[4] | Version Command Implementation | [`util/toolkit/src/main.rs#L267-L276`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/main.rs#L267-L276) |
-| <a id="ref-5"></a>[5] | Ledger Helpers - Contract Deploy | [`ledger/helpers/src/versions/common/contract/deploy.rs#L22`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs#L22) |
+| <a id="ref-5"></a>[5] | Intent Structure Definition | [`ledger/helpers/src/versions/common/intent.rs#L43-L48`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/intent.rs#L43-L48) |
 | <a id="ref-6"></a>[6] | Generate Intent Command | [`util/toolkit/src/commands/generate_intent.rs#L83`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/generate_intent.rs#L83) |
 | <a id="ref-7"></a>[7] | Contract Deploy Builder | [`util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs#L28`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs#L28) |
 | <a id="ref-8"></a>[8] | Send Intent Command | [`util/toolkit/src/commands/send_intent.rs#L13`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/send_intent.rs#L13) |
