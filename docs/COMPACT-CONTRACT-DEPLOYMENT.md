@@ -67,14 +67,7 @@ flowchart TB
 
 ### Developer Deployment Flow
 
-The deployment workflow is a one-time process where the developer compiles Compact source code [[20]](#ref-20), generates a deploy intent [[3]](#ref-3) [[6]](#ref-6), proves the transaction [[7]](#ref-7) [[8]](#ref-8), and submits it to create the on-chain contract [[5]](#ref-5) [[13]](#ref-13).
-
-**Step References:**
-- Steps 1-2 (Compilation): External `compactc` compiler → output structure [[20]](#ref-20)
-- Steps 3-4 (Intent): `toolkit-js` deploy command [[3]](#ref-3), `ContractDeployBuilder` [[7]](#ref-7)
-- Steps 5-8 (Proving): `send_intent` command [[8]](#ref-8), `RemoteProofServer` [[22]](#ref-22)
-- Steps 9-10 (Submit): `Sender::send_tx_no_wait` [[12]](#ref-12), `send_mn_transaction` [[13]](#ref-13)
-- Steps 11-13 (Ledger): `LedgerApi::apply_transaction` [[23]](#ref-23), `Event::ContractDeploy` [[24]](#ref-24)
+The deployment workflow is a one-time process where the developer compiles Compact source code, generates a deploy intent, proves the transaction, and submits it to create the on-chain contract. [[3]](#ref-3),[[5]](#ref-5),[[6]](#ref-6),[[7]](#ref-7),[[8]](#ref-8),[[12]](#ref-12),[[13]](#ref-13),[[20]](#ref-20),[[22]](#ref-22),[[23]](#ref-23),[[24]](#ref-24)
 
 ```mermaid
 sequenceDiagram
@@ -122,14 +115,7 @@ sequenceDiagram
 
 ### User Contract Call Flow
 
-After deployment, users interact with the contract by generating call intents [[3]](#ref-3), proving their transactions [[21]](#ref-21) [[8]](#ref-8), and submitting them [[13]](#ref-13). This flow can occur repeatedly for each contract interaction.
-
-**Step References:**
-- Steps 1-2 (Intent): `toolkit-js` circuit command [[3]](#ref-3), `ContractCallBuilder` [[21]](#ref-21)
-- Steps 3-6 (Proving): `send_intent` command [[8]](#ref-8), `RemoteProofServer` [[22]](#ref-22)
-- Steps 7-8 (Submit): `Sender::send_tx_no_wait` [[12]](#ref-12), `send_mn_transaction` [[13]](#ref-13)
-- Steps 9-10 (Verify): `LedgerApi::apply_transaction` [[23]](#ref-23) (includes ZK proof verification)
-- Steps 11-12 (State): Ledger state transition [[14]](#ref-14), `Event::ContractCall` [[24]](#ref-24)
+After deployment, users interact with the contract by generating call intents, proving their transactions, and submitting them. This flow can occur repeatedly for each contract interaction. [[3]](#ref-3),[[8]](#ref-8),[[12]](#ref-12),[[13]](#ref-13),[[14]](#ref-14),[[21]](#ref-21),[[22]](#ref-22),[[23]](#ref-23),[[24]](#ref-24)
 
 ```mermaid
 sequenceDiagram
