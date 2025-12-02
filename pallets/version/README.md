@@ -20,10 +20,10 @@ This pallet deposits the runtime's `spec_version` into each block's digest as a 
 
 ### Config Trait
 
-| Associated Type | Description |
-|-----------------|-------------|
-| `WeightInfo` | Weight information for hooks |
-| `RuntimeVersion` | `Get<RuntimeVersion>` - Runtime version provider |
+| Associated Type | Definition | Description |
+|-----------------|------------|-------------|
+| `WeightInfo` | `WeightInfo` | Weight information for hooks |
+| `RuntimeVersion` | `Get<RuntimeVersion>` | Provider that returns the current runtime version |
 
 ### Hooks
 

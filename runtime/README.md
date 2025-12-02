@@ -29,12 +29,12 @@ The runtime is the "business logic" of the chain—validators execute it identic
 
 ### Block Structure
 
-| Type | Description |
-|------|-------------|
-| `Block` | `generic::Block<Header, UncheckedExtrinsic>` |
-| `Header` | `generic::Header<BlockNumber, BlakeTwo256>` |
-| `UncheckedExtrinsic` | Extrinsic with address, call, signature, and extensions |
-| `SignedExtra` | Transaction extensions (nonce, era, weight checks) |
+| Type | Definition | Description |
+|------|------------|-------------|
+| `Block` | `generic::Block<Header, UncheckedExtrinsic>` | Standard Substrate block containing header and extrinsics |
+| `Header` | `generic::Header<BlockNumber, BlakeTwo256>` | Block header with number, parent hash, state root, and Blake2-256 hashing |
+| `UncheckedExtrinsic` | `generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>` | Transaction with sender address, call data, signature, and extensions |
+| `SignedExtra` | `(CheckNonZeroSender, CheckSpecVersion, CheckTxVersion, CheckGenesis, CheckMortality, CheckNonce, CheckWeight, ChargeTransactionPayment)` | Transaction extensions (nonce, mortality period, weight checks) |
 
 ### Runtime APIs
 
