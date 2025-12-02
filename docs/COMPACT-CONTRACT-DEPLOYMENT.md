@@ -4,18 +4,18 @@ A detailed guide to deploying [Compact](../GLOSSARY.md#compact) smart contracts 
 
 ## Overview
 
-Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for defining privacy-preserving smart contracts [[1]](#ref-1). The deployment process involves several stages: compilation, intent generation, proving, and submission to the node. This document covers the complete lifecycle from source code to on-chain contract state.
+Midnight uses [Compact](../GLOSSARY.md#compact), a domain-specific language for defining privacy-preserving smart contracts [[1]](https://docs.midnight.network). The deployment process involves several stages: compilation, intent generation, proving, and submission to the node. This document covers the complete lifecycle from source code to on-chain contract state.
 
 ## Architecture Overview
 
 ### Data Flow
 
-Contract deployment and interaction follow distinct but related flows [[2]](#ref-2).
+Contract deployment and interaction follow distinct but related flows [[2]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md#custom-contracts).
 
-* **Developers** compile source code once and deploy [[7]](#ref-7);    
-* **Users** interact with deployed contracts [[21]](#ref-21).
+* **Developers** compile source code once and deploy [[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs);    
+* **Users** interact with deployed contracts [[21]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_call.rs).
 
-Both deployment and contract calls share the intent → prove → submit pipeline [[6]](#ref-6) [[8]](#ref-8).
+Both deployment and contract calls share the intent → prove → submit pipeline [[6]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/generate_intent.rs) [[8]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/send_intent.rs).
 
 ```mermaid
 flowchart TB
@@ -67,7 +67,7 @@ flowchart TB
 
 ### Developer Deployment Flow
 
-The deployment workflow is a one-time process where the developer compiles Compact source code, generates a deploy intent, proves the transaction, and submits it to create the on-chain contract. [[3]](#ref-3),[[5]](#ref-5),[[6]](#ref-6),[[7]](#ref-7),[[8]](#ref-8),[[12]](#ref-12),[[13]](#ref-13),[[20]](#ref-20),[[22]](#ref-22),[[23]](#ref-23),[[24]](#ref-24)
+The deployment workflow is a one-time process where the developer compiles Compact source code, generates a deploy intent, proves the transaction, and submits it to create the on-chain contract. [[3]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/README.md#contract-configuration-file),[[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs),[[6]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/generate_intent.rs),[[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs),[[8]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/send_intent.rs),[[12]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/sender.rs#L113-L143),[[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs),[[20]](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/),[[22]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/mod.rs#L152-L164),[[23]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L360-L394),[[24]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L220-L222)
 
 ```mermaid
 sequenceDiagram
@@ -115,7 +115,7 @@ sequenceDiagram
 
 ### User Contract Call Flow
 
-After deployment, users interact with the contract by generating call intents, proving their transactions, and submitting them. This flow can occur repeatedly for each contract interaction. [[3]](#ref-3),[[8]](#ref-8),[[12]](#ref-12),[[13]](#ref-13),[[14]](#ref-14),[[21]](#ref-21),[[22]](#ref-22),[[23]](#ref-23),[[24]](#ref-24)
+After deployment, users interact with the contract by generating call intents, proving their transactions, and submitting them. This flow can occur repeatedly for each contract interaction. [[3]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/README.md#contract-configuration-file),[[8]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/send_intent.rs),[[12]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/sender.rs#L113-L143),[[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs),[[14]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/versions/common/mod.rs),[[21]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_call.rs),[[22]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/mod.rs#L152-L164),[[23]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L360-L394),[[24]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L220-L222)
 
 ```mermaid
 sequenceDiagram
@@ -155,12 +155,12 @@ sequenceDiagram
 
 ### Deployment Architecture
 
-The system spans multiple environments with distinct actors [[2]](#ref-2) [[3]](#ref-3).
+The system spans multiple environments with distinct actors [[2]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md#custom-contracts) [[3]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/README.md#contract-configuration-file).
 
-* **Developers** compile and deploy contracts [[7]](#ref-7);  
-* **Users** interact with deployed contracts [[21]](#ref-21).
+* **Developers** compile and deploy contracts [[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs);  
+* **Users** interact with deployed contracts [[21]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_call.rs).
 
-Both share the proving infrastructure [[9]](#ref-9) [[18]](#ref-18) and submit transactions to the Midnight network [[12]](#ref-12) [[13]](#ref-13), which settles to Cardano.
+Both share the proving infrastructure [[9]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/genesis_generator.rs#L304-L342) [[18]](https://github.com/m2ux/midnight-zk/blob/main/README.md#repository-structure) and submit transactions to the Midnight network [[12]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/sender.rs#L113-L143) [[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs), which settles to Cardano.
 
 ```mermaid
 flowchart TB
@@ -237,7 +237,7 @@ flowchart TB
 
 ### Compiling Compact Source
 
-The `compactc` compiler transforms Compact source code into executable artifacts [[2]](#ref-2):
+The `compactc` compiler transforms Compact source code into executable artifacts [[2]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md#custom-contracts):
 
 ```bash
 compactc counter.compact ./output/counter
@@ -247,15 +247,15 @@ compactc counter.compact ./output/counter
 
 | Artifact | Description |
 |----------|-------------|
-| `contract/index.cjs` | JavaScript contract interface [[3]](#ref-3) |
-| `zkir/*.zkir` | Zero-knowledge intermediate representation circuits [[18]](#ref-18) |
+| `contract/index.cjs` | JavaScript contract interface [[3]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/README.md#contract-configuration-file) |
+| `zkir/*.zkir` | Zero-knowledge intermediate representation circuits [[18]](https://github.com/m2ux/midnight-zk/blob/main/README.md#repository-structure) |
 | `zkir/*.bzkir` | Binary ZKIR format (optimized) |
 | `keys/*.prover` | Prover keys for each circuit |
-| `keys/*.verifier` | Verifier keys for on-chain verification [[20]](#ref-20) |
+| `keys/*.verifier` | Verifier keys for on-chain verification [[20]](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/) |
 
 ### Version Compatibility
 
-Contract artifacts are version-locked. Check compatibility [[4]](#ref-4):
+Contract artifacts are version-locked. Check compatibility [[4]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md#check-version):
 
 ```bash
 midnight-node-toolkit version
@@ -266,11 +266,11 @@ midnight-node-toolkit version
 
 ## Stage 2: Intent Generation
 
-An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions [[5]](#ref-5).
+An **Intent** is an intermediate representation capturing the contract action (deploy, call, maintain) along with witness data and private state transitions [[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs).
 
 ### Configuration File (contract.config.ts)
 
-The configuration file binds compiled contract output to witness implementations [[3]](#ref-3):
+The configuration file binds compiled contract output to witness implementations [[3]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/README.md#contract-configuration-file):
 
 ```typescript
 import { CompiledContract, ContractExecutable } from '@midnight-ntwrk/compact-js/effect';
@@ -315,7 +315,7 @@ midnight-node-toolkit-js deploy \
 
 ### Generating Deploy Intent (Rust toolkit)
 
-The Rust toolkit delegates to toolkit-js for intent generation [[6]](#ref-6):
+The Rust toolkit delegates to toolkit-js for intent generation [[6]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/generate_intent.rs):
 
 ```bash
 midnight-node-toolkit generate-intent deploy \
@@ -330,7 +330,7 @@ midnight-node-toolkit generate-intent deploy \
 
 ### Intent Structure
 
-The intent encapsulates [[5]](#ref-5)[[7]](#ref-7):
+The intent encapsulates [[5]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs)[[7]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs):
 
 | Component | Description |
 |-----------|-------------|
@@ -341,11 +341,11 @@ The intent encapsulates [[5]](#ref-5)[[7]](#ref-7):
 
 ## Stage 3: Transaction Proving
 
-Proving generates [SNARK](../GLOSSARY.md#snark-succinct-non-interactive-argument-of-knowledge) proofs for the transaction, ensuring privacy guarantees hold [[8]](#ref-8).
+Proving generates [SNARK](../GLOSSARY.md#snark-succinct-non-interactive-argument-of-knowledge) proofs for the transaction, ensuring privacy guarantees hold [[8]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/send_intent.rs).
 
 ### Proving System
 
-Midnight uses a **[PLONK](../GLOSSARY.md#plonk)-based proof system with [KZG](../GLOSSARY.md#kzg-commitment) polynomial commitments** [[18]](#ref-18)[[19]](#ref-19). The system is implemented in the `midnight-proofs` crate and uses:
+Midnight uses a **[PLONK](../GLOSSARY.md#plonk)-based proof system with [KZG](../GLOSSARY.md#kzg-commitment) polynomial commitments** [[18]](https://github.com/m2ux/midnight-zk/blob/main/README.md#repository-structure)[[19]](https://github.com/m2ux/midnight-zk/blob/main/proofs/Cargo.toml). The system is implemented in the `midnight-proofs` crate and uses:
 
 - **BLS12-381** elliptic curve for pairings
 - **JubJub** embedded curve for in-circuit operations
@@ -376,7 +376,7 @@ midnight-node-toolkit send-intent \
 
 ### Proof Generation Flow
 
-The proof server (local or remote) generates PLONK proofs with KZG commitments [[9]](#ref-9)[[18]](#ref-18):
+The proof server (local or remote) generates PLONK proofs with KZG commitments [[9]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/genesis_generator.rs#L304-L342)[[18]](https://github.com/m2ux/midnight-zk/blob/main/README.md#repository-structure):
 
 ```
 Intent → Unproven Transaction → Proof Server → Proven Transaction
@@ -395,7 +395,7 @@ Intent → Unproven Transaction → Proof Server → Proven Transaction
 
 ### Transaction Components
 
-A finalized transaction contains [[10]](#ref-10):
+A finalized transaction contains [[10]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/transaction.rs#L170):
 
 | Component | Description |
 |-----------|-------------|
@@ -410,7 +410,7 @@ A finalized transaction contains [[10]](#ref-10):
 
 ### WebSocket RPC Connection
 
-Transactions are submitted via WebSocket to the node's JSON-RPC interface [[11]](#ref-11):
+Transactions are submitted via WebSocket to the node's JSON-RPC interface [[11]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/destination.rs#L24):
 
 ```
 Default endpoint: ws://127.0.0.1:9944
@@ -418,7 +418,7 @@ Default endpoint: ws://127.0.0.1:9944
 
 ### Submission Flow
 
-The toolkit uses `subxt` to create and submit unsigned extrinsics [[12]](#ref-12):
+The toolkit uses `subxt` to create and submit unsigned extrinsics [[12]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/sender.rs#L113-L143):
 
 ```rust
 // From util/toolkit/src/sender.rs (lines 118-131)
@@ -431,7 +431,7 @@ let tx_progress = unsigned_extrinsic.submit_and_watch().await?;
 
 ### Transaction Lifecycle
 
-Derived from sender.rs logging statements [[12]](#ref-12):
+Derived from sender.rs logging statements [[12]](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/sender.rs#L113-L143):
 
 ```
 SENDING → SENT → BEST_BLOCK → FINALIZED
@@ -444,7 +444,7 @@ SENDING → SENT → BEST_BLOCK → FINALIZED
 
 ### pallet-midnight Extrinsic
 
-The `send_mn_transaction` extrinsic processes Midnight transactions [[13]](#ref-13):
+The `send_mn_transaction` extrinsic processes Midnight transactions [[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 353-412)
@@ -472,7 +472,7 @@ pub fn send_mn_transaction(_origin: OriginFor<T>, midnight_tx: Vec<u8>) -> Dispa
 
 ### Validation (Pre-dispatch)
 
-Before inclusion in a block, the transaction is validated against the current ledger state [[13]](#ref-13):
+Before inclusion in a block, the transaction is validated against the current ledger state [[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 515-540)
@@ -495,7 +495,7 @@ fn validate_unsigned(call: &Call<T>, block_context: BlockContext) -> Transaction
 
 ### Ledger State Update
 
-The ledger bridge applies transactions via host functions [[14]](#ref-14):
+The ledger bridge applies transactions via host functions [[14]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/versions/common/mod.rs):
 
 ```
 Current State Root → Apply Transaction → New State Root
@@ -514,7 +514,7 @@ Current State Root → Apply Transaction → New State Root
 
 ### Midnight-Specific RPC Methods
 
-The pallet-midnight-rpc crate exposes custom JSON-RPC methods [[15]](#ref-15):
+The pallet-midnight-rpc crate exposes custom JSON-RPC methods [[15]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/rpc/src/lib.rs#L32-L49):
 
 ```rust
 // From pallets/midnight/rpc/src/lib.rs (lines 32-49)
@@ -587,7 +587,7 @@ Standard Substrate RPC methods also available on Midnight nodes:
 
 ### Contract Events
 
-Events emitted by pallet-midnight [[13]](#ref-13):
+Events emitted by pallet-midnight [[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 216-235)
@@ -691,7 +691,7 @@ midnight-node-toolkit contract-state \
 
 ## Contract Maintenance
 
-After deployment, contract authority holders can update verifier keys or transfer authority [[16]](#ref-16):
+After deployment, contract authority holders can update verifier keys or transfer authority [[16]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/maintenance.rs):
 
 ### Update Signing Authority
 
@@ -720,7 +720,7 @@ midnight-node-toolkit generate-intent maintain-circuit \
 
 ### Pallet Errors
 
-Errors defined in pallet-midnight [[13]](#ref-13):
+Errors defined in pallet-midnight [[13]](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs):
 
 ```rust
 // From pallets/midnight/src/lib.rs (lines 238-264)
@@ -750,7 +750,7 @@ pub enum Error<T> {
 
 ### Transaction Validation Errors
 
-From `ledger/src/versions/common/types.rs` [[17]](#ref-17):
+From `ledger/src/versions/common/types.rs` [[17]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/versions/common/types.rs#L30-L91):
 
 ```rust
 pub enum TransactionError {
@@ -793,7 +793,7 @@ Typical proof generation times vary based on circuit complexity:
 | Circuit call | 5-15 seconds |
 | Complex TX | 30-60+ seconds |
 
-> **⚠️** Duration estimates are approximate and based on general PLONK proving characteristics. Actual times depend on circuit complexity, hardware, and proving configuration. The `midnight-proofs` crate supports parallelism via `RAYON_NUM_THREADS` [[19]](#ref-19).
+> **⚠️** Duration estimates are approximate and based on general PLONK proving characteristics. Actual times depend on circuit complexity, hardware, and proving configuration. The `midnight-proofs` crate supports parallelism via `RAYON_NUM_THREADS` [[19]](https://github.com/m2ux/midnight-zk/blob/main/proofs/Cargo.toml).
 
 ### Optimization Tips
 
@@ -802,8 +802,8 @@ Strategies to improve deployment and transaction performance:
 1. Use remote proof server for faster proving
 2. Batch multiple operations where possible
 3. Pre-compute intents offline
-4. Use appropriate TTL (10 minutes default) [[10]](#ref-10)
-5. Set `RAYON_NUM_THREADS` for parallel proof generation [[19]](#ref-19)
+4. Use appropriate TTL (10 minutes default) [[10]](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/transaction.rs#L170)
+5. Set `RAYON_NUM_THREADS` for parallel proof generation [[19]](https://github.com/m2ux/midnight-zk/blob/main/proofs/Cargo.toml)
 
 ---
 
