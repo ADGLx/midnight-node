@@ -823,9 +823,9 @@ Strategies to improve deployment and transaction performance:
 | # | Source | Path/URL |
 |---|--------|----------|
 | <a id="ref-1"></a>[1] | Midnight Official Documentation | [https://docs.midnight.network](https://docs.midnight.network) |
-| <a id="ref-2"></a>[2] | Midnight Toolkit README - Custom Contracts | [`util/toolkit/README.md`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md) |
-| <a id="ref-3"></a>[3] | Toolkit-JS README - Configuration | [`util/toolkit-js/README.md`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/README.md) |
-| <a id="ref-4"></a>[4] | Midnight Toolkit README - Version Check | [`util/toolkit/README.md`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md) |
+| <a id="ref-2"></a>[2] | Midnight Toolkit README - Custom Contracts | [`util/toolkit/README.md#custom-contracts`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md#custom-contracts) |
+| <a id="ref-3"></a>[3] | Toolkit-JS README - Configuration | [`util/toolkit-js/README.md#contract-configuration-file`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit-js/README.md#contract-configuration-file) |
+| <a id="ref-4"></a>[4] | Midnight Toolkit README - Version Check | [`util/toolkit/README.md#check-version`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/README.md#check-version) |
 | <a id="ref-5"></a>[5] | Ledger Helpers - Contract Deploy | [`ledger/helpers/src/versions/common/contract/deploy.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/deploy.rs) |
 | <a id="ref-6"></a>[6] | Generate Intent Command | [`util/toolkit/src/commands/generate_intent.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/commands/generate_intent.rs) |
 | <a id="ref-7"></a>[7] | Contract Deploy Builder | [`util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_deploy.rs) |
@@ -839,7 +839,7 @@ Strategies to improve deployment and transaction performance:
 | <a id="ref-15"></a>[15] | Pallet Midnight RPC | [`pallets/midnight/rpc/src/lib.rs#L32-L49`](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/rpc/src/lib.rs#L32-L49) |
 | <a id="ref-16"></a>[16] | Contract Maintenance | [`ledger/helpers/src/versions/common/contract/maintenance.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/helpers/src/versions/common/contract/maintenance.rs) |
 | <a id="ref-17"></a>[17] | Transaction Error Types | [`ledger/src/versions/common/types.rs#L30-L91`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/versions/common/types.rs#L30-L91), [`#L127-L131`](https://github.com/m2ux/midnight-node/blob/mc_study/ledger/src/versions/common/types.rs#L127-L131) |
-| <a id="ref-18"></a>[18] | Midnight ZK - Proof System | [`midnight-zk/README.md`](https://github.com/m2ux/midnight-zk/blob/main/README.md), [`midnight-zk/proofs/README.md`](https://github.com/m2ux/midnight-zk/blob/main/proofs/README.md) |
+| <a id="ref-18"></a>[18] | Midnight ZK - Proof System | [`midnight-zk/README.md#repository-structure`](https://github.com/m2ux/midnight-zk/blob/main/README.md#repository-structure), [`midnight-zk/proofs/README.md#controlling-parallelism`](https://github.com/m2ux/midnight-zk/blob/main/proofs/README.md#controlling-parallelism) |
 | <a id="ref-19"></a>[19] | Midnight Proofs - PLONK Implementation | [`midnight-zk/proofs/Cargo.toml`](https://github.com/m2ux/midnight-zk/blob/main/proofs/Cargo.toml) |
 | <a id="ref-20"></a>[20] | Compiled Contract Example | [`static/contracts/simple-merkle-tree/`](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/) |
 | <a id="ref-21"></a>[21] | Contract Call Builder | [`util/toolkit/src/tx_generator/builder/builders/contract_call.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_call.rs) |
