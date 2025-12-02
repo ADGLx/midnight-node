@@ -69,6 +69,13 @@ flowchart TB
 
 The deployment workflow is a one-time process where the developer compiles Compact source code [[20]](#ref-20), generates a deploy intent [[3]](#ref-3) [[6]](#ref-6), proves the transaction [[7]](#ref-7) [[8]](#ref-8), and submits it to create the on-chain contract [[5]](#ref-5) [[13]](#ref-13).
 
+**Step References:**
+- Steps 1-2 (Compilation): External `compactc` compiler → output structure [[20]](#ref-20)
+- Steps 3-4 (Intent): `toolkit-js` deploy command [[3]](#ref-3), `ContractDeployBuilder` [[7]](#ref-7)
+- Steps 5-8 (Proving): `send_intent` command [[8]](#ref-8), `RemoteProofServer` [[22]](#ref-22)
+- Steps 9-10 (Submit): `Sender::send_tx_no_wait` [[12]](#ref-12), `send_mn_transaction` [[13]](#ref-13)
+- Steps 11-13 (Ledger): `LedgerApi::apply_transaction` [[23]](#ref-23), `Event::ContractDeploy` [[24]](#ref-24)
+
 ```mermaid
 sequenceDiagram
     autonumber
@@ -116,6 +123,13 @@ sequenceDiagram
 ### User Contract Call Flow
 
 After deployment, users interact with the contract by generating call intents [[3]](#ref-3), proving their transactions [[21]](#ref-21) [[8]](#ref-8), and submitting them [[13]](#ref-13). This flow can occur repeatedly for each contract interaction.
+
+**Step References:**
+- Steps 1-2 (Intent): `toolkit-js` circuit command [[3]](#ref-3), `ContractCallBuilder` [[21]](#ref-21)
+- Steps 3-6 (Proving): `send_intent` command [[8]](#ref-8), `RemoteProofServer` [[22]](#ref-22)
+- Steps 7-8 (Submit): `Sender::send_tx_no_wait` [[12]](#ref-12), `send_mn_transaction` [[13]](#ref-13)
+- Steps 9-10 (Verify): `LedgerApi::apply_transaction` [[23]](#ref-23) (includes ZK proof verification)
+- Steps 11-12 (State): Ledger state transition [[14]](#ref-14), `Event::ContractCall` [[24]](#ref-24)
 
 ```mermaid
 sequenceDiagram
@@ -843,3 +857,6 @@ Strategies to improve deployment and transaction performance:
 | <a id="ref-19"></a>[19] | Midnight Proofs - PLONK Implementation | [`midnight-zk/proofs/Cargo.toml`](https://github.com/m2ux/midnight-zk/blob/main/proofs/Cargo.toml) |
 | <a id="ref-20"></a>[20] | Compiled Contract Example | [`static/contracts/simple-merkle-tree/`](https://github.com/m2ux/midnight-node/blob/mc_study/static/contracts/simple-merkle-tree/) |
 | <a id="ref-21"></a>[21] | Contract Call Builder | [`util/toolkit/src/tx_generator/builder/builders/contract_call.rs`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/builder/builders/contract_call.rs) |
+| <a id="ref-22"></a>[22] | Remote Proof Server | [`util/toolkit/src/tx_generator/mod.rs#L152-L164`](https://github.com/m2ux/midnight-node/blob/mc_study/util/toolkit/src/tx_generator/mod.rs#L152-L164) |
+| <a id="ref-23"></a>[23] | LedgerApi::apply_transaction | [`pallets/midnight/src/lib.rs#L360-L394`](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L360-L394) |
+| <a id="ref-24"></a>[24] | Contract Events (Deploy/Call) | [`pallets/midnight/src/lib.rs#L220-L222`](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L220-L222), [`#L375-L381`](https://github.com/m2ux/midnight-node/blob/mc_study/pallets/midnight/src/lib.rs#L375-L381) |
