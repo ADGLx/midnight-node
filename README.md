@@ -116,6 +116,22 @@ Midnight Node includes six custom runtime pallets that implement core blockchain
 
 **Keystore** - Local cryptographic key management for validators
 
+## Project Structure
+
+| Directory | Description | README |
+|-----------|-------------|--------|
+| `node/` | Main node executable | [node/README.md](node/README.md) |
+| `runtime/` | WASM runtime and pallet wiring | [runtime/README.md](runtime/README.md) |
+| `pallets/` | Custom FRAME pallets | [pallets/README.md](pallets/README.md) |
+| `primitives/` | Shared types and traits | [primitives/README.md](primitives/README.md) |
+| `ledger/` | ZSwap ledger bridge | [ledger/README.md](ledger/README.md) |
+| `util/` | CLI tools and utilities | [util/README.md](util/README.md) |
+| `res/` | Chain resources and configs | [res/README.md](res/README.md) |
+| `tests/` | E2E and integration tests | [tests/README.md](tests/README.md) |
+| `scripts/` | Development scripts | [scripts/README.md](scripts/README.md) |
+| `docs/` | Documentation | [docs/README.md](docs/README.md) |
+| `local-environment/` | Docker network tools | [local-environment/README.md](local-environment/README.md) |
+
 ## Features
 
 **Privacy-Preserving Smart Contracts** - Execute contracts with zero-knowledge proofs while maintaining public blockchain state
