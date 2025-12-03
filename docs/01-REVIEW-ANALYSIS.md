@@ -435,6 +435,339 @@ The architecture is sound, security patterns are appropriate for a blockchain no
 
 ---
 
+## 10. Primitives Review
+
+**Location:** `primitives/`
+
+### Structure
+
+| Module | Purpose | Test Coverage |
+|--------|---------|---------------|
+| `midnight/` | Core traits (`LedgerStateProviderMut`, `LedgerBlockContextProvider`, `MidnightSystemTransactionExecutor`) | ❌ No tests |
+| `ledger/` | Metrics and externality extensions | ❌ No tests |
+| `cnight-observation/` | Cardano UTXO observation types (`CardanoPosition`, `ObservedUtxo`) | ❌ No tests |
+| `federated-authority-observation/` | Governance observation types | ❌ No tests |
+| `mainchain-follower/` | Data source interface types, db-sync queries | ❌ No tests |
+
+### Strengths
+
+1. **Clear Trait Definitions**
+   - `LedgerStateProviderMut` provides clean abstraction for ledger state mutation
+   - `LedgerBlockContextProvider` separates block context from pallet logic
+   - `MidnightSystemTransactionExecutor` enables system transaction execution
+
+2. **no_std Compatibility**
+   - All primitives use `#![cfg_attr(not(feature = "std"), no_std)]`
+   - Enables runtime WASM compilation
+
+3. **Well-Defined Types**
+   - `TransactionType` and `TransactionTypeV2` for transaction categorization
+   - `well_known_keys` module for storage key constants
+
+### Concerns
+
+1. **No Unit Tests** - Primitives modules have no test coverage
+2. **TODO Comment in mainchain-follower:**
+   ```rust
+   // TODO: Change the error type to something explicit
+   async fn get_utxos_up_to_capacity(...) -> Result<..., Box<dyn std::error::Error + Send + Sync>>
+   ```
+
+### Recommendations
+
+- Add unit tests for type serialization/deserialization
+- Replace `Box<dyn Error>` with explicit error types
+
+---
+
+## 11. Ledger Review
+
+**Location:** `ledger/`
+
+### Structure
+
+| Module | Purpose | Test Coverage |
+|--------|---------|---------------|
+| `src/lib.rs` | Module-parameterized ledger bridge | ❌ No tests |
+| `src/storage.rs` | ParityDB storage management | ✅ Tests (3) |
+| `src/host_api/` | Host function implementations | ❌ No tests |
+| `src/json.rs` | JSON serialization utilities | ✅ Tests (2) |
+| `src/utils.rs` | Utility functions | ✅ Tests (1) |
+| `helpers/` | Transaction building, wallet management | ✅ Tests (5+) |
+
+### Strengths
+
+1. **Module Parameterization Pattern**
+   - Clever use of Rust's module system for hard-fork support
+   - `hard_fork_test` and `latest` versions share common code
+   - Documented with link to pattern explanation
+
+2. **Clean Type Re-exports**
+   ```rust
+   pub mod types {
+       #[cfg(hardfork_test)]
+       pub use super::hard_fork_test::types as active_version;
+       #[cfg(not(hardfork_test))]
+       pub use super::latest::types as active_version;
+   }
+   ```
+
+3. **Helper Library**
+   - Comprehensive transaction builder patterns
+   - Wallet management (HD, shielded, unshielded)
+   - Contract deployment and interaction helpers
+
+### Concerns
+
+1. **Host API Lacks Tests** - Critical host functions untested
+2. **Multiple TODO Comments:**
+   ```rust
+   // TODO COST MODEL: Needs to be redone with the new ledger cost model
+   // TODO: is this rehash necessary?
+   ```
+
+3. **Unsafe Storage Operations:**
+   ```rust
+   unsafe_drop_default_storage::<ParityDb>();
+   ```
+   Used for test cleanup - acceptable but worth noting.
+
+### Recommendations
+
+- Add tests for host API functions
+- Address cost model TODOs before mainnet
+- Document unsafe usage rationale
+
+---
+
+## 12. Node Review
+
+**Location:** `node/`
+
+### Structure
+
+| Module | Purpose | Test Coverage |
+|--------|---------|---------------|
+| `src/service.rs` | Service builder, consensus setup | ❌ No tests |
+| `src/cli.rs` | Command-line interface | ❌ No tests |
+| `src/command.rs` | Subcommand implementations | ❌ No tests |
+| `src/cfg/` | Configuration management | ✅ Tests (3) |
+| `src/chain_spec/` | Chain specification generation | ❌ No tests |
+| `src/inherent_data.rs` | Inherent data providers | ❌ No tests |
+| `src/rpc.rs` | RPC endpoint configuration | ❌ No tests |
+
+### Strengths
+
+1. **Comprehensive Service Builder**
+   - Proper integration of AURA, GRANDPA, BEEFY consensus
+   - MMR gadget integration for bridges
+   - Clean separation of full vs light node paths
+
+2. **Configuration Management**
+   - TOML-based configuration files
+   - Environment variable support
+   - Validation utilities with tests
+
+3. **Modular RPC Setup**
+   - Substrate standard RPC methods
+   - Midnight-specific extensions
+   - BEEFY and GRANDPA RPC support
+
+### Concerns
+
+1. **Limited Test Coverage** - Only `cfg/` module has tests
+2. **FIXME Comment:**
+   ```rust
+   // FIXME #1578 make this available through chainspec
+   ```
+
+3. **TODO Comments:**
+   ```rust
+   // TODO: Add metrics
+   // TODO: BEEFY(follow up pr)
+   ```
+
+### Recommendations
+
+- Add integration tests for service initialization
+- Add tests for chain spec generation
+- Address FIXME/TODO comments
+
+---
+
+## 13. Runtime Review
+
+**Location:** `runtime/`
+
+### Structure
+
+| Module | Purpose | Test Coverage |
+|--------|---------|---------------|
+| `src/lib.rs` | Runtime composition, API implementations | ✅ Tests (5+) |
+| `src/authorship.rs` | Block authorship configuration | ❌ No tests |
+| `src/check_call_filter.rs` | Call filtering logic | ❌ No tests |
+| `src/currency.rs` | Currency handling | ❌ No tests |
+| `src/migrations.rs` | Runtime migrations | ❌ No tests |
+| `src/session_manager.rs` | Session management | ❌ No tests |
+
+### Strengths
+
+1. **Comprehensive Runtime APIs**
+   - 20+ runtime API implementations
+   - Proper WASM binary generation
+   - Hard-fork version support
+
+2. **Benchmark Integration**
+   - `define_benchmarks!` macro for 10 pallets
+   - Proper weight calculation infrastructure
+
+3. **Governance Configuration**
+   - Council and Technical Committee setup
+   - Federated authority integration
+   - Motion-based proposal system
+
+### Concerns
+
+1. **Large File Size** - `lib.rs` is 1700+ lines
+2. **Comment Indicates Incomplete:**
+   ```rust
+   // TODO: Benchmark all pallets
+   ```
+
+### Recommendations
+
+- Consider splitting `lib.rs` into sub-modules
+- Complete benchmarking coverage
+
+---
+
+## 14. Tests Directory Review
+
+**Location:** `tests/`
+
+### Structure
+
+| Module | Purpose | Test Coverage |
+|--------|---------|---------------|
+| `e2e/` | End-to-end integration tests | ✅ 6 scenarios |
+| `redemption-skeleton/` | Glacier Drop redemption fixtures | N/A (Aiken) |
+
+### Strengths
+
+1. **Comprehensive E2E Tests**
+   - Full registration/deregistration flows
+   - Governance contract deployment
+   - Cross-chain observation validation
+   - Authorization boundary tests
+
+2. **Real Infrastructure Testing**
+   - Uses actual Cardano (Ogmios) clients
+   - Tests against running Midnight node
+   - Validates cross-chain event propagation
+
+### Test Scenarios
+
+| Test | Coverage |
+|------|----------|
+| `register_for_dust_production` | cNIGHT registration flow |
+| `deploy_governance_contracts_and_validate_membership_reset` | Governance |
+| `register_2_cardano_same_dust_address_production` | Multi-registration |
+| `cnight_produces_dust` | Token minting |
+| `deregister_from_dust_production` | Deregistration |
+| `alice_cannot_deregister_bob` | Authorization |
+
+---
+
+## 15. Utilities Review
+
+**Location:** `util/`
+
+### Structure
+
+| Module | Purpose | Test Coverage |
+|--------|---------|---------------|
+| `toolkit/` | Rust CLI for wallet/tx/contract ops | ✅ Tests (5+) |
+| `toolkit-js/` | JavaScript CLI for Compact contracts | ✅ Tests (JS) |
+| `upgrader/` | HTTP runtime upgrade service | ❌ No tests |
+| `documented/` | Doc extraction proc macro | ✅ Tests (1) |
+
+### Strengths
+
+1. **Feature-Complete Toolkit**
+   - Wallet management (show, generate)
+   - Transaction generation (single, batched)
+   - Contract interaction (deploy, call)
+   - Genesis generation
+
+2. **Good Test Coverage for Toolkit**
+   - CLI argument parsing tests
+   - Address generation tests
+   - Token type display tests
+
+3. **JavaScript Tooling**
+   - Compact contract compilation
+   - Integration with TypeScript ecosystem
+   - Deploy tests
+
+### Concerns
+
+1. **Upgrader Has No Tests** - Critical service for runtime upgrades
+2. **Typo in Code:**
+   ```rust
+   pub type SignagtureType = ();  // Should be SignatureType
+   ```
+
+### Recommendations
+
+- Add tests for upgrader service
+- Fix typo in `toolkit/src/lib.rs`
+
+---
+
+## 16. Test Coverage Summary (All Modules)
+
+### Overall Test Distribution
+
+| Module | Test Files | Test Functions | Rating |
+|--------|------------|----------------|--------|
+| **pallets/** | 5 | ~100 | ✅ Good |
+| **runtime/** | 1 | ~5 | ⚠️ Fair |
+| **primitives/** | 0 | 0 | ❌ None |
+| **ledger/** | 5 | ~10 | ⚠️ Fair |
+| **ledger/helpers/** | 2 | ~5 | ⚠️ Fair |
+| **node/** | 1 | ~3 | ⚠️ Fair |
+| **util/toolkit/** | 4 | ~10 | ✅ Good |
+| **util/documented/** | 1 | ~1 | ⚠️ Minimal |
+| **tests/e2e/** | 1 | 6 | ✅ Good |
+| **TOTAL** | **20** | **~140** | **⚠️ Fair** |
+
+### Module Coverage Matrix
+
+| Module | Unit | Integration | E2E | Benchmarks |
+|--------|------|-------------|-----|------------|
+| pallets/midnight | ✅ | - | ✅ | ✅ |
+| pallets/federated-authority | ✅ | - | ✅ | ✅ |
+| pallets/federated-authority-observation | ✅ | - | ✅ | ✅ |
+| pallets/cnight-observation | ✅ | - | ✅ | ❌ |
+| pallets/midnight-system | ❌ | - | - | ❌ |
+| pallets/version | ✅ | - | - | ⚠️ |
+| primitives/* | ❌ | - | - | - |
+| ledger/ | ⚠️ | - | - | - |
+| node/ | ⚠️ | - | - | - |
+| runtime/ | ✅ | - | - | ✅ |
+| util/toolkit | ✅ | - | - | - |
+| util/upgrader | ❌ | - | - | - |
+
+### Priority Test Gaps
+
+1. 🔴 **HIGH:** `pallet-midnight-system` - Zero coverage
+2. 🔴 **HIGH:** `util/upgrader` - Zero coverage for critical service
+3. 🟠 **MEDIUM:** `primitives/*` - No type validation tests
+4. 🟠 **MEDIUM:** `node/service.rs` - No service initialization tests
+5. 🟡 **LOW:** `ledger/host_api` - No host function tests
+
+---
+
 ## Appendix: File References
 
 | File | Key Findings |
@@ -444,6 +777,14 @@ The architecture is sound, security patterns are appropriate for a blockchain no
 | `pallets/midnight/src/lib.rs` | Core pallet, needs error handling review |
 | `pallets/midnight-system/src/lib.rs` | Missing tests |
 | `pallets/federated-authority/` | Excellent test coverage |
+| `primitives/midnight/src/lib.rs` | Core traits, no tests |
+| `primitives/mainchain-follower/src/lib.rs` | TODO for error types |
+| `ledger/src/lib.rs` | Module parameterization, hard-fork support |
+| `ledger/src/host_api/mod.rs` | Host functions, no tests |
+| `node/src/service.rs` | Service builder, no tests |
+| `node/src/cfg/mod.rs` | Configuration, has tests |
 | `runtime/src/lib.rs` | Good benchmark integration |
 | `tests/e2e/` | Strong E2E test coverage |
+| `util/toolkit/src/lib.rs` | Good toolkit, has typo |
+| `util/upgrader/` | No tests for critical service |
 
