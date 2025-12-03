@@ -427,6 +427,12 @@ impl pallet_aura::Config for Runtime {
 
 pallet_partner_chains_session::impl_pallet_session_config!(Runtime);
 
+impl pallet_glutton::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = pallet_glutton::weights::SubstrateWeight<Runtime>;
+	type AdminOrigin = EnsureRoot<AccountId>;
+}
+
 impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 
@@ -1007,6 +1013,9 @@ mod runtime {
 	// System Parameters
 	#[runtime::pallet_index(50)]
 	pub type SystemParameters = pallet_system_parameters::Pallet<Runtime>;
+
+	#[runtime::pallet_index(70)]
+	pub type Glutton = pallet_glutton::Pallet<Runtime>;
 }
 
 /// The address format for describing accounts.
