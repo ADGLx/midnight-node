@@ -21,6 +21,10 @@ pub struct BeefyStakesInfo {
 	pub current_authority_set: BeefyAuthoritySet<H256>,
 	pub next_stakes: BeefyStakes<BeefyId>,
 	pub next_authority_set: BeefyNextAuthoritySet<H256>,
+	pub current_stakes: BeefyStakes<BeefyId>,
+	pub current_authority_set: BeefyAuthoritySet<H256>,
+	pub next_stakes: BeefyStakes<BeefyId>,
+	pub next_authority_set: BeefyNextAuthoritySet<H256>,
 }
 
 impl TryFrom<BeefyPayload> for BeefyStakesInfo {
