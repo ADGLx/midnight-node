@@ -28,6 +28,11 @@ impl HexExt for pallas::ledger::primitives::PlutusData {
 	}
 }
 
+impl HexExt for &Vec<u8> {
+	fn as_hex(&self) -> String {
+		to_hex(self)
+	}
+}
 impl HexExt for Vec<u8> {
 	fn as_hex(&self) -> String {
 		to_hex(self)

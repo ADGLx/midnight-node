@@ -5,7 +5,12 @@ use std::{fmt::Debug, ops::Deref as _};
 
 use crate::{
 	BeefyId, BeefySignedCommitment, BeefyValidatorSet, authorities::AuthoritiesProof,
-	helper::HexExt,
+	helper::HexExt, justification::extract_all_payloads,
+};
+
+use midnight_primitives_beefy::known_payloads::{
+	CURRENT_BEEFY_AUTHORITY_SET, CURRENT_BEEFY_STAKES_ID, NEXT_BEEFY_AUTHORITY_SET,
+	NEXT_BEEFY_STAKES_ID,
 };
 
 use pallas::{
@@ -14,7 +19,6 @@ use pallas::{
 };
 
 use rs_merkle::proof_tree::ProofNode;
-use sp_consensus_beefy::known_payloads::MMR_ROOT_ID;
 
 // Known encoding tag
 pub const TAG: u64 = 121;
@@ -108,7 +112,7 @@ impl Debug for Vote {
 	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct Payload {
 	pub id: Vec<u8>,
 	pub data: Vec<u8>,
@@ -188,13 +192,18 @@ impl SignedCommitment {
 		signed_commitment: BeefySignedCommitment,
 		validators: &[BeefyId],
 	) -> Self {
+		let payloads = extract_all_payloads(
+			&signed_commitment.commitment.payload,
+			vec![
+				NEXT_BEEFY_STAKES_ID,
+				NEXT_BEEFY_AUTHORITY_SET,
+				CURRENT_BEEFY_STAKES_ID,
+				CURRENT_BEEFY_AUTHORITY_SET,
+			],
+		);
+
 		let commitment = Commitment {
-			payloads: signed_commitment
-				.commitment
-				.payload
-				.get_all_raw(&MMR_ROOT_ID)
-				.map(|i| Payload { id: MMR_ROOT_ID.to_vec(), data: i.clone() })
-				.collect(),
+			payloads,
 			block_number: signed_commitment.commitment.block_number as usize,
 			validator_set_id: signed_commitment.commitment.validator_set_id as usize,
 		};
