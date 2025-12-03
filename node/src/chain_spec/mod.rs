@@ -349,6 +349,7 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 			..Default::default()
 		},
 		bridge: Default::default(),
+		glutton: Default::default(),
 	};
 
 	Ok(serde_json::to_value(config).expect("Genesis config must be serialized correctly"))

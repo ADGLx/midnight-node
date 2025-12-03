@@ -23,6 +23,7 @@ frame-executive.workspace = true
 pallet-aura.workspace = true
 pallet-beefy.workspace = true
 pallet-beefy-mmr.workspace = true
+pallet-glutton.workspace = true
 pallet-grandpa.workspace = true
 pallet-preimage.workspace = true
 pallet-mmr.workspace = true
@@ -118,6 +119,7 @@ std = [
     "pallet-aura/std",
     "pallet-beefy/std",
     "pallet-beefy-mmr/std",
+    "pallet-glutton/std",
     "pallet-grandpa/std",
     "pallet-midnight/std",
     "pallet-mmr/std",
