@@ -9,6 +9,7 @@ autotests = false
 local = []
 local-ci = []
 qanet = []
+preview = []
 default = ["local-ci"]
 
 [dependencies]
