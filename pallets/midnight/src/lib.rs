@@ -39,6 +39,7 @@ pub mod migrations;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::traits::ConstU64;
 	use frame_support::{pallet_prelude::*, sp_runtime::traits::UniqueSaturatedInto};
 	use frame_system::pallet_prelude::*;
 	use midnight_primitives::LedgerBlockContextProvider;
@@ -51,7 +52,6 @@ pub mod pallet {
 			DeserializationError, LedgerApiError, SerializationError, TransactionError,
 		},
 	};
-
 	impl<T: Config> super::LedgerStateProviderMut for Pallet<T> {
 		fn get_ledger_state_key() -> Vec<u8> {
 			let state_key = StateKey::<T>::get().expect("Failed to get state key");
@@ -165,6 +165,16 @@ pub mod pallet {
 	#[pallet::storage]
 	pub type ConfigurableOnRuntimeUpgradeWeight<T> =
 		StorageValue<_, Weight, ValueQuery, DefaultWeight>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn configurable_transaction_storage_weight_coeff)]
+	pub type ConfigurableTransactionStorageWeightCoeff<T> =
+		StorageValue<_, u64, ValueQuery, ConstU64<1>>;
+
+	#[pallet::storage]
+	#[pallet::getter(fn configurable_transaction_ref_time_weight_coeff)]
+	pub type ConfigurableTransactionRefTimeWeightCoeff<T> =
+		StorageValue<_, u64, ValueQuery, ConstU64<1>>;
 
 	#[pallet::storage]
 	pub type MaxSkippedSlots<T> = StorageValue<_, u8, ValueQuery, DefaultMaxSkippedSlots>;
@@ -351,7 +361,17 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(ConfigurableTransactionSizeWeight::<T>::get())]
+		#[pallet::weight({
+            match Pallet::<T>::get_transaction_cost(&midnight_tx) {
+                Ok((storage_cost, gas_cost)) => {
+                    let storage_cost = storage_cost.min(u64::MAX as u128) as u64;
+                    let ref_time_coeff = ConfigurableTransactionRefTimeWeightCoeff::<T>::get();
+                    let storage_coeff = ConfigurableTransactionStorageWeightCoeff::<T>::get();
+                    Weight::from_parts(storage_cost * storage_coeff + gas_cost * ref_time_coeff, 0)
+                }
+                Err(_) => ConfigurableTransactionSizeWeight::<T>::get()
+            }
+        })]
 		pub fn send_mn_transaction(_origin: OriginFor<T>, midnight_tx: Vec<u8>) -> DispatchResult {
 			let state_key = StateKey::<T>::get().expect("Failed to get state key");
 			let block_context = Self::get_block_context();
@@ -428,6 +448,20 @@ pub mod pallet {
 		pub fn set_tx_size_weight(origin: OriginFor<T>, new_weight: Weight) -> DispatchResult {
 			ensure_root(origin)?;
 			ConfigurableTransactionSizeWeight::<T>::set(new_weight);
+			Ok(())
+		}
+
+		#[pallet::call_index(3)]
+		#[pallet::weight((T::DbWeight::get().writes(2), DispatchClass::Operational))]
+		// A system transaction for configuring contract call weights
+		pub fn set_weight_coeffs(
+			origin: OriginFor<T>,
+			storage_coeff: u64,
+			ref_time_coeff: u64,
+		) -> DispatchResult {
+			ensure_root(origin)?;
+			ConfigurableTransactionStorageWeightCoeff::<T>::set(storage_coeff);
+			ConfigurableTransactionRefTimeWeightCoeff::<T>::set(ref_time_coeff);
 			Ok(())
 		}
 	}
