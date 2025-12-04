@@ -23,6 +23,7 @@ use partner_chains_node_commands::{PartnerChainRuntime, PartnerChainsSubcommand}
 use sc_cli::SubstrateCli;
 use sidechain_domain::McBlockHash;
 
+
 #[derive(Debug, Clone, clap::Parser)]
 pub struct RunMidnight {
 	#[clap(flatten)]
