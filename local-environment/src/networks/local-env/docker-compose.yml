@@ -41,6 +41,17 @@ services:
     ports:
       - "32000:32000"
 
+  cardano-node-socat:
+    container_name: cardano-node-1-socat
+    image: alpine/socat
+    command: TCP-LISTEN:30000,fork,reuseaddr, UNIX-CONNECT:/data/node.socket
+    depends_on:
+      - cardano-node-1
+    volumes:
+      - cardano-node-1-data:/data
+    ports:
+      - "30000:30000"
+
   kupo:
     container_name: kupo
     image: ${KUPO_IMAGE}
@@ -167,6 +178,8 @@ services:
         condition: "service_started"
     image: ${INDEXER_CHAIN_IMAGE}
     restart: "no"
+    ports:
+      - "9001:9000"
     environment:
       RUST_LOG: "chain_indexer=debug,indexer_common=debug,fastrace_opentelemetry=off,info"
       APP__INFRA__NODE__URL: "ws://midnight-node-1:9933"
@@ -176,7 +189,8 @@ services:
       APP__INFRA__PUB_SUB__PASSWORD: "${APP__INFRA__PUB_SUB__PASSWORD}"
       APP__INFRA__LEDGER_STATE_STORAGE__PASSWORD: "${APP__INFRA__PUB_SUB__PASSWORD}"
       APP__INFRA__LEDGER_STATE_STORAGE__URL: "nats:4222"
-      APP__APPLICATION__NETWORK_ID: "DevNet"
+      APP__APPLICATION__NETWORK_ID: "undeployed"
+      APP__TELEMETRY__METRICS__ENABLED: true
     healthcheck:
       test: ["CMD-SHELL", "cat /var/run/chain-indexer/running"]
       start_interval: "5s"
@@ -196,6 +210,8 @@ services:
         condition: "service_started"
     image: ${INDEXER_WALLET_IMAGE}
     restart: "no"
+    ports:
+      - "9002:9000"
     environment:
       RUST_LOG: "wallet_indexer=debug,indexer_common=debug,fastrace_opentelemetry=off,info"
       APP__INFRA__SECRET: "${APP__INFRA__SECRET}"
@@ -203,6 +219,7 @@ services:
       APP__INFRA__STORAGE__PASSWORD: "${APP__INFRA__STORAGE__PASSWORD}"
       APP__INFRA__PUB_SUB__URL: "nats:4222"
       APP__INFRA__PUB_SUB__PASSWORD: "${APP__INFRA__PUB_SUB__PASSWORD}"
+      APP__TELEMETRY__METRICS__ENABLED: true
     healthcheck:
       test: ["CMD-SHELL", "cat /var/run/wallet-indexer/running"]
       start_interval: "5s"
@@ -275,6 +292,61 @@ services:
       - nats-data:/tmp/nats
     security_opt:
       - no-new-privileges:true
+
+  faucet:
+    profiles: ["withindexer"]
+    container_name: faucet
+    image: midnight-faucet
+    ports:
+      - "5300:5300"
+    environment:
+      NODE_URL: "ws://midnight-node-1:9944"
+      INDEXER_URL: "http://indexer-api:8088/api/v3/graphql"
+      PROVING_SERVER_URL: "http://proof-server:6300"
+      DB_HOST: "faucet-db"
+      PRINT_CONFIG: "true"
+      MAX_CONCURRENT_TASKS: 1,
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5300/api/health"]
+      interval: 1s
+      timeout: 1s
+      retries: 0
+      start_period: 30s
+    depends_on:
+      faucet-db:
+        condition: service_started
+      midnight-node-1:
+        condition: service_started
+      indexer-api:
+        condition: service_started
+      proof-server:
+        condition: service_started
+
+  faucet-db:
+    container_name: faucet-db
+    image: postgres:15
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: faucet
+      POSTGRES_PASSWORD: mysecretpassword
+      POSTGRES_DB: faucet
+
+  proof-server:
+    profiles: ["withindexer"]
+    image: "ghcr.io/midnight-ntwrk/proof-server:6.1.0-alpha.6"
+    container_name: proof-server
+    command: ["midnight-proof-server -v"]
+    ports:
+      - "6300"
+    environment:
+      RUST_BACKTRACE: "full"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:6300/version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
 
   midnight-node-1:
     container_name: midnight-node-1
