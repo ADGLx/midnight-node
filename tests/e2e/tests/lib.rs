@@ -16,7 +16,7 @@ use whisky::Asset;
 #[tokio::test]
 async fn register_for_dust_production() {
     let settings = Settings::default();
-    let cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
+    let mut cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
     let mut midnight_client = MidnightClient::new(settings.node_client).await;
     let address_bech32 = cardano_client.address_as_bech32();
     println!("New Cardano wallet created: {:?}", address_bech32);
@@ -116,7 +116,7 @@ async fn deploy_governance_contracts_and_validate_membership_reset() {
     let policies = settings.constants.policies.clone();
     let funded_address = settings.constants.payments.funded_address.clone();
 
-    let cardano_client =
+    let mut cardano_client =
         CardanoClient::new_from_funded(settings.ogmios_client, settings.constants).await;
     let midnight_client = MidnightClient::new(settings.node_client).await;
 
@@ -280,9 +280,9 @@ async fn deploy_governance_contracts_and_validate_membership_reset() {
 #[tokio::test]
 async fn register_2_cardano_same_dust_address_production() {
     let settings = Settings::default();
-    let cardano_client_1 =
+    let mut cardano_client_1 =
         CardanoClient::new(settings.ogmios_client.clone(), settings.constants.clone()).await;
-    let cardano_client_2 =
+    let mut cardano_client_2 =
         CardanoClient::new(settings.ogmios_client.clone(), settings.constants).await;
     let mut midnight_client = MidnightClient::new(settings.node_client).await;
 
@@ -464,7 +464,7 @@ async fn register_2_cardano_same_dust_address_production() {
 #[tokio::test]
 async fn cnight_produces_dust() {
     let settings = Settings::default();
-    let cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
+    let mut cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
     let midnight_client = MidnightClient::new(settings.node_client.clone()).await;
 
     let bech32_address = cardano_client.address_as_bech32();
@@ -564,7 +564,7 @@ async fn cnight_produces_dust() {
 #[tokio::test]
 async fn deregister_from_dust_production() {
     let settings = Settings::default();
-    let cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
+    let mut cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
     let mut midnight_client = MidnightClient::new(settings.node_client).await;
 
     let address_bech32 = cardano_client.address_as_bech32();
@@ -682,10 +682,11 @@ async fn deregister_from_dust_production() {
 async fn alice_cannot_deregister_bob() {
     let settings = Settings::default();
     // Create Alice and Bob wallets
-    let alice =
+    let mut alice =
         CardanoClient::new(settings.ogmios_client.clone(), settings.constants.clone()).await;
 
-    let bob = CardanoClient::new(settings.ogmios_client.clone(), settings.constants.clone()).await;
+    let mut bob =
+        CardanoClient::new(settings.ogmios_client.clone(), settings.constants.clone()).await;
     let bob_bech32 = bob.address_as_bech32();
     let midnight_wallet_seed = MidnightClient::new_seed();
     let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
@@ -747,8 +748,8 @@ async fn alice_cannot_deregister_bob() {
 #[tokio::test]
 async fn removing_excessive_registrations() {
     let settings = Settings::default();
-    let cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
-    let midnight_client = MidnightClient::new(settings.node_client).await;
+    let mut cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
+    let mut midnight_client = MidnightClient::new(settings.node_client).await;
     let address_bech32 = cardano_client.address_as_bech32();
     println!("New Cardano wallet created: {:?}", address_bech32);
 
@@ -996,7 +997,7 @@ async fn removing_excessive_registrations() {
     println!("Calculated nonce for cNIGHT UTXO: {}", nonce);
 
     let utxo_owner = midnight_client
-        .poll_utxo_owners_until_change(nonce, None, 60, 1000)
+        .poll_utxo_owners_until_change(nonce)
         .await
         .expect("Failed to poll UTXO owners");
     println!("Queried UTXO owners from Midnight node: {:?}", utxo_owner);
@@ -1012,8 +1013,8 @@ async fn removing_excessive_registrations() {
 #[tokio::test]
 async fn create_hundred_registrations() {
     let settings = Settings::default();
-    let cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
-    let midnight_client = MidnightClient::new(settings.node_client).await;
+    let mut cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
+    let mut midnight_client = MidnightClient::new(settings.node_client).await;
     let address_bech32 = cardano_client.address_as_bech32();
     println!("New Cardano wallet created: {:?}", address_bech32);
 

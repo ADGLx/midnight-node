@@ -13835,9 +13835,9 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5016d94c77c6d32f0b8e08b781f7dc8a90c2007d4e77472cc2807bc10a8438fe"
 dependencies = [
  "proc-macro2",
- "quote 1.0.40",
+ "quote 1.0.42",
  "serde_derive_internals",
- "syn 2.0.104",
+ "syn 2.0.111",
 ]
 
 [[package]]

@@ -1,5 +1,4 @@
 use crate::config::{Constants, OgmiosClientSettings};
-use crate::utils::retry_async;
 use bip39::{Language, Mnemonic, MnemonicType};
 use ogmios_client::OgmiosClientError;
 use ogmios_client::jsonrpsee::{OgmiosClients, client_for_url};
@@ -38,6 +37,8 @@ const RETRIES: u16 = 100;
 const PAUSE_SECONDS: u16 = 1;
 
 pub struct CardanoClient {
+    pub base_url: String,
+    pub timeout_seconds: u16,
     pub ogmios_clients: OgmiosClients,
     pub constants: Constants,
     pub wallet: Wallet,
@@ -52,13 +53,12 @@ impl CardanoClient {
             Duration::from_secs(ogmios_settings.timeout_seconds.into()),
         )
         .await
-        .expect(
-            format!(
+        .unwrap_or_else(|_| {
+            panic!(
                 "Failed to initialize client, url: {}",
                 ogmios_settings.base_url
             )
-            .as_str(),
-        );
+        });
 
         let wallet = Self::create_wallet();
         Self::print_addresses(&wallet, &ogmios_settings.network_info);
@@ -80,6 +80,15 @@ impl CardanoClient {
         Self::from_wallet(ogmios_settings, constants, wallet, ogmios_clients)
     }
 
+    async fn reconnect(&mut self) {
+        self.ogmios_clients = client_for_url(
+            &self.base_url,
+            Duration::from_secs(self.timeout_seconds.into()),
+        )
+        .await
+        .expect("Failed to reconnect client");
+    }
+
     fn from_wallet(
         ogmios_settings: OgmiosClientSettings,
         constants: Constants,
@@ -87,8 +96,12 @@ impl CardanoClient {
         ogmios_clients: OgmiosClients,
     ) -> Self {
         let network_info = ogmios_settings.network_info;
+        let base_url = ogmios_settings.base_url;
+        let timeout_seconds = ogmios_settings.timeout_seconds;
 
         Self {
+            base_url,
+            timeout_seconds,
             ogmios_clients,
             constants,
             wallet,
@@ -162,17 +175,34 @@ impl CardanoClient {
         Ok(PrivateKey::from_extended_bytes(&stake_xprv.to_raw_key().as_bytes()).unwrap())
     }
 
-    pub async fn make_collateral(&self) -> Option<OgmiosUtxo> {
+    pub async fn make_collateral(&mut self) -> Option<OgmiosUtxo> {
         let assets = vec![Asset::new_from_str("lovelace", "5000000")];
         self.fund_wallet(assets).await
     }
 
-    pub async fn fund_wallet(&self, assets: Vec<Asset>) -> Option<OgmiosUtxo> {
-        let tx_id_hex =
-            match retry_async(|| self.send(assets.clone()), RETRIES, PAUSE_SECONDS).await {
-                Ok(response) => hex::encode(response.transaction.id),
+    pub async fn fund_wallet(&mut self, assets: Vec<Asset>) -> Option<OgmiosUtxo> {
+        let mut attempts = 0;
+        let tx_id_hex = loop {
+            match self.send(assets.clone()).await {
+                Ok(response) => break hex::encode(response.transaction.id),
+                Err(e) if e.to_string().contains("restart required") && attempts < RETRIES => {
+                    eprintln!(
+                        "Attempt {} failed with restart required, reconnecting...",
+                        attempts + 1
+                    );
+                    self.reconnect().await;
+                    attempts += 1;
+                    sleep(Duration::from_secs(PAUSE_SECONDS.into())).await;
+                }
+                Err(e) if attempts < RETRIES => {
+                    eprintln!("Attempt {} failed: {}", attempts + 1, e);
+                    attempts += 1;
+                    sleep(Duration::from_secs(PAUSE_SECONDS.into())).await;
+                }
                 Err(e) => panic!("Failed to send assets: {:?}", e),
-            };
+            }
+        };
+
         println!("Funded wallet with transaction id: {}", tx_id_hex);
         self.find_utxo_by_tx_id(&self.address_as_bech32(), tx_id_hex)
             .await
@@ -382,7 +412,7 @@ impl CardanoClient {
     }
 
     pub async fn mint_tokens(
-        &self,
+        &mut self,
         amount: i32,
     ) -> Result<SubmitTransactionResponse, OgmiosClientError> {
         let policies = self.constants.policies.clone();
@@ -421,7 +451,7 @@ impl CardanoClient {
             Asset::new_from_str(&policy_id, amount.to_string().as_str()),
         ];
 
-        let mut tx_builder = whisky::TxBuilder::new_core();
+        let mut tx_builder = TxBuilder::new_core();
         tx_builder
             .network(network)
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
