@@ -1,5 +1,4 @@
-use clap::Args;
-use midnight_node_toolkit::{
+use crate::{
 	ProofType, SignatureType,
 	tx_generator::{
 		TxGenerator,
@@ -8,6 +7,7 @@ use midnight_node_toolkit::{
 		source::Source,
 	},
 };
+use clap::Args;
 
 #[derive(Args)]
 pub struct SendIntentArgs {
@@ -50,11 +50,11 @@ pub async fn execute(args: SendIntentArgs) -> Result<(), Box<dyn std::error::Err
 
 #[cfg(test)]
 mod test {
-	use crate::{Cli, run_command};
+	use crate::cli::{Cli, run_command};
+	use crate::cli_parsers::hex_str_decode;
+	use crate::tx_generator::builder::FUNDING_SEED;
+	use crate::tx_generator::source::FetchCacheConfig;
 	use clap::Parser;
-	use midnight_node_toolkit::cli_parsers::hex_str_decode;
-	use midnight_node_toolkit::tx_generator::builder::FUNDING_SEED;
-	use midnight_node_toolkit::tx_generator::source::FetchCacheConfig;
 	use std::fs;
 	use tempfile::tempdir;
 
