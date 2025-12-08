@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
+use crate::source::Source;
 use crate::{
-	DB, DefaultDB, HRP_CREDENTIAL_SHIELDED, LedgerContext, ProofType, SignatureType, Source,
-	TxGenerator, Utxo, Wallet, WalletAddress, WalletSeed,
+	DB, DefaultDB, HRP_CREDENTIAL_SHIELDED, LedgerContext, ProofType, SignatureType, TxGenerator,
+	Utxo, Wallet, WalletAddress, WalletSeed,
+};
+use crate::{
+	cli_parsers::{self as cli},
+	serde_def::{QualifiedDustOutputSer, QualifiedInfoSer, UtxoSer},
 };
 use clap::Args;
 use hex::ToHex;
 use midnight_node_ledger_helpers::serialize_untagged;
-use midnight_node_toolkit::{
-	cli_parsers::{self as cli},
-	serde_def::{QualifiedDustOutputSer, QualifiedInfoSer, UtxoSer},
-};
 
 #[derive(Debug)]
 pub struct WalletInfo<D: DB + Clone> {
@@ -127,7 +128,7 @@ mod tests {
 	//use std::str::FromStr;
 
 	use super::*;
-	use midnight_node_toolkit::tx_generator::source::FetchCacheConfig;
+	use crate::tx_generator::source::FetchCacheConfig;
 	use test_case::test_case;
 
 	macro_rules! test_fixture {

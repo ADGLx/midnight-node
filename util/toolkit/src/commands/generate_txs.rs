@@ -1,12 +1,12 @@
-use clap::Args;
-use midnight_node_ledger_helpers::{ProofMarker, Signature};
-use midnight_node_toolkit::{
+use crate::{
 	ProofType, SignatureType,
 	serde_def::{DeserializedTransactionsWithContext, SourceTransactions},
 	tx_generator::{
 		TxGenerator, TxGeneratorError, builder::Builder, destination::Destination, source::Source,
 	},
 };
+use clap::Args;
+use midnight_node_ledger_helpers::{ProofMarker, Signature};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -82,8 +82,7 @@ mod tests {
 	use std::str::FromStr;
 
 	use super::*;
-	use midnight_node_ledger_helpers::{NIGHT, WalletAddress};
-	use midnight_node_toolkit::{
+	use crate::{
 		cli_parsers::contract_address_decode,
 		t_token,
 		tx_generator::{
@@ -94,6 +93,7 @@ mod tests {
 			source::FetchCacheConfig,
 		},
 	};
+	use midnight_node_ledger_helpers::{NIGHT, WalletAddress};
 	use test_case::test_case;
 
 	fn resource_file(path: &str) -> String {

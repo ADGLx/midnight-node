@@ -1,5 +1,4 @@
-use clap::Args;
-use midnight_node_toolkit::{
+use crate::{
 	ProofType, SignatureType,
 	tx_generator::{
 		TxGenerator,
@@ -10,6 +9,7 @@ use midnight_node_toolkit::{
 		source::Source,
 	},
 };
+use clap::Args;
 
 #[derive(Args)]
 pub struct GenerateSampleIntentArgs {
@@ -63,9 +63,9 @@ mod test {
 	use std::fs;
 	use std::fs::remove_file;
 
-	use midnight_node_toolkit::cli_parsers::hex_str_decode;
-	use midnight_node_toolkit::tx_generator::builder::{ContractDeployArgs, FUNDING_SEED};
-	use midnight_node_toolkit::tx_generator::source::FetchCacheConfig;
+	use crate::cli_parsers::hex_str_decode;
+	use crate::tx_generator::builder::{ContractDeployArgs, FUNDING_SEED};
+	use crate::tx_generator::source::FetchCacheConfig;
 
 	use super::{ContractCall, GenerateSampleIntentArgs, Source, execute};
 
