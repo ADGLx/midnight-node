@@ -74,6 +74,15 @@ pub struct FeePrices {
 
 The cost model changed from independent dimension prices to a single `overall_price` with dimension-specific adjustment factors.
 
+### 5. State Key Serialization Type Change
+
+**Context:** The runtime expects state keys to be serialized as `TypedArenaKey<Ledger<D>, D::Hasher>` (tagged as `storage-key(ledger-state[v12])`), but the previous implementation serialized `ArenaHash` (tagged as `storage-hash`).
+
+**Old:** `Sp::hash()` returns `ArenaHash<D::Hasher>` → serializes with tag `midnight:storage-hash:`  
+**New:** `Sp::as_typed_key()` returns `TypedArenaKey<T, D::Hasher>` → serializes with tag `midnight:storage-key(ledger-state[v12]):`
+
+This was not an upstream API change per se, but the stricter type checking in ledger-6.2 exposed an existing bug where the wrong type was being serialized. The [`Sp::as_typed_key()`](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/storage/src/arena.rs#L1412) method has always existed but was not being used.
+
 ## Decision Outcome
 
 ### Solution 1: `post_block_update` Migration
@@ -173,6 +182,35 @@ The `SerializableError` trait is required for types that participate in the stor
 
 Adding the `ArenaHash` variant to midnight-node's `SerializationError` enum follows the existing pattern established for other arena types (`TypedArenaKey`, `ArenaKey`). The implementation returns a distinct error variant, enabling precise error discrimination when debugging serialization failures. This is the minimal, correct solution: it satisfies the trait bound without changing error handling semantics, and the new variant integrates naturally with the existing `Display` and `Debug` implementations for `SerializationError`.
 
+### Solution 6: State Key Serialization (`Sp::hash()` → `Sp::as_typed_key()`)
+
+**Approach:** Use `Sp::as_typed_key()` instead of `Sp::hash()` when serializing the state key for storage.
+
+**Implementation:** [`ledger/src/storage.rs#L32,L53`](../../../ledger/src/storage.rs#L32)
+
+```rust
+// Old (incorrect for ledger-6.2)
+midnight_serialize::tagged_serialize(&state.hash(), &mut bytes).unwrap();
+
+// New (correct)
+midnight_serialize::tagged_serialize(&state.as_typed_key(), &mut bytes).unwrap();
+```
+
+**Rationale:**
+
+The runtime's `pre_fetch_storage()` and `get_ledger()` functions expect the state key to be a serialized `TypedArenaKey<Ledger<D>, D::Hasher>`, which deserializes with the tag `midnight:storage-key(ledger-state[v12]):`. However, `Sp::hash()` returns an `ArenaHash<D::Hasher>`, which serializes with the tag `midnight:storage-hash:`.
+
+This mismatch caused runtime panics during block production:
+```
+Error deserializing: "...TypedArenaKey...": Custom { kind: InvalidData, 
+  error: "expected header tag 'midnight:storage-key(ledger-state[v12]):', 
+          got 'midnight:storage-hash:...'" }
+```
+
+The [`Sp::as_typed_key()`](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/storage/src/arena.rs#L1412) method returns the correctly typed `TypedArenaKey<T, D::Hasher>` that wraps the underlying `ArenaKey` with proper type information. This ensures the serialized state key can be deserialized by the ledger API functions that expect `TypedArenaKey`.
+
+This change affects both `get_root()` (used for deriving the state root) and `alloc_with_initial_state()` (used during storage initialization with genesis state).
+
 ## Consequences
 
 **Positive:**
@@ -197,7 +235,7 @@ Adding the `ArenaHash` variant to midnight-node's `SerializationError` enum foll
 | [`ledger/src/versions/common/api/mod.rs`](../../../ledger/src/versions/common/api/mod.rs) | Added `ArenaHash` import, `SerializableError` impl |
 | [`ledger/src/versions/common/mod.rs`](../../../ledger/src/versions/common/mod.rs) | Fixed `pre_fetch`, `persist` calls |
 | [`ledger/src/versions/common/types.rs`](../../../ledger/src/versions/common/types.rs) | Added `ArenaHash` to `SerializationError` enum |
-| [`ledger/src/storage.rs`](../../../ledger/src/storage.rs) | Fixed `persist` mutability |
+| [`ledger/src/storage.rs`](../../../ledger/src/storage.rs) | Fixed `persist` mutability, changed `hash()` to `as_typed_key()` |
 | [`util/toolkit/src/genesis_generator.rs`](../../../util/toolkit/src/genesis_generator.rs) | Updated `post_block_update`, `FeePrices` |
 | [`util/toolkit/src/commands/update_ledger_parameters.rs`](../../../util/toolkit/src/commands/update_ledger_parameters.rs) | Updated `FeePrices` fields |
 | [`util/toolkit/src/commands/show_ledger_parameters.rs`](../../../util/toolkit/src/commands/show_ledger_parameters.rs) | Updated `FeePrices` fields |
