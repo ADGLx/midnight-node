@@ -551,10 +551,11 @@ impl GenesisGenerator {
 fn without_fees(params: &LedgerParameters) -> LedgerParameters {
 	LedgerParameters {
 		fee_prices: FeePrices {
-			read_price: FixedPoint::ZERO,
-			compute_price: FixedPoint::ZERO,
-			block_usage_price: FixedPoint::ZERO,
-			write_price: FixedPoint::ZERO,
+			overall_price: FixedPoint::ZERO,
+			read_factor: FixedPoint::ONE,
+			compute_factor: FixedPoint::ONE,
+			block_usage_factor: FixedPoint::ONE,
+			write_factor: FixedPoint::ONE,
 		},
 		..params.clone()
 	}

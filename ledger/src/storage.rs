@@ -46,7 +46,7 @@ where
 			.expect("failed to deserialize ledger genesis state");
 	let state = Ledger::new(state);
 
-	let state = default_storage::<D>().arena.alloc(state);
+	let mut state = default_storage::<D>().arena.alloc(state);
 	state.persist();
 	default_storage::<D>().with_backend(|backend| backend.flush_all_changes_to_db());
 	let mut bytes = vec![];

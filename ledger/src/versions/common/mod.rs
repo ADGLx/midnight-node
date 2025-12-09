@@ -122,7 +122,7 @@ where
 		let key: ArenaKey<D::Hasher> = typed_key.into();
 
 		let now = std::time::Instant::now();
-		default_storage::<D>().with_backend(|backend| backend.pre_fetch(&key, None, true));
+		default_storage::<D>().with_backend(|backend| backend.pre_fetch(key.hash(), None, true));
 		let elapsed = now.elapsed().as_secs_f64();
 
 		let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
@@ -151,7 +151,7 @@ where
 		let api = api::new();
 		let ledger = Self::get_ledger(&api, state_key)?;
 
-		let ledger = Ledger::post_block_update(ledger, block_context).map_err(|e| {
+		let mut ledger = Ledger::post_block_update(ledger, block_context).map_err(|e| {
 			log::error!(
 				target: LOG_TARGET,
 				"Post Block Update error: {e:?}"
@@ -193,7 +193,7 @@ where
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
 
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
-		let (ledger, applied_stage) = Ledger::apply_transaction(ledger, &api, &tx, &tx_ctx)?;
+		let (mut ledger, applied_stage) = Ledger::apply_transaction(ledger, &api, &tx, &tx_ctx)?;
 
 		let all_applied = matches!(applied_stage, TransactionAppliedStage::AllApplied);
 
@@ -279,7 +279,7 @@ where
 		let tx_hash = tx.transaction_hash().0.0;
 		let ledger = Self::get_ledger(&api, state_key)?;
 
-		let ledger =
+		let mut ledger =
 			Ledger::apply_system_tx(ledger, &tx, Timestamp::from_secs(block_context.tblock))?;
 
 		let event = SystemTransactionAppliedStateRoot {
@@ -434,7 +434,7 @@ where
 			token_type: UnshieldedTokenType(HashOutput([0u8; 32])), // TODO: UnshieldedTokenType::Reward,
 		};
 		let ledger = Self::get_ledger(&api, state_key)?;
-		let ledger =
+		let mut ledger =
 			Ledger::apply_system_tx(ledger, &sys_tx, Timestamp::from_secs(block_context.tblock))?;
 
 		// Only update state after no errors
