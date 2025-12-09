@@ -29,7 +29,7 @@ pub fn get_root(state: &[u8]) -> Vec<u8> {
 	let state = Ledger::new(state);
 	let state = default_storage::<DefaultDB>().arena.alloc(state);
 	let mut bytes = vec![];
-	midnight_serialize::tagged_serialize(&state.hash(), &mut bytes).unwrap();
+	midnight_serialize::tagged_serialize(&state.as_typed_key(), &mut bytes).unwrap();
 	bytes
 }
 
@@ -50,7 +50,7 @@ where
 	state.persist();
 	default_storage::<D>().with_backend(|backend| backend.flush_all_changes_to_db());
 	let mut bytes = vec![];
-	midnight_serialize::tagged_serialize(&state.hash(), &mut bytes).unwrap();
+	midnight_serialize::tagged_serialize(&state.as_typed_key(), &mut bytes).unwrap();
 	bytes
 }
 
