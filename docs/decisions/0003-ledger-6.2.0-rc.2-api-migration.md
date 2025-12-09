@@ -97,9 +97,10 @@ let overall_fullness = FixedPoint::max(
 ```
 
 **Rationale:** 
-- `NormalizedCost` represents costs as fractions of block limits (0.0 to 1.0)
-- `overall_fullness` must be at least the maximum dimension per the [cost model spec](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/spec/cost-model.md)
-- Using `unwrap_or(NormalizedCost::ZERO)` handles edge cases where block limits might be exceeded
+
+The new `post_block_update` API separates detailed per-dimension costs from the overall block fullness metric, enabling more sophisticated fee adjustment algorithms. `NormalizedCost` represents each cost dimension as a fraction of its respective block limit (ranging from 0.0 to 1.0), which allows the ledger to reason about resource utilization independently of absolute values. This normalization is essential because the five dimensions (read time, compute time, block usage, bytes written, bytes churned) have different scales and units—normalization makes them directly comparable.
+
+The `overall_block_fullness` parameter must capture the "bottleneck" dimension—the resource closest to its limit—because fee adjustment should respond to whichever resource is most constrained. Taking the maximum across all normalized dimensions is the mathematically correct approach per the [cost model specification](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/spec/cost-model.md). If we used an average or sum, a nearly-full block in one dimension could be masked by under-utilized dimensions, leading to inadequate fee responses. The defensive `unwrap_or(NormalizedCost::ZERO)` handles edge cases where block limits might be configured to zero or where division errors could occur, ensuring the node doesn't panic during block processing.
 
 ### Solution 2: `pre_fetch` Migration
 
@@ -115,7 +116,11 @@ backend.pre_fetch(&key, None, true)
 backend.pre_fetch(key.hash(), None, true)
 ```
 
-**Rationale:** [`ArenaKey::hash()`](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/storage/src/arena.rs#L304) returns `&ArenaHash<H>`, which is now the required parameter type.
+**Rationale:** 
+
+The `pre_fetch` API change from `&ArenaKey<H>` to `&ArenaHash<H>` reflects an architectural refinement in how the storage layer identifies data. An `ArenaKey` is a composite type containing both a hash and type tag metadata, while `ArenaHash` is the pure content-addressable identifier. For pre-fetching operations, only the hash is needed to locate data on disk or in cache—the type tag is irrelevant at the storage layer since pre-fetching is about I/O optimization, not type-safe deserialization.
+
+This change improves API clarity by accepting only the data actually needed and allows callers more flexibility (they may have a hash without a full key). The [`ArenaKey::hash()`](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/storage/src/arena.rs#L304) method provides zero-cost access to the inner `&ArenaHash<H>` reference, making migration straightforward with no performance impact.
 
 ### Solution 3: `persist` Mutability
 
@@ -125,7 +130,11 @@ backend.pre_fetch(key.hash(), None, true)
 - [`ledger/src/versions/common/mod.rs`](../../../ledger/src/versions/common/mod.rs) (lines 154, 196, 283, 438)
 - [`ledger/src/storage.rs#L49`](../../../ledger/src/storage.rs#L49)
 
-**Rationale:** The upstream API now requires mutable access for persistence operations.
+**Rationale:** 
+
+The change from `&self` to `&mut self` for `persist()` reflects a more accurate modeling of the persistence operation's semantics. While the previous `&self` signature suggested persistence was a pure read operation, in reality `persist()` may update internal state such as marking data as persisted, updating cache metadata, clearing dirty flags, or modifying write-ahead log pointers. The `&mut self` signature makes these potential side effects explicit in the type system, preventing accidental concurrent persistence calls and enabling the compiler to enforce single-writer semantics.
+
+This is a correctness improvement: Rust's ownership system now guarantees that no other code can hold references to the state being persisted, eliminating a class of potential race conditions. The required changes are mechanical—adding `mut` to bindings—and have no runtime cost. The locations where `persist()` is called are already exclusive owners of the state (not shared references), so the logical ownership was always mutable; the signature now accurately reflects this.
 
 ### Solution 4: `FeePrices` Field Mapping
 
@@ -149,17 +158,20 @@ FeePrices {
 ```
 
 **Rationale:** 
-- Setting `overall_price` to ZERO makes all fees zero since `final_cost = overall_price * (...)` 
-- Factors are set to ONE (multiplicative identity) rather than ZERO because:
-  - Factors represent multipliers, where 1.0 is the neutral value
-  - Zero factors could cause issues if accidentally used with [`update_from_fullness()`](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/base-crypto/src/cost_model.rs#L305)
-  - Either approach works for genesis; ONE is more defensive
+
+The `FeePrices` restructuring represents a fundamental shift in how the cost model computes fees. Previously, each dimension had an independent price, and the final fee was effectively `sum(dimension_cost * dimension_price)`. The new model uses `overall_price * sum(dimension_cost * dimension_factor)`, separating the base price level from the relative weighting of dimensions. This enables cleaner fee adjustment: `overall_price` can scale with network demand while `*_factor` weights remain stable, or vice versa.
+
+For the `without_fees` genesis configuration, setting `overall_price` to `ZERO` guarantees zero fees regardless of other values since it's a multiplicative term in the fee formula. The factors are set to `ONE` (the multiplicative identity) rather than `ZERO` for defensive programming: while either achieves zero fees when `overall_price` is zero, factors of ONE are semantically correct ("no adjustment") and avoid potential division-by-zero or unexpected behavior if [`update_from_fullness()`](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/base-crypto/src/cost_model.rs#L305) is ever invoked during testing. This choice reflects the principle that default values should be neutral/identity values for their mathematical role.
 
 ### Solution 5: `SerializableError` for `ArenaHash`
 
 **Approach:** Added `ArenaHash` variant to [`SerializationError`](../../../ledger/src/versions/common/types.rs#L110) enum and implemented `SerializableError` trait for `ArenaHash<H>` in [`api/mod.rs#L80`](../../../ledger/src/versions/common/api/mod.rs#L80).
 
-**Rationale:** `Sp::hash()` now returns `ArenaHash` which needs to be serializable for state root calculations.
+**Rationale:** 
+
+The `SerializableError` trait is required for types that participate in the storage arena's error handling during serialization and deserialization operations. With the upstream API changes, `ArenaHash<H>` is now used directly in more contexts (such as the new `pre_fetch` signature), and the trait bounds require it to implement `SerializableError` so that failures can be properly typed and propagated.
+
+Adding the `ArenaHash` variant to midnight-node's `SerializationError` enum follows the existing pattern established for other arena types (`TypedArenaKey`, `ArenaKey`). The implementation returns a distinct error variant, enabling precise error discrimination when debugging serialization failures. This is the minimal, correct solution: it satisfies the trait bound without changing error handling semantics, and the new variant integrates naturally with the existing `Display` and `Debug` implementations for `SerializationError`.
 
 ## Consequences
 
