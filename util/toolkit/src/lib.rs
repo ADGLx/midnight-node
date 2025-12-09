@@ -11,10 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-pub mod cli;
 pub mod cli_parsers;
 pub mod client;
-pub mod commands;
 pub mod fetcher;
 pub mod genesis_generator;
 pub mod progress;
@@ -23,7 +21,6 @@ pub mod sender;
 pub mod serde_def;
 pub mod toolkit_js;
 pub mod tx_generator;
-pub mod utils;
 
 use progress::{Progress, Spin};
 use rand::{SeedableRng, rngs::StdRng};
