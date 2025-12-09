@@ -186,14 +186,19 @@ Adding the `ArenaHash` variant to midnight-node's `SerializationError` enum foll
 
 **Approach:** Use `Sp::as_typed_key()` instead of `Sp::hash()` when serializing the state key for storage.
 
-**Implementation:** [`ledger/src/storage.rs#L32,L53`](../../../ledger/src/storage.rs#L32)
+**Implementation:** 
+- [`ledger/src/storage.rs#L32,L53`](../../../ledger/src/storage.rs#L32) - Genesis initialization
+- [`ledger/src/versions/common/mod.rs#L162`](../../../ledger/src/versions/common/mod.rs#L162) - `post_block_update()`
+- [`ledger/src/versions/common/mod.rs#L218`](../../../ledger/src/versions/common/mod.rs#L218) - `apply_transaction()`
+- [`ledger/src/versions/common/mod.rs#L286`](../../../ledger/src/versions/common/mod.rs#L286) - `apply_system_transaction()`
+- [`ledger/src/versions/common/mod.rs#L442`](../../../ledger/src/versions/common/mod.rs#L442) - `mint_coins()`
 
 ```rust
 // Old (incorrect for ledger-6.2)
-midnight_serialize::tagged_serialize(&state.hash(), &mut bytes).unwrap();
+api.tagged_serialize(&ledger.hash())
 
 // New (correct)
-midnight_serialize::tagged_serialize(&state.as_typed_key(), &mut bytes).unwrap();
+api.tagged_serialize(&ledger.as_typed_key())
 ```
 
 **Rationale:**
@@ -209,7 +214,11 @@ Error deserializing: "...TypedArenaKey...": Custom { kind: InvalidData,
 
 The [`Sp::as_typed_key()`](https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.2/storage/src/arena.rs#L1412) method returns the correctly typed `TypedArenaKey<T, D::Hasher>` that wraps the underlying `ArenaKey` with proper type information. This ensures the serialized state key can be deserialized by the ledger API functions that expect `TypedArenaKey`.
 
-This change affects both `get_root()` (used for deriving the state root) and `alloc_with_initial_state()` (used during storage initialization with genesis state).
+This change affects:
+- Genesis initialization (`get_root()` and `alloc_with_initial_state()`)
+- Post-block state updates (`post_block_update()`)
+- Transaction processing (`apply_transaction()`, `apply_system_transaction()`)
+- Coin minting (`mint_coins()`)
 
 ## Consequences
 
@@ -233,7 +242,7 @@ This change affects both `get_root()` (used for deriving the state root) and `al
 | [`ledger/helpers/src/versions/common/context.rs`](../../../ledger/helpers/src/versions/common/context.rs) | Updated `post_block_update` call |
 | [`ledger/src/versions/common/api/ledger.rs`](../../../ledger/src/versions/common/api/ledger.rs) | Updated `post_block_update`, imports |
 | [`ledger/src/versions/common/api/mod.rs`](../../../ledger/src/versions/common/api/mod.rs) | Added `ArenaHash` import, `SerializableError` impl |
-| [`ledger/src/versions/common/mod.rs`](../../../ledger/src/versions/common/mod.rs) | Fixed `pre_fetch`, `persist` calls |
+| [`ledger/src/versions/common/mod.rs`](../../../ledger/src/versions/common/mod.rs) | Fixed `pre_fetch`, `persist` calls, changed `hash()` to `as_typed_key()` in 4 functions |
 | [`ledger/src/versions/common/types.rs`](../../../ledger/src/versions/common/types.rs) | Added `ArenaHash` to `SerializationError` enum |
 | [`ledger/src/storage.rs`](../../../ledger/src/storage.rs) | Fixed `persist` mutability, changed `hash()` to `as_typed_key()` |
 | [`util/toolkit/src/genesis_generator.rs`](../../../util/toolkit/src/genesis_generator.rs) | Updated `post_block_update`, `FeePrices` |
