@@ -49,6 +49,28 @@ pub struct CNightGenesisCmd {
 	pub output: std::path::PathBuf,
 }
 
+#[derive(Debug, Parser)]
+pub struct GovernanceGenesisCmd {
+	/// The Cardano block hash assumed to be the latest for this query
+	#[arg(short, long)]
+	pub cardano_tip: McBlockHash,
+
+	#[arg(long = "council-add")]
+	pub council_address: String,
+
+	#[arg(long = "council-pol")]
+	pub council_policy_id: String,
+
+	#[arg(long = "tech-com-addr")]
+	pub technical_committee_address: String,
+
+	#[arg(long = "tech-com-pol")]
+	pub technical_committee_policy_id: String,
+
+	#[arg(short, long, default_value = "federated-authority-config.json")]
+	pub output: std::path::PathBuf,
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
@@ -68,6 +90,8 @@ pub enum Subcommand {
 
 	/// Generate cNIGHT generates DUST genesis file. This file is an input to chain spec generation, and can be used to validate the correctness of any given chain spec
 	GenerateCNightGenesis(CNightGenesisCmd),
+
+	GenerateGovernanceGenesis(GovernanceGenesisCmd),
 
 	/// Export blocks.
 	ExportBlocks(sc_cli::ExportBlocksCmd),

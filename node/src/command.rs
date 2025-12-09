@@ -475,5 +475,23 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				Ok(())
 			})
 		},
+		Subcommand::GenerateGovernanceGenesis(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Init tokio runtime
+			let tokio_handle = sc_cli::build_runtime()?;
+			tokio_handle.block_on(async {
+				let data_sources =
+					crate::main_chain_follower::create_federated_authority_observation_data_source(
+						cfg.midnight_cfg.clone(),
+						None,
+					)
+					.await?;
+
+			});
+
+			Ok(())
+		},
 	}
 }

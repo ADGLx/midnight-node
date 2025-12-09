@@ -19,6 +19,7 @@ pub mod cli;
 pub mod cnight_genesis;
 pub mod command;
 pub mod extensions;
+pub mod federated_authority_genesis;
 pub mod inherent_data;
 pub mod main_chain_follower;
 pub mod partner_chains;

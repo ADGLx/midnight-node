@@ -256,6 +256,21 @@ pub async fn create_cnight_observation_data_source(
 	Ok(Arc::new(MidnightCNightObservationDataSourceImpl::new(pool, metrics_opt.clone(), 1000)))
 }
 
+pub async fn create_federated_authority_observation_data_source(
+	cfg: MidnightCfg,
+	metrics_opt: Option<McFollowerMetrics>,
+) -> Result<Arc<dyn FederatedAuthorityObservationDataSource>, Box<dyn Error + Send + Sync + 'static>>
+{
+	let pool = get_connection(
+		&cfg.db_sync_postgres_connection_string
+			.ok_or(missing("db_sync_postgres_connection_string"))?,
+		CNIGHT_OBSERVATION_POOL_CFG,
+	)
+	.await?;
+
+	Ok(Arc::new(FederatedAuthorityObservationDataSourceImpl::new(pool, metrics_opt.clone(), 1000)))
+}
+
 // Copied from internal utility in partner-chains-db-sync-data-sources
 async fn get_connection(
 	connection_string: &str,

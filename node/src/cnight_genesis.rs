@@ -60,6 +60,7 @@ fn exec_pallet(utxos: &ObservedUtxos) -> PalletExecResult {
 		let inherent_data = create_inherent(utxos.utxos.clone(), utxos.end.clone());
 		let call = mock::CNightObservation::create_inherent(&inherent_data)
 			.expect("Expected to create inherent call");
+
 		let call = mock::RuntimeCall::CNightObservation(call);
 		assert!(call.dispatch(frame_system::RawOrigin::None.into()).is_ok());
 
