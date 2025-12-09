@@ -159,7 +159,7 @@ where
 			LedgerApiError::NoLedgerState
 		})?;
 
-		let state_root = api.tagged_serialize(&ledger.hash())?;
+		let state_root = api.tagged_serialize(&ledger.as_typed_key())?;
 
 		// Only update state after no errors
 		ledger.persist();
@@ -215,7 +215,7 @@ where
 			utxos.check_utxos_response_integrity(initial_utxos_size, &ledger)?;
 
 		let mut event = TransactionAppliedStateRoot {
-			state_root: api.tagged_serialize(&ledger.hash())?,
+			state_root: api.tagged_serialize(&ledger.as_typed_key())?,
 			tx_hash,
 			all_applied,
 			call_addresses: vec![],
@@ -283,7 +283,7 @@ where
 			Ledger::apply_system_tx(ledger, &tx, Timestamp::from_secs(block_context.tblock))?;
 
 		let event = SystemTransactionAppliedStateRoot {
-			state_root: api.tagged_serialize(&ledger.hash())?,
+			state_root: api.tagged_serialize(&ledger.as_typed_key())?,
 			tx_hash,
 			tx_type: tx_type.to_string(),
 		};
@@ -439,7 +439,7 @@ where
 
 		// Only update state after no errors
 		ledger.persist();
-		api.tagged_serialize(&ledger.hash())
+		api.tagged_serialize(&ledger.as_typed_key())
 	}
 
 	pub fn get_unclaimed_amount(

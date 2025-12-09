@@ -1,0 +1,26 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../midnight-js"
+		},
+		{
+			"path": "../midnight-zk"
+		},
+		{
+			"path": "../compact"
+		},
+		{
+			"path": "../example-counter"
+		},
+		{
+			"path": "../midnight-docs"
+		},
+		{
+			"path": "../midnight-ledger"
+		}
+	],
+	"settings": {}
+}
