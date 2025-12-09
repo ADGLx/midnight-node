@@ -7,5 +7,7 @@ Updates midnight-node to be compatible with midnight-ledger version 6.2.0-rc.2, 
 - `Sp::persist` now requires `&mut self`
 - `FeePrices` structure redesigned: field names changed from `*_price` to `*_factor` with new `overall_price` field
 
+Jira: https://shielded.atlassian.net/browse/PM-20907
+
 PR: https://github.com/midnightntwrk/midnight-node/pull/352
 
