@@ -1,13 +1,13 @@
-use crate::cli_parsers::{self as cli};
 use clap::Args;
+use midnight_node_toolkit::cli_parsers::{self as cli};
 use serde::Deserialize;
 use std::path::{Path, PathBuf};
 
-use crate::genesis_generator::{FundingArgs, GENESIS_NONCE_SEED, GenesisGenerator};
 use midnight_node_ledger_helpers::{
 	Serializable, SystemTransaction, Tagged, WalletSeed, midnight_serialize::tagged_deserialize,
 	serialize,
 };
+use midnight_node_toolkit::genesis_generator::{FundingArgs, GENESIS_NONCE_SEED, GenesisGenerator};
 
 #[derive(Deserialize)]
 pub struct CNightGeneratesDustConfig {
@@ -114,8 +114,7 @@ fn serialize_and_write<T: Serializable + Tagged>(
 #[cfg(test)]
 mod test {
 	use super::serialize_and_write;
-	use crate::cli::{Cli, run_command};
-	use crate::{DefaultDB, LedgerState};
+	use crate::{Cli, DefaultDB, LedgerState, run_command};
 	use clap::Parser;
 	use std::{
 		env::temp_dir,

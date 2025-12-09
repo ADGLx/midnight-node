@@ -30,13 +30,10 @@ impl MidnightClient {
         Self { online_client }
     }
 
-    pub fn new_seed() -> WalletSeed {
+    pub fn new_dust_hex() -> String {
         let seed_bytes: [u8; 32] = rand::random();
         println!("Midnight seed: {}", hex::encode(seed_bytes));
-        WalletSeed::from(seed_bytes)
-    }
-
-    pub fn new_dust_hex(wallet_seed: WalletSeed) -> String {
+        let wallet_seed = WalletSeed::from(seed_bytes);
         let dust_wallet = DustWallet::<DefaultDB>::default(wallet_seed, None);
         let dust_public = dust_wallet.public_key;
         let dust_public_hex = serialize_untagged(&dust_public).unwrap().encode_hex();

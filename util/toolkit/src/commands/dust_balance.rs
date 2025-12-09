@@ -3,24 +3,24 @@ use std::{
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{LedgerContext, ProofType, SignatureType, TxGenerator, WalletSeed, source::Source};
-use crate::{
+use crate::{LedgerContext, ProofType, SignatureType, Source, TxGenerator, WalletSeed};
+use clap::Args;
+use midnight_node_ledger_helpers::{DustOutput, Timestamp};
+use midnight_node_toolkit::{
 	cli_parsers::{self as cli},
 	serde_def::{DustGenerationInfoSer, QualifiedDustOutputSer},
 };
-use clap::Args;
-use midnight_node_ledger_helpers::{DustOutput, Timestamp};
 
 #[derive(Args)]
 pub struct DustBalanceArgs {
 	#[command(flatten)]
-	pub source: Source,
+	source: Source,
 	/// The seed of the wallet to show wallet state for, including private state
 	#[arg(long, value_parser = cli::wallet_seed_decode)]
-	pub seed: WalletSeed,
+	seed: WalletSeed,
 	/// Dry-run - don't fetch wallet state, just print out settings
 	#[arg(long)]
-	pub dry_run: bool,
+	dry_run: bool,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -31,9 +31,9 @@ pub struct GenerationInfoPair {
 
 #[derive(Debug, serde::Serialize)]
 pub struct DustBalanceJson {
-	pub generation_infos: Vec<GenerationInfoPair>,
-	pub source: HashMap<String, u128>,
-	pub total: u128,
+	generation_infos: Vec<GenerationInfoPair>,
+	source: HashMap<String, u128>,
+	total: u128,
 }
 
 pub enum DustBalanceResult {
@@ -97,7 +97,7 @@ pub async fn execute(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::tx_generator::source::FetchCacheConfig;
+	use midnight_node_toolkit::tx_generator::source::FetchCacheConfig;
 	use test_case::test_case;
 
 	/// Test data
