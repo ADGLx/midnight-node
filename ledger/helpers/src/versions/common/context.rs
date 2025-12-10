@@ -138,8 +138,18 @@ impl<D: DB + Clone> LedgerContext<D> {
 		// Only when done processing txs for the same block, it's time to call `post_block_update`
 		let mut latest_ledger_state =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
+		let block_limits = latest_ledger_state.parameters.limits.block_limits;
+		let normalized_fullness =
+			total_cost.normalize(block_limits).unwrap_or(NormalizedCost::ZERO);
+		let overall_fullness = FixedPoint::max(
+			FixedPoint::max(
+				FixedPoint::max(normalized_fullness.read_time, normalized_fullness.compute_time),
+				normalized_fullness.block_usage,
+			),
+			FixedPoint::max(normalized_fullness.bytes_written, normalized_fullness.bytes_churned),
+		);
 		*latest_ledger_state = latest_ledger_state
-			.post_block_update(block_context.tblock, total_cost)
+			.post_block_update(block_context.tblock, normalized_fullness, overall_fullness)
 			.expect("Error applying block updates");
 		if let Some(expected_root) = state_root {
 			match Self::compute_state_root(&*latest_ledger_state) {

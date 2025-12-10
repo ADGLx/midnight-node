@@ -13,7 +13,9 @@
 
 pub use super::{
 	base_crypto::{
-		cost_model::{CostDuration, FeePrices, FixedPoint, RunningCost, SyntheticCost},
+		cost_model::{
+			CostDuration, FeePrices, FixedPoint, NormalizedCost, RunningCost, SyntheticCost,
+		},
 		data_provider::{FetchMode, MidnightDataProvider, OutputMode},
 		fab::AlignedValue,
 		hash::{HashOutput, PERSISTENT_HASH_BYTES, persistent_commit, persistent_hash},

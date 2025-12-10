@@ -16,7 +16,9 @@ use super::{
 	mn_ledger_local, onchain_runtime_local, transient_crypto_local, zswap_local,
 };
 use base_crypto_local::{
-	cost_model::SyntheticCost, hash::HashOutput as HashOutputLedger, time::Timestamp,
+	cost_model::{FixedPoint, NormalizedCost, SyntheticCost},
+	hash::HashOutput as HashOutputLedger,
+	time::Timestamp,
 };
 use derive_where::derive_where;
 use ledger_storage_local::{
@@ -173,10 +175,20 @@ impl<D: DB> Ledger<D> {
 		sp: Sp<Self, D>,
 		block_context: BlockContext,
 	) -> Result<Sp<Self, D>, LedgerApiError> {
-		let block_fullness = sp.block_fullness.clone().into();
+		let block_fullness: SyntheticCost = sp.block_fullness.clone().into();
+		let block_limits = sp.state.parameters.limits.block_limits;
+		let normalized_fullness =
+			block_fullness.normalize(block_limits).unwrap_or(NormalizedCost::ZERO);
+		let overall_fullness = FixedPoint::max(
+			FixedPoint::max(
+				FixedPoint::max(normalized_fullness.read_time, normalized_fullness.compute_time),
+				normalized_fullness.block_usage,
+			),
+			FixedPoint::max(normalized_fullness.bytes_written, normalized_fullness.bytes_churned),
+		);
 		let next_state = sp
 			.state
-			.post_block_update(Timestamp::from_secs(block_context.tblock), block_fullness)
+			.post_block_update(Timestamp::from_secs(block_context.tblock), normalized_fullness, overall_fullness)
 			.map_err(|_| LedgerApiError::BlockLimitExceededError)?;
 		let new_sp = default_storage::<D>()
 			.arena

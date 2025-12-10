@@ -168,7 +168,21 @@ impl GenesisGenerator {
 			self.apply_system_tx(system_tx, &genesis_block_context)?;
 		}
 
-		self.state = self.state.post_block_update(genesis_block_context.tblock, self.fullness)?;
+		let block_limits = self.state.parameters.limits.block_limits;
+		let normalized_fullness =
+			self.fullness.normalize(block_limits).unwrap_or(NormalizedCost::ZERO);
+		let overall_fullness = FixedPoint::max(
+			FixedPoint::max(
+				FixedPoint::max(normalized_fullness.read_time, normalized_fullness.compute_time),
+				normalized_fullness.block_usage,
+			),
+			FixedPoint::max(normalized_fullness.bytes_written, normalized_fullness.bytes_churned),
+		);
+		self.state = self.state.post_block_update(
+			genesis_block_context.tblock,
+			normalized_fullness,
+			overall_fullness,
+		)?;
 		Ok(())
 	}
 
