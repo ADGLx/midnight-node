@@ -13,16 +13,18 @@
 
 #![allow(clippy::result_large_err)]
 
-use crate::cfg::Cfg;
 use crate::{
+	cfg::Cfg,
 	cli::{self, Cli, Subcommand},
 	cnight_genesis::generate_cnight_genesis,
+	federated_authority_genesis::generate_federated_authority_genesis
 	service::{self, StorageInit},
 };
 use clap::Parser;
 use midnight_node_res::networks::MidnightNetwork as _;
 use midnight_node_runtime::Block;
 use midnight_primitives_cnight_observation::CNightAddresses;
+use midnight_primitives_federated_authority_observation::FederatedAuthorityAddresses;
 use sc_cli::{CliConfiguration, LoggerBuilder, RunCmd, SubstrateCli};
 use sc_keystore::LocalKeystore;
 use sc_service::{BasePath, PartialComponents, config::KeystoreConfig};
@@ -475,7 +477,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				Ok(())
 			})
 		},
-		Subcommand::GenerateGovernanceGenesis(ref cmd) => {
+		Subcommand::GenerateFederatedAuthorityGenesis(ref cmd) => {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
 
@@ -489,9 +491,30 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					)
 					.await?;
 
-			});
+				let fed_auth_addresses_str =
+					std::fs::read_to_string(&cmd.federated_authority_addresses).unwrap();
+				let federated_authority_addresses: FederatedAuthorityAddresses =
+					serde_json::from_str(&fed_auth_addresses_str).map_err(|e| {
+						sc_cli::Error::Input(format!(
+							"failed to read federated authority addresses file as json: {e}"
+						))
+					})?;
 
-			Ok(())
+				generate_federated_authority_genesis(
+					federated_authority_addresses,
+					data_sources,
+					cmd.cardano_tip.clone(),
+					&cmd.output.clone(),
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"federated authority genesis generation failed: {e}"
+					))
+				})?;
+
+				Ok(())
+			})
 		},
 	}
 }

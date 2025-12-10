@@ -29,6 +29,22 @@ pub const INHERENT_IDENTIFIER: InherentIdentifier = *b"faobsrve";
 /// Alias for mainchain member identifier (28 bytes PolicyId)
 pub type MainchainMember = PolicyId;
 
+#[cfg(feature = "std")]
+#[derive(Debug, Clone, Default, Serialize, Deserialize, serde_valid::Validate)]
+pub struct FederatedAuthorityAddresses {
+	#[validate(pattern = r"^(addr|addr_test)1[0-9a-z]{1,108}$")]
+	pub council_adress: String,
+
+	#[serde(with = "hex")]
+	pub council_policy_id: [u8; 28],
+
+	#[validate(pattern = r"^(addr|addr_test)1[0-9a-z]{1,108}$")]
+	pub technical_committee_address: String,
+
+	#[serde(with = "hex")]
+	pub technical_committee_policy_id: [u8; 28],
+}
+
 /// Convert Ed25519 public key to MainchainMember by taking first 28 bytes
 #[cfg(feature = "std")]
 pub fn ed25519_to_mainchain_member(public: sp_core::ed25519::Public) -> MainchainMember {

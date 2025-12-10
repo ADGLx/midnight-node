@@ -1,12 +1,15 @@
-use std::{fs::File, path::Path, sync::Arc};
+use std::{path::Path, sync::Arc};
 
 use midnight_primitives_federated_authority_observation::{
-	AuthBodyConfig, AuthorityMemberPublicKey, FederatedAuthorityObservationConfig, MainchainMember,
+	AuthBodyConfig, AuthorityMemberPublicKey, FederatedAuthorityAddresses,
+	FederatedAuthorityObservationConfig, MainchainMember,
 };
 use midnight_primitives_mainchain_follower::FederatedAuthorityObservationDataSource;
 use sidechain_domain::{McBlockHash, PolicyId};
 
 use sp_core::{ByteArray, sr25519::Public};
+
+use tokio::{fs::File, io::AsyncWriteExt};
 
 #[derive(Debug, thiserror::Error)]
 pub enum FederatedAuthorityGenesisError {
@@ -15,29 +18,29 @@ pub enum FederatedAuthorityGenesisError {
 
 	#[error("Failed retrieving from data source: {0}")]
 	DatasourceError(String),
+
+	#[error("I/O error: {0}")]
+	IoError(#[from] std::io::Error),
 }
 
 /// Saves as json file the Federated Authority Genesis Config
 pub async fn generate_federated_authority_genesis(
-	council_address: String,
-	council_policy_id: PolicyId,
-	technical_committee_address: String,
-	technical_committee_policy_id: PolicyId,
+	federated_authority_addresses: FederatedAuthorityAddresses,
 	federated_authority_observation_data_source: Arc<dyn FederatedAuthorityObservationDataSource>,
 	// Cardano block hash("mc hash") which is assumed to be the tip for the queries
 	cardano_tip: McBlockHash,
 	output_path: impl AsRef<Path>,
 ) -> Result<(), FederatedAuthorityGenesisError> {
 	let council = AuthBodyConfig {
-		address: council_address,
-		policy_id: council_policy_id,
+		address: federated_authority_addresses.council_adress,
+		policy_id: PolicyId(federated_authority_addresses.council_policy_id),
 		members: vec![],
 		members_mainchain: vec![],
 	};
 
 	let technical_committee = AuthBodyConfig {
-		address: technical_committee_address,
-		policy_id: technical_committee_policy_id,
+		address: federated_authority_addresses.technical_committee_address,
+		policy_id: PolicyId(federated_authority_addresses.technical_committee_policy_id),
 		members: vec![],
 		members_mainchain: vec![],
 	};
@@ -45,7 +48,7 @@ pub async fn generate_federated_authority_genesis(
 	let mut config = FederatedAuthorityObservationConfig { council, technical_committee };
 
 	// get the sr25519 public keys and mainchain members
-	let mut data = federated_authority_observation_data_source
+	let data = federated_authority_observation_data_source
 		.get_federated_authority_data(&config, &cardano_tip)
 		.await
 		.map_err(|e| FederatedAuthorityGenesisError::DatasourceError(e.to_string()))?;
