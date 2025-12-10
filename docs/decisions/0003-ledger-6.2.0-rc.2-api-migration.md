@@ -192,6 +192,7 @@ Adding the `ArenaHash` variant to midnight-node's `SerializationError` enum foll
 - [`ledger/src/versions/common/mod.rs#L218`](../../../ledger/src/versions/common/mod.rs#L218) - `apply_transaction()`
 - [`ledger/src/versions/common/mod.rs#L286`](../../../ledger/src/versions/common/mod.rs#L286) - `apply_system_transaction()`
 - [`ledger/src/versions/common/mod.rs#L442`](../../../ledger/src/versions/common/mod.rs#L442) - `mint_coins()`
+- [`ledger/helpers/src/versions/common/context.rs#L198`](../../../ledger/helpers/src/versions/common/context.rs#L198) - Toolkit's `compute_state_root()`
 
 ```rust
 // Old (incorrect for ledger-6.2)
@@ -279,7 +280,7 @@ The metadata regeneration extracts fresh metadata from a running node built with
 | File | Changes |
 |------|---------|
 | [`ledger/helpers/src/versions/common/mod.rs`](../../../ledger/helpers/src/versions/common/mod.rs) | Added `NormalizedCost` export |
-| [`ledger/helpers/src/versions/common/context.rs`](../../../ledger/helpers/src/versions/common/context.rs) | Updated `post_block_update` call |
+| [`ledger/helpers/src/versions/common/context.rs`](../../../ledger/helpers/src/versions/common/context.rs) | Updated `post_block_update` call, fixed `compute_state_root()` to use `as_typed_key()` |
 | [`ledger/src/versions/common/api/ledger.rs`](../../../ledger/src/versions/common/api/ledger.rs) | Updated `post_block_update`, imports |
 | [`ledger/src/versions/common/api/mod.rs`](../../../ledger/src/versions/common/api/mod.rs) | Added `ArenaHash` import, `SerializableError` impl |
 | [`ledger/src/versions/common/mod.rs`](../../../ledger/src/versions/common/mod.rs) | Fixed `pre_fetch`, `persist` calls, changed `hash()` to `as_typed_key()` in 4 functions |
