@@ -17,7 +17,7 @@ use crate::{
 	cfg::Cfg,
 	cli::{self, Cli, Subcommand},
 	cnight_genesis::generate_cnight_genesis,
-	federated_authority_genesis::generate_federated_authority_genesis
+	federated_authority_genesis::generate_federated_authority_genesis,
 	service::{self, StorageInit},
 };
 use clap::Parser;
