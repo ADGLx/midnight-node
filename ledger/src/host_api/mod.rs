@@ -13,8 +13,8 @@
 
 use crate::{
 	common::types::{
-		BlockContext, GasCost, Hash, SystemTransactionAppliedStateRoot, TransactionAppliedStateRoot,
-		TransactionDetails, Tx,
+		BlockContext, GasCost, Hash, SystemTransactionAppliedStateRoot,
+		TransactionAppliedStateRoot, TransactionDetails, Tx,
 	},
 	hard_fork_test, latest,
 };
@@ -124,7 +124,8 @@ pub trait LedgerBridge {
 		block_context: PassFatPointerAndDecode<BlockContext>,
 		runtime_version: u32,
 		max_weight: u64,
-	) -> AllocateAndReturnByCodec<Result<(Hash, TransactionDetails), latest::types::LedgerApiError>> {
+	) -> AllocateAndReturnByCodec<Result<(Hash, TransactionDetails), latest::types::LedgerApiError>>
+	{
 		latest::Bridge::<Signature, Database>::validate_transaction(
 			*self,
 			state_key,
@@ -479,9 +480,7 @@ pub trait LedgerBridgeHf {
 		tx: PassFatPointerAndRead<&[u8]>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
 		max_weight: u64,
-	) -> AllocateAndReturnByCodec<
-		Result<GasCost, hard_fork_test::types::LedgerApiError>,
-	> {
+	) -> AllocateAndReturnByCodec<Result<GasCost, hard_fork_test::types::LedgerApiError>> {
 		hard_fork_test::Bridge::<SignatureHF, DatabaseHF>::get_transaction_cost(
 			state_key,
 			tx,

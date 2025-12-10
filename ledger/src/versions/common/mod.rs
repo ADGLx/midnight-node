@@ -62,7 +62,8 @@ use {
 		dust::InitialNonce,
 		structure::{
 			CNightGeneratesDustActionType, CNightGeneratesDustEvent, ClaimKind, ContractAction,
-			MaintenanceUpdate, ProofMarker, SignatureKind, SingleUpdate, Transaction as LedgerTransaction,
+			MaintenanceUpdate, ProofMarker, SignatureKind, SingleUpdate,
+			Transaction as LedgerTransaction,
 		},
 	},
 	std::time::Instant,
@@ -491,7 +492,7 @@ where
 
 		Ok(gas_cost)
 	}
-	
+
 	fn get_deserialized_ledger_parameters(state: &Ledger<D>) -> LedgerParameters {
 		state.get_parameters()
 	}

@@ -260,16 +260,16 @@ fn disable_safe_mode() {
 #[ignore = "TODO COST MODEL - fix when new Ledger's cost model is available"]
 fn test_get_mn_transaction_fee() {
 	mock::new_test_ext().execute_with(|| {
-	let (tx, block_context) =
-		midnight_node_ledger_helpers::extract_info_from_tx_with_context(DEPLOY_TX);
+		let (tx, block_context) =
+			midnight_node_ledger_helpers::extract_info_from_tx_with_context(DEPLOY_TX);
 
-	init_ledger_state(block_context.into());
+		init_ledger_state(block_context.into());
 
-	let gas_cost = mock::Midnight::get_transaction_cost(&tx).unwrap();
+		let gas_cost = mock::Midnight::get_transaction_cost(&tx).unwrap();
 
-	// Assert the transaction has some associated cost
-	assert!(gas_cost > 0);
-});
+		// Assert the transaction has some associated cost
+		assert!(gas_cost > 0);
+	});
 }
 
 #[test]
