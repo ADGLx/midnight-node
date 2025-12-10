@@ -264,7 +264,7 @@ pub async fn create_federated_authority_observation_data_source(
 	let pool = get_connection(
 		&cfg.db_sync_postgres_connection_string
 			.ok_or(missing("db_sync_postgres_connection_string"))?,
-		CNIGHT_OBSERVATION_POOL_CFG,
+		FEDERATED_AUTHORITY_OBSERVATION_POOL_CFG,
 	)
 	.await?;
 

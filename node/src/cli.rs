@@ -58,7 +58,7 @@ pub struct FederatedAuthorityGenesisCmd {
 	#[arg(long = "federated-auth-addresses")]
 	pub federated_authority_addresses: std::path::PathBuf,
 
-	#[arg(short, long, default_value = "federated-authority-config.json")]
+	#[arg(short, long, default_value = "federated-authority-genesis.json")]
 	pub output: std::path::PathBuf,
 }
 
