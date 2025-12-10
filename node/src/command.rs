@@ -492,7 +492,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					.await?;
 
 				let fed_auth_addresses_str =
-					std::fs::read_to_string(&cmd.federated_authority_addresses).unwrap();
+					std::fs::read_to_string(&cmd.federated_authority_addresses)?;
 				let federated_authority_addresses: FederatedAuthorityAddresses =
 					serde_json::from_str(&fed_auth_addresses_str).map_err(|e| {
 						sc_cli::Error::Input(format!(
