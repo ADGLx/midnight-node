@@ -33,7 +33,7 @@ pub type MainchainMember = PolicyId;
 #[derive(Debug, Clone, Default, Serialize, Deserialize, serde_valid::Validate)]
 pub struct FederatedAuthorityAddresses {
 	#[validate(pattern = r"^(addr|addr_test)1[0-9a-z]{1,108}$")]
-	pub council_adress: String,
+	pub council_address: String,
 
 	#[serde(with = "hex")]
 	pub council_policy_id: [u8; 28],

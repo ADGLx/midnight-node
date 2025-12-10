@@ -32,7 +32,7 @@ pub async fn generate_federated_authority_genesis(
 	output_path: impl AsRef<Path>,
 ) -> Result<(), FederatedAuthorityGenesisError> {
 	let council = AuthBodyConfig {
-		address: federated_authority_addresses.council_adress,
+		address: federated_authority_addresses.council_address,
 		policy_id: PolicyId(federated_authority_addresses.council_policy_id),
 		members: vec![],
 		members_mainchain: vec![],
