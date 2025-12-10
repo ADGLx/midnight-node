@@ -220,6 +220,46 @@ This change affects:
 - Transaction processing (`apply_transaction()`, `apply_system_transaction()`)
 - Coin minting (`mint_coins()`)
 
+### Solution 7: Genesis File Regeneration
+
+**Approach:** Regenerate all genesis files (`res/genesis/*.mn`) using the updated toolkit after the `as_typed_key()` fix is applied.
+
+**Implementation:** Run the genesis regeneration for each network:
+```bash
+midnight-node-toolkit generate-genesis --network undeployed --seeds-file <seeds.json>
+```
+
+**Rationale:**
+
+Genesis files are binary serializations of the initial ledger state and transactions, created by the toolkit and embedded in the node binary at compile time. After the `as_typed_key()` fix, any genesis files generated with the old code contain state keys serialized with `storage-hash:` tags. When the node starts with these old genesis files but uses the new runtime code, a state root mismatch occurs:
+
+```
+Error: PanicError("Ledger state root mismatch: expected ...storage-key(ledger-state[v12]):..., 
+                   actual ...storage-hash:...")
+```
+
+The genesis block (block 0) writes its state key in the old format, but block 1+ writes state keys in the new format, causing deserialization failures when the toolkit or runtime tries to verify state consistency.
+
+**Critical:** Genesis files MUST be regenerated AFTER the code changes are merged, not before. The regeneration order is:
+1. Apply `as_typed_key()` code changes
+2. Rebuild the toolkit
+3. Regenerate genesis files with the new toolkit
+4. Regenerate metadata with `/bot rebuild-metadata`
+
+### Solution 8: Metadata Regeneration
+
+**Approach:** Regenerate Subxt metadata after runtime changes using `/bot rebuild-metadata` on the PR.
+
+**Rationale:**
+
+The `FeePrices` structure change and other runtime modifications alter the node's metadata, which Subxt uses for type-safe RPC communication. The toolkit uses Subxt to communicate with the node, and if the compiled Subxt bindings don't match the node's metadata, you get:
+
+```
+Error: SubxtError(Metadata(IncompatibleCodegen))
+```
+
+The metadata regeneration extracts fresh metadata from a running node built with the new code and updates `metadata/static/midnight_metadata.scale`.
+
 ## Consequences
 
 **Positive:**
@@ -248,6 +288,9 @@ This change affects:
 | [`util/toolkit/src/genesis_generator.rs`](../../../util/toolkit/src/genesis_generator.rs) | Updated `post_block_update`, `FeePrices` |
 | [`util/toolkit/src/commands/update_ledger_parameters.rs`](../../../util/toolkit/src/commands/update_ledger_parameters.rs) | Updated `FeePrices` fields |
 | [`util/toolkit/src/commands/show_ledger_parameters.rs`](../../../util/toolkit/src/commands/show_ledger_parameters.rs) | Updated `FeePrices` fields |
+| [`res/genesis/genesis_block_undeployed.mn`](../../../res/genesis/genesis_block_undeployed.mn) | Regenerated with `as_typed_key()` state key format |
+| [`res/genesis/genesis_state_undeployed.mn`](../../../res/genesis/genesis_state_undeployed.mn) | Regenerated with `as_typed_key()` state key format |
+| [`metadata/static/midnight_metadata.scale`](../../../metadata/static/midnight_metadata.scale) | Regenerated to match updated runtime |
 
 ## Related Documentation
 
