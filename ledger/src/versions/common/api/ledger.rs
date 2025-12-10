@@ -188,6 +188,8 @@ impl<D: DB> Ledger<D> {
 		block_context: BlockContext,
 	) -> Result<Sp<Self, D>, LedgerApiError> {
 		let block_fullness = sp.block_fullness.clone().into();
+
+		log::debug!("post_block_update - tblock: {:?}, block fullness: {:?} block context: {:?}", Timestamp::from_secs(block_context.tblock), block_fullness, block_context);
 		let next_state = sp
 			.state
 			.post_block_update(Timestamp::from_secs(block_context.tblock), block_fullness)
