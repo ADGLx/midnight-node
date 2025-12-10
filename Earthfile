@@ -476,7 +476,7 @@ contract-precompile-image-single-platform:
 
 use-contract-precompile-image:
 #    FROM +contract-precompile-image
-    FROM ghcr.io/midnight-ntwrk/midnight-test-contract-precompiles:v0.22.0
+    FROM ghcr.io/midnight-ntwrk/midnight-test-contract-precompiles:v0.26.2
     SAVE ARTIFACT /simple-merkle-tree AS LOCAL target/contracts/simple-merkle-tree
 
 # a common setup of the build environment (not designed to be called directly)
