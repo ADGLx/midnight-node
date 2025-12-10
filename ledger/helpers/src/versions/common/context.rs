@@ -139,8 +139,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 		let mut latest_ledger_state =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
 		let block_limits = latest_ledger_state.parameters.limits.block_limits;
-		let normalized_fullness =
-			total_cost.normalize(block_limits).unwrap_or(NormalizedCost::ZERO);
+		let normalized_fullness = total_cost.normalize(block_limits).unwrap_or(NormalizedCost::ZERO);
 		let overall_fullness = FixedPoint::max(
 			FixedPoint::max(
 				FixedPoint::max(normalized_fullness.read_time, normalized_fullness.compute_time),
@@ -196,7 +195,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 		let storage = default_storage::<D>();
 		let ledger = StorableLedgerState::new(state.clone());
 		let sp = storage.arena.alloc(ledger);
-		super::serialize(&sp.hash()).ok()
+		super::serialize(&sp.as_typed_key()).ok()
 	}
 
 	pub fn update_from_tx<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
