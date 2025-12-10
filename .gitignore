@@ -92,3 +92,9 @@ dist
 
 # Toolkit cache
 toolkit.db
+# IDE and local config
+.ai/
+.cursorindexingignore
+.cursorignore
+.specstory/
+midnight-node.code-workspace
