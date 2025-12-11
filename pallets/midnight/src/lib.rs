@@ -54,7 +54,7 @@ pub mod pallet {
 
 	impl<T: Config> super::LedgerStateProviderMut for Pallet<T> {
 		fn get_ledger_state_key() -> Vec<u8> {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			state_key.into()
 		}
 
@@ -62,7 +62,7 @@ pub mod pallet {
 		where
 			F: FnOnce(Vec<u8>) -> Result<(Vec<u8>, R), E>,
 		{
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 
 			let (new_state_key, custom_result) = f(state_key.into())?;
 
@@ -136,7 +136,7 @@ pub mod pallet {
 	#[pallet::getter(fn state_key)]
 	// Learn more about declaring storage items:
 	// https://docs.substrate.io/main-docs/build/runtime-storage/#declaring-storage-items
-	pub type StateKey<T> = StorageValue<_, BoundedVec<u8, StateKeyLength>>;
+	pub type StateKey<T> = StorageValue<_, BoundedVec<u8, StateKeyLength>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type NetworkId<T> = StorageValue<_, BoundedVec<u8, MaxNetworkIdLength>>;
@@ -286,7 +286,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_block: BlockNumberFor<T>) -> Weight {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 
 			LedgerApi::pre_fetch_storage(&state_key).expect("Failed to pre-fetch storage");
 
@@ -295,7 +295,7 @@ pub mod pallet {
 
 		fn on_finalize(_block: BlockNumberFor<T>) {
 			// Post Block Ledger Update
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			let block_context = Self::get_block_context();
 
 			let state_root = LedgerApi::post_block_update(&state_key, block_context.clone())
@@ -313,7 +313,7 @@ pub mod pallet {
 				return;
 			}
 			if let Some(beneficiary) = beneficiary {
-				let state_key = StateKey::<T>::get().expect("Failed to get state key");
+				let state_key = StateKey::<T>::get();
 
 				match LedgerApi::mint_coins(&state_key, reward, &beneficiary[..], block_context) {
 					Ok(new_state_key) => {
@@ -353,7 +353,7 @@ pub mod pallet {
 		#[pallet::call_index(0)]
 		#[pallet::weight(ConfigurableTransactionSizeWeight::<T>::get())]
 		pub fn send_mn_transaction(_origin: OriginFor<T>, midnight_tx: Vec<u8>) -> DispatchResult {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			let block_context = Self::get_block_context();
 			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 
@@ -479,7 +479,7 @@ pub mod pallet {
 		}
 
 		pub fn get_contract_state(contract_address: &[u8]) -> Result<Vec<u8>, LedgerApiError> {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			LedgerApi::get_contract_state(&state_key, contract_address)
 		}
 
@@ -502,7 +502,7 @@ pub mod pallet {
 		}
 
 		pub fn get_zswap_chain_state(contract_address: &[u8]) -> Result<Vec<u8>, LedgerApiError> {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			LedgerApi::get_zswap_chain_state(&state_key, contract_address)
 		}
 		// grcov-excl-stop
@@ -517,7 +517,7 @@ pub mod pallet {
 			block_context: LedgerTypes::BlockContext,
 		) -> TransactionValidity {
 			if let Call::send_mn_transaction { midnight_tx } = call {
-				let state_key = StateKey::<T>::get().expect("Failed to get state key");
+				let state_key = StateKey::<T>::get();
 				let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 
 				let (tx_hash, _) = LedgerApi::validate_transaction(
@@ -540,23 +540,23 @@ pub mod pallet {
 		}
 
 		pub fn get_unclaimed_amount(beneficiary: &[u8]) -> Result<u128, LedgerApiError> {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			LedgerApi::get_unclaimed_amount(&state_key, beneficiary)
 		}
 
 		pub fn get_ledger_parameters() -> Result<Vec<u8>, LedgerApiError> {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			LedgerApi::get_ledger_parameters(&state_key)
 		}
 
 		pub fn get_transaction_cost(tx: &[u8]) -> Result<(StorageCost, GasCost), LedgerApiError> {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			let block_context = Self::get_block_context();
 			LedgerApi::get_transaction_cost(&state_key, tx, block_context)
 		}
 
 		pub fn get_zswap_state_root() -> Result<Vec<u8>, LedgerApiError> {
-			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let state_key = StateKey::<T>::get();
 			LedgerApi::get_zswap_state_root(&state_key)
 		}
 	}
