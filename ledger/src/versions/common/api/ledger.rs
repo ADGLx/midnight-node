@@ -188,7 +188,11 @@ impl<D: DB> Ledger<D> {
 		);
 		let next_state = sp
 			.state
-			.post_block_update(Timestamp::from_secs(block_context.tblock), normalized_fullness, overall_fullness)
+			.post_block_update(
+				Timestamp::from_secs(block_context.tblock),
+				normalized_fullness,
+				overall_fullness,
+			)
 			.map_err(|_| LedgerApiError::BlockLimitExceededError)?;
 		let new_sp = default_storage::<D>()
 			.arena
