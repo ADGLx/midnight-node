@@ -12,10 +12,10 @@
 // limitations under the License.
 
 use super::{
-	ArenaKey, BlockContext, DB, DUST_EXPECTED_FILES, DustResolver, Event, FetchMode, LedgerState,
-	Loader, MidnightDataProvider, Offer, OutputMode, PUBLIC_PARAMS, ProofKind,
-	PureGeneratorPedersen, Resolver, SerdeTransaction, SignatureKind, Storable, SyntheticCost,
-	Tagged, Timestamp, Transaction, TransactionContext, TransactionResult, Utxo,
+	ArenaKey, BlockContext, DB, DUST_EXPECTED_FILES, DustResolver, Event, FetchMode, FixedPoint,
+	LedgerState, Loader, MidnightDataProvider, NormalizedCost, Offer, OutputMode, PUBLIC_PARAMS,
+	ProofKind, PureGeneratorPedersen, Resolver, SerdeTransaction, SignatureKind, Storable,
+	SyntheticCost, Tagged, Timestamp, Transaction, TransactionContext, TransactionResult, Utxo,
 	VerifiedTransaction, Wallet, WalletAddress, WalletSeed, WellFormedStrictness, default_storage,
 	mn_ledger_serialize as serialize, mn_ledger_storage as storage, types::StorableSyntheticCost,
 };
