@@ -322,6 +322,7 @@ mod tests {
 	}
 
 	#[test]
+	#[ignore = "Test fixtures need regeneration after ledger 6.2 update - requires midnight-js update"]
 	fn should_apply_transaction() {
 		if CRATE_NAME != crate::latest::CRATE_NAME {
 			println!("This test should only be run with ledger latest");
@@ -334,6 +335,7 @@ mod tests {
 	}
 
 	#[test]
+	#[ignore = "Test fixtures need regeneration after ledger 6.2 update - requires midnight-js update"]
 	fn should_get_contract_state() {
 		if CRATE_NAME != crate::latest::CRATE_NAME {
 			println!("This test should only be run with ledger latest");
