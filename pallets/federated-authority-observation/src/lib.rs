@@ -200,14 +200,22 @@ pub mod pallet {
 		) -> DispatchResultWithPostInfo {
 			ensure_none(origin)?;
 
+			let mut actual_weight = Weight::zero();
+
 			// Handle Council round validation and update
 			if let Some(new_council_round) = council_round {
-				Self::validate_and_update_round(new_council_round, GovernanceBody::Council)?;
+				let round_weight =
+					Self::validate_and_update_round(new_council_round, GovernanceBody::Council)?;
+				actual_weight = actual_weight.saturating_add(round_weight);
 			}
 
 			// Handle Technical Committee round validation and update
 			if let Some(new_tc_round) = technical_committee_round {
-				Self::validate_and_update_round(new_tc_round, GovernanceBody::TechnicalCommittee)?;
+				let round_weight = Self::validate_and_update_round(
+					new_tc_round,
+					GovernanceBody::TechnicalCommittee,
+				)?;
+				actual_weight = actual_weight.saturating_add(round_weight);
 			}
 
 			let (council_account_ids, council_mainchain_members): (Vec<_>, Vec<_>) =
@@ -227,8 +235,6 @@ pub mod pallet {
 			council_members.sort();
 
 			let council_current_members = T::CouncilMembershipHandler::sorted_members();
-
-			let mut actual_weight = Weight::zero();
 
 			let council_members_have_changed =
 				council_current_members.as_slice() != council_members.as_slice();
@@ -558,15 +564,22 @@ pub mod pallet {
 
 		/// Validate and update round for a governance body
 		///
-		/// Returns Ok(()) if the round is valid (>= current), Err if invalid (< current).
+		/// Returns Ok(Weight) if the round is valid (>= current), Err if invalid (< current).
+		/// The weight includes 1 read (always) plus 1 write (if round was updated).
 		/// Updates storage and emits event if the round is greater than current.
-		fn validate_and_update_round(new_round: u8, body: GovernanceBody) -> Result<(), Error<T>> {
+		fn validate_and_update_round(
+			new_round: u8,
+			body: GovernanceBody,
+		) -> Result<Weight, Error<T>> {
 			let (round_info, body_name) = match body {
 				GovernanceBody::Council => (CouncilRound::<T>::get(), "council"),
 				GovernanceBody::TechnicalCommittee => {
 					(TechnicalCommitteeRound::<T>::get(), "technical committee")
 				},
 			};
+
+			// Always count 1 read for getting the current round
+			let mut weight = T::DbWeight::get().reads(1);
 
 			// If round is less than current round, this is an error
 			if new_round < round_info.current_round {
@@ -611,10 +624,13 @@ pub mod pallet {
 						});
 					},
 				}
-			}
-			// If round == current_round, nothing to do
 
-			Ok(())
+				// Add 1 write for updating the round
+				weight = weight.saturating_add(T::DbWeight::get().writes(1));
+			}
+			// If round == current_round, nothing to do (only read weight)
+
+			Ok(weight)
 		}
 	}
 }

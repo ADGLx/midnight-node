@@ -53,6 +53,8 @@ mod benchmarks {
 
 		let _ = FederatedAuthorityObservation::<T>::reset_members(
 			RawOrigin::None.into(),
+			None,
+			None,
 			initial_council,
 			initial_tc.clone(),
 		);
@@ -61,7 +63,7 @@ mod benchmarks {
 		let new_council_members = generate_accounts_with_mainchain::<T>(a);
 
 		#[extrinsic_call]
-		reset_members(RawOrigin::None, new_council_members, initial_tc);
+		reset_members(RawOrigin::None, None, None, new_council_members, initial_tc);
 
 		// Verify the council members were changed
 		let current_council = T::CouncilMembershipHandler::sorted_members();
@@ -82,6 +84,8 @@ mod benchmarks {
 
 		let _ = FederatedAuthorityObservation::<T>::reset_members(
 			RawOrigin::None.into(),
+			None,
+			None,
 			initial_council.clone(),
 			initial_tc,
 		);
@@ -90,7 +94,7 @@ mod benchmarks {
 		let new_tc_members = generate_accounts_with_mainchain::<T>(b);
 
 		#[extrinsic_call]
-		reset_members(RawOrigin::None, initial_council, new_tc_members);
+		reset_members(RawOrigin::None, None, None, initial_council, new_tc_members);
 
 		// Verify the TC members were changed
 		let current_tc = T::TechnicalCommitteeMembershipHandler::sorted_members();
@@ -111,6 +115,8 @@ mod benchmarks {
 
 		let _ = FederatedAuthorityObservation::<T>::reset_members(
 			RawOrigin::None.into(),
+			None,
+			None,
 			initial_council,
 			initial_tc,
 		);
@@ -120,7 +126,7 @@ mod benchmarks {
 		let new_tc_members = generate_accounts_with_mainchain::<T>(b);
 
 		#[extrinsic_call]
-		reset_members(RawOrigin::None, new_council_members, new_tc_members);
+		reset_members(RawOrigin::None, None, None, new_council_members, new_tc_members);
 
 		// Verify both were changed
 		let council_current = T::CouncilMembershipHandler::sorted_members();
@@ -141,12 +147,14 @@ mod benchmarks {
 
 		let _ = FederatedAuthorityObservation::<T>::reset_members(
 			RawOrigin::None.into(),
+			None,
+			None,
 			council_members.clone(),
 			tc_members.clone(),
 		);
 
 		#[extrinsic_call]
-		reset_members(RawOrigin::None, council_members.clone(), tc_members.clone());
+		reset_members(RawOrigin::None, None, None, council_members.clone(), tc_members.clone());
 
 		// Verify nothing changed
 		let council_current = T::CouncilMembershipHandler::sorted_members();
@@ -155,64 +163,88 @@ mod benchmarks {
 		assert_eq!(tc_current.len(), b as usize);
 	}
 
-	/// Benchmark setting the Council address
+	/// Benchmark setting the Council scripts (address benchmark - reused for weight estimation)
+	/// Note: This benchmark name matches the weight function name for compatibility
 	#[benchmark]
 	fn set_council_address() {
 		// Create a valid Cardano address (bech32 encoded)
-		let address = "addr_test1wzxc44c4lly82v5ta02y3calrlgdn7j3rakymxntwl2ezjcsndcha";
-		let mainchain_address =
-			MainchainAddress::from_str(address).expect("Failed encoding address");
-
-		#[extrinsic_call]
-		set_council_address(RawOrigin::Root, mainchain_address.clone());
-
-		// Verify the address was set
-		assert_eq!(MainChainCouncilAddress::<T>::get(), mainchain_address);
-	}
-
-	/// Benchmark setting the Technical Committee address
-	#[benchmark]
-	fn set_technical_committee_address() {
-		// Create a valid Cardano address (bech32 encoded)
-		let address = "addr_test1wruef4lsh5rvqnvumksksmm3f5n8j7e2sp5xc384y29ac2q2lrux2";
-		let mainchain_address =
-			MainchainAddress::from_str(address).expect("Failed encoding address");
-
-		#[extrinsic_call]
-		set_technical_committee_address(RawOrigin::Root, mainchain_address.clone());
-
-		// Verify the address was set
-		assert_eq!(MainChainTechnicalCommitteeAddress::<T>::get(), mainchain_address);
-	}
-
-	/// Benchmark setting the Council policy ID
-	#[benchmark]
-	fn set_council_policy_id() {
-		// Create a valid policy ID (28 bytes - decoded from hex)
+		let address = MainchainAddress::from_str(
+			"addr_test1wzxc44c4lly82v5ta02y3calrlgdn7j3rakymxntwl2ezjcsndcha",
+		)
+		.expect("Failed encoding address");
 		let policy_id =
 			PolicyId::from_str("8d8ad715ffc875328bebd448e3bf1fd0d9fa511f6c4d9a6b77d5914b")
 				.expect("Failed encoding policy id");
 
-		#[extrinsic_call]
-		set_council_policy_id(RawOrigin::Root, policy_id.clone());
+		let scripts = MainChainScripts {
+			address: address.clone(),
+			policy_id,
+			governance_address: address.clone(),
+			governance_policy_id: PolicyId::from_str(
+				"1111111111111111111111111111111111111111111111111111111111",
+			)
+			.expect("Failed encoding policy id"),
+		};
 
-		// Verify the policy ID was set
-		assert_eq!(MainChainCouncilPolicyId::<T>::get(), policy_id);
+		#[extrinsic_call]
+		set_council_scripts(RawOrigin::Root, scripts.clone());
+
+		// Verify the scripts were set
+		assert_eq!(CouncilMainChainScripts::<T>::get(), scripts);
 	}
 
-	/// Benchmark setting the Technical Committee policy ID
+	/// Benchmark setting the Technical Committee scripts (address benchmark - reused for weight estimation)
+	/// Note: This benchmark name matches the weight function name for compatibility
 	#[benchmark]
-	fn set_technical_committee_policy_id() {
-		// Create a valid policy ID (28 bytes - decoded from hex)
+	fn set_technical_committee_address() {
+		// Create a valid Cardano address (bech32 encoded)
+		let address = MainchainAddress::from_str(
+			"addr_test1wruef4lsh5rvqnvumksksmm3f5n8j7e2sp5xc384y29ac2q2lrux2",
+		)
+		.expect("Failed encoding address");
 		let policy_id =
 			PolicyId::from_str("f994d7f0bd06c04d9cdda1686f714d26797b2a80686c44f5228bdc28")
 				.expect("Failed encoding policy id");
 
-		#[extrinsic_call]
-		set_technical_committee_policy_id(RawOrigin::Root, policy_id.clone());
+		let scripts = MainChainScripts {
+			address: address.clone(),
+			policy_id,
+			governance_address: address.clone(),
+			governance_policy_id: PolicyId::from_str(
+				"2222222222222222222222222222222222222222222222222222222222",
+			)
+			.expect("Failed encoding policy id"),
+		};
 
-		// Verify the policy ID was set
-		assert_eq!(MainChainTechnicalCommitteePolicyId::<T>::get(), policy_id);
+		#[extrinsic_call]
+		set_technical_committee_scripts(RawOrigin::Root, scripts.clone());
+
+		// Verify the scripts were set
+		assert_eq!(TechnicalCommitteeMainChainScripts::<T>::get(), scripts);
+	}
+
+	/// Benchmark setting the Council policy ID (reused for weight estimation)
+	/// Note: This is a placeholder benchmark that calls set_council_next_round for weight compatibility
+	#[benchmark]
+	fn set_council_policy_id() {
+		#[extrinsic_call]
+		set_council_next_round(RawOrigin::Root, 1);
+
+		// Verify the next round was set
+		let round_info = CouncilRound::<T>::get();
+		assert_eq!(round_info.next_round, 1);
+	}
+
+	/// Benchmark setting the Technical Committee policy ID (reused for weight estimation)
+	/// Note: This is a placeholder benchmark that calls set_technical_committee_next_round for weight compatibility
+	#[benchmark]
+	fn set_technical_committee_policy_id() {
+		#[extrinsic_call]
+		set_technical_committee_next_round(RawOrigin::Root, 1);
+
+		// Verify the next round was set
+		let round_info = TechnicalCommitteeRound::<T>::get();
+		assert_eq!(round_info.next_round, 1);
 	}
 
 	impl_benchmark_test_suite!(
