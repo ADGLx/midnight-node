@@ -194,25 +194,81 @@ pub mod pallet {
 			let council_members_len = council_members.len() as u32;
 			let technical_committee_members_len = technical_committee_members.len() as u32;
 
-			// ---- Council ----
-			// Make sure an empty set of members is not allowed
-			ensure!(!council_members.is_empty(), Error::<T>::EmptyMembers);
+			// Helper closure to return early with no-op weight
+			let early_return = || {
+				let actual_weight = T::WeightInfo::reset_members_none(
+					council_members_len,
+					technical_committee_members_len,
+				);
+				Ok(PostDispatchInfo { actual_weight: Some(actual_weight), pays_fee: Pays::No })
+			};
+
+			// ========== VALIDATION PHASE ==========
+			// All validations are done upfront before any state changes
+
+			// ---- Council validation ----
+			if council_members.is_empty() {
+				log::error!(
+					target: "federated-authority-observation",
+					"Council members cannot be empty"
+				);
+				return early_return();
+			}
+
+			if Self::has_duplicated_members(council_authorities) {
+				log::error!(
+					target: "federated-authority-observation",
+					"Council has duplicated members"
+				);
+				return early_return();
+			}
+
+			if council_mainchain_members.is_empty() {
+				log::error!(
+					target: "federated-authority-observation",
+					"Council mainchain members cannot be empty"
+				);
+				return early_return();
+			}
+
+			// ---- Technical Committee validation ----
+			if technical_committee_members.is_empty() {
+				log::error!(
+					target: "federated-authority-observation",
+					"Technical Committee members cannot be empty"
+				);
+				return early_return();
+			}
+
+			if Self::has_duplicated_members(technical_committee_authorities) {
+				log::error!(
+					target: "federated-authority-observation",
+					"Technical Committee has duplicated members"
+				);
+				return early_return();
+			}
+
+			if technical_committee_mainchain_members.is_empty() {
+				log::error!(
+					target: "federated-authority-observation",
+					"Technical Committee mainchain members cannot be empty"
+				);
+				return early_return();
+			}
+
+			// ========== STATE CHANGE PHASE ==========
+			// All validations passed, now apply state changes
+
 			council_members.sort();
-
-			// Make sure there are not duplicated members
-			ensure!(
-				!Self::has_duplicated_members(council_authorities),
-				Error::<T>::DuplicatedMembers
-			);
-
-			let council_current_members = T::CouncilMembershipHandler::sorted_members();
+			technical_committee_members.sort();
 
 			let mut actual_weight = Weight::zero();
 
+			// ---- Council state changes ----
+			let council_current_members = T::CouncilMembershipHandler::sorted_members();
 			let council_members_have_changed =
 				council_current_members.as_slice() != council_members.as_slice();
 
-			// If Council membership has changed
 			if council_members_have_changed {
 				T::CouncilMembershipHandler::set_members_sorted(
 					&council_members[..],
@@ -220,11 +276,7 @@ pub mod pallet {
 				);
 			}
 
-			// Make sure an empty set of mainchain members is not allowed
-			ensure!(!council_mainchain_members.is_empty(), Error::<T>::EmptyMembers);
-
 			let council_current_mainchain_members = CouncilMainchainMembers::<T>::get();
-
 			let council_mainchain_members_have_changed =
 				council_current_mainchain_members != council_mainchain_members;
 
@@ -234,7 +286,6 @@ pub mod pallet {
 					.try_into()
 					.expect("call arg council_authorities is bounded; qed");
 
-			// If Council mainchain membership has changed
 			if council_mainchain_members_have_changed {
 				CouncilMainchainMembers::<T>::put(&council_mainchain_members_bound);
 			}
@@ -255,41 +306,25 @@ pub mod pallet {
 					));
 			}
 
-			// ---- Technical Committee ----
-			// Make sure an empty set of members is not allowed
-			ensure!(!technical_committee_members.is_empty(), Error::<T>::EmptyMembers);
-			technical_committee_members.sort();
-
-			// Make sure there are not duplicated members
-			ensure!(
-				!Self::has_duplicated_members(technical_committee_authorities),
-				Error::<T>::DuplicatedMembers
-			);
-
+			// ---- Technical Committee state changes ----
 			let technical_committee_current_members =
 				T::TechnicalCommitteeMembershipHandler::sorted_members();
-
 			let technical_committee_members_have_changed = technical_committee_current_members
 				.as_slice()
 				!= technical_committee_members.as_slice();
 
-			// Make sure an empty set of mainchain members is not allowed
-			ensure!(!technical_committee_mainchain_members.is_empty(), Error::<T>::EmptyMembers);
-
-			let technical_committee_current_mainchain_members =
-				TechnicalCommitteeMainchainMembers::<T>::get();
-
-			let technical_committee_mainchain_members_have_changed =
-				technical_committee_current_mainchain_members
-					!= technical_committee_mainchain_members;
-
-			// If Technical Committee membership has changed
 			if technical_committee_members_have_changed {
 				T::TechnicalCommitteeMembershipHandler::set_members_sorted(
 					&technical_committee_members[..],
 					&technical_committee_current_members,
 				);
 			}
+
+			let technical_committee_current_mainchain_members =
+				TechnicalCommitteeMainchainMembers::<T>::get();
+			let technical_committee_mainchain_members_have_changed =
+				technical_committee_current_mainchain_members
+					!= technical_committee_mainchain_members;
 
 			let technical_committee_mainchain_members_bound: BoundedVec<
 				MainchainMember,
@@ -299,7 +334,6 @@ pub mod pallet {
 				.try_into()
 				.expect("call arg technical_committee_authorities is bounded; qed");
 
-			// If Technical Committee mainchain membership has changed
 			if technical_committee_mainchain_members_have_changed {
 				TechnicalCommitteeMainchainMembers::<T>::put(
 					&technical_committee_mainchain_members_bound,
