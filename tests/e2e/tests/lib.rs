@@ -1,7 +1,9 @@
 use midnight_node_e2e::api::cardano::CardanoClient;
-use midnight_node_e2e::api::midnight::MidnightClient;
+use midnight_node_e2e::api::midnight::{self, MidnightClient};
 use midnight_node_e2e::config::Settings;
 use midnight_node_e2e::faucet::FaucetManager;
+use midnight_node_ledger_helpers::mn_ledger::dust;
+use midnight_node_metadata::midnight_metadata_0_17_1::timestamp::calls::types::set;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation::events::{
     Deregistration, MappingAdded, Registration,
@@ -33,6 +35,22 @@ async fn global_faucet_manager() -> Arc<FaucetManager> {
 }
 
 // -------- TESTS --------
+
+#[tokio::test]
+async fn debug() {
+    let settings = Settings::default();
+    // let midnight_client = MidnightClient::new(settings.node_client).await;
+    let seed = MidnightClient::new_seed();
+    println!(
+        "Generated Midnight wallet seed: {}",
+        hex::encode(seed.as_bytes())
+    );
+    let dust_hex = MidnightClient::new_dust_hex(seed);
+    println!(
+        "Derived Midnight DUST address: {}",
+        dust_hex
+    );
+}
 
 #[tokio::test]
 async fn register_for_dust_production() {

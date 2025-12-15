@@ -1,8 +1,11 @@
 use crate::config::NodeClientSettings;
+use bip39::{Language, Mnemonic, MnemonicType};
 use blake2::digest::{Update, VariableOutput};
 use blake2::Blake2bVar;
 use hex::ToHex;
-use midnight_node_ledger_helpers::{DefaultDB, DustWallet, WalletSeed, serialize_untagged};
+use midnight_node_ledger_helpers::mn_ledger::dust;
+use midnight_node_ledger_helpers::{serialize_untagged, DefaultDB, DustWallet, IntoWalletAddress, WalletSeed};
+use midnight_node_ledger_helpers::{UnshieldedWallet, WalletAddress};
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation::storage::types::utxo_owners::UtxoOwners;
 use midnight_node_metadata::midnight_metadata_latest::federated_authority_observation::events::{CouncilMembersReset, TechnicalCommitteeMembersReset};
 use midnight_node_metadata::midnight_metadata_latest::runtime_types::midnight_primitives_cnight_observation::ObservedUtxo;
@@ -31,14 +34,59 @@ impl MidnightClient {
     }
 
     pub fn new_seed() -> WalletSeed {
-        let seed_bytes: [u8; 32] = rand::random();
-        println!("Midnight seed: {}", hex::encode(seed_bytes));
-        WalletSeed::from(seed_bytes)
+        let mnemonic: Mnemonic = Mnemonic::new(MnemonicType::Words24, Language::English);
+        println!("New mnemonic: {}", mnemonic);
+        let phrase = mnemonic.phrase().to_string();
+
+        println!(
+            "Generated mnemonic phrase for new Midnight wallet: {}",
+            phrase
+        );
+
+        let mnemonic_seed: WalletSeed = phrase.parse().unwrap();
+
+        println!(
+            "Derived Midnight wallet seed from mnemonic: {}",
+            hex::encode(mnemonic_seed.as_bytes())
+        );
+        let unshielded_wallet = UnshieldedWallet::default(mnemonic_seed);
+        println!(
+            "Derived Midnight unshielded address: {}",
+            unshielded_wallet.address("preview").to_bech32()
+        );
+        // let wallet_address: WalletAddress = unshielded_wallet.user_address.into();
+        // println!("Derived Midnight wallet address: {:?}", wallet_address);
+        // let wallet_seed = WalletSeed::try_from_mnemonic(&phrase);
+        // println!(
+        //     "Midnight wallet seed: {}",
+        //     hex::encode(wallet_seed.as_bytes())
+        // );
+        mnemonic_seed
+        // let seed_bytes: [u8; 32] = rand::random();
+        // println!("Midnight seed: {}", hex::encode(seed_bytes));
+        // WalletSeed::from(seed_bytes)
     }
 
     pub fn new_dust_hex(wallet_seed: WalletSeed) -> String {
         let dust_wallet = DustWallet::<DefaultDB>::default(wallet_seed, None);
         let dust_public = dust_wallet.public_key;
+
+        let dust_address = dust_wallet.address("preview");
+        println!("dust pb key: {:?}", dust_address.to_bech32());
+
+        // let dust_wallet_from_address: DustWallet<DefaultDB> = dust_address.try_into()
+        let dust_wallet_from_address: DustWallet<DefaultDB> =
+            DustWallet::try_from(&dust_address).unwrap();
+        println!(
+            "Re-derived dust pb key from address: {:?}",
+            dust_wallet_from_address.public_key
+        );
+        let dust_bytes2 = serialize_untagged(&dust_wallet_from_address.public_key).unwrap();
+        println!(
+            "RADOO: dust wallet from address hex: {}",
+            dust_bytes2.encode_hex::<String>()
+        );
+
         let mut dust_bytes = serialize_untagged(&dust_public).unwrap();
         if dust_bytes.len() == 32 {
             dust_bytes.push(0);
