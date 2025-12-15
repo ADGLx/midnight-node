@@ -6,7 +6,7 @@ description = "Primitives for federated authority observation"
 license-file.workspace = true
 
 [dependencies]
-hex.workspace = true
+hex = { workspace = true, features = ["serde"] }
 parity-scale-codec.workspace = true
 scale-info.workspace = true
 sp-inherents.workspace = true
