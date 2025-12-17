@@ -614,14 +614,14 @@ planner:
 check-rust-prepare:
     # NOTE: This just uses recipe.json - no src files!
     FROM +prep-no-copy
-    COPY +planner/recipe.json /recipe.json
+    # COPY +planner/recipe.json /recipe.json
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
 
     RUN apt-get update && apt-get install -y jq
 
     # Build dependencies - this is the caching Docker layer!
-    RUN SKIP_WASM_BUILD=1 cargo chef cook --clippy --workspace --all-targets  --features runtime-benchmarks --recipe-path /recipe.json
+    # RUN SKIP_WASM_BUILD=1 cargo chef cook --clippy --workspace --all-targets  --features runtime-benchmarks --recipe-path /recipe.json
 
 check-rust:
     FROM +check-rust-prepare
@@ -712,7 +712,8 @@ test:
 build-prepare:
     # NOTE: This just uses recipe.json - no src files!
     FROM +prep-no-copy
-    COPY +planner/recipe.json /recipe.json
+    # TODO: re-enable when chef is improved.
+    # COPY +planner/recipe.json /recipe.json
     # CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     # CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
 
@@ -723,7 +724,8 @@ build-prepare:
     ENV CXX=clang++
 
     # Build dependencies - this is the caching Docker layer!
-    RUN SKIP_WASM_BUILD=1 cargo chef cook --release --workspace --all-targets --recipe-path /recipe.json
+    # TODO: re-enable when chef is improved.
+    # RUN SKIP_WASM_BUILD=1 cargo chef cook --release --workspace --all-targets --recipe-path /recipe.json
 
 build-upgrader:
     FROM +prep
@@ -876,6 +878,8 @@ node-image:
         $GHCR_REGISTRY/midnight-node:$NODE_DEV_01_TAG
 
     # Re-export build artifacts which contain wasm
+    COPY .envrc /artifacts-$NATIVEARCH/.envrc
+    COPY res/ /artifacts-$NATIVEARCH/res/
     COPY +build-normal/artifacts-$NATIVEARCH /artifacts-$NATIVEARCH
     SAVE ARTIFACT /artifacts-$NATIVEARCH/* AS LOCAL artifacts-$NATIVEARCH/
 
