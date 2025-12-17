@@ -321,15 +321,17 @@ where
 		let hash = at.unwrap_or_else(|| self.client.info().best_hash);
 
 		let api = self.client.runtime_api();
-		let api_version = get_api_version::<C, Block>(&api, hash)
-			.map_err(|_| ErrorObject::owned(INVALID_PARAMS_CODE, "Unable to get API version", None::<()>))?;
+		let api_version = get_api_version::<C, Block>(&api, hash).map_err(|_| {
+			ErrorObject::owned(INVALID_PARAMS_CODE, "Unable to get API version", None::<()>)
+		})?;
 
 		// Only available in API version 6+
 		if api_version < 6 {
 			return Ok(None);
 		}
 
-		api.get_d_parameter(hash)
-			.map_err(|_| ErrorObject::owned(INVALID_PARAMS_CODE, "Unable to get D parameter", None::<()>))
+		api.get_d_parameter(hash).map_err(|_| {
+			ErrorObject::owned(INVALID_PARAMS_CODE, "Unable to get D parameter", None::<()>)
+		})
 	}
 }
