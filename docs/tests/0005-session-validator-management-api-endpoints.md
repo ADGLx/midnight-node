@@ -266,16 +266,65 @@ cargo check -p midnight-node-runtime
 
 ---
 
-## Manual Testing Protocol
+## Manual Verification Procedures
 
-For validation requiring a running node:
+### Code Review Verification (PR382-TC-0005-09)
+
+**Purpose:** One-shot verification during PR code review to confirm API version is correctly set.
+
+**Reviewer Checklist:**
+
+1. **Open file:** `pallets/midnight/src/runtime_api.rs`
+
+2. **Verify trait-level API version:**
+   - Locate the `#[api_version(N)]` attribute on the `MidnightRuntimeApi` trait
+   - Confirm it is set to `6` (incremented from the previous version `5`)
+
+3. **Verify method annotation:**
+   - Locate the `get_d_parameter` method declaration
+   - Confirm it has the `#[api_version(6)]` annotation (indicating this method was added in version 6)
+
+4. **Document verification:**
+   - Add a comment to the PR review confirming: "TC-0005-09: API version verified as 6 ✅"
+
+**When to Perform:** Once per PR review, before approval.
+
+**Verification Record:** Document completion in PR review comments.
+
+---
+
+### Running Node Verification (PR382-TC-0005-07, PR382-TC-0005-08)
+
+**Purpose:** Manual integration testing when automated integration tests are not available.
 
 | Step | Action | Expected Outcome |
 |------|--------|------------------|
-| 1 | Start dev node with `--dev` flag | Node running on ws://127.0.0.1:9933 |
-| 2 | Call RPC: `{"jsonrpc":"2.0","method":"midnight_getDParameter","params":[],"id":1}` | Returns `{"result":null}` |
-| 3 | Verify API version via `midnight_apiVersions` | Returns array including version info |
-| 4 | Check node logs | No errors related to D Parameter API |
+| 1 | Build the node: `cargo build --release` | Build succeeds without errors |
+| 2 | Start dev node: `./target/release/midnight-node --dev` | Node running on ws://127.0.0.1:9933 |
+| 3 | Wait for block production | Logs show "Prepared block for proposing" |
+| 4 | Query D Parameter (see RPC command below) | Returns `{"jsonrpc":"2.0","result":null,"id":1}` |
+| 5 | Check node logs | No errors related to D Parameter API |
+| 6 | Stop node (Ctrl+C) | Clean shutdown |
+
+**RPC Test Command:**
+
+```bash
+# Using curl
+curl -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","method":"midnight_getDParameter","params":[],"id":1}' \
+  http://127.0.0.1:9944
+
+# Using websocat (if available)
+echo '{"jsonrpc":"2.0","method":"midnight_getDParameter","params":[],"id":1}' | \
+  websocat ws://127.0.0.1:9944
+```
+
+**Expected Response:**
+```json
+{"jsonrpc":"2.0","result":null,"id":1}
+```
+
+**Note:** `result: null` is correct - the MockDParameterProvider returns `None`, indicating the D parameter from inherent data (main chain) should be used.
 
 ---
 
