@@ -212,7 +212,8 @@ This test plan validates the D Parameter API endpoint implemented in ADR-0005. T
 
 **Steps:**
 1. Check `pallets/midnight/src/runtime_api.rs`
-2. Verify `#[api_version(6)]` annotation
+2. Verify `#[api_version(6)]` annotation on trait
+3. Verify `#[api_version(6)]` annotation on `get_d_parameter` method
 
 **Expected Result:**
 - API version is 6
@@ -220,7 +221,9 @@ This test plan validates the D Parameter API endpoint implemented in ADR-0005. T
 
 **Success Criteria:** ✅ API versioning correct for backward compatibility
 
-**Test Location:** Code review / `pallets/midnight/src/runtime_api.rs`
+**Test Location:** One-shot manual verification during code review
+
+**Note:** This is a code review verification, not an automated test. Verified once during PR review.
 
 ---
 
@@ -236,7 +239,7 @@ This test plan validates the D Parameter API endpoint implemented in ADR-0005. T
 | PR382-TC-0005-06 | ✅ | ➖ | ➖ | ➖ | `fixed_provider_registered_only` |
 | PR382-TC-0005-07 | ➖ | ⏭️ | ➖ | ✅ | Requires running node |
 | PR382-TC-0005-08 | ➖ | ⏭️ | ➖ | ✅ | Requires running node |
-| PR382-TC-0005-09 | ✅ | ➖ | ➖ | ➖ | Code review verification |
+| PR382-TC-0005-09 | ➖ | ➖ | ➖ | ✅ | One-shot code review verification |
 
 Legend: ⬜ Not Started | 🔄 In Progress | ✅ Pass | ❌ Fail | ⏭️ Skipped | ➖ N/A
 
