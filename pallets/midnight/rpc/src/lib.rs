@@ -47,10 +47,6 @@ pub trait MidnightApi<BlockHash> {
 	#[method(name = "midnight_ledgerVersion")]
 	fn get_ledger_version(&self, at: Option<BlockHash>) -> Result<String, BlockRpcError>;
 
-	/// Returns the D Parameter from on-chain governance, if available.
-	/// Returns `None` if D Parameter is sourced from inherent data.
-	/// Returns `Some((num_permissioned, num_registered))` if sourced from
-	/// `pallet-system-parameters`.
 	#[method(name = "midnight_getDParameter")]
 	fn get_d_parameter(&self, at: Option<BlockHash>) -> RpcResult<Option<(u16, u16)>>;
 }
