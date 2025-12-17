@@ -137,7 +137,8 @@ jobs:
             --draft \
             --notes-file RELEASE_NOTES.md
 
-          gh release upload "$RELEASE_TITLE" artifacts-amd64/* --clobber
+          zip -r midnight-node-amd64.zip ./artifacts-amd64
+          gh release upload "$RELEASE_TITLE" ./midnight-node-amd64.zip --clobber
 
       - name: Archive release notes
         uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4 # v5.0.0
@@ -195,6 +196,25 @@ jobs:
         with:
           name: midnight-node-arm64
           path: artifacts-arm64/
+      - name: Update Draft Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
+        run: |
+          RELEASE_TITLE="[Unreleased]"
+
+          if [ "$BRANCH" != "main" ]; then
+            echo "Branch \"$BRANCH\" is not \"main\", skipping release artifact upload..."
+            exit 0
+          fi
+
+          if gh release view "$RELEASE_TITLE" --json isDraft | grep false; then
+            echo "Release has already been published, skipping draft..."
+            exit 0
+          fi
+
+          zip -r midnight-node-arm64.zip ./artifacts-arm64
+          gh release upload "$RELEASE_TITLE" ./midnight-node-arm64.zip --clobber
 
   build-indexer-images:
     name: Build Indexer Images
