@@ -237,9 +237,9 @@ This test plan validates the D Parameter API endpoint implemented in ADR-0005. T
 | PR382-TC-0005-04 | ✅ | ➖ | ➖ | ➖ | `fixed_provider_with_max_values` |
 | PR382-TC-0005-05 | ✅ | ➖ | ➖ | ➖ | `fixed_provider_permissioned_only` |
 | PR382-TC-0005-06 | ✅ | ➖ | ➖ | ➖ | `fixed_provider_registered_only` |
-| PR382-TC-0005-07 | ➖ | ⏭️ | ➖ | ✅ | Requires running node |
-| PR382-TC-0005-08 | ➖ | ⏭️ | ➖ | ✅ | Requires running node |
-| PR382-TC-0005-09 | ➖ | ➖ | ➖ | ✅ | One-shot code review verification |
+| PR382-TC-0005-07 | ➖ | ⏭️ | ➖ | ⬜ | Requires running node |
+| PR382-TC-0005-08 | ➖ | ⏭️ | ➖ | ⬜ | Requires running node |
+| PR382-TC-0005-09 | ➖ | ➖ | ➖ | ⬜ | One-shot code review verification |
 
 Legend: ⬜ Not Started | 🔄 In Progress | ✅ Pass | ❌ Fail | ⏭️ Skipped | ➖ N/A
 
