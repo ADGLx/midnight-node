@@ -86,4 +86,36 @@ mod tests {
 		assert_eq!(d_param.num_permissioned_candidates, 3);
 		assert_eq!(d_param.num_registered_candidates, 2);
 	}
+
+	#[test]
+	fn fixed_provider_with_zero_values() {
+		type Provider = FixedDParameterProvider<0, 0>;
+		let d_param = Provider::get_d_parameter().expect("Should return Some");
+		assert_eq!(d_param.num_permissioned_candidates, 0);
+		assert_eq!(d_param.num_registered_candidates, 0);
+	}
+
+	#[test]
+	fn fixed_provider_with_max_values() {
+		type Provider = FixedDParameterProvider<{ u16::MAX }, { u16::MAX }>;
+		let d_param = Provider::get_d_parameter().expect("Should return Some");
+		assert_eq!(d_param.num_permissioned_candidates, u16::MAX);
+		assert_eq!(d_param.num_registered_candidates, u16::MAX);
+	}
+
+	#[test]
+	fn fixed_provider_permissioned_only() {
+		type Provider = FixedDParameterProvider<10, 0>;
+		let d_param = Provider::get_d_parameter().expect("Should return Some");
+		assert_eq!(d_param.num_permissioned_candidates, 10);
+		assert_eq!(d_param.num_registered_candidates, 0);
+	}
+
+	#[test]
+	fn fixed_provider_registered_only() {
+		type Provider = FixedDParameterProvider<0, 5>;
+		let d_param = Provider::get_d_parameter().expect("Should return Some");
+		assert_eq!(d_param.num_permissioned_candidates, 0);
+		assert_eq!(d_param.num_registered_candidates, 5);
+	}
 }
