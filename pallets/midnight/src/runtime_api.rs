@@ -18,7 +18,7 @@ use scale_info::prelude::string::String;
 use sp_std::vec::Vec;
 
 sp_api::decl_runtime_apis! {
-	#[api_version(5)]
+	#[api_version(6)]
 	pub trait MidnightRuntimeApi {
 		#[changed_in(2)]
 		fn get_contract_state(contract_address: Vec<u8>) -> Vec<u8>;
@@ -39,5 +39,12 @@ sp_api::decl_runtime_apis! {
 		fn get_ledger_parameters() -> Result<Vec<u8>, LedgerApiError>;
 		fn get_transaction_cost(transaction_bytes: Vec<u8>) -> Result<(StorageCost, GasCost), LedgerApiError>;
 		fn get_zswap_state_root() -> Result<Vec<u8>, LedgerApiError>;
+
+		/// Returns the D Parameter from on-chain governance, if available.
+		/// Returns `None` if D Parameter is sourced from inherent data.
+		/// Returns `Some((num_permissioned, num_registered))` if sourced from
+		/// `pallet-system-parameters`.
+		#[api_version(6)]
+		fn get_d_parameter() -> Option<(u16, u16)>;
 	}
 }

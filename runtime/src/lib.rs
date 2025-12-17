@@ -120,6 +120,7 @@ pub mod beefy;
 pub mod check_call_filter;
 mod constants;
 mod currency;
+mod d_parameter;
 mod migrations;
 mod session_manager;
 
@@ -1114,6 +1115,11 @@ impl_runtime_apis! {
 		}
 		fn get_zswap_state_root() -> Result<Vec<u8>, LedgerApiError> {
 			Midnight::get_zswap_state_root()
+		}
+		fn get_d_parameter() -> Option<(u16, u16)> {
+			use d_parameter::{DParameterProvider, MockDParameterProvider};
+			MockDParameterProvider::get_d_parameter()
+				.map(|d| (d.num_permissioned_candidates, d.num_registered_candidates))
 		}
 	}
 

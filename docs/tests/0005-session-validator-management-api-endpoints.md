@@ -8,7 +8,7 @@
 
 ## Overview
 
-This test plan covers the new Runtime API and RPC endpoints for session validator management in `pallet-midnight`.
+This test plan covers the new Runtime API and RPC endpoint for querying D Parameter information from `pallet-system-parameters` (when available).
 
 ---
 
@@ -16,63 +16,82 @@ This test plan covers the new Runtime API and RPC endpoints for session validato
 
 | Test Case | Description | Unit | Integration | E2E |
 |-----------|-------------|:----:|:-----------:|:---:|
-| PR382-TC-0005-01 | `get_d_parameter_override()` returns None when no override set | | | |
-| PR382-TC-0005-02 | `get_d_parameter_override()` returns override when set | | | |
-| PR382-TC-0005-03 | `get_effective_d_parameter()` returns inherent D param when no override | | | |
-| PR382-TC-0005-04 | `get_effective_d_parameter()` returns overridden D param when override set | | | |
-| PR382-TC-0005-05 | RPC endpoint `midnight_getDParameterOverride` works correctly | | | |
-| PR382-TC-0005-06 | RPC endpoint `midnight_getEffectiveDParameter` works correctly | | | |
-| PR382-TC-0005-07 | API version incremented to v6 | | | |
+| PR382-TC-0005-01 | `MockDParameterProvider::get_d_parameter()` returns `None` | ✓ | | |
+| PR382-TC-0005-02 | `FixedDParameterProvider<P,R>::get_d_parameter()` returns `Some((P,R))` | ✓ | | |
+| PR382-TC-0005-03 | Runtime API `get_d_parameter()` returns `None` with mock provider | | | |
+| PR382-TC-0005-04 | RPC `midnight_getDParameter` returns correct response | | | |
+| PR382-TC-0005-05 | API version incremented to v6 | | | |
 
 ---
 
 ## Test Details
 
-### PR382-TC-0005-01: No override returns None
+### PR382-TC-0005-01: MockDParameterProvider returns None
 
-**Given:** No D parameter override has been set
-**When:** `get_d_parameter_override()` is called
+**Given:** Using `MockDParameterProvider`
+**When:** `get_d_parameter()` is called
+**Then:** Returns `None` (use inherent data)
+
+**Status:** ✅ Implemented in `runtime/src/d_parameter.rs`
+
+### PR382-TC-0005-02: FixedDParameterProvider returns configured values
+
+**Given:** Using `FixedDParameterProvider<3, 2>`
+**When:** `get_d_parameter()` is called
+**Then:** Returns `Some(DParameter { num_permissioned_candidates: 3, num_registered_candidates: 2 })`
+
+**Status:** ✅ Implemented in `runtime/src/d_parameter.rs`
+
+### PR382-TC-0005-03: Runtime API with mock provider
+
+**Given:** Runtime using `MockDParameterProvider`
+**When:** `MidnightRuntimeApi::get_d_parameter()` is called
 **Then:** Returns `None`
 
-### PR382-TC-0005-02: Override returns value
+**Status:** Implementation complete, integration test pending
 
-**Given:** D parameter override is set to (P, R)
-**When:** `get_d_parameter_override()` is called
-**Then:** Returns `Some((P, R))`
-
-### PR382-TC-0005-03: Effective D param without override
-
-**Given:** No D parameter override is set
-**When:** `get_effective_d_parameter()` is called
-**Then:** Returns the D parameter from inherent data
-
-### PR382-TC-0005-04: Effective D param with override
-
-**Given:** D parameter override is set to (P, R)
-**When:** `get_effective_d_parameter()` is called
-**Then:** Returns the override value (P, R)
-
-### PR382-TC-0005-05: RPC getDParameterOverride
+### PR382-TC-0005-04: RPC endpoint returns correct response
 
 **Given:** RPC server is running
-**When:** `midnight_getDParameterOverride` RPC is called
-**Then:** Returns correct override status
+**When:** `midnight_getDParameter` RPC is called
+**Then:** Returns `null` (JSON representation of `None`)
 
-### PR382-TC-0005-06: RPC getEffectiveDParameter
+**Status:** Implementation complete, integration test pending
 
-**Given:** RPC server is running
-**When:** `midnight_getEffectiveDParameter` RPC is called
-**Then:** Returns effective D parameter
-
-### PR382-TC-0005-07: API version check
+### PR382-TC-0005-05: API version check
 
 **Given:** Runtime is built
 **When:** `MidnightRuntimeApi` version is queried
 **Then:** Returns version 6
 
+**Status:** Implementation complete
+
+---
+
+## Implementation Summary
+
+### Files Changed
+
+- `pallets/midnight/src/runtime_api.rs` - Added `get_d_parameter()` API method, version bump to 6
+- `pallets/midnight/rpc/src/lib.rs` - Added `midnight_getDParameter` RPC endpoint
+- `runtime/src/d_parameter.rs` - New module with `DParameterProvider` trait and implementations
+- `runtime/src/lib.rs` - Added module declaration and Runtime API implementation
+
+### Test Commands
+
+```bash
+# Run d_parameter unit tests
+cargo test -p midnight-node-runtime d_parameter
+
+# Check builds
+cargo check -p pallet-midnight-rpc
+cargo check -p midnight-node-runtime
+```
+
 ---
 
 ## Notes
 
-- Test plan to be updated as implementation progresses
-
+- Currently uses `MockDParameterProvider` which returns `None` (use inherent data)
+- Will be updated to use `pallet-system-parameters` when available
+- Blocked by PM-20994 for the `DParameterProvider` trait infrastructure

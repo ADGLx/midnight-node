@@ -46,6 +46,13 @@ pub trait MidnightApi<BlockHash> {
 
 	#[method(name = "midnight_ledgerVersion")]
 	fn get_ledger_version(&self, at: Option<BlockHash>) -> Result<String, BlockRpcError>;
+
+	/// Returns the D Parameter from on-chain governance, if available.
+	/// Returns `None` if D Parameter is sourced from inherent data.
+	/// Returns `Some((num_permissioned, num_registered))` if sourced from
+	/// `pallet-system-parameters`.
+	#[method(name = "midnight_getDParameter")]
+	fn get_d_parameter(&self, at: Option<BlockHash>) -> RpcResult<Option<(u16, u16)>>;
 }
 
 #[derive(Debug)]
@@ -309,5 +316,24 @@ where
 			.map_err(|_e| BlockRpcError::BlockNotFound)?;
 
 		Ok(String::from_utf8_lossy(&ledger_version).to_string())
+	}
+
+	fn get_d_parameter(
+		&self,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<Option<(u16, u16)>> {
+		let hash = at.unwrap_or_else(|| self.client.info().best_hash);
+
+		let api = self.client.runtime_api();
+		let api_version = get_api_version::<C, Block>(&api, hash)
+			.map_err(|_| ErrorObject::owned(INVALID_PARAMS_CODE, "Unable to get API version", None::<()>))?;
+
+		// Only available in API version 6+
+		if api_version < 6 {
+			return Ok(None);
+		}
+
+		api.get_d_parameter(hash)
+			.map_err(|_| ErrorObject::owned(INVALID_PARAMS_CODE, "Unable to get D parameter", None::<()>))
 	}
 }
