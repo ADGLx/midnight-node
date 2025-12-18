@@ -454,7 +454,7 @@ contract-precompile-image:
     BUILD +contract-precompile-image-single-platform
 
 contract-precompile-image-single-platform:
-    LET IMAGE_TAG="v0.24.0"
+    LET IMAGE_TAG="v0.27.0-rc.1"
     FROM ghcr.io/midnight-ntwrk/compactc:$IMAGE_TAG
     COPY ledger/test-data/simple-merkle-tree.compact simple-merkle-tree.compact
     RUN /bin/ls /nix/store && /nix/store/vbnn0vkzms8yiw88lad5k1axzngssd4f-compactc/bin/compactc simple-merkle-tree.compact simple-merkle-tree
