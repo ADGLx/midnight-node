@@ -2,8 +2,7 @@
 
 #### Status: Proposed
 #### Date: 2025-12-17
-#### Deciders: TBD
-#### Jira: [PM-20993](https://shielded.atlassian.net/browse/PM-20993)
+#### Deciders: m2ux
 
 ## Context and Problem Statement
 
