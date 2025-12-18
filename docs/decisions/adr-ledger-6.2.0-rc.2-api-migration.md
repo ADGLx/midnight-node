@@ -1,4 +1,4 @@
-# Midnight-Ledger 6.2.0-rc.2 API Migration
+# ADR: Midnight-Ledger 6.2.0-rc.2 API Migration
 
 #### Status: Accepted
 #### Date: 2025-12-09
