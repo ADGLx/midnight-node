@@ -30,6 +30,13 @@ The provider may return on-chain values or signal that inherent data should be u
 3. **Consistency** - Follow established patterns in Midnight codebase
 4. **Minimal effort** - Minimize new code and maintenance burden
 
+## Decision Drivers
+
+1. **External visibility** - External tools need to query D Parameter source and values
+2. **Future readiness** - Prepare infrastructure for `pallet-system-parameters` integration
+3. **Consistency** - Follow established patterns in Midnight codebase
+4. **Minimal effort** - Minimize new code and maintenance burden
+
 ## Considered Options
 
 1. **Add new endpoints to `MidnightRuntimeApi`** - Extend existing Midnight-owned API
