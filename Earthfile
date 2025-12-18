@@ -454,7 +454,7 @@ contract-precompile-image:
     BUILD +contract-precompile-image-single-platform
 
 contract-precompile-image-single-platform:
-    LET IMAGE_TAG="v0.24.0"
+    LET IMAGE_TAG="v0.27.107-alpha.0"
     FROM ghcr.io/midnight-ntwrk/compactc:$IMAGE_TAG
     COPY ledger/test-data/simple-merkle-tree.compact simple-merkle-tree.compact
     RUN /bin/ls /nix/store && /nix/store/vbnn0vkzms8yiw88lad5k1axzngssd4f-compactc/bin/compactc simple-merkle-tree.compact simple-merkle-tree
@@ -476,7 +476,7 @@ contract-precompile-image-single-platform:
 
 use-contract-precompile-image:
 #    FROM +contract-precompile-image
-    FROM ghcr.io/midnight-ntwrk/midnight-test-contract-precompiles:v0.26.2
+    FROM ghcr.io/midnight-ntwrk/midnight-test-contract-precompiles:v0.22.0
     SAVE ARTIFACT /simple-merkle-tree AS LOCAL target/contracts/simple-merkle-tree
 
 # a common setup of the build environment (not designed to be called directly)
@@ -543,7 +543,7 @@ node-ci-image-single-platform:
 prep-no-copy:
     ARG NATIVEARCH
     # FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    FROM ghcr.io/midnight-ntwrk/midnight-node-ci:1.90-$NATIVEARCH
+    FROM midnightntwrk/midnight-node-ci:1.90-$NATIVEARCH
 
     # Used to add repository for nodejs
     RUN apt-get update -qq \
@@ -860,8 +860,9 @@ node-image:
     COPY +build-normal/artifacts-$NATIVEARCH/midnight-node /
     COPY +build-normal/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
 
-    # TODO if git source version is picked up by substrate then we can just split by space and take second.
-    RUN ./midnight-node --version | awk '{print $2}' | awk -F- '{print $1}' | head -1 > /version
+    # Extract version from Cargo.toml to preserve semver pre-release suffix (e.g., 0.19.0-rc.1)
+    COPY node/Cargo.toml /node/
+    RUN cat /node/Cargo.toml | grep -m 1 version | sed 's/version *= *"\([^\"]*\)".*/\1/' > /version
 
     ENV GHCR_REGISTRY=ghcr.io/midnight-ntwrk
     ENV IMAGE_TAG="$(cat /version)-$EARTHLY_GIT_SHORT_HASH-$NATIVEARCH"
@@ -893,8 +894,9 @@ node-benchmarks-image:
 
     COPY +build-benchmarks/artifacts-$NATIVEARCH/midnight-node-benchmarks /midnight-node
 
-    # TODO if git source version is picked up by substrate then we can just split by space and take second.
-    RUN ./midnight-node --version | awk '{print $2}' | awk -F- '{print $1}' | head -1 > /version
+    # Extract version from Cargo.toml to preserve semver pre-release suffix (e.g., 0.19.0-rc.1)
+    COPY node/Cargo.toml /node/
+    RUN cat /node/Cargo.toml | grep -m 1 version | sed 's/version *= *"\([^\"]*\)".*/\1/' > /version
 
     ENV GHCR_REGISTRY=ghcr.io/midnight-ntwrk
     ENV IMAGE_TAG="$(cat /version)-$EARTHLY_GIT_SHORT_HASH-$NATIVEARCH"
