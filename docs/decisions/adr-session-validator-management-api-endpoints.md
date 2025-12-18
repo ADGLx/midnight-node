@@ -1,4 +1,4 @@
-# Session Validator Management API Endpoints
+# ADR: Session Validator Management API Endpoints
 
 #### Status: Proposed
 #### Date: 2025-12-17

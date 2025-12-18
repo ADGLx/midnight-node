@@ -1,6 +1,6 @@
 # Test Plan: D Parameter API Endpoint
 
-**ADR:** [0006-session-validator-management-api-endpoints](../decisions/0006-session-validator-management-api-endpoints.md)
+**ADR:** [adr-session-validator-management-api-endpoints](../decisions/adr-session-validator-management-api-endpoints.md)
 **Ticket:** [PM-20993](https://shielded.atlassian.net/browse/PM-20993)
 **PR:** [#382](https://github.com/midnightntwrk/midnight-node/pull/382)
 
@@ -8,7 +8,7 @@
 
 ## Overview
 
-This test plan validates the D Parameter API endpoint implemented in ADR-0006. The feature adds a Runtime API and RPC endpoint to expose D Parameter visibility for external tools and integrators.
+This test plan validates the D Parameter API endpoint implemented in the ADR. The feature adds a Runtime API and RPC endpoint to expose D Parameter visibility for external tools and integrators.
 
 Key changes validated:
 1. [`DParameterProvider`](../../runtime/src/d_parameter.rs#L34) trait correctly abstracts D Parameter sourcing
