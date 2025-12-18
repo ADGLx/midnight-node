@@ -577,16 +577,14 @@ parameter_types! {
 	pub const MaxAuthorities: u32 = 10_000;
 }
 
-/// If an override to the D-parameter is set onchain, select the next authorities according to the overridden d-parameter. Otherwise, perform the normal authority selection
+/// Select the next authorities using the D-parameter from the system-parameters pallet
 fn select_authorities_optionally_overriding(
 	mut input: AuthoritySelectionInputs,
 	sidechain_epoch: ScEpochNumber,
 ) -> Option<BoundedVec<CommitteeMember<CrossChainPublic, SessionKeys>, MaxAuthorities>> {
-	let d_parameter_override = pallet_midnight::pallet::DParameterOverride::<Runtime>::get();
-	if let Some(d_parameter_override) = d_parameter_override {
-		input.d_parameter.num_permissioned_candidates = d_parameter_override.0;
-		input.d_parameter.num_registered_candidates = d_parameter_override.1;
-	}
+	let d_parameter = SystemParameters::get_d_parameter();
+	input.d_parameter.num_permissioned_candidates = d_parameter.num_permissioned_candidates;
+	input.d_parameter.num_registered_candidates = d_parameter.num_registered_candidates;
 	select_authorities(Sidechain::genesis_utxo(), input, sidechain_epoch)
 }
 
@@ -853,6 +851,11 @@ impl pallet_federated_authority_observation::Config for Runtime {
 	type WeightInfo = ();
 }
 
+impl pallet_system_parameters::Config for Runtime {
+	type SystemOrigin = EnsureRoot<AccountId>;
+	type WeightInfo = ();
+}
+
 pub struct MidnightTokenTransferHandler;
 
 parameter_types! {
@@ -1000,6 +1003,10 @@ mod runtime {
 	#[runtime::pallet_index(45)]
 	pub type FederatedAuthorityObservation =
 		pallet_federated_authority_observation::Pallet<Runtime>;
+
+	// System Parameters
+	#[runtime::pallet_index(50)]
+	pub type SystemParameters = pallet_system_parameters::Pallet<Runtime>;
 }
 
 /// The address format for describing accounts.
@@ -1054,6 +1061,7 @@ mod benches {
 		[pallet_midnight, Midnight]
 		[pallet_federated_authority, FederatedAuthority]
 		[pallet_federated_authority_observation, FederatedAuthorityObservation]
+		[pallet_system_parameters, SystemParameters]
 	);
 }
 
@@ -1563,6 +1571,21 @@ impl_runtime_apis! {
 
 		fn get_technical_committee_policy_id() -> PolicyId {
 			pallet_federated_authority_observation::MainChainTechnicalCommitteePolicyId::<Runtime>::get()
+		}
+	}
+
+	impl pallet_system_parameters::SystemParametersApi<Block, Hash> for Runtime {
+		fn get_terms_and_conditions() -> Option<pallet_system_parameters::TermsAndConditionsResponse<Hash>> {
+			SystemParameters::get_terms_and_conditions().map(|tc| {
+				pallet_system_parameters::TermsAndConditionsResponse {
+					hash: tc.hash,
+					url: tc.url.to_vec(),
+				}
+			})
+		}
+
+		fn get_d_parameter() -> sidechain_domain::DParameter {
+			SystemParameters::get_d_parameter()
 		}
 	}
 }
