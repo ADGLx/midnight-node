@@ -7,15 +7,11 @@
 
 ## Context and Problem Statement
 
-### Problem
-
 After PM-20994 completes, the D Parameter is sourced from a configurable provider rather than directly from Cardano D Parameter contracts. During the transition period, the provider returns inherent data. Eventually it will be replaced by `pallet-system-parameters`.
 
 External tools and integrators have no visibility into:
 - Whether the D Parameter is governed on-chain or from inherent data
 - What the on-chain D Parameter values are (when sourced from `pallet-system-parameters`)
-
-### Technical Context
 
 PM-20994 requires that the D Parameter be abstracted behind a provider interface rather than read directly from Cardano contracts. This enables:
 - A mock provider during the transition period (returns inherent data)
@@ -30,32 +26,11 @@ The provider may return on-chain values or signal that inherent data should be u
 3. **Consistency** - Follow established patterns in Midnight codebase
 4. **Minimal effort** - Minimize new code and maintenance burden
 
-## Decision Drivers
-
-1. **External visibility** - External tools need to query D Parameter source and values
-2. **Future readiness** - Prepare infrastructure for `pallet-system-parameters` integration
-3. **Consistency** - Follow established patterns in Midnight codebase
-4. **Minimal effort** - Minimize new code and maintenance burden
-
 ## Considered Options
 
-1. **Add new endpoints to `MidnightRuntimeApi`** - Extend existing Midnight-owned API
-2. **Wait for `pallet-system-parameters`** - Defer until the pallet is ready
-3. **Do nothing** - Document the limitation
-
-## Decision Outcome
-
-**Chosen option: "Add new endpoints to `MidnightRuntimeApi`"** because:
-
-- Provides immediate visibility into D Parameter sourcing
-- Follows existing patterns in the codebase
-- `MidnightRuntimeApi` already exists and is well-versioned (v5)
-- Prepares infrastructure for `pallet-system-parameters` integration
-- Minimal new code, maximum reuse
-
-## Consequences of the Options
-
 ### Option 1: Add new endpoints to `MidnightRuntimeApi` (Selected)
+
+Extend the existing Midnight-owned Runtime API to expose D Parameter information.
 
 - ✅ Follows existing patterns and architecture
 - ✅ Reuses existing RPC infrastructure
@@ -65,18 +40,57 @@ The provider may return on-chain values or signal that inherent data should be u
 
 ### Option 2: Wait for `pallet-system-parameters`
 
+Defer API work until the pallet is ready.
+
 - ✅ No interim implementation needed
 - ❌ Delays tooling integration
 - ❌ No visibility during transition period
 
 ### Option 3: Do nothing
 
+Document the limitation and leave D Parameter opaque to external tools.
+
 - ✅ No development effort
 - ❌ D Parameter sourcing is opaque to external tools
 - ❌ Technical debt
+
+## Decision
+
+Implement **Option 1: Add new endpoints to `MidnightRuntimeApi`** because it provides immediate visibility into D Parameter sourcing, follows existing patterns in the codebase, and prepares infrastructure for `pallet-system-parameters` integration with minimal new code.
+
+Key constraints:
+- `MidnightRuntimeApi` already exists and is well-versioned (v5)
+- No breaking changes to existing APIs
+
+## Consequences
+
+### Positive
+
+- **Immediate visibility**: External tools can query D Parameter source and values
+- **Pattern consistency**: Follows existing RPC infrastructure patterns
+- **Future ready**: Infrastructure prepared for `pallet-system-parameters` integration
+
+### Negative
+
+- **Placeholder response**: Currently returns `None` until real pallet is integrated
+
+### Neutral
+
+- API version increment required when new endpoints are added
+
+## Confirmation
+
+The decision will be validated through:
+
+1. RPC endpoint returns correct response format
+2. No regression in existing `MidnightRuntimeApi` functionality
+3. Documentation updated for new endpoints
 
 ## Notes
 
 - **Blocked by:** PM-20994 (Aiken Permissioned Candidates / D Parameter Migration)
 - **Future integration:** `pallet-system-parameters` (when available)
-- No breaking changes to existing APIs
+
+## References
+
+- ADR-0004: Aiken Permissioned Candidates & D Parameter Migration
