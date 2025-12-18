@@ -62,22 +62,6 @@ Key constraints:
 - `MidnightRuntimeApi` already exists and is well-versioned (v5)
 - No breaking changes to existing APIs
 
-## Consequences
-
-### Positive
-
-- **Immediate visibility**: External tools can query D Parameter source and values
-- **Pattern consistency**: Follows existing RPC infrastructure patterns
-- **Future ready**: Infrastructure prepared for `pallet-system-parameters` integration
-
-### Negative
-
-- **Placeholder response**: Currently returns `None` until real pallet is integrated
-
-### Neutral
-
-- API version increment required when new endpoints are added
-
 ## Confirmation
 
 The decision will be validated through:
