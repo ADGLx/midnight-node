@@ -172,6 +172,7 @@ pub mod pallet {
 	#[derive(Debug, Clone, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
 	pub struct TxAppliedDetails {
 		pub tx_hash: LedgerTypes::Hash,
+		pub tx_cost: u128,
 	}
 
 	#[derive(Debug, Clone, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo)]
@@ -403,9 +404,15 @@ pub mod pallet {
 			}
 
 			if result.all_applied {
-				Self::deposit_event(Event::TxApplied(TxAppliedDetails { tx_hash }));
+				Self::deposit_event(Event::TxApplied(TxAppliedDetails {
+					tx_hash,
+					tx_cost: result.fees.0 + result.fees.1 as u128,
+				}));
 			} else {
-				Self::deposit_event(Event::TxPartialSuccess(TxAppliedDetails { tx_hash }));
+				Self::deposit_event(Event::TxPartialSuccess(TxAppliedDetails {
+					tx_hash,
+					tx_cost: result.fees.0 + result.fees.1 as u128,
+				}));
 			}
 
 			Ok(())

@@ -191,6 +191,7 @@ where
 		let tx_hash = tx.hash();
 		let ledger = Self::get_ledger(&api, state_key)?;
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
+		let fees = Self::get_transaction_cost(state_key, tx_serialized, &block_context)?;
 
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
 		let (ledger, applied_stage) = Ledger::apply_transaction(ledger, &api, &tx, &tx_ctx)?;
@@ -218,6 +219,7 @@ where
 			state_root: api.tagged_serialize(&ledger.hash())?,
 			tx_hash,
 			all_applied,
+			fees,
 			call_addresses: vec![],
 			deploy_addresses: vec![],
 			maintain_addresses: vec![],
