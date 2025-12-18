@@ -93,4 +93,4 @@ The decision will be validated through:
 
 ## References
 
-- ADR-0004: Aiken Permissioned Candidates & D Parameter Migration
+- [ADR-0004: Aiken Permissioned Candidates & D Parameter Migration](0004-aiken-permissioned-candidates-d-parameter-migration.md)
