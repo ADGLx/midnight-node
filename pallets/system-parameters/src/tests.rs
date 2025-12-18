@@ -13,7 +13,7 @@
 
 //! Tests for system-parameters pallet
 
-use crate::{Error, Event, mock::*, pallet::*};
+use crate::{Error, Event, mock::*};
 use frame_support::{assert_noop, assert_ok};
 use sidechain_domain::DParameter;
 use sp_core::H256;
