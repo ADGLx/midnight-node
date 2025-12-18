@@ -7251,6 +7251,7 @@ dependencies = [
  "pallet-session-validator-management-rpc",
  "pallet-sidechain-rpc",
  "pallet-system-parameters",
+ "pallet-system-parameters-rpc",
  "parity-scale-codec",
  "partner-chains-cli",
  "partner-chains-db-sync-data-sources",
@@ -9963,6 +9964,22 @@ dependencies = [
  "sp-io",
  "sp-runtime",
  "sp-std",
+]
+
+[[package]]
+name = "pallet-system-parameters-rpc"
+version = "0.1.0"
+dependencies = [
+ "hex",
+ "jsonrpsee",
+ "pallet-system-parameters",
+ "sc-client-api",
+ "serde",
+ "sidechain-domain",
+ "sp-api",
+ "sp-blockchain",
+ "sp-core",
+ "sp-runtime",
 ]
 
 [[package]]
