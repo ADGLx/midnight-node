@@ -77,4 +77,4 @@ The decision will be validated through:
 
 ## References
 
-- [ADR-0004: Aiken Permissioned Candidates & D Parameter Migration](0004-aiken-permissioned-candidates-d-parameter-migration.md)
+- [ADR-0005: Aiken Permissioned Candidates & D Parameter Migration](https://github.com/midnightntwrk/midnight-node/blob/feat/aiken-permissioned-candidates-migration/docs/decisions/0005-aiken-permissioned-candidates-d-parameter-migration.md) (PR #378)
