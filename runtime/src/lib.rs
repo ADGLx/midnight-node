@@ -1593,7 +1593,7 @@ impl_runtime_apis! {
 #[cfg(test)]
 mod tests {
 	use crate::mock::*;
-	use crate::{Midnight, select_authorities_optionally_overriding};
+	use crate::{SystemParameters, select_authorities_optionally_overriding};
 	use authority_selection_inherents::{AuthoritySelectionInputs, RegisterValidatorSignedMessage};
 	use frame_support::{
 		assert_ok,
@@ -1757,6 +1757,9 @@ mod tests {
 			let d_parameter =
 				DParameter { num_permissioned_candidates: 1, num_registered_candidates: 0 };
 
+			// Set initial D-parameter in SystemParameters pallet
+			assert_ok!(SystemParameters::update_d_parameter(RawOrigin::Root.into(), 1, 0));
+
 			let authority_selection_inputs = create_authority_selection_inputs(
 				&permissioned_validators,
 				&registered_validators,
@@ -1770,8 +1773,8 @@ mod tests {
 
 			assert_eq!(initially_selected_authorities.unwrap().len(), 1);
 
-			// Override the committee manually
-			assert_ok!(Midnight::override_d_parameter(RawOrigin::Root.into(), Some((20, 2))));
+			// Override the D-parameter via SystemParameters pallet
+			assert_ok!(SystemParameters::update_d_parameter(RawOrigin::Root.into(), 20, 2));
 
 			let selected_authorities_override = select_authorities_optionally_overriding(
 				authority_selection_inputs,
