@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>tcNight Faucet</title>
+  <style>
+    body { font-family: sans-serif; background: #181a20; color: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100vh; }
+    form { background: #222; padding: 2em; border-radius: 8px; box-shadow: 0 2px 8px #0003; }
+    input, button { font-size: 1em; margin: 0.5em 0; padding: 0.5em; border-radius: 4px; border: none; }
+    input { width: 100%; }
+    button { background: #3a7afe; color: #fff; cursor: pointer; }
+    .message { margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h1>tCnight Faucet</h1>
+  <form id="faucet-form">
+    <label for="address">Cardano Address:</label><br>
+    <input type="text" id="address" name="address" required placeholder="Enter your Cardano address">
+    <button type="submit">Request tCnight</button>
+    <div class="message" id="message"></div>
+  </form>
+  <script>
+    const form = document.getElementById('faucet-form');
+    const message = document.getElementById('message');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      message.textContent = '';
+      const address = form.address.value.trim();
+      if (!address) {
+        message.textContent = 'Please enter a Cardano address.';
+        return;
+      }
+      try {
+        const res = await fetch('/api/faucet', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ address })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          message.textContent = data.message;
+        } else {
+          message.textContent = 'Error: ' + (data.error || 'Unknown error');
+        }
+      } catch (err) {
+        message.textContent = 'Network error.';
+      }
+    });
+  </script>
+</body>
+</html>
