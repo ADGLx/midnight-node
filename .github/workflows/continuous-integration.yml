@@ -197,7 +197,7 @@ jobs:
 
   rebuild-genesis:
     name: Check Genesis Rebuild
-    needs: run
+    needs: [run, test-toolkit]
     permissions:
       id-token: write
       contents: read
