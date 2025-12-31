@@ -313,9 +313,29 @@ jobs:
       - name: 💤 Dummy step to bypass real test
         run: echo "Skipping test — dummy command"
 
+  # Gate job for toolkit E2E tests - if this fails, toolkit E2E tests are skipped
+  test-toolkit:
+    name: Test Toolkit (gate for E2E)
+    runs-on: ubuntu-latest-16-core-x64
+    env:
+      FORCE_COLOR: 1
+    steps:
+      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+        with:
+          version: v0.8.16
+          github-token: ${{ github.token }}
+          use-cache: false
+
+      - name: Checkout node repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+
+      - name: Run toolkit tests
+        run: |
+          . ./.envrc && earthly --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" --strict +test-toolkit
+
   toolkit-e2e:
     name: Toolkit E2E
-    needs: run
+    needs: [run, test-toolkit]
     runs-on: ubuntu-latest-16-core-x64
     steps:
       - name: Checkout
@@ -335,7 +355,7 @@ jobs:
 
   toolkit-update-ledger-parameters-e2e:
     name: Toolkit Update Ledger Parameters E2E
-    needs: run
+    needs: [run, test-toolkit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -355,7 +375,7 @@ jobs:
 
   toolkit-maintenance-e2e:
     name: Toolkit Maintenance E2E
-    needs: run
+    needs: [run, test-toolkit]
     runs-on: ubuntu-latest-16-core-x64
     steps:
       - name: Checkout
@@ -375,7 +395,7 @@ jobs:
 
   toolkit-mint-e2e:
     name: Toolkit Mint E2E
-    needs: run
+    needs: [run, test-toolkit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -395,7 +415,7 @@ jobs:
 
   toolkit-ut-e2e:
     name: Toolkit Unshielded Token E2E
-    needs: run
+    needs: [run, test-toolkit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -446,7 +466,7 @@ jobs:
 
   toolkit-contracts-e2e:
     name: Toolkit Contracts E2E
-    needs: run
+    needs: [run, test-toolkit]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
