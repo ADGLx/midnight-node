@@ -714,7 +714,32 @@ check:
     BUILD +check-rust
 
 # test runs the tests in parallel with code coverage.
+# Core tests - excludes midnight-node-toolkit (which requires toolkit-js/midnight-js packages)
 test:
+    ARG NATIVEARCH
+    FROM +prep
+    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
+    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    CACHE /target
+
+    # Test
+    RUN mkdir /test-artifacts
+    # Compile the tests to go as fast as possible on this machine:
+    ENV RUSTFLAGS="-C target-cpu=native"
+    COPY .envrc ./bin/.envrc
+    COPY static/contracts/simple-merkle-tree /test-static/simple-merkle-tree
+    ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
+
+    # Run all tests EXCEPT midnight-node-toolkit (which depends on toolkit-js)
+    RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo llvm-cov nextest --profile ci --release --workspace --locked --exclude midnight-node-toolkit
+    RUN cargo llvm-cov report --html --release --output-dir /test-artifacts-$NATIVEARCH/html
+    RUN cargo llvm-cov report --lcov --release --fail-under-regions 14 --ignore-filename-regex res/src/subxt_metadata.rs --output-path /test-artifacts-$NATIVEARCH/tests.lcov
+
+    # AS /target is a temp cache, copy the results to /test-artifacts, otherwise earthly won't find them later
+    SAVE ARTIFACT ./test-artifacts-$NATIVEARCH AS LOCAL ./test-artifacts
+
+# Toolkit tests - requires toolkit-js which depends on midnight-js npm packages
+test-toolkit:
     ARG NATIVEARCH
     ARG GITHUB_TOKEN
     FROM +prep
@@ -733,7 +758,7 @@ test:
         rm -rf /var/lib/apt/lists/*
 
     # Test
-    RUN mkdir /test-artifacts
+    RUN mkdir /test-artifacts-toolkit
     # Compile the tests to go as fast as possible on this machine:
     ENV RUSTFLAGS="-C target-cpu=native"
     COPY .envrc ./bin/.envrc
@@ -744,12 +769,12 @@ test:
     # We use `--platform=linux/amd64` here because compactc doesn't release for linux/arm64
     COPY --platform=linux/amd64 +toolkit-js-prep/toolkit-js util/toolkit-js
 
-    RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo llvm-cov nextest --profile ci --release --workspace --locked
-    RUN cargo llvm-cov report --html --release --output-dir /test-artifacts-$NATIVEARCH/html
-    RUN cargo llvm-cov report --lcov --release --fail-under-regions 14 --ignore-filename-regex res/src/subxt_metadata.rs --output-path /test-artifacts-$NATIVEARCH/tests.lcov
+    # Run only midnight-node-toolkit tests
+    RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo llvm-cov nextest --profile ci --release --package midnight-node-toolkit --locked
+    RUN cargo llvm-cov report --html --release --output-dir /test-artifacts-toolkit-$NATIVEARCH/html
+    RUN cargo llvm-cov report --lcov --release --output-path /test-artifacts-toolkit-$NATIVEARCH/tests.lcov
 
-    # AS /target is a temp cache, copy the results to /test-artifacts, otherwise earthly won't find them later
-    SAVE ARTIFACT ./test-artifacts-$NATIVEARCH AS LOCAL ./test-artifacts
+    SAVE ARTIFACT ./test-artifacts-toolkit-$NATIVEARCH AS LOCAL ./test-artifacts-toolkit
 
 build-prepare:
     # NOTE: This just uses recipe.json - no src files!
