@@ -8,5 +8,5 @@ ERROR: failed sending to wss://preview.midnight.network: RPC error: RPC error: c
 
 This was fixed by ensuring the send connection is only opened just before it is used.
 
-PR: 
+PR: https://github.com/midnightntwrk/midnight-node/pull/414
 Ticket: https://shielded.atlassian.net/browse/PM-20962
