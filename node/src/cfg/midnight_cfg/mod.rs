@@ -26,18 +26,33 @@ pub struct MidnightCfg {
 	/// On start-up, wipe the chain
 	pub wipe_chain_state: bool,
 
-	/// Path to file containing a secret string to use as the AURA seed (32 bytes)
+	/// URI or path to the AURA seed (32 bytes)
 	/// Seed should be either a Phrase, hexadecimal string, or ss58-compatible string.
+	/// Supported URI schemes:
+	///   - Plain file path: /path/to/seed or file:///path/to/seed
+	///   - AWS Secrets Manager: aws://secret-name?region=us-east-1
+	///   - GCP Secret Manager: gcp://projects/PROJECT/secrets/SECRET/versions/VERSION
+	///   - HashiCorp Vault: vault://secret/data/path#field
 	/// Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
 	pub aura_seed_file: Option<String>,
 
-	/// Path to file containing a secret string to use as the GRANDPA seed (32 bytes)
+	/// URI or path to the GRANDPA seed (32 bytes)
 	/// Seed should be either a Phrase, hexadecimal string, or ss58-compatible string.
+	/// Supported URI schemes:
+	///   - Plain file path: /path/to/seed or file:///path/to/seed
+	///   - AWS Secrets Manager: aws://secret-name?region=us-east-1
+	///   - GCP Secret Manager: gcp://projects/PROJECT/secrets/SECRET/versions/VERSION
+	///   - HashiCorp Vault: vault://secret/data/path#field
 	/// Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
 	pub grandpa_seed_file: Option<String>,
 
-	/// Path to file containing a secret string to use as the CROSS_CHAIN seed (32 bytes)
+	/// URI or path to the CROSS_CHAIN seed (32 bytes)
 	/// Seed should be either a Phrase, hexadecimal string, or ss58-compatible string.
+	/// Supported URI schemes:
+	///   - Plain file path: /path/to/seed or file:///path/to/seed
+	///   - AWS Secrets Manager: aws://secret-name?region=us-east-1
+	///   - GCP Secret Manager: gcp://projects/PROJECT/secrets/SECRET/versions/VERSION
+	///   - HashiCorp Vault: vault://secret/data/path#field
 	/// Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
 	pub cross_chain_seed_file: Option<String>,
 

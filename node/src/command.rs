@@ -144,47 +144,44 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		}
 	};
 
-	if let Some(seed_file) = &cfg.midnight_cfg.aura_seed_file {
-		let seed = std::fs::read_to_string(seed_file).map_err(|e| {
+	if let Some(seed_uri) = &cfg.midnight_cfg.aura_seed_file {
+		let seed = crate::secret_provider::fetch_secret_blocking(seed_uri).map_err(|e| {
 			sc_cli::Error::Input(format!(
-				"error when reading AURA seed file at {seed_file}. Error: {e}"
+				"error when reading AURA seed from {seed_uri}. Error: {e}"
 			))
 		})?;
-		let seed = seed.trim();
-		let (keypair, _) = sp_core::sr25519::Pair::from_string_with_seed(seed, None)
+		let (keypair, _) = sp_core::sr25519::Pair::from_string_with_seed(&seed, None)
 			.map_err(|e| sc_cli::Error::Input(format!("Invalid AURA seed: {e}")))?;
 		keystore
-			.insert(KeyTypeId(*b"aura"), seed, &keypair.public().to_raw_vec())
+			.insert(KeyTypeId(*b"aura"), &seed, &keypair.public().to_raw_vec())
 			.unwrap();
 		log::info!("AURA pubkey: {}", &keypair.public())
 	}
 
-	if let Some(seed_file) = &cfg.midnight_cfg.grandpa_seed_file {
-		let seed = std::fs::read_to_string(seed_file).map_err(|e| {
+	if let Some(seed_uri) = &cfg.midnight_cfg.grandpa_seed_file {
+		let seed = crate::secret_provider::fetch_secret_blocking(seed_uri).map_err(|e| {
 			sc_cli::Error::Input(format!(
-				"error when reading GRANDPA seed file at {seed_file}. Error: {e}"
+				"error when reading GRANDPA seed from {seed_uri}. Error: {e}"
 			))
 		})?;
-		let seed = seed.trim();
-		let (keypair, _) = sp_core::ed25519::Pair::from_string_with_seed(seed, None)
+		let (keypair, _) = sp_core::ed25519::Pair::from_string_with_seed(&seed, None)
 			.map_err(|e| sc_cli::Error::Input(format!("Invalid GRANDPA seed: {e}")))?;
 		keystore
-			.insert(KeyTypeId(*b"gran"), seed, &keypair.public().to_raw_vec())
+			.insert(KeyTypeId(*b"gran"), &seed, &keypair.public().to_raw_vec())
 			.unwrap();
 		log::info!("GRANDPA pubkey: {}", &keypair.public())
 	}
 
-	if let Some(seed_file) = &cfg.midnight_cfg.cross_chain_seed_file {
-		let seed = std::fs::read_to_string(seed_file).map_err(|e| {
+	if let Some(seed_uri) = &cfg.midnight_cfg.cross_chain_seed_file {
+		let seed = crate::secret_provider::fetch_secret_blocking(seed_uri).map_err(|e| {
 			sc_cli::Error::Input(format!(
-				"error when reading CROSS_CHAIN seed file at {seed_file}. Error: {e}"
+				"error when reading CROSS_CHAIN seed from {seed_uri}. Error: {e}"
 			))
 		})?;
-		let seed = seed.trim();
-		let (keypair, _) = sp_core::ecdsa::Pair::from_string_with_seed(seed, None)
+		let (keypair, _) = sp_core::ecdsa::Pair::from_string_with_seed(&seed, None)
 			.map_err(|e| sc_cli::Error::Input(format!("Invalid CROSS_CHAIN seed: {e}")))?;
 		keystore
-			.insert(KeyTypeId(*b"crch"), seed, &keypair.public().to_raw_vec())
+			.insert(KeyTypeId(*b"crch"), &seed, &keypair.public().to_raw_vec())
 			.unwrap();
 		log::info!("CROSS_CHAIN pubkey: {}", &keypair.public())
 	}

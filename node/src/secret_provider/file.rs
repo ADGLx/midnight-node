@@ -11,26 +11,26 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-extern crate alloc;
+//! File-based secret provider (the original implementation)
 
-#[cfg(feature = "runtime-benchmarks")]
-pub mod benchmarking;
-pub mod cfg;
-pub mod chain_spec;
-pub mod cli;
-pub mod cnight_genesis;
-pub mod command;
-pub mod extensions;
-pub mod federated_authority_genesis;
-pub mod ics_genesis;
-pub mod inherent_data;
-pub mod main_chain_follower;
-pub mod metrics_push;
-pub mod partner_chains;
-pub mod payload;
-pub mod permissioned_candidates_genesis;
-pub mod rpc;
-pub mod secret_provider;
-pub mod service;
-pub mod sidechain_params_cmd;
-mod util;
+use super::{SecretProvider, SecretProviderError};
+
+/// Provider for reading secrets from local files
+pub struct FileSecretProvider {
+	path: String,
+}
+
+impl FileSecretProvider {
+	pub fn new(path: String) -> Self {
+		Self { path }
+	}
+}
+
+#[async_trait::async_trait]
+impl SecretProvider for FileSecretProvider {
+	async fn get_secret(&self) -> Result<String, SecretProviderError> {
+		let content = tokio::fs::read_to_string(&self.path).await?;
+		Ok(content.trim().to_string())
+	}
+}
+

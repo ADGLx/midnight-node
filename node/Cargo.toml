@@ -99,6 +99,12 @@ pallet-cnight-observation-mock = { workspace = true, default-features = true}
 # If you are not already, you should be using the standalone CLI at https://github.com/paritytech/try-runtime-cli.
 
 thiserror = "1.0.50"
+
+# Optional cloud secret manager dependencies
+aws-config = { version = "1.5", optional = true }
+aws-sdk-secretsmanager = { version = "1.55", optional = true }
+google-cloud-secretmanager-v1 = { version = "1.2", optional = true }
+vaultrs = { version = "0.7", optional = true }
 log.workspace = true
 authority-selection-inherents.workspace = true
 #sp-block-rewards = { workspace = true, optional = true }
@@ -147,7 +153,14 @@ tokio.workspace = true
 substrate-build-script-utils.workspace = true
 
 [features]
-default = []
+default = ["cloud-secrets"]
+
+# Cloud secret manager features
+aws-secrets = ["aws-config", "aws-sdk-secretsmanager"]
+gcp-secrets = ["google-cloud-secretmanager-v1"]
+vault-secrets = ["vaultrs"]
+# Enable all cloud secret managers
+cloud-secrets = ["aws-secrets", "gcp-secrets", "vault-secrets"]
 
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [
