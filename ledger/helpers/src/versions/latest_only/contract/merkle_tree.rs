@@ -123,8 +123,11 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 				"store" => {
 					let context = QueryContext::new(contract_state.data, *address);
 					let program = HistoricMerkleTree_insert!([key!(0u8)], false, 10, u32, input);
-					let pre_transcript =
-						PreTranscript { context: context.into(), program: program.to_vec().into(), comm_comm: None };
+					let pre_transcript = PreTranscript {
+						context: context.into(),
+						program: program.to_vec().into(),
+						comm_comm: None,
+					};
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");
@@ -151,8 +154,11 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 						&HistoricMerkleTree_check_root!([key!(0u8)], false, 10, u32, path.root()),
 						&[true.into()],
 					);
-					let pre_transcript =
-						PreTranscript { context: context.into(), program: program.into(), comm_comm: None };
+					let pre_transcript = PreTranscript {
+						context: context.into(),
+						program: program.into(),
+						comm_comm: None,
+					};
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");

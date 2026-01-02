@@ -26,12 +26,12 @@ pub use super::super::{
 	DUST_EXPECTED_FILES, DustResolver, EntryPointBuf, FetchMode, HashMapStorage,
 	HistoricMerkleTree_check_root, HistoricMerkleTree_insert, Key, KeyLocation, MerkleTree,
 	MidnightDataProvider, OutputMode, PUBLIC_PARAMS, PreTranscript, QueryContext, Rng, StateValue,
-	ValueReprAlignedValue, VerifyingKey, key, leaf_hash, partition_transcripts, stval, verifier_key,
+	ValueReprAlignedValue, VerifyingKey, key, leaf_hash, partition_transcripts, stval,
+	verifier_key,
 };
 
 #[cfg(feature = "test-utils")]
 pub use super::super::test_resolver;
-
 
 mod call;
 mod deploy;

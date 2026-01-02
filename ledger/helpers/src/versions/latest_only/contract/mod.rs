@@ -19,4 +19,3 @@ mod merkle_tree;
 
 pub use maintenance::*;
 pub use merkle_tree::*;
-

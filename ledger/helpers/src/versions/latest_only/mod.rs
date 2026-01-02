@@ -15,4 +15,3 @@
 //! These are only available in the `latest` version module.
 
 pub mod contract;
-
