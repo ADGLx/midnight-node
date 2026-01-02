@@ -194,7 +194,7 @@ jobs:
 
   rebuild-genesis:
     name: Check Genesis Rebuild
-    needs: [run, test-toolkit]
+    needs: [run, test-pallet-fixtures]
     permissions:
       id-token: write
       contents: read
@@ -310,7 +310,28 @@ jobs:
       - name: 💤 Dummy step to bypass real test
         run: echo "Skipping test — dummy command"
 
+  # Test pallet-midnight fixture tests - these do NOT require toolkit-js
+  test-pallet-fixtures:
+    name: Test Pallet Fixtures
+    runs-on: ubuntu-latest-16-core-x64
+    env:
+      FORCE_COLOR: 1
+    steps:
+      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+        with:
+          version: v0.8.16
+          github-token: ${{ github.token }}
+          use-cache: false
+
+      - name: Checkout node repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+
+      - name: Run pallet fixture tests
+        run: |
+          . ./.envrc && earthly --strict +test-pallet-fixtures
+
   # Gate job for Midnight Node Toolkit E2E tests - if this fails, Midnight Node Toolkit E2E tests are skipped
+  # NOTE: This job requires toolkit-js which depends on compact-js npm packages
   test-toolkit:
     name: Test Midnight Node Toolkit
     runs-on: ubuntu-latest-16-core-x64
