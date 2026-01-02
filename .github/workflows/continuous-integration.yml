@@ -330,10 +330,31 @@ jobs:
         run: |
           . ./.envrc && earthly --strict +test-pallet-fixtures
 
-  # Gate job for Midnight Node Toolkit E2E tests - if this fails, Midnight Node Toolkit E2E tests are skipped
-  # NOTE: This job requires toolkit-js which depends on compact-js npm packages
+  # Gate job - prepares toolkit-js (depends on compact-js npm packages)
+  # If this fails, all toolkit-dependent tests are skipped
+  toolkit-js-prep:
+    name: Prepare Toolkit JS
+    runs-on: ubuntu-latest-16-core-x64
+    env:
+      FORCE_COLOR: 1
+    steps:
+      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+        with:
+          version: v0.8.16
+          github-token: ${{ github.token }}
+          use-cache: false
+
+      - name: Checkout node repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+
+      - name: Prepare toolkit-js
+        run: |
+          . ./.envrc && earthly --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" --strict +toolkit-js-prep
+
+  # Midnight Node Toolkit tests - gated by toolkit-js prep
   test-toolkit:
     name: Test Midnight Node Toolkit
+    needs: [toolkit-js-prep]
     runs-on: ubuntu-latest-16-core-x64
     env:
       FORCE_COLOR: 1
@@ -353,7 +374,7 @@ jobs:
 
   toolkit-e2e:
     name: Midnight Node Toolkit E2E
-    needs: [run, test-toolkit]
+    needs: [run, toolkit-js-prep]
     runs-on: ubuntu-latest-16-core-x64
     steps:
       - name: Checkout
@@ -373,7 +394,7 @@ jobs:
 
   toolkit-update-ledger-parameters-e2e:
     name: Midnight Node Toolkit Update Ledger Parameters E2E
-    needs: [run, test-toolkit]
+    needs: [run, toolkit-js-prep]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -393,7 +414,7 @@ jobs:
 
   toolkit-maintenance-e2e:
     name: Midnight Node Toolkit Maintenance E2E
-    needs: [run, test-toolkit]
+    needs: [run, toolkit-js-prep]
     runs-on: ubuntu-latest-16-core-x64
     steps:
       - name: Checkout
@@ -413,7 +434,7 @@ jobs:
 
   toolkit-mint-e2e:
     name: Midnight Node Toolkit Mint E2E
-    needs: [run, test-toolkit]
+    needs: [run, toolkit-js-prep]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -433,7 +454,7 @@ jobs:
 
   toolkit-ut-e2e:
     name: Midnight Node Toolkit Unshielded Token E2E
-    needs: [run, test-toolkit]
+    needs: [run, toolkit-js-prep]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -483,7 +504,7 @@ jobs:
 
   toolkit-contracts-e2e:
     name: Midnight Node Toolkit Contracts E2E
-    needs: [run, test-toolkit]
+    needs: [run, toolkit-js-prep]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
