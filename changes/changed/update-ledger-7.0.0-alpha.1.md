@@ -12,4 +12,3 @@ The `ledger/helpers` crate now isolates ledger 7.x-specific modules (`merkle_tre
 Jira: https://shielded.atlassian.net/browse/PM-21895
 
 PR: https://github.com/midnightntwrk/midnight-node/pull/415
-
