@@ -36,7 +36,6 @@ jobs:
           version: v0.8.16
           github-token: ${{ github.token }}
           use-cache: false
-          allow-privileged: true
 
       - name: Checkout node repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
@@ -100,7 +99,6 @@ jobs:
           version: v0.8.16
           github-token: ${{ github.token }}
           use-cache: false
-          allow-privileged: true
 
       - name: Checkout node repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
@@ -150,7 +148,6 @@ jobs:
           version: v0.8.16
           github-token: ${{ github.token }}
           use-cache: false
-          allow-privileged: true
 
       - name: Checkout node repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
@@ -197,7 +194,7 @@ jobs:
 
   rebuild-genesis:
     name: Check Genesis Rebuild
-    needs: [run, test-toolkit]
+    needs: [run, test-pallet-fixtures]
     permissions:
       id-token: write
       contents: read
@@ -312,6 +309,26 @@ jobs:
       #     ghcr-password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
       - name: 💤 Dummy step to bypass real test
         run: echo "Skipping test — dummy command"
+
+  # Test pallet-midnight fixture tests - these do NOT require toolkit-js
+  test-pallet-fixtures:
+    name: Test Pallet Fixtures
+    runs-on: ubuntu-latest-16-core-x64
+    env:
+      FORCE_COLOR: 1
+    steps:
+      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+        with:
+          version: v0.8.16
+          github-token: ${{ github.token }}
+          use-cache: false
+
+      - name: Checkout node repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
+
+      - name: Run pallet fixture tests
+        run: |
+          . ./.envrc && earthly --strict +test-pallet-fixtures
 
   # Gate job for toolkit E2E tests - if this fails, toolkit E2E tests are skipped
   test-toolkit:
@@ -443,7 +460,6 @@ jobs:
           version: v0.8.16
           github-token: ${{ github.token }}
           use-cache: false
-          allow-privileged: true
       - name: Login to GHCR
         uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef #v3.6.0
         with:
