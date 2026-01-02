@@ -14,8 +14,13 @@
 //! Contract modules that require ledger 7.x APIs.
 //! These are only available in the `latest` version module.
 
+#[cfg(feature = "can-panic")]
 mod maintenance;
+#[cfg(feature = "can-panic")]
 mod merkle_tree;
 
+#[cfg(feature = "can-panic")]
 pub use maintenance::*;
+#[cfg(feature = "can-panic")]
 pub use merkle_tree::*;
+

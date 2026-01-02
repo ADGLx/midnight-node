@@ -14,8 +14,6 @@
 //! MerkleTree contract implementation.
 //! This module requires ledger 7.x APIs and is only available in the `latest` version.
 
-#![cfg(feature = "can-panic")]
-
 use async_trait::async_trait;
 use lazy_static::lazy_static;
 use std::{any::Any, borrow::Cow, sync::Arc};
@@ -121,13 +119,10 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 
 			match key {
 				"store" => {
-					let context = QueryContext::new(contract_state.data, *address);
-					let program = HistoricMerkleTree_insert!([key!(0u8)], false, 10, u32, input);
-					let pre_transcript = PreTranscript {
-						context: context.into(),
-						program: program.to_vec().into(),
-						comm_comm: None,
-					};
+				let context = QueryContext::new(contract_state.data, *address);
+				let program = HistoricMerkleTree_insert!([key!(0u8)], false, 10, u32, input);
+				let pre_transcript =
+					PreTranscript { context, program: program.to_vec(), comm_comm: None };
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");
@@ -149,16 +144,12 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 						},
 						_ => panic!(),
 					};
-					let context = QueryContext::new(contract_state.data, *address);
-					let program = Self::program_with_results(
-						&HistoricMerkleTree_check_root!([key!(0u8)], false, 10, u32, path.root()),
-						&[true.into()],
-					);
-					let pre_transcript = PreTranscript {
-						context: context.into(),
-						program: program.into(),
-						comm_comm: None,
-					};
+				let context = QueryContext::new(contract_state.data, *address);
+				let program = Self::program_with_results(
+					&HistoricMerkleTree_check_root!([key!(0u8)], false, 10, u32, path.root()),
+					&[true.into()],
+				);
+				let pre_transcript = PreTranscript { context, program, comm_comm: None };
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");

@@ -48,6 +48,7 @@ pub mod latest {
 
 	// Ledger 7.x specific modules
 	mod latest_only;
+	#[cfg(feature = "can-panic")]
 	pub use latest_only::contract::{
 		ContractMaintenanceAuthorityInfo, MaintenanceUpdateInfo, MerkleTreeContract, UpdateInfo,
 	};
