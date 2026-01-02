@@ -52,6 +52,7 @@ std = [
 	"frame-system/std",
 	"scale-info/std",
 	"midnight-node-ledger/std",
+	"midnight-node-ledger/test-utils",
 	"sp-io/std",
 	"sp-api/std",
 	"sp-runtime/std",
