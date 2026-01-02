@@ -119,10 +119,10 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 
 			match key {
 				"store" => {
-				let context = QueryContext::new(contract_state.data, *address);
-				let program = HistoricMerkleTree_insert!([key!(0u8)], false, 10, u32, input);
-				let pre_transcript =
-					PreTranscript { context, program: program.to_vec(), comm_comm: None };
+					let context = QueryContext::new(contract_state.data, *address);
+					let program = HistoricMerkleTree_insert!([key!(0u8)], false, 10, u32, input);
+					let pre_transcript =
+						PreTranscript { context, program: program.to_vec(), comm_comm: None };
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");
@@ -144,12 +144,12 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 						},
 						_ => panic!(),
 					};
-				let context = QueryContext::new(contract_state.data, *address);
-				let program = Self::program_with_results(
-					&HistoricMerkleTree_check_root!([key!(0u8)], false, 10, u32, path.root()),
-					&[true.into()],
-				);
-				let pre_transcript = PreTranscript { context, program, comm_comm: None };
+					let context = QueryContext::new(contract_state.data, *address);
+					let program = Self::program_with_results(
+						&HistoricMerkleTree_check_root!([key!(0u8)], false, 10, u32, path.root()),
+						&[true.into()],
+					);
+					let pre_transcript = PreTranscript { context, program, comm_comm: None };
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");

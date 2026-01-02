@@ -23,4 +23,3 @@ mod merkle_tree;
 pub use maintenance::*;
 #[cfg(feature = "can-panic")]
 pub use merkle_tree::*;
-
