@@ -11,6 +11,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! Contract modules that require ledger 7.x APIs.
+//! These are only available in the `latest` version module.
+
+mod maintenance;
 mod merkle_tree;
 
+pub use maintenance::*;
 pub use merkle_tree::*;
+

@@ -11,13 +11,17 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+//! MerkleTree contract implementation.
+//! This module requires ledger 7.x APIs and is only available in the `latest` version.
+
 #![cfg(feature = "can-panic")]
 
 use async_trait::async_trait;
 use lazy_static::lazy_static;
 use std::{any::Any, borrow::Cow, sync::Arc};
 
-use super::super::{
+// Import from the latest module (types re-exported from common)
+use crate::latest::{
 	AlignedValue, ChargedState, Contract, ContractAddress, ContractCallPrototype, ContractDeploy,
 	ContractMaintenanceAuthority, ContractOperation, ContractState, DB, EntryPointBuf,
 	HashMapStorage as HashMap, HistoricMerkleTree_check_root, HistoricMerkleTree_insert, Key,
@@ -29,11 +33,11 @@ use super::super::{
 
 #[cfg(feature = "test-utils")]
 lazy_static! {
-	static ref RESOLVER: Resolver = super::super::test_resolver("simple-merkle-tree");
+	static ref RESOLVER: Resolver = crate::latest::test_resolver("simple-merkle-tree");
 }
 
 #[cfg(not(feature = "test-utils"))]
-use super::super::{
+use crate::latest::{
 	DUST_EXPECTED_FILES, DustResolver, FetchMode, MidnightDataProvider, OutputMode, PUBLIC_PARAMS,
 };
 
@@ -120,7 +124,7 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 					let context = QueryContext::new(contract_state.data, *address);
 					let program = HistoricMerkleTree_insert!([key!(0u8)], false, 10, u32, input);
 					let pre_transcript =
-						PreTranscript { context: &context, program: &program, comm_comm: None };
+						PreTranscript { context: context.into(), program: program.to_vec().into(), comm_comm: None };
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");
@@ -148,7 +152,7 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 						&[true.into()],
 					);
 					let pre_transcript =
-						PreTranscript { context: &context, program: &program, comm_comm: None };
+						PreTranscript { context: context.into(), program: program.into(), comm_comm: None };
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");
