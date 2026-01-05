@@ -6,8 +6,8 @@ Midnight blockchain node executable.
 
 This is the main entry point for running a Midnight node. It integrates:
 
-- **Consensus** - [AURA](https://docs.midnight.network/learn/glossary#aura-authority-round) (block production), [GRANDPA](https://docs.midnight.network/learn/glossary#grandpa-ghost-based-recursive-ancestor-deriving-prefix-agreement) (finality), [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficiency-enabling-finality-yielder) (bridge)
-- **[Runtime](https://docs.midnight.network/learn/glossary#runtime)** - `midnight-node-runtime` WASM execution
+- **Consensus** - [AURA](https://docs.polkadot.com/polkadot-protocol/glossary/#authority-round-aura) (block production), [GRANDPA](https://docs.polkadot.com/polkadot-protocol/glossary/#grandpa) (finality), [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficiency-enabling-finality-yielder) (bridge)
+- **[Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime)** - `midnight-node-runtime` WASM execution
 - **RPC** - JSON-RPC endpoints for state queries and transactions
 - **Data Sources** - [db-sync](https://docs.midnight.network/learn/glossary#db-sync) PostgreSQL for Cardano observations
 - **CLI** - Configuration and operational commands
@@ -163,7 +163,7 @@ cargo test -p midnight-node
 
 ## See Also
 
-- [runtime](../runtime/README.md) - [Runtime](https://docs.midnight.network/learn/glossary#runtime) logic
-- [Chain Specs](chain/readme.md) - Chain specification details
-- [docs/chain_specs.md](../docs/chain_specs.md) - [Chain spec](https://docs.midnight.network/learn/glossary#chain-spec--chain-specification) documentation
+- [runtime](../runtime/README.md) - [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) logic
+- [Chain Specs](chain/readme.md) - [Chain specification](https://docs.polkadot.com/polkadot-protocol/glossary/#chain-specification) details
+- [docs/chain_specs.md](../docs/chain_specs.md) - [Chain specification](https://docs.polkadot.com/polkadot-protocol/glossary/#chain-specification) documentation
 

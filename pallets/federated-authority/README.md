@@ -4,9 +4,9 @@ Cross-collective governance mechanism requiring multi-body approval for privileg
 
 ## Overview
 
-The `federated_authority` [pallet](https://docs.midnight.network/learn/glossary#pallet) implements a [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) system where multiple distinct on-chain authority bodies must collectively approve a motion before it can be executed with elevated `Root` privileges. This creates a final checkpoint requiring consensus from multiple governance groups before any critical action can be executed.
+The `federated_authority` [pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) implements a [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) system where multiple distinct on-chain authority bodies must collectively approve a motion before it can be executed with elevated `Root` privileges. This creates a final checkpoint requiring consensus from multiple governance groups before any critical action can be executed.
 
-The [pallet](https://docs.midnight.network/learn/glossary#pallet) is configurable to define:
+The [pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) is configurable to define:
 - How many authority bodies participate in the federation
 - Which collectives or governance groups those bodies represent
 - The approval thresholds and voting mechanisms for each body
@@ -49,7 +49,7 @@ A motion is not created directly. Instead, one of the authority bodies signals i
 
 - The body conducts its own internal decision-making process (e.g., through a collective vote)
 - If its rules are satisfied, it dispatches `motion_approve` with the target call
-- On the first approval, the [pallet](https://docs.midnight.network/learn/glossary#pallet) creates a motion entry in storage with an expiration period
+- On the first approval, the [pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) creates a motion entry in storage with an expiration period
 
 ### 2. Gathering Approvals
 
@@ -60,11 +60,11 @@ Once recorded, the motion is pending further approvals:
 
 ### 3. Executing or Closing
 
-The `motion_close` [extrinsic](https://docs.midnight.network/learn/glossary#extrinsic) can be called by anyone to finalize a motion. A motion can only be closed if it has either been approved by all required bodies or has expired.
+The `motion_close` [extrinsic](https://docs.polkadot.com/polkadot-protocol/glossary/#extrinsic) can be called by anyone to finalize a motion. A motion can only be closed if it has either been approved by all required bodies or has expired.
 
 ### 4. Revoking an Approval
 
-The `motion_revoke` [extrinsic](https://docs.midnight.network/learn/glossary#extrinsic) allows an authority body to withdraw its approval before execution. If all approvals are revoked, the motion is immediately removed from storage.
+The `motion_revoke` [extrinsic](https://docs.polkadot.com/polkadot-protocol/glossary/#extrinsic) allows an authority body to withdraw its approval before execution. If all approvals are revoked, the motion is immediately removed from storage.
 
 ## Architecture
 
@@ -89,7 +89,7 @@ flowchart TB
 
 ### Dependencies
 
-- `frame-support` / `frame-system` - [FRAME](https://docs.midnight.network/learn/glossary#frame-framework-for-runtime-aggregation-of-modularized-entities) primitives
+- `frame-support` / `frame-system` - [FRAME](https://docs.polkadot.com/polkadot-protocol/glossary/#frame-framework-for-runtime-aggregation-of-modularized-entities) primitives
 - `pallet-collective` - For authority body voting
 
 ### Used By

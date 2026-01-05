@@ -10,7 +10,7 @@ Membership changes are delivered via inherents from the mainchain follower data 
 
 ## Features
 
-- **[Inherent](https://docs.midnight.network/learn/glossary#inherent)-based Updates**: Receives [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) data through inherents (unsigned transactions)
+- **[Inherent](https://docs.polkadot.com/polkadot-protocol/glossary/#inherent-transactions)-based Updates**: Receives [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) data through inherents (unsigned transactions)
 - **Dual Governance Support**: Manages both [Council](https://docs.midnight.network/learn/glossary#council) and [Technical Committee](https://docs.midnight.network/learn/glossary#technical-committee) memberships
 - **Automatic Propagation**: Automatically updates membership pallets when changes are detected
 - **Validation**: Ensures member lists meet size constraints and are non-empty
@@ -18,7 +18,7 @@ Membership changes are delivered via inherents from the mainchain follower data 
 
 ### Components
 
-1. **[Inherent](https://docs.midnight.network/learn/glossary#inherent) Provider**: Extracts [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) data from block inherents
+1. **[Inherent](https://docs.polkadot.com/polkadot-protocol/glossary/#inherent-transactions) Provider**: Extracts [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) data from block inherents
 2. **Membership Handlers**: Delegates membership updates to configurable handler types
 3. **Change Detection**: Compares incoming authority lists with current state
 4. **Event Emission**: Publishes events when memberships are reset

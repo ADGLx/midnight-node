@@ -96,5 +96,5 @@ async fn test_feature() {
 ## See Also
 
 - [node](../../node/README.md) - Node being tested
-- [runtime](../../runtime/README.md) - [Runtime](https://docs.midnight.network/learn/glossary#runtime) being tested
+- [runtime](../../runtime/README.md) - [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) being tested
 - [ledger/helpers](../../ledger/helpers/README.md) - Test utilities

@@ -1,6 +1,6 @@
 # pallet-cnight-observation
 
-[Pallet](https://docs.midnight.network/learn/glossary#pallet) for observing [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) token movements on Cardano and generating [DUST](https://docs.midnight.network/learn/glossary#dust) on Midnight.
+[Pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) for observing [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) token movements on Cardano and generating [DUST](https://docs.midnight.network/learn/glossary#dust) on Midnight.
 
 ## Overview
 

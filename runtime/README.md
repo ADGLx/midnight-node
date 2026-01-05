@@ -4,12 +4,12 @@ The WASM runtime that defines the Midnight blockchain's state transition functio
 
 ## Overview
 
-This crate compiles to WebAssembly (WASM) and executes within the Substrate executor to process blocks and transactions. It composes [FRAME](https://docs.midnight.network/learn/glossary#frame-framework-for-runtime-aggregation-of-modularized-entities) pallets into a complete blockchain runtime, defining:
+This crate compiles to WebAssembly (WASM) and executes within the Substrate executor to process blocks and transactions. It composes [FRAME](https://docs.polkadot.com/polkadot-protocol/glossary/#frame-framework-for-runtime-aggregation-of-modularized-entities) pallets into a complete blockchain runtime, defining:
 
-- **[Pallet](https://docs.midnight.network/learn/glossary#pallet) composition** - Which pallets are included and how they're configured
-- **Consensus parameters** - [AURA](https://docs.midnight.network/learn/glossary#aura-authority-round) (6-second blocks), [GRANDPA](https://docs.midnight.network/learn/glossary#grandpa-ghost-based-recursive-ancestor-deriving-prefix-agreement) finality, [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficiency-enabling-finality-yielder) bridge support
+- **[Pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) composition** - Which pallets are included and how they're configured
+- **Consensus parameters** - [AURA](https://docs.polkadot.com/polkadot-protocol/glossary/#authority-round-aura) (6-second blocks), [GRANDPA](https://docs.polkadot.com/polkadot-protocol/glossary/#grandpa) finality, [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficiency-enabling-finality-yielder) bridge support
 - **Type definitions** - Account IDs, balances, block numbers, signatures
-- **[Runtime](https://docs.midnight.network/learn/glossary#runtime) APIs** - Interfaces for RPC queries and off-chain interactions
+- **[Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) APIs** - Interfaces for RPC queries and off-chain interactions
 - **Storage migrations** - Upgrade logic for runtime changes
 
 The runtime is the "business logic" of the chain—validators execute it identically to reach consensus on state transitions.
@@ -67,7 +67,7 @@ block-beta
 
 ### Pallet Index Map
 
-| Index | [Pallet](https://docs.midnight.network/learn/glossary#pallet) | Purpose |
+| Index | [Pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) | Purpose |
 |-------|--------|---------|
 | 0 | System | Core frame system |
 | 1 | Timestamp | Block timestamps |
@@ -76,7 +76,7 @@ block-beta
 | 5 | Midnight | Ledger state and transactions |
 | 6 | MidnightSystem | System-level ledger operations |
 | 7 | Sudo | Administrative operations |
-| 11 | NodeVersion | [Runtime](https://docs.midnight.network/learn/glossary#runtime) version tracking |
+| 11 | NodeVersion | [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) version tracking |
 | 13 | CNightObservation | [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) token bridge |
 | 21-23 | Beefy/Mmr | Bridge support |
 | 40-45 | Governance | [Council](https://docs.midnight.network/learn/glossary#council), TC, [Federated Authority](https://docs.midnight.network/learn/glossary#federated-authority) |
@@ -159,5 +159,5 @@ cargo test -p midnight-node-runtime --features try-runtime
 - [runtime-common](common/README.md) - Shared runtime components
 - [pallet-midnight](../pallets/midnight/README.md) - Core ledger pallet
 - [Chain Specifications](../docs/chain_specs.md) - Network configurations
-- [Weights Documentation](../docs/weights.md) - [Benchmarking](https://docs.midnight.network/learn/glossary#benchmarking) guide
+- [Weights Documentation](../docs/weights.md) - Benchmarking guide
 

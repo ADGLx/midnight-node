@@ -4,14 +4,14 @@ Docker-based tooling for launching Midnight networks and performing state operat
 
 ## Overview
 
-A flexible set of tools for launching **well-known networks, custom networks, and dynamic local environments**, as well as **performing state changes** against those networks (image upgrades, [runtime](https://docs.midnight.network/learn/glossary#runtime) upgrades, and hard forks).
+A flexible set of tools for launching **well-known networks, custom networks, and dynamic local environments**, as well as **performing state changes** against those networks (image upgrades, [runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) upgrades, and hard forks).
 
 This project provides a unified way to spin up Midnight resources for development, testing, and experimentation.
 
 ## Features
 
 - Launch dockerized **well-known Midnight networks** (e.g., `qanet`, `devnet`, `testnet-02`)
-- Perform **state-changing operations** such as image upgrades ([runtime](https://docs.midnight.network/learn/glossary#runtime) upgrades and hard forks planned)
+- Perform **state-changing operations** such as image upgrades ([runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) upgrades and hard forks planned)
 - Launch a fully **dynamic local environment** with sped-up Cardano resources for quick testing of [Partner Chain](https://docs.midnight.network/learn/glossary#partner-chain)/Cardano capabilities
 
 ## API Specification

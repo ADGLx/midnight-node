@@ -53,6 +53,6 @@ This crate defines types for tracking [cNIGHT](https://docs.midnight.network/lea
 
 ## See Also
 
-- [pallet-cnight-observation](../../pallets/cnight-observation/README.md) - [Pallet](https://docs.midnight.network/learn/glossary#pallet) implementation
+- [pallet-cnight-observation](../../pallets/cnight-observation/README.md) - [Pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) implementation
 - [primitives-mainchain-follower](../mainchain-follower/README.md) - Data source traits
 

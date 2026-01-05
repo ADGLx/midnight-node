@@ -57,7 +57,7 @@ This crate defines types for synchronizing governance body membership ([Council]
 
 - `pallet-federated-authority-observation` - Inherent processing
 - `midnight-node` - Data source configuration
-- `midnight-node-res` - [Genesis](https://docs.midnight.network/learn/glossary#genesis) config loading
+- `midnight-node-res` - [Genesis](https://docs.polkadot.com/polkadot-protocol/glossary/#genesis-configuration) config loading
 
 ## See Also
 

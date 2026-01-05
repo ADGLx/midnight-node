@@ -53,7 +53,7 @@ subxt metadata -f bytes > metadata/static/midnight_metadata_X_Y_Z.scale
 
 - `util/toolkit` - Transaction building CLI
 - `util/toolkit-js` - JavaScript/TypeScript bindings
-- `util/upgrader` - [Runtime](https://docs.midnight.network/learn/glossary#runtime) upgrade tool
+- `util/upgrader` - [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) upgrade tool
 
 ## See Also
 

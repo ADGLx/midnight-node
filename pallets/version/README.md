@@ -1,6 +1,6 @@
 # pallet-version
 
-[Pallet](https://docs.midnight.network/learn/glossary#pallet) that records runtime spec version in block digests for monitoring and upgrade tracking.
+[Pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) that records runtime spec version in block digests for monitoring and upgrade tracking.
 
 ## Overview
 
@@ -51,5 +51,5 @@ cargo test -p pallet-version
 
 ## See Also
 
-- [runtime](../../runtime/README.md) - [Runtime](https://docs.midnight.network/learn/glossary#runtime) version configuration
+- [runtime](../../runtime/README.md) - [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) version configuration
 

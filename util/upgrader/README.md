@@ -92,6 +92,6 @@ flowchart LR
 
 ## See Also
 
-- [runtime](../../runtime/README.md) - [Runtime](https://docs.midnight.network/learn/glossary#runtime) being upgraded
+- [runtime](../../runtime/README.md) - [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) being upgraded
 - [images/hardfork-test-upgrader](../../images/hardfork-test-upgrader/Dockerfile) - Docker image
 

@@ -15,9 +15,9 @@ A comprehensive command-line toolkit supporting transaction generation, wallet m
 - ✅ [DUST](https://docs.midnight.network/learn/glossary#dust) fee calculation
 - ✅ Execute compiled contracts
 - ✅ Performance testing (100s of txs)
-- ✅ [Runtime](https://docs.midnight.network/learn/glossary#runtime) fork support
+- ✅ [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) fork support
 - ✅ Wallet state and balance queries
-- ✅ [Genesis](https://docs.midnight.network/learn/glossary#genesis) generation
+- ✅ [Genesis](https://docs.polkadot.com/polkadot-protocol/glossary/#genesis-configuration) generation
 - ✅ Contract maintenance (authority + verifier keys)
 - 🚧 [DUST](https://docs.midnight.network/learn/glossary#dust) registration
 - 🚧 Contracts receiving tokens from user
