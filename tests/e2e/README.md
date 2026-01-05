@@ -53,12 +53,6 @@ tests/e2e/
     +-- e2e_tests.rs    # Main test file
 ```
 
-## Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `local` | No | Run against local node |
-| (default) | Yes | Run in CI environment |
 
 ## Writing Tests
 
@@ -82,11 +76,9 @@ async fn test_feature() {
 
 ### Available Helpers
 
-| Helper | Description |
-|--------|-------------|
-| `TestNode` | Spawns and manages test node |
-| `TestClient` | RPC client for node interaction |
-| `TxBuilder` | Transaction construction |
+- **`TestNode`** - Spawns and manages test node
+- **`TestClient`** - RPC client for node interaction
+- **`TxBuilder`** - Transaction construction
 
 ## Integration
 

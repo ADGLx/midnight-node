@@ -10,24 +10,24 @@ This pallet provides a privileged interface for applying system-level transactio
 
 ### Dispatchables
 
-- [**`send_mn_system_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L93) - Apply a serialized system transaction
+- [**`send_mn_system_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L69) - Apply a serialized system transaction
 
 ### Events
 
-- [**`SystemTransactionApplied`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L70) - System tx successfully applied
+- [**`SystemTransactionApplied`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L30) - System tx successfully applied
 
 ### Errors
 
-- [**`LedgerApiError`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L78) - Wrapped ledger API error
+- [**`LedgerApiError`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L38) - Wrapped ledger API error
 
 ### Config Trait
 
-- [**`LedgerStateProviderMut`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L55) - Access to ledger state
-- [**`LedgerBlockContextProvider`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L58) - Block context (timestamp, hash)
+- [**`LedgerStateProviderMut`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L49) - Access to ledger state
+- [**`LedgerBlockContextProvider`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L50) - Block context (timestamp, hash)
 
 ### Storage
 
-- [**`ConfigurableSystemTxWeight`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L65) - Processing weight for system transactions
+- [**`ConfigurableSystemTxWeight`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L62) - Processing weight for system transactions
 
 ## Architecture
 

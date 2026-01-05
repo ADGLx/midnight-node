@@ -49,36 +49,30 @@ midnight-node \
 
 ### Common Options
 
-| Option | Description |
-|--------|-------------|
-| `--chain <SPEC>` | Chain spec (dev, qanet, or file path) |
-| `--base-path <PATH>` | Data directory |
-| `--name <NAME>` | Node name for telemetry |
-| `--validator` | Enable block production |
-| `--rpc-cors <ORIGINS>` | CORS for RPC (default: all) |
-| `--rpc-port <PORT>` | RPC port (default: 9944) |
-| `--db-sync-postgres-url` | Cardano db-sync connection |
+- **`--chain <SPEC>`** - Chain spec (dev, qanet, or file path)
+- **`--base-path <PATH>`** - Data directory
+- **`--name <NAME>`** - Node name for telemetry
+- **`--validator`** - Enable block production
+- **`--rpc-cors <ORIGINS>`** - CORS for RPC (default: all)
+- **`--rpc-port <PORT>`** - RPC port (default: 9944)
+- **`--db-sync-postgres-url`** - Cardano db-sync connection
 
 ### Subcommands
 
-| Command | Description |
-|---------|-------------|
-| `key` | Key management (generate, inspect) |
-| `build-spec` | Generate chain specification |
-| `export-genesis-state` | Export genesis state |
-| `export-genesis-wasm` | Export genesis WASM |
-| `benchmark` | Runtime benchmarking |
-| `try-runtime` | Test runtime upgrades |
+- **`key`** - Key management (generate, inspect)
+- **`build-spec`** - Generate chain specification
+- **`export-genesis-state`** - Export genesis state
+- **`export-genesis-wasm`** - Export genesis WASM
+- **`benchmark`** - Runtime benchmarking
+- **`try-runtime`** - Test runtime upgrades
 
 ## RPC Endpoints
 
 ### Midnight-Specific
 
-| Method | Description |
-|--------|-------------|
-| `midnight_contractState` | Get contract state |
-| `midnight_zswapStateRoot` | Get ZSwap root |
-| `midnight_ledgerVersion` | Get ledger version |
+- **`midnight_contractState`** - Get contract state
+- **`midnight_zswapStateRoot`** - Get ZSwap root
+- **`midnight_ledgerVersion`** - Get ledger version
 
 ### Substrate Standard
 
@@ -152,14 +146,6 @@ See `res/cfg/*.toml` for network-specific presets (dev, qanet, preview).
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L209-L283) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L327-L360)
 
-## Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| (none) | Yes | Standard build |
-| `runtime-benchmarks` | No | Include benchmarking |
-| `try-runtime` | No | Include try-runtime |
-| `experimental` | No | Experimental features |
 
 ## Development
 

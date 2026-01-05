@@ -27,32 +27,31 @@ When compiled for WASM (`no_std`), it only includes `host_api` and minimal stubs
 
 ### Host Functions (via `ledger_bridge`)
 
-- [**`apply_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L100) - Process a user transaction
-- [**`apply_system_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L120) - Process a system transaction (from observations)
-- [**`validate_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L140) - Validate without applying
-- [**`pre_fetch_storage`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L160) - Cache ledger state for block
-- [**`post_block_update`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L180) - Finalize block state
-- [**`flush_storage`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L200) - Persist state to disk
-- [**`get_contract_state`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L220) - Query contract state
-- [**`get_zswap_state_root`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L240) - Get ZSwap Merkle root
-- [**`mint_coins`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L260) - Mint block rewards
-- [**`get_version`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L280) - Get ledger library version
+- **`apply_transaction`** - Process a user transaction
+- **`apply_system_transaction`** - Process a system transaction (from observations)
+- **`validate_transaction`** - Validate without applying
+- **`pre_fetch_storage`** - Cache ledger state for block
+- **`post_block_update`** - Finalize block state
+- **`flush_storage`** - Persist state to disk
+- **`get_contract_state`** - Query contract state
+- **`get_zswap_state_root`** - Get ZSwap Merkle root
+- **`mint_coins`** - Mint block rewards
+- **`get_version`** - Get ledger library version
 
 ### Types (via `types` module)
 
-- [**`Tx`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/types.rs#L20) - Decoded transaction
-- [**`Hash`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/types.rs#L30) - 32-byte ledger hash
-- [**`BlockContext`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/types.rs#L40) - Timestamp and parent hash
-- [**`GasCost`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/types.rs#L50) / [**`StorageCost`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/types.rs#L55) - Transaction costs
-- [**`UtxoInfo`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/types.rs#L60) - UTXO details
-- [**`LedgerApiError`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/types.rs#L70) - Error variants
+- **`Tx`** - Decoded transaction
+- **`Hash`** - 32-byte ledger hash
+- **`BlockContext`** - Timestamp and parent hash
+- **`GasCost`** / **`StorageCost`** - Transaction costs
+- **`UtxoInfo`** - UTXO details
+- **`LedgerApiError`** - Error variants
 
 ### Version Modules
 
-- [**`latest`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/latest/) - Current production ledger (default)
-- [**`hard_fork_test`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/hard_fork_test/) - Test ledger for upgrades
-- **`types::active_version`** - Re-exports active version types
-- **`types::active_ledger_bridge`** - Re-exports active host functions
+- [**`latest`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L54) - Current production ledger
+- [**`hard_fork_test`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L36) - Test ledger for upgrades
+- [**`types::active_version`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L73) - Re-exports active version types
 
 ## Architecture
 

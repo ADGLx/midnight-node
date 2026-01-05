@@ -18,20 +18,24 @@ This project provides a unified way to spin up Midnight resources for developmen
 
 ### npm Scripts
 
-- **`npm run run:qanet`** - Launch QAnet network
-- **`npm run run:devnet`** - Launch Devnet network
-- **`npm run run:testnet-02`** - Launch Testnet 02
-- **`npm run run:node-dev-01`** - Launch node-dev-01 network
-- **`npm run run:local-env`** - Launch dynamic local environment
-- **`npm run run:local-env-with-indexer`** - Local env with indexer
-- **`npm run stop:*`** - Stop corresponding network
-- **`npm run image-upgrade:*`** - Launch and apply image upgrade
+| Script | Description |
+|--------|-------------|
+| `npm run run:qanet` | Launch QAnet network |
+| `npm run run:devnet` | Launch [Devnet](https://docs.midnight.network/learn/glossary#devnet) network |
+| `npm run run:testnet-02` | Launch [Testnet](https://docs.midnight.network/learn/glossary#testnet) 02 |
+| `npm run run:node-dev-01` | Launch node-dev-01 network |
+| `npm run run:local-env` | Launch dynamic local environment |
+| `npm run run:local-env-with-indexer` | Local env with indexer |
+| `npm run stop:*` | Stop corresponding network |
+| `npm run image-upgrade:*` | Launch and apply image upgrade |
 
 ### Earthly Targets
 
-- **`+start-local-env-latest`** - Start local env with latest node
-- **`+start-local-env --NODE-IMAGE=<image>`** - Start with specific node image
-- **`+stop-local-env-latest`** - Stop local env and wipe volumes
+| Target | Description |
+|--------|-------------|
+| `+start-local-env-latest` | Start local env with latest node |
+| `+start-local-env --NODE-IMAGE=<image>` | Start with specific node image |
+| `+stop-local-env-latest` | Stop local env and wipe volumes |
 
 ## Usage
 

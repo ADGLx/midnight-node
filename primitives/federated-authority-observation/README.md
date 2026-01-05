@@ -10,19 +10,19 @@ This crate defines types for synchronizing governance body membership ([Council]
 
 ### Core Types
 
-- [**`FederatedAuthorityData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L30) - Observed membership from mainchain
-- [**`AuthorityMemberPublicKey`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L45) - Member's sr25519 public key (wrapped)
-- [**`MainchainMember`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L50) - 28-byte PolicyId identifying member on Cardano
-- [**`FederatedAuthorityObservationConfig`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L60) - Genesis configuration
-- [**`AuthBodyConfig`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L70) - Per-body configuration (Council or TC)
+- [**`FederatedAuthorityData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L107) - Observed membership from mainchain
+- [**`AuthorityMemberPublicKey`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L67) - Member's sr25519 public key (wrapped)
+- [**`MainchainMember`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L30) - 28-byte PolicyId identifying member on Cardano
+- [**`FederatedAuthorityObservationConfig`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L168) - Genesis configuration
+- [**`AuthBodyConfig`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L152) - Per-body configuration ([Council](https://docs.midnight.network/learn/glossary#council) or TC)
 
 ### Inherent
 
-- [**`faobsrve`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L20) - Observed membership data
+- [**`INHERENT_IDENTIFIER`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L27) - `faobsrve` - FederatedAuthorityData
 
 ### Helper Functions (std only)
 
-- [**`ed25519_to_mainchain_member`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L100) - Convert Ed25519 pubkey to MainchainMember
+- [**`ed25519_to_mainchain_member`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L34) - Convert Ed25519 pubkey to MainchainMember
 
 ## Usage
 

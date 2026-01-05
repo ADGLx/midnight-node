@@ -34,15 +34,15 @@ The runtime is the "business logic" of the chain—validators execute it identic
 
 ### Runtime APIs
 
-- [**`MidnightRuntimeApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1100) - Ledger state queries (contract state, transaction decoding, network ID)
-- [**`SessionValidatorManagementApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1150) - Committee queries (current/next validators)
-- [**`CNightObservationApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1200) - Cardano bridge configuration
-- [**`FederatedAuthorityObservationApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1250) - Governance address queries
-- [**`GovernedMapIDPApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1300) - Key-value governance map state
-- [**`AuraApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1350) - Block production slot duration and authorities
-- [**`GrandpaApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1400) - Finality authorities and set ID
-- [**`BeefyApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1450) - Bridge validator set and proofs
-- [**`MmrApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1500) - Merkle Mountain Range root and proofs
+- **`MidnightRuntimeApi`** - Ledger state queries (contract state, transaction decoding, network ID)
+- **`SessionValidatorManagementApi`** - Committee queries (current/next validators)
+- **`CNightObservationApi`** - Cardano bridge configuration
+- **`FederatedAuthorityObservationApi`** - Governance address queries
+- **`GovernedMapIDPApi`** - Key-value governance map state
+- **`AuraApi`** - Block production slot duration and authorities
+- **`GrandpaApi`** - Finality authorities and set ID
+- **`BeefyApi`** - Bridge validator set and proofs
+- **`MmrApi`** - Merkle Mountain Range root and proofs
 
 ## Architecture
 

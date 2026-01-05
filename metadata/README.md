@@ -13,18 +13,14 @@ This crate contains SCALE-encoded runtime metadata used by:
 
 ### Modules
 
-| Module | Description |
-|--------|-------------|
-| `midnight_metadata_latest` | Latest protocol version interfaces |
-| `midnight_metadata_X_Y_Z` | Specific version (e.g., `midnight_metadata_0_17_0`) |
+- **`midnight_metadata_latest`** - Latest protocol version interfaces
+- **`midnight_metadata_X_Y_Z`** - Specific version (e.g., `midnight_metadata_0_17_0`)
 
 ### Static Files
 
 Located in `static/`:
 
-| File | Description |
-|------|-------------|
-| `*.scale` | SCALE-encoded metadata for each version |
+- **`*.scale`** - SCALE-encoded metadata for each version
 
 ## Usage
 

@@ -23,7 +23,7 @@ Ensure [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficie
 
 ### CLI Commands
 
-- [**`midnight-beefy-relay --keys-path <file>`**](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs#L20) - Insert BEEFY keys from JSON file
+- **`midnight-beefy-relay --keys-path <file>`** - Insert [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficiency-enabling-finality-yielder) keys from JSON file
 
 ### Key File Format
 

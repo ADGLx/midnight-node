@@ -12,39 +12,37 @@ The pallet implements `LedgerStateProviderMut` and `LedgerBlockContextProvider` 
 
 ### Dispatchables
 
-- [**`send_mn_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L288) - Process a Midnight transaction (ZSwap, contract deploy/call)
-- [**`override_d_parameter`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L319) - Override validator selection D-parameter
-- [**`set_tx_size_weight`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L333) - Configure transaction weight
+- [**`send_mn_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L352) - Process a Midnight transaction (ZSwap, contract deploy/call)
+- [**`set_tx_size_weight`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L414) - Configure transaction weight
 
 ### Storage Items
 
-- [**`StateKey`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L183) - Current ledger state root
-- [**`NetworkId`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L187) - Network identifier (e.g., "undeployed")
-- [**`DParameterOverride`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L191) - Override for validator selection
-- [**`ConfigurableTransactionSizeWeight`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L195) - Transaction processing weight
+- [**`StateKey`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L139) - Current ledger state root
+- [**`NetworkId`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L142) - Network identifier (e.g., "undeployed")
+- [**`ConfigurableTransactionSizeWeight`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L156) - Transaction processing weight
 
 ### Events
 
-- [**`ContractDeploy`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L200) - Contract deployed with address
-- [**`ContractCall`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L203) - Contract entrypoint invoked
-- [**`ContractMaintain`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L206) - Contract authority/verifier updated
-- [**`TxApplied`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L209) - Transaction fully applied
-- [**`TxPartialSuccess`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L212) - Guaranteed part applied, conditional failed
-- [**`UnshieldedTokens`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L215) - UTXO transfers (spent/created)
-- [**`PayoutMinted`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L218) - Block reward minted
-- [**`ClaimRewards`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L221) - Rewards claimed by beneficiary
+- [**`ContractDeploy`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L219) - Contract deployed with address
+- [**`ContractCall`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L217) - Contract entrypoint invoked
+- [**`ContractMaintain`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L223) - Contract authority/verifier updated
+- [**`TxApplied`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L221) - Transaction fully applied
+- [**`TxPartialSuccess`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L231) - Guaranteed part applied, conditional failed
+- [**`UnshieldedTokens`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L229) - UTXO transfers (spent/created)
+- [**`PayoutMinted`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L225) - Block reward minted
+- [**`ClaimRewards`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L227) - Rewards claimed by beneficiary
 
 ### Errors
 
-- [**`Transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L226) - Ledger transaction validation/execution error
-- [**`Deserialization`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L228) - Failed to decode transaction
-- [**`NoLedgerState`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L230) - Ledger state not initialized
-- [**`BlockLimitExceededError`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L232) - Transaction exceeds block limits
+- [**`Transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L244) - Ledger transaction validation/execution error
+- [**`Deserialization`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L240) - Failed to decode transaction
+- [**`NoLedgerState`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L248) - Ledger state not initialized
+- [**`BlockLimitExceededError`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L254) - Transaction exceeds block limits
 
 ### Config Trait
 
-- [**`BlockReward`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L166) - Block reward amount and beneficiary
-- [**`SlotDuration`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L169) - Slot duration for timestamp calculations
+- [**`BlockReward`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L125) - Block reward amount and beneficiary
+- [**`SlotDuration`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L128) - Slot duration for timestamp calculations
 
 ## Architecture
 

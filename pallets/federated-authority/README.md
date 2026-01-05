@@ -17,37 +17,29 @@ The [pallet](https://docs.midnight.network/learn/glossary#pallet) is configurabl
 
 ### Dispatchables
 
-- [**`motion_approve`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L125) - Signal approval of a call from an authority body
-- [**`motion_close`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L180) - Finalize an approved or expired motion
-- [**`motion_revoke`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L230) - Withdraw approval before execution
+- [**`motion_approve`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L133) - Signal approval of a call from an authority body
+- [**`motion_revoke`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L205) - Withdraw approval before execution
+- [**`motion_close`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L261) - Finalize an approved or expired motion
 
 ### Storage Items
 
-- [**`Motions`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L80) - Pending motions awaiting approval
-- [**`MotionApprovals`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L85) - Approval status per body
+- [**`Motions`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L86) - Pending motions awaiting approval
 
 ### Events
 
-- [**`MotionCreated`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L92) - New motion created on first approval
-- [**`MotionApproved`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L94) - Authority body approved a motion
-- [**`MotionRevoked`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L96) - Authority body revoked approval
-- [**`MotionExecuted`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L98) - Motion executed with Root privileges
-- [**`MotionExpired`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L100) - Motion expired without sufficient approvals
+- [**`Event`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L112) - MotionCreated, MotionApproved, MotionRevoked, MotionExecuted, MotionExpired
 
 ### Errors
 
-- [**`MotionNotFound`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L105) - Referenced motion doesn't exist
-- [**`AlreadyApproved`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L107) - Body already approved this motion
-- [**`NotApproved`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L109) - Cannot revoke non-existent approval
-- [**`MotionExpired`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L111) - Motion lifetime exceeded
-- [**`InsufficientApprovals`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L113) - Not enough approvals to execute
+- [**`Error`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L89) - MotionNotFound, AlreadyApproved, NotApproved, MotionExpired, InsufficientApprovals
 
 ### Config Trait
 
-- [**`AuthorityBodies`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L55) - List of authority body identifiers
-- [**`RequiredApprovals`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L58) - Number of approvals needed for execution
-- [**`MotionDuration`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L61) - Block count before motion expires
-- [**`RuntimeCall`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L64) - The call type that can be executed
+- [**`MotionCall`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L65) - The call type that can be executed
+- [**`MaxAuthorityBodies`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L71) - Maximum number of authority bodies
+- [**`MotionDuration`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L74) - Block count before motion expires
+- [**`MotionApprovalProportion`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L76) - Required approval proportion
+- [**`WeightInfo`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L82) - Weight information for extrinsics
 
 ## Motion Lifecycle
 

@@ -10,10 +10,10 @@ This crate provides WebSocket/HTTP RPC methods for external clients to query con
 
 ### RPC Methods
 
-- [**`midnight_contractState`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L22) - Get contract state at address
-- [**`midnight_zswapStateRoot`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L26) - Get ZSwap Merkle root
-- [**`midnight_apiVersions`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L30) - Supported API versions
-- [**`midnight_ledgerVersion`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L34) - Ledger version string
+- **`midnight_contractState`** - Get contract state at address
+- **`midnight_zswapStateRoot`** - Get ZSwap Merkle root
+- **`midnight_apiVersions`** - Supported API versions
+- **`midnight_ledgerVersion`** - Ledger version string
 
 ### Public Types
 
@@ -40,9 +40,7 @@ curl -X POST http://localhost:9944 \
 
 The `midnight_apiVersions` method returns supported API versions. Current versions:
 
-| Version | Description |
-|---------|-------------|
-| 2 | Current API with `Result` return types |
+- **Version 2** - Current API with `Result` return types
 
 Version 1 (deprecated) used `Option` return types.
 
