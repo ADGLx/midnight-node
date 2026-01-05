@@ -68,54 +68,6 @@ Port │                                                                    │ 
      Other Midnight Nodes ◀────P2P Network (Port 30333)────▶ Other Midnight Nodes
 ```
 
-## Components
-
-### Runtime Pallets
-
-Midnight Node includes six custom runtime pallets that implement core blockchain functionality:
-
-**[pallet-midnight](pallets/midnight)** - Core pallet managing ledger state and transaction execution
-- Processes privacy-preserving smart contract transactions
-- Maintains ledger state root and provides state access interface
-- Integrates with midnight-ledger for zero-knowledge proof verification
-
-**[pallet-midnight-system](pallets/midnight-system)** - System transaction management
-- Handles administrative operations requiring root privileges
-- Applies system-level transactions to ledger state
-
-**[pallet-native-token-observation](pallets/native-token-observation)** - Cardano bridge integration
-- Tracks cNIGHT token registration from Cardano mainchain
-- Manages DUST generation and UTXO tracking
-- Processes Cardano Midnight System Transactions (CMST)
-
-**[pallet-federated-authority](pallets/federated-authority)** - Multi-collective governance
-- Requires consensus from multiple authority bodies for critical operations
-- Motion-based proposal system with time limits
-- Executes approved motions with root privileges
-
-**[pallet-federated-authority-observation](pallets/federated-authority-observation)** - Governance synchronization
-- Observes authority changes from mainchain
-- Updates Council and Technical Committee memberships
-- Propagates governance changes across the network
-
-**[pallet-version](pallets/version)** - Runtime version tracking
-- Records runtime spec version in block digests
-- Enables version monitoring and upgrade tracking
-
-### Node Services
-
-**RPC Server** - WebSocket endpoint (default port 9944) for client connections
-
-**Consensus** - Hybrid consensus mechanism:
-- AURA for block production (6-second blocks)
-- GRANDPA for Byzantine-fault-tolerant finality
-- BEEFY for bridge security
-- MMR for efficient light client proofs
-
-**Network** - P2P networking via libp2p (default port 30333)
-
-**Keystore** - Local cryptographic key management for validators
-
 ## Project Structure
 
 | Directory | Description | README |
