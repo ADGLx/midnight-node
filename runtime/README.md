@@ -18,31 +18,31 @@ The runtime is the "business logic" of the chain—validators execute it identic
 
 ### Core Types
 
-- [**`BlockNumber`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L200) - Index to a block in the chain (`u32`)
-- [**`AccountId`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L206) - Account identifier derived from public key
-- [**`Balance`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L209) - Account balance type (`u128`)
-- [**`Nonce`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L203) - Transaction index for replay protection (`u32`)
-- [**`Hash`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L212) - 256-bit hash for blocks and tries (`sp_core::H256`)
-- [**`Signature`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L218) - Transaction signature (Sr25519/Ed25519/ECDSA)
+- [**`BlockNumber`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L139) - Index to a block in the chain (`u32`)
+- [**`AccountId`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L146) - Account identifier derived from public key
+- [**`Balance`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L149) - Account balance type (`u128`)
+- [**`Nonce`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L152) - Transaction index for replay protection (`u32`)
+- [**`Hash`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L155) - 256-bit hash for blocks and tries (`sp_core::H256`)
+- [**`Signature`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L142) - Transaction signature (Sr25519/Ed25519/ECDSA)
 
 ### Block Structure
 
-- [**`Block`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L224) - Standard Substrate block containing header and extrinsics
-- [**`Header`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L221) - Block header with number, parent hash, state root, and Blake2-256 hashing
-- [**`UncheckedExtrinsic`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L250) - Transaction with sender address, call data, signature, and extensions
-- [**`SignedExtra`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L232) - Transaction extensions (nonce, mortality period, weight checks)
+- [**`Block`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1017) - Standard Substrate block containing header and [extrinsics](https://docs.polkadot.com/polkadot-protocol/glossary/#extrinsic)
+- [**`Header`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1015) - Block header with number, parent hash, state root, and Blake2-256 hashing
+- [**`UncheckedExtrinsic`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1031) - Transaction with sender address, call data, signature, and extensions
+- [**`SignedExtra`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1019) - Transaction extensions (nonce, mortality period, weight checks)
 
 ### Runtime APIs
 
-- **`MidnightRuntimeApi`** - Ledger state queries (contract state, transaction decoding, network ID)
-- **`SessionValidatorManagementApi`** - Committee queries (current/next validators)
-- **`CNightObservationApi`** - Cardano bridge configuration
-- **`FederatedAuthorityObservationApi`** - Governance address queries
-- **`GovernedMapIDPApi`** - Key-value governance map state
-- **`AuraApi`** - Block production slot duration and authorities
-- **`GrandpaApi`** - Finality authorities and set ID
-- **`BeefyApi`** - Bridge validator set and proofs
-- **`MmrApi`** - Merkle Mountain Range root and proofs
+- [**`MidnightRuntimeApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1098) - Ledger state queries (contract state, transaction decoding, network ID)
+- [**`SessionValidatorManagementApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1480) - Committee queries (current/next validators)
+- [**`CNightObservationApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1515) - Cardano bridge configuration
+- [**`FederatedAuthorityObservationApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1561) - Governance address queries
+- [**`GovernedMapIDPApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1546) - Key-value governance map state
+- [**`AuraApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1199) - Block production slot duration and authorities
+- [**`GrandpaApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1354) - Finality authorities and set ID
+- [**`BeefyApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1209) - Bridge validator set and proofs
+- [**`MmrApi`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L1284) - Merkle Mountain Range root and proofs
 
 ## Architecture
 

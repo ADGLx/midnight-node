@@ -4,7 +4,7 @@ Bridge between Substrate runtime and Midnight's [ZSwap](https://docs.midnight.ne
 
 ## Overview
 
-This crate provides host functions that allow the WASM runtime to interact with the Midnight ledger. It handles:
+This crate provides host functions that allow the [WASM](https://docs.polkadot.com/polkadot-protocol/glossary/#webassembly-wasm) runtime to interact with the Midnight ledger. It handles:
 
 - **Transaction processing** - Apply and validate [ZSwap](https://docs.midnight.network/learn/glossary#zswap) transactions
 - **State management** - Read/write ledger state with caching
@@ -21,7 +21,7 @@ midnight_node_ledger::types::active_version
 midnight_node_ledger::types::active_ledger_bridge
 ```
 
-When compiled for WASM (`no_std`), it only includes `host_api` and minimal stubs. When compiled for native (`std` feature), it includes full host function implementations + storage + json serialization.
+When compiled for [WASM](https://docs.polkadot.com/polkadot-protocol/glossary/#webassembly-wasm) (`no_std`), it only includes `host_api` and minimal stubs. When compiled for native (`std` feature), it includes full host function implementations + storage + json serialization.
 
 ## API Specification
 

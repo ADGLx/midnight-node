@@ -15,10 +15,10 @@ This crate defines types for tracking [cNIGHT](https://docs.midnight.network/lea
 
 ### Core Types
 
-- **`CardanoPosition`** - Block hash, number, timestamp, and tx index
-- **`ObservedUtxo`** - Header + data for an observed UTXO
-- **`ObservedUtxoHeader`** - Position and UTXO identification
-- **`ObservedUtxoData`** - Enum of observation types
+- [**`CardanoPosition`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L145) - Block hash, number, timestamp, and tx index
+- [**`ObservedUtxo`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L241) - Header + data for an observed UTXO
+- [**`ObservedUtxoHeader`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L346) - Position and UTXO identification
+- [**`ObservedUtxoData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L273) - Enum of observation types
 
 ### ObservedUtxoData Variants
 
@@ -26,13 +26,13 @@ This crate defines types for tracking [cNIGHT](https://docs.midnight.network/lea
 - **`Deregistration`** - Wallet mapping removal
 - **`RedemptionCreate`** - Glacier Drop claim created
 - **`RedemptionSpend`** - Glacier Drop claim spent
-- **`AssetCreate`** - cNIGHT UTXO created
-- **`AssetSpend`** - cNIGHT UTXO spent
+- **`AssetCreate`** - [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) UTXO created
+- **`AssetSpend`** - [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) UTXO spent
 
 ### Address Types
 
-- **`CardanoRewardAddressBytes`** - 29 bytes - Cardano stake/reward address
-- **`DustPublicKeyBytes`** - 33 bytes - Compressed ECDSA public key
+- [**`CardanoRewardAddressBytes`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L54) - 29 bytes - Cardano stake/reward address
+- [**`DustPublicKeyBytes`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L81) - 33 bytes - Compressed ECDSA public key
 
 ### Inherent
 

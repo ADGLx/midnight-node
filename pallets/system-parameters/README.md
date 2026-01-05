@@ -37,19 +37,19 @@ Parameters are initialized at genesis via JSON configuration files located at `r
 }
 ```
 
-## Extrinsics
+## API Specification
 
-Both extrinsics require `SystemOrigin` (typically Root or governance origin):
+### Dispatchables
 
-- `update_terms_and_conditions(hash, url)`: Updates the Terms and Conditions
-- `update_d_parameter(num_permissioned_candidates, num_registered_candidates)`: Updates the D-Parameter
+Both [extrinsics](https://docs.polkadot.com/polkadot-protocol/glossary/#extrinsic) require `SystemOrigin` (typically Root or governance origin):
 
-## Runtime API
+- [**`update_terms_and_conditions`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/system-parameters/src/lib.rs#L188) - Updates the Terms and Conditions hash and URL
+- [**`update_d_parameter`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/system-parameters/src/lib.rs#L217) - Updates the D-Parameter values
 
-The pallet exposes runtime APIs for querying current values:
+### Public Functions
 
-- `get_terms_and_conditions()`: Returns the current Terms and Conditions (if set)
-- `get_d_parameter()`: Returns the current D-Parameter
+- [**`get_terms_and_conditions`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/system-parameters/src/lib.rs#L238) - Returns the current Terms and Conditions (if set)
+- [**`get_d_parameter`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/system-parameters/src/lib.rs#L243) - Returns the current D-Parameter
 
 ## RPC Endpoints
 

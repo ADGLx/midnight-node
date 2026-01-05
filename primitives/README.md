@@ -4,17 +4,9 @@ Shared types and traits used across runtime and native code.
 
 ## Overview
 
-```
-+-----------------------------------------------------------------------+
-|                            Primitives                                  |
-+-----------------------------------------------------------------------+
-| midnight/              | Core traits and transaction types            |
-| ledger/                | Metrics and externality extensions           |
-| cnight-observation/    | Cardano UTXO observation types               |
-| federated-authority-*/ | Governance observation types                 |
-| mainchain-follower/    | Data source interface types                  |
-+-----------------------------------------------------------------------+
-```
+This directory contains foundational types, traits, and data structures that are shared between the [WASM](https://docs.polkadot.com/polkadot-protocol/glossary/#webassembly-wasm) runtime and native node code. Primitives define the interfaces between pallets and the native ledger implementation, enabling type-safe communication across the WASM boundary.
+
+The primitives are organized by domain: core traits for ledger state access, observation types for Cardano bridge data, and metrics/extensions for operational monitoring. These crates are dependencies of both the runtime (compiled to WASM) and the node (compiled natively), so they must be `no_std` compatible.
 
 ## Packages
 
@@ -32,16 +24,6 @@ Shared types and traits used across runtime and native code.
 
 ### [mainchain-follower/](mainchain-follower/README.md)
 **midnight-primitives-mainchain-follower** - Data source interface types and re-exports for mainchain observation.
-
-## Package Index
-
-| Package | Path | Description |
-|---------|------|-------------|
-| `midnight-primitives` | `midnight/` | Core primitives |
-| `midnight-primitives-ledger` | `ledger/` | Ledger primitives |
-| `midnight-primitives-cnight-observation` | `cnight-observation/` | cNIGHT types |
-| `midnight-primitives-federated-authority-observation` | `federated-authority-observation/` | Governance types |
-| `midnight-primitives-mainchain-follower` | `mainchain-follower/` | Mainchain types |
 
 ## See Also
 
