@@ -139,7 +139,7 @@ flowchart LR
     B --> E["@midnight-ntwrk/compact-js"]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/bin.ts#L1-L50) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/commands/deploy.ts) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/test/contract/contract.config.ts)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/index.ts) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/test/contract/contract.config.ts)
 
 ### Configuration Resolution
 

@@ -63,7 +63,7 @@ block-beta
     end
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L992-L1090) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L270-L400)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L924-L1010) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L360-L410)
 
 ### Pallet Index Map
 

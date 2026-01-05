@@ -88,7 +88,7 @@ flowchart LR
     C --> D[BEEFY Consensus<br/>Key Storage]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs#L20-L45) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/beefy_keys.rs#L37-L60)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs#L27-L60) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/beefy_keys.rs#L34-L54)
 
 ## Integration
 

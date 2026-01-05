@@ -115,7 +115,7 @@ flowchart TB
     F -->|service_completed_successfully| G[Midnight Nodes<br/>x5 validators]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/setup/Dockerfile)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml)
 
 ### Component Summary
 

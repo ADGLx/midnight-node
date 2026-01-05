@@ -99,7 +99,7 @@ flowchart LR
     C --> D[Midnight Node<br/>WebSocket RPC]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/useSubstrate.js)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/index.js)
 
 ### Directory Structure
 
