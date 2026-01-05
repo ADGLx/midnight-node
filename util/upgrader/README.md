@@ -49,6 +49,8 @@ upgrader \
 
 ## Architecture
 
+The upgrader provides a simple HTTP trigger for runtime upgrades. It runs an actix-web server that listens for upgrade requests. Upon receiving a `GET /execute` request, it reads the WASM runtime file, constructs a `sudo.sudo_unchecked_weight` extrinsic wrapping the `system.set_code` call, and submits it via subxt RPC. The sudo key (provided at startup) authorizes the upgrade. This allows external orchestration tools (CI/CD, Kubernetes operators) to trigger upgrades via HTTP without direct RPC access.
+
 ```mermaid
 flowchart LR
     A[HTTP Request<br/>GET /execute] --> B[upgrader<br/>actix-web]
@@ -56,7 +58,7 @@ flowchart LR
     C --> D[sudo.sudo_<br/>unchecked_weight]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/main.rs#L58-L66) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/lib.rs#L40)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/main.rs#L40-L80) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/lib.rs#L30-L60)
 
 ## Example Workflow
 

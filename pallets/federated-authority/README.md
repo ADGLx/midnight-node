@@ -68,6 +68,8 @@ The `motion_revoke` [extrinsic](https://docs.midnight.network/learn/glossary#ext
 
 ## Architecture
 
+The federated authority mechanism requires multiple independent governance bodies to approve a motion before execution. Each body (Council, Technical Committee) conducts its own internal voting process via `pallet_collective`. Upon reaching their respective thresholds, they dispatch `motion_approve` which either creates a new motion record or adds an approval to an existing one. The pallet tracks approvals per motion hash, and when the configured approval threshold is met (e.g., both bodies approved), anyone can call `motion_close` to execute the motion with Root privileges. This creates a multi-sig-like checkpoint for critical operations.
+
 ```mermaid
 flowchart TB
     A[Council<br/>2/3 approval] --> C[motion_approve]
@@ -81,7 +83,7 @@ flowchart TB
     D -->|when both bodies approved| F[motion_close<br/>Execute with Root]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L125-L280) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L916-L954)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L133-L197) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L261-L320) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L916-L954)
 
 ## Integration
 

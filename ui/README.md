@@ -90,6 +90,8 @@ Two methods:
 
 ## Architecture
 
+The UI follows a layered architecture with React components at the presentation layer. Components access blockchain state and submit transactions through the `useSubstrate` hook, which provides a React Context wrapper around the Polkadot.js API. The API maintains a WebSocket connection to a Midnight node, subscribing to state changes and handling transaction lifecycle. This architecture decouples UI components from blockchain specifics, allowing them to interact with the chain through a familiar React hooks pattern.
+
 ```mermaid
 flowchart LR
     A[React Components<br/>UI] --> B[useSubstrate<br/>Hook]
@@ -97,7 +99,7 @@ flowchart LR
     C --> D[Midnight Node<br/>WebSocket RPC]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/useSubstrate.js)
 
 ### Directory Structure
 

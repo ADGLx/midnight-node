@@ -44,6 +44,8 @@ Observations arrive via inherents from the mainchain follower data source. The p
 
 ### Observation Flow
 
+The observation pipeline begins with db-sync indexing Cardano blocks into PostgreSQL. The inherent data provider queries for cNIGHT-related UTXOs within a configurable block window, packaging them as `MidnightObservationTokenMovement` inherent data. At block authoring time, validators include this data which the pallet processes via its inherent handler. For each observed UTXO, the pallet generates appropriate Cardano Midnight System Transactions (registrations, UTXO creates/spends, redemptions) and executes them through `pallet-midnight-system`.
+
 ```mermaid
 flowchart LR
     A[db-sync<br/>PostgreSQL] --> B[Inherent Data<br/>Provider]
@@ -52,7 +54,11 @@ flowchart LR
     D --> E[MidnightSystem::<br/>execute_system_tx]
 ```
 
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L287-L325) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs#L141-L180)
+
 ### Data Types
+
+Observed UTXOs carry both position metadata (for ordering and deduplication) and typed payload data. The `ObservedUtxoHeader` identifies the Cardano block and transaction where the UTXO was observed, while `ObservedUtxoData` variants encode the specific operation (registration, asset creation/spend, redemption). `CardanoPosition` tracks sync progress to ensure observations are processed exactly once in order.
 
 ```mermaid
 classDiagram
@@ -69,7 +75,7 @@ classDiagram
     }
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs#L141)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L45-L95) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L97-L115)
 
 ## Genesis Configuration
 

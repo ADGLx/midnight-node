@@ -31,6 +31,8 @@ This pallet provides a privileged interface for applying system-level transactio
 
 ## Architecture
 
+System transactions originate from Cardano observations processed by `pallet-cnight-observation`. When a registration, UTXO creation, or redemption is observed, the observation pallet constructs a Cardano Midnight System Transaction (CMST) and calls `MidnightSystemTransactionExecutor::execute_system_tx`. This pallet then applies the serialized system transaction to the ledger via root-privileged host functions, emitting a `SystemTransactionApplied` event upon success. The root origin requirement ensures only trusted observation pallets can trigger ledger state mutations.
+
 ```mermaid
 flowchart LR
     A[pallet-cnight-<br/>observation] --> B[MidnightSystem::<br/>execute_system_tx]
@@ -38,7 +40,7 @@ flowchart LR
     B --> D[Event:<br/>SystemTxApplied]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L93-L120)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L69-L99) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L101-L120)
 
 ## Integration
 

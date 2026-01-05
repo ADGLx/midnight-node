@@ -171,6 +171,8 @@ midnight-node-toolkit dust-balance \
 
 ## Architecture
 
+The toolkit operates as a transaction pipeline with pluggable sources, builders, and destinations. Sources provide initial ledger state (from `.mn` files or live chain RPC). Builders generate transactions based on the specified operation (batches, single transfers, contract operations). Each builder produces transactions that are proven locally or via remote prover, then sent to the destination (file for later replay, or directly to chain RPC). This flexible architecture supports offline transaction preparation, batch processing, and live chain interaction.
+
 ```mermaid
 flowchart LR
     A[Source<br/>File .mn / Chain RPC] --> B[TxGenerator<br/>Builder + Prover]
@@ -178,7 +180,7 @@ flowchart LR
     B --> D[Builders<br/>batches, single-tx, contract-*]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/mod.rs#L51) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L16-L18)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/mod.rs#L51-L120) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L16-L50) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/main.rs#L30-L80)
 
 ### Data Flow Modes
 

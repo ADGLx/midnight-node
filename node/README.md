@@ -124,6 +124,8 @@ See `res/cfg/*.toml` for network-specific presets (dev, qanet, preview).
 
 ## Architecture
 
+The node executable integrates multiple subsystems into a cohesive blockchain client. CLI arguments and configuration files are parsed and passed to the Service Builder, which constructs the Node Service with all required components. The service spawns parallel subsystems: AURA for block production, GRANDPA for finality, jsonrpsee for RPC handling, and libp2p for peer networking. The consensus layer drives the WASM runtime executor, which processes blocks and transactions against the Midnight ledger stored in ParityDB.
+
 ```mermaid
 flowchart TB
     A[CLI / Config] --> B[Service Builder]
@@ -135,7 +137,7 @@ flowchart TB
     G --> H[Ledger Storage<br/>ParityDB]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L209-L283) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L327-L360)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L209-L283) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L327-L360) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/command.rs#L50-L150)
 
 
 ## Development

@@ -55,6 +55,8 @@ When compiled for WASM (`no_std`), it only includes `host_api` and minimal stubs
 
 ## Architecture
 
+The ledger crate bridges WASM runtime execution with native ledger operations. When the runtime's `pallet-midnight` needs to apply a transaction, it calls host functions exported by `ledger_bridge`. These host functions execute in native code, invoking the `mn-ledger` library for ZSwap proof verification, state transitions, and transaction validation. State is persisted to ParityDB through the `ledger-storage` abstraction. This architecture allows the computationally intensive cryptographic operations to run natively while maintaining Substrate's deterministic WASM execution model.
+
 ```mermaid
 flowchart LR
     A[pallet-midnight<br/>WASM runtime] --> B[ledger_bridge<br/>host functions]
@@ -62,7 +64,7 @@ flowchart LR
     B --> D[ledger-storage<br/>ParityDB]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs#L33-L85) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/host_api/mod.rs) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223)
 
 ## JSON Transformation
 

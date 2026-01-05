@@ -129,6 +129,8 @@ midnight-node-toolkit-js maintain circuit --input state.bin -s <signing_key> <ad
 
 ## Architecture
 
+The toolkit-js CLI generates transaction intents for Compact smart contracts. The user provides a `contract.config.ts` that binds compiled contract assets (`.cjs` circuit code, `.zkir` verification keys) to witness implementations. The CLI loads this configuration along with the `@midnight-ntwrk/compact-js` runtime, which provides contract execution and intent building. Generated intents are serialized to binary files that can be consumed by the Rust toolkit's `send-intent` command for final transaction assembly and submission.
+
 ```mermaid
 flowchart LR
     A[contract.config.ts] --> B[toolkit-js CLI]
@@ -137,7 +139,7 @@ flowchart LR
     B --> E["@midnight-ntwrk/compact-js"]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/bin.ts) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/test/contract/contract.config.ts)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/bin.ts#L1-L50) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/commands/deploy.ts) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/test/contract/contract.config.ts)
 
 ### Configuration Resolution
 

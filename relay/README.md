@@ -79,6 +79,8 @@ See `res/mock-bridge-data/beefy-keys-mock.json` for example configuration.
 
 ## Architecture
 
+The BEEFY relay tool automates key insertion for validators participating in bridge consensus. It reads a JSON file containing BEEFY key configurations (secret URIs, public keys, and target node URLs), then iterates through each entry calling the node's `author_insertKey` RPC method. The node stores these ECDSA keys in its keystore, making them available for BEEFY signature production. This tool is primarily used during validator setup and key rotation operations.
+
 ```mermaid
 flowchart LR
     A[BEEFY Key JSON<br/>keys + URLs] --> B[midnight-beefy-<br/>relay]
@@ -86,7 +88,7 @@ flowchart LR
     C --> D[BEEFY Consensus<br/>Key Storage]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/beefy_keys.rs#L37)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs#L20-L45) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/beefy_keys.rs#L37-L60)
 
 ## Integration
 

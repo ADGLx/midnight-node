@@ -48,13 +48,19 @@ The pallet implements `LedgerStateProviderMut` and `LedgerBlockContextProvider` 
 
 ### Transaction Flow
 
+All Midnight transactions enter through the `send_mn_transaction` unsigned extrinsic. The pallet deserializes the transaction, invokes the LedgerApi host function to apply it against the current state, and emits appropriate events (ContractDeploy, ContractCall, TxApplied, etc.) based on the transaction outcome. The unsigned nature allows transactions to be submitted without a Substrate account, as fees are handled within the ZSwap ledger.
+
 ```mermaid
 flowchart LR
     A[send_mn_transaction<br/>unsigned] --> B[LedgerApi::<br/>apply_transaction]
     B --> C[Update StateKey<br/>+ Emit Events]
 ```
 
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L352-L408)
+
 ### Block Lifecycle
+
+The pallet hooks into Substrate's block lifecycle at two points. During `on_initialize`, it pre-fetches ledger storage into a cache for efficient access during transaction processing. After all transactions are processed, `on_finalize` triggers post-block updates including block reward minting and flushing the storage cache to persistent storage. This two-phase approach optimizes storage I/O by batching reads at block start and writes at block end.
 
 ```mermaid
 flowchart TB
@@ -66,7 +72,7 @@ flowchart TB
     F --> G[Mint rewards<br/>Update state]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L288-L306) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L355)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L285-L346)
 
 ## Usage
 

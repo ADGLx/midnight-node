@@ -102,6 +102,8 @@ earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 
 ### Local Environment Startup Sequence
 
+The local environment uses Docker Compose to orchestrate a complete Midnight development stack. Startup follows a dependency chain: the Cardano node initializes first, producing a private testnet with accelerated parameters. Ogmios and DB-Sync connect to Cardano, with DB-Sync populating PostgreSQL with indexed chain data. Once DB-Sync is synced, the `midnight-setup` service generates chain specifications using observed Cardano state. Finally, five Midnight validator nodes start with the generated chain spec, forming a functional sidechain connected to the local Cardano testnet.
+
 ```mermaid
 flowchart TB
     A[Docker Compose] --> B[Cardano Node<br/>private testnet]
@@ -113,7 +115,7 @@ flowchart TB
     F -->|service_completed_successfully| G[Midnight Nodes<br/>x5 validators]
 ```
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/setup/Dockerfile)
 
 ### Component Summary
 
