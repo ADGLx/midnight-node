@@ -10,31 +10,19 @@ This crate defines types for synchronizing governance body membership ([Council]
 
 ### Core Types
 
-| Type | Description |
-|------|-------------|
-| `FederatedAuthorityData` | Observed membership from mainchain |
-| `AuthorityMemberPublicKey` | Member's sr25519 public key (wrapped) |
-| `MainchainMember` | 28-byte PolicyId identifying member on Cardano |
-| `FederatedAuthorityObservationConfig` | Genesis configuration |
-| `AuthBodyConfig` | Per-body configuration ([Council](https://docs.midnight.network/learn/glossary#council) or TC) |
+- [**`FederatedAuthorityData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L30) - Observed membership from mainchain
+- [**`AuthorityMemberPublicKey`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L45) - Member's sr25519 public key (wrapped)
+- [**`MainchainMember`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L50) - 28-byte PolicyId identifying member on Cardano
+- [**`FederatedAuthorityObservationConfig`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L60) - Genesis configuration
+- [**`AuthBodyConfig`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L70) - Per-body configuration (Council or TC)
 
 ### Inherent
 
-| Identifier | Type |
-|------------|------|
-| `faobsrve` | `FederatedAuthorityData` |
+- [**`faobsrve`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L20) - Observed membership data
 
 ### Helper Functions (std only)
 
-| Function | Description |
-|----------|-------------|
-| `ed25519_to_mainchain_member` | Convert Ed25519 pubkey to MainchainMember |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Enables serde, sp_core for config parsing |
+- [**`ed25519_to_mainchain_member`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/federated-authority-observation/src/lib.rs#L100) - Convert Ed25519 pubkey to MainchainMember
 
 ## Usage
 

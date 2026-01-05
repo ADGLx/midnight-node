@@ -39,31 +39,17 @@ Open `build/index.html` in your browser.
 
 ### React Hooks
 
-| Hook | Description |
-|------|-------------|
-| `useSubstrate()` | Access to Polkadot.js API, keyring, and blockchain |
-| `useSubstrateState()` | Shorthand for read-only state access |
+- [**`useSubstrate()`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx#L20) - Access to Polkadot.js API, keyring, and blockchain state
+- [**`useSubstrateState()`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx#L25) - Shorthand for read-only state access
 
 ### useSubstrate State
 
-```javascript
-{
-  socket,        // Remote provider WebSocket URL
-  keyring,       // Available accounts keyring
-  keyringState,  // "READY" | "ERROR"
-  api,           // Polkadot.js API instance
-  apiState,      // "CONNECTING" | "READY" | "ERROR"
-  currentAccount,// Selected account pair
-  setCurrentAccount // Function to update selection
-}
-```
+Returns an object with `socket`, `keyring`, `keyringState`, `api`, `apiState`, `currentAccount`, and `setCurrentAccount`.
 
 ### Components
 
-| Component | Description |
-|-----------|-------------|
-| `TxButton` | Handles query and transaction requests |
-| `AccountSelector` | Unified account selection with balance display |
+- [**`TxButton`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/components/TxButton.js) - Handles query and transaction requests
+- [**`AccountSelector`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/AccountSelector.js) - Unified account selection with balance display
 
 ## Configuration
 

@@ -23,9 +23,7 @@ Ensure [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficie
 
 ### CLI Commands
 
-| Command | Description |
-|---------|-------------|
-| `midnight-beefy-relay --keys-path <file>` | Insert [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficiency-enabling-finality-yielder) keys from JSON file |
+- [**`midnight-beefy-relay --keys-path <file>`**](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs#L20) - Insert BEEFY keys from JSON file
 
 ### Key File Format
 
@@ -39,17 +37,9 @@ Ensure [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficie
 ]
 ```
 
-| Field | Description |
-|-------|-------------|
-| `suri` | Secret URI (seed phrase or dev account) |
-| `pub_key` | ECDSA public key in hex format |
-| `node_url` | WebSocket URL of the target node |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Standard library support |
+- **`suri`** - Secret URI (seed phrase or dev account)
+- **`pub_key`** - ECDSA public key in hex format
+- **`node_url`** - WebSocket URL of the target node
 
 ## Usage
 

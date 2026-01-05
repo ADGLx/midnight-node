@@ -10,42 +10,24 @@ This pallet provides a privileged interface for applying system-level transactio
 
 ### Dispatchables
 
-| Call | Origin | Weight | Description |
-|------|--------|--------|-------------|
-| `send_mn_system_transaction` | Root | Configurable | Apply a serialized system transaction |
+- [**`send_mn_system_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L93) - Apply a serialized system transaction
 
 ### Events
 
-| Event | Fields | Description |
-|-------|--------|-------------|
-| `SystemTransactionApplied` | `hash: Hash`, `serialized_system_transaction: Vec<u8>` | System tx successfully applied |
+- [**`SystemTransactionApplied`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L70) - System tx successfully applied
 
 ### Errors
 
-| Error | Description |
-|-------|-------------|
-| `LedgerApiError` | Wrapped ledger API error |
+- [**`LedgerApiError`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L78) - Wrapped ledger API error
 
 ### Config Trait
 
-| Associated Type | Constraint | Description |
-|-----------------|------------|-------------|
-| `LedgerStateProviderMut` | `LedgerStateProviderMut` | Access to ledger state |
-| `LedgerBlockContextProvider` | `LedgerBlockContextProvider` | Block context (timestamp, hash) |
+- [**`LedgerStateProviderMut`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L55) - Access to ledger state
+- [**`LedgerBlockContextProvider`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L58) - Block context (timestamp, hash)
 
 ### Storage
 
-| Name | Type | Description |
-|------|------|-------------|
-| `ConfigurableSystemTxWeight` | `Weight` | Processing weight for system transactions |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Standard library support |
-| `runtime-benchmarks` | No | Weight benchmarking |
-| `try-runtime` | No | Migration testing |
+- [**`ConfigurableSystemTxWeight`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L65) - Processing weight for system transactions
 
 ## Architecture
 

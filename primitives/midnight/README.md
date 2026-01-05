@@ -16,24 +16,14 @@ These primitives are `no_std` compatible for use in both native and WASM runtime
 
 ### Traits
 
-| Trait | Description |
-|-------|-------------|
-| `LedgerStateProviderMut` | Provides mutable access to ledger state |
-| `LedgerBlockContextProvider` | Provides block context (timestamp, parent hash) |
-| `MidnightSystemTransactionExecutor` | Executes system transactions from observations |
+- [**`LedgerStateProviderMut`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/midnight/src/lib.rs#L25) - Provides mutable access to ledger state
+- [**`LedgerBlockContextProvider`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/midnight/src/lib.rs#L40) - Provides block context (timestamp, parent hash)
+- [**`MidnightSystemTransactionExecutor`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/midnight/src/lib.rs#L45) - Executes system transactions from observations
 
 ### Well-Known Keys
 
-| Key | Purpose |
-|-----|---------|
-| `MIDNIGHT_STATE_KEY` | Storage key for ledger state root |
-| `MIDNIGHT_NETWORK_ID_KEY` | Storage key for network identifier |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Standard library support |
+- [**`MIDNIGHT_STATE_KEY`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/midnight/src/lib.rs#L59) - Storage key for ledger state root
+- [**`MIDNIGHT_NETWORK_ID_KEY`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/midnight/src/lib.rs#L67) - Storage key for network identifier
 
 ## Integration
 

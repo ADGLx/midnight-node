@@ -15,42 +15,28 @@ This crate defines types for tracking [cNIGHT](https://docs.midnight.network/lea
 
 ### Core Types
 
-| Type | Description |
-|------|-------------|
-| `CardanoPosition` | Block hash, number, timestamp, and tx index |
-| `ObservedUtxo` | Header + data for an observed UTXO |
-| `ObservedUtxoHeader` | Position and UTXO identification |
-| `ObservedUtxoData` | Enum of observation types |
+- [**`CardanoPosition`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L30) - Block hash, number, timestamp, and tx index
+- [**`ObservedUtxo`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L50) - Header + data for an observed UTXO
+- [**`ObservedUtxoHeader`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L60) - Position and UTXO identification
+- [**`ObservedUtxoData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L70) - Enum of observation types
 
 ### ObservedUtxoData Variants
 
-| Variant | Description |
-|---------|-------------|
-| `Registration` | New Cardano-to-DUST wallet mapping |
-| `Deregistration` | Wallet mapping removal |
-| `RedemptionCreate` | Glacier Drop claim created |
-| `RedemptionSpend` | Glacier Drop claim spent |
-| `AssetCreate` | cNIGHT UTXO created |
-| `AssetSpend` | cNIGHT UTXO spent |
+- [**`Registration`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L75) - New Cardano-to-DUST wallet mapping
+- [**`Deregistration`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L77) - Wallet mapping removal
+- [**`RedemptionCreate`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L79) - Glacier Drop claim created
+- [**`RedemptionSpend`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L81) - Glacier Drop claim spent
+- [**`AssetCreate`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L83) - cNIGHT UTXO created
+- [**`AssetSpend`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L85) - cNIGHT UTXO spent
 
 ### Address Types
 
-| Type | Size | Description |
-|------|------|-------------|
-| `CardanoRewardAddressBytes` | 29 bytes | Cardano stake/reward address |
-| `DustPublicKeyBytes` | 33 bytes | Compressed ECDSA public key |
+- [**`CardanoRewardAddressBytes`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L95) - Cardano stake/reward address (29 bytes)
+- [**`DustPublicKeyBytes`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L100) - Compressed ECDSA public key (33 bytes)
 
 ### Inherent
 
-| Identifier | Type |
-|------------|------|
-| `ntobsrve` | `MidnightObservationTokenMovement` |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Enables sqlx, thiserror, serde_valid |
+- [**`ntobsrve`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L20) - Observed UTXOs and next position
 
 ## Integration
 

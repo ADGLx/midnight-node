@@ -16,51 +16,35 @@ Observations arrive via inherents from the mainchain follower data source. The p
 
 ### Storage Items
 
-| Name | Type | Description |
-|------|------|-------------|
-| `NextCardanoPosition` | `CardanoPosition` | Next block/tx to process |
-| `MainChainRedemptionValidatorAddress` | `BoundedVec<u8>` | Glacier Drop contract address |
-| `MainChainMappingValidatorAddress` | `BoundedVec<u8>` | Registration mapping contract |
-| `CNightIdentifier` | `(PolicyId, AssetName)` | cNIGHT token identifier |
-| `MainChainAuthTokenAssetName` | `BoundedVec<u8>` | Auth token asset name |
-| `CardanoTxCapacityPerBlock` | `u32` | Max Cardano txs per block |
-| `CardanoBlockWindowSize` | `u32` | Observation window size |
+- [**`NextCardanoPosition`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L130) - Next block/tx to process
+- [**`MainChainRedemptionValidatorAddress`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L134) - Glacier Drop contract address
+- [**`MainChainMappingValidatorAddress`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L138) - Registration mapping contract
+- [**`CNightIdentifier`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L142) - cNIGHT token identifier
+- [**`MainChainAuthTokenAssetName`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L146) - Auth token asset name
+- [**`CardanoTxCapacityPerBlock`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L150) - Max Cardano txs per block
+- [**`CardanoBlockWindowSize`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L154) - Observation window size
 
 ### Events
 
-| Event | Description |
-|-------|-------------|
-| `Registration` | New Cardano-to-DUST wallet mapping |
-| `Deregistration` | Wallet mapping removed |
-| `MappingAdded` | UTXO mapping created |
-| `MappingRemoved` | UTXO mapping spent |
-| `SystemTransactionApplied` | CMST applied to ledger |
+- [**`Registration`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L160) - New Cardano-to-DUST wallet mapping
+- [**`Deregistration`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L165) - Wallet mapping removed
+- [**`MappingAdded`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L170) - UTXO mapping created
+- [**`MappingRemoved`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L175) - UTXO mapping spent
+- [**`SystemTransactionApplied`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L180) - CMST applied to ledger
 
 ### Errors
 
-| Error | Description |
-|-------|-------------|
-| `MaxCardanoAddrLengthExceeded` | Address too long (>108 chars) |
-| `MaxRegistrationsExceeded` | Too many registrations in block |
-| `LedgerApiError` | Ledger operation failed |
+- [**`MaxCardanoAddrLengthExceeded`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L188) - Address too long (>108 chars)
+- [**`MaxRegistrationsExceeded`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L190) - Too many registrations in block
+- [**`LedgerApiError`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L192) - Ledger operation failed
 
 ### Config Trait
 
-| Associated Type | Description |
-|-----------------|-------------|
-| `MidnightSystemTransactionExecutor` | Interface to apply system transactions |
+- [**`MidnightSystemTransactionExecutor`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs#L115) - Interface to apply system transactions
 
 ### Inherent
 
-| Identifier | Data Type | Description |
-|------------|-----------|-------------|
-| `ntobsrve` | `MidnightObservationTokenMovement` | Observed UTXOs and next position |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Standard library support |
+- [**`ntobsrve`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L20) - Observed UTXOs and next position
 
 ## Architecture
 

@@ -14,29 +14,19 @@ This crate provides infrastructure for ledger performance monitoring and storage
 
 ### Public Types
 
-| Type | Description |
-|------|-------------|
-| `LedgerMetrics` | Prometheus metric collectors |
-| `LedgerMetricsExt` | Externality extension for metrics |
-| `LedgerStorage` | Storage path and cache configuration |
-| `LedgerStorageExt` | Externality extension for storage config |
+- [**`LedgerMetrics`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L55) - Prometheus metric collectors
+- [**`LedgerMetricsExt`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L80) - Externality extension for metrics
+- [**`LedgerStorage`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L120) - Storage path and cache configuration
+- [**`LedgerStorageExt`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L130) - Externality extension for storage config
 
 ### LedgerMetricsExt Methods
 
-| Method | Description |
-|--------|-------------|
-| `observe_txs_processing_time` | Record transaction processing duration |
-| `observe_system_txs_processing_time` | Record system tx duration |
-| `observe_txs_validating_time` | Record validation duration |
-| `observe_txs_size` | Record transaction size |
-| `observe_storage_fetch_time` | Record state fetch duration |
-| `observe_storage_flush_time` | Record state persist duration |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Standard library support |
+- [**`observe_txs_processing_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L90) - Record transaction processing duration
+- [**`observe_system_txs_processing_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L94) - Record system tx duration
+- [**`observe_txs_validating_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L98) - Record validation duration
+- [**`observe_txs_size`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L102) - Record transaction size
+- [**`observe_storage_fetch_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L106) - Record state fetch duration
+- [**`observe_storage_flush_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L110) - Record state persist duration
 
 ## Histogram Buckets
 

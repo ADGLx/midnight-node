@@ -15,39 +15,24 @@ This crate provides high-level utilities for:
 
 ### Version Modules
 
-| Module | Cfg Flag | Description |
-|--------|----------|-------------|
-| `latest` | default | Current ledger version helpers |
-| `hard_fork_test` | `hardfork_test` | Hard fork test helpers |
+- [**`latest`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/latest/) - Current ledger version helpers (default)
+- [**`hard_fork_test`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/hard_fork_test/) - Hard fork test helpers
 
 ### Re-exported Crates (std only)
 
 Each version module re-exports:
 
-| Crate | Description |
-|-------|-------------|
-| `mn_ledger` | Core ledger types and logic |
-| `base_crypto` | Cryptographic primitives |
-| `coin_structure` | UTXO and coin types |
-| `zswap` | ZSwap proving system |
-| `zkir` | Zero-knowledge IR |
-| `ledger_storage` | Storage interface |
-| `onchain_runtime` | On-chain execution |
+- **`mn_ledger`** - Core ledger types and logic
+- **`base_crypto`** - Cryptographic primitives
+- **`coin_structure`** - UTXO and coin types
+- **`zswap`** - ZSwap proving system
+- **`zkir`** - Zero-knowledge IR
+- **`ledger_storage`** - Storage interface
+- **`onchain_runtime`** - On-chain execution
 
 ### Common Utilities
 
-| Function | Description |
-|----------|-------------|
-| `find_dependency_version` | Get version string for a dependency |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Full functionality |
-| `can-panic` | No | Allow panics (for tests) |
-| `erase-proof` | No | Skip proof generation |
-| `test-utils` | No | Additional test helpers |
+- [**`find_dependency_version`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/lib.rs#L30) - Get version string for a dependency
 
 ## Usage
 

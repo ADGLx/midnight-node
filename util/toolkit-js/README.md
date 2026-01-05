@@ -21,43 +21,33 @@ npm start -- <command> [options]
 
 ### Commands
 
-| Command | Description |
-|---------|-------------|
-| `deploy` | Deploy a new contract instance |
-| `circuit` | Invoke a contract circuit |
-| `maintain contract` | Update contract maintenance authority |
-| `maintain circuit` | Update circuit verifier key |
+- [**`deploy`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/commands/deploy.ts) - Deploy a new contract instance
+- [**`circuit`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/commands/circuit.ts) - Invoke a contract circuit
+- [**`maintain contract`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/commands/maintain.ts) - Update contract maintenance authority
+- [**`maintain circuit`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/commands/maintain.ts) - Update circuit verifier key
 
 ### Global Options
 
-| Option | Env Variable | Description |
-|--------|--------------|-------------|
-| `-c, --config <file>` | - | Contract config file (default: `contract.config.ts`) |
-| `-o, --output <file>` | - | Output file for Intent data (default: `output.bin`) |
-| `-p, --coin-public <key>` | `KEYS_COIN_PUBLIC` | [ZSwap](https://docs.midnight.network/learn/glossary#zswap) coin public key (hex/Bech32m) |
+- **`-c, --config <file>`** - Contract config file (default: `contract.config.ts`)
+- **`-o, --output <file>`** - Output file for Intent data (default: `output.bin`)
+- **`-p, --coin-public <key>`** - ZSwap coin public key (hex/Bech32m) (`KEYS_COIN_PUBLIC` env)
 
 ### Deploy Options
 
-| Option | Env Variable | Description |
-|--------|--------------|-------------|
-| `-s, --signing <key>` | `KEYS_SIGNING` | BIP-340 signing key for CMA |
+- **`-s, --signing <key>`** - BIP-340 signing key for CMA (`KEYS_SIGNING` env)
 
 ### Circuit Options
 
-| Option | Description |
-|--------|-------------|
-| `-i, --input <file>` | Serialized onchain state file |
-| `<address>` | Contract address |
-| `<circuit_id>` | Circuit name to invoke |
-| `<arg>...` | Arguments forwarded to circuit |
+- **`-i, --input <file>`** - Serialized onchain state file
+- **`<address>`** - Contract address
+- **`<circuit_id>`** - Circuit name to invoke
+- **`<arg>...`** - Arguments forwarded to circuit
 
 ### Maintain Options
 
-| Option | Description |
-|--------|-------------|
-| `-i, --input <file>` | Current contract state file |
-| `-s, --signing <key>` | Signing key for maintenance |
-| `<address>` | Contract address |
+- **`-i, --input <file>`** - Current contract state file
+- **`-s, --signing <key>`** - Signing key for maintenance
+- **`<address>`** - Contract address
 
 ## Usage
 

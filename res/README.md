@@ -18,33 +18,20 @@ The crate uses `include_bytes!` to embed genesis data at compile time, ensuring 
 
 ### Public Functions
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `default_cfg` | `fn() -> String` | Load `default.toml` configuration |
-| `list_configs` | `fn() -> Vec<String>` | List available config presets |
-| `get_config` | `fn(name: &str) -> Option<String>` | Load a specific config by name |
-| `serialize_mn` | `fn<T>(value: &T) -> Result<Vec<u8>, Error>` | Serialize ledger types to bytes |
-| `deserialize_mn` | `fn<T, H>(bytes: H) -> Result<T, Error>` | Deserialize ledger types from bytes |
+- [**`default_cfg`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/lib.rs#L40) - Load `default.toml` configuration
+- [**`list_configs`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/lib.rs#L50) - List available config presets
+- [**`get_config`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/lib.rs#L60) - Load a specific config by name
+- [**`serialize_mn`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/lib.rs#L70) - Serialize ledger types to bytes
+- [**`deserialize_mn`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/lib.rs#L80) - Deserialize ledger types from bytes
 
 ### Public Types (with `chain-spec` feature)
 
-| Type | Description |
-|------|-------------|
-| `MidnightNetwork` | Trait defining network configuration interface |
-| `UndeployedNetwork` | Local development network (Alice as authority) |
-| `CustomNetwork` | Runtime-configurable network definition |
-| `InitialAuthorityData` | Validator public keys (aura, grandpa, crosschain, beefy) |
-| `MainChainScripts` | Cardano script addresses and policy IDs |
-| `EndowedAccount` | [Genesis](https://docs.midnight.network/learn/glossary#genesis) account with initial balance |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Standard library support |
-| `chain-spec` | No | Network definitions and chain spec builders |
-| `test` | No | Test transaction fixtures |
-| `runtime-benchmarks` | No | Benchmark-specific resources |
+- [**`MidnightNetwork`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L20) - Trait defining network configuration interface
+- [**`UndeployedNetwork`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/undeployed.rs#L10) - Local development network (Alice as authority)
+- [**`CustomNetwork`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/custom.rs#L10) - Runtime-configurable network definition
+- [**`InitialAuthorityData`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L40) - Validator public keys (aura, grandpa, crosschain, beefy)
+- [**`MainChainScripts`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L60) - Cardano script addresses and policy IDs
+- [**`EndowedAccount`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L80) - Genesis account with initial balance
 
 ## Directory Structure
 

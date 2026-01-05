@@ -14,35 +14,20 @@ This pallet deposits the runtime's `spec_version` into each block's digest as a 
 
 ### Constants
 
-| Name | Value | Description |
-|------|-------|-------------|
-| `VERSION_ID` | `*b"MNSV"` | Consensus engine ID for version logs |
+- [**`VERSION_ID`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/version/src/lib.rs#L20) - Consensus engine ID for version logs (`*b"MNSV"`)
 
 ### Config Trait
 
-| Associated Type | Description |
-|-----------------|-------------|
-| [`WeightInfo`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/version/src/lib.rs#L35) | Weight information for hooks |
-| [`RuntimeVersion`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/version/src/lib.rs#L38) | Provider that returns the current runtime version (`Get<RuntimeVersion>`) |
+- [**`WeightInfo`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/version/src/lib.rs#L35) - Weight information for hooks
+- [**`RuntimeVersion`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/version/src/lib.rs#L38) - Provider that returns the current runtime version
 
 ### Hooks
 
-| Hook | Weight | Description |
-|------|--------|-------------|
-| `on_initialize` | ~1 read | Deposits version to block digest |
+- [**`on_initialize`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/version/src/lib.rs#L44) - Deposits version to block digest
 
 ### Public Functions
 
-| Function | Signature | Description |
-|----------|-----------|-------------|
-| `decode_version` | `fn(&DigestItem) -> Option<u32>` | Extract version from digest item |
-
-### Cargo Features
-
-| Feature | Default | Description |
-|---------|---------|-------------|
-| `std` | Yes | Standard library support |
-| `try-runtime` | No | Try-runtime support (stub) |
+- [**`decode_version`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/version/src/lib.rs#L55) - Extract version from digest item
 
 ## Digest Format
 

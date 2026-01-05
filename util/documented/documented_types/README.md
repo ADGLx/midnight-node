@@ -10,15 +10,7 @@ This crate defines the `Documented` trait that types can implement to expose the
 
 ### Traits
 
-```rust
-pub trait Documented {
-    /// The doc comment for this type.
-    const DOCS: &'static str;
-    
-    /// Documentation for each field (if applicable).
-    fn field_docs() -> &'static [(&'static str, &'static str)];
-}
-```
+- [**`Documented`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/documented/documented_types/src/lib.rs#L5) - Trait for exposing documentation strings at runtime. Defines `DOCS` constant and `field_docs()` method.
 
 ## Usage
 
