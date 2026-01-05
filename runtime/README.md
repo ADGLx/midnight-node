@@ -50,18 +50,11 @@ The runtime is the "business logic" of the chain—validators execute it identic
 
 The runtime composes FRAME pallets into five functional layers. System pallets provide core Substrate functionality (accounts, timestamps, administrative controls). Consensus pallets implement AURA block production, GRANDPA finality, and BEEFY bridge proofs. Midnight pallets handle the ZSwap ledger, system transactions, and Cardano observations. Governance pallets enable on-chain voting through Council and Technical Committee collectives, coordinated by the Federated Authority mechanism. Partner Chain pallets integrate with the Cardano mainchain for validator management and cross-chain state.
 
-```mermaid
-block-beta
-    columns 1
-    block:runtime["Runtime"]
-        columns 1
-        A["System Pallets: System, Timestamp, Sudo, Scheduler, TxPause, Preimage, Migrations"]
-        B["Consensus Pallets: Aura, Grandpa, Beefy, Mmr, BeefyMmrLeaf"]
-        C["Midnight Pallets: Midnight, MidnightSystem, CNightObservation, NodeVersion"]
-        D["Governance Pallets: Council, CouncilMembership, TechnicalCommittee, TechnicalCommitteeMembership, FederatedAuthority, FederatedAuthorityObservation"]
-        E["Partner Chain Pallets: Sidechain, Session, SessionCommitteeManagement, GovernedMap"]
-    end
-```
+- **System Pallets**: System, Timestamp, Sudo, Scheduler, TxPause, Preimage, Migrations
+- **Consensus Pallets**: Aura, Grandpa, Beefy, Mmr, BeefyMmrLeaf
+- **Midnight Pallets**: Midnight, MidnightSystem, CNightObservation, NodeVersion
+- **Governance Pallets**: Council, CouncilMembership, TechnicalCommittee, TechnicalCommitteeMembership, FederatedAuthority, FederatedAuthorityObservation
+- **Partner Chain Pallets**: Sidechain, Session, SessionCommitteeManagement, GovernedMap
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L924-L1010) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L360-L410)
 
