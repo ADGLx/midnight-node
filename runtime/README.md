@@ -76,14 +76,10 @@ The runtime composes FRAME pallets into five functional layers. System pallets p
 
 ### Consensus Configuration
 
-Values from `runtime/src/lib.rs`:
-
-| Parameter | Value | Source Line | Description |
-|-----------|-------|-------------|-------------|
-| `SLOT_DURATION` | 6000ms | L323 | Block time (`6 * 1000`) |
-| `SLOTS_PER_EPOCH` | 300 | L112 | Slots before committee rotation |
-| `MaxAuthorities` | 10,000 | L687 | Maximum validator set size |
-| `MOTION_DURATION` | 5 days | L840 | Governance motion lifetime (`5 * DAYS`) |
+- [**`SLOT_DURATION`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L333) - Block time in milliseconds
+- [**`SLOTS_PER_EPOCH`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L116) - Slots before committee rotation
+- [**`MaxAuthorities`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L577) - Maximum validator set size
+- [**`MOTION_DURATION`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L728) - Governance motion lifetime
 
 ## Usage
 
