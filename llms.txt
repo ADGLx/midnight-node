@@ -1,0 +1,72 @@
+# Midnight Node
+
+> Implementation of the Midnight blockchain node, providing consensus, transaction processing, and privacy-preserving smart contract execution. The node enables participants to maintain both public blockchain state and private user state through zero-knowledge proofs. Built on Substrate as a Cardano Partner Chain.
+
+## Overview
+
+- [README.md](README.md): Project overview, architecture diagram, quick start, and development workflow
+- [CONTRIBUTING.md](CONTRIBUTING.md): Contribution guidelines, code standards, and pull request process
+- [LICENSE](LICENSE): Apache 2.0 license
+- [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md): Community code of conduct
+- [SECURITY.md](SECURITY.md): Security policy and vulnerability reporting
+- [CHANGELOG.md](CHANGELOG.md): Version history and release notes
+
+## Documentation
+
+- [docs/development-workflow.md](docs/development-workflow.md): Development environment setup, Cargo vs Earthly best practices, debugging tips
+- [docs/rust-setup.md](docs/rust-setup.md): Rust toolchain installation and configuration
+- [docs/chain_specs.md](docs/chain_specs.md): Chain specification documentation for different networks
+- [docs/weights.md](docs/weights.md): Runtime weights and benchmarking documentation
+- [docs/fork-testing.md](docs/fork-testing.md): Testing against forked network state
+- [docs/actionlint-guide.md](docs/actionlint-guide.md): GitHub Actions workflow validation
+
+## Architecture Decisions
+
+Architecture Decision Records (ADRs) document significant design decisions:
+
+- [docs/decisions/0001-ariadne-selection-emergency-override.md](docs/decisions/0001-ariadne-selection-emergency-override.md): Emergency override mechanism for authority selection
+- [docs/decisions/0002-configuration-system.md](docs/decisions/0002-configuration-system.md): Node configuration system design
+- [docs/decisions/0003-arm64-ci-builds.md](docs/decisions/0003-arm64-ci-builds.md): ARM64 architecture support in CI
+
+## Design Proposals
+
+- [docs/proposals/0001-configuration-overhaul.md](docs/proposals/0001-configuration-overhaul.md): Proposed configuration system improvements
+
+## Runtime Pallets
+
+Custom Substrate pallets implementing core blockchain functionality:
+
+- [pallets/midnight/README.md](pallets/midnight/README.md): Core pallet managing ledger state, transaction execution, and zero-knowledge proof verification
+- [pallets/midnight-system](pallets/midnight-system): System transaction management with root privileges
+- [pallets/federated-authority/README.md](pallets/federated-authority/README.md): Multi-collective governance requiring consensus from multiple authority bodies
+- [pallets/federated-authority-observation/README.md](pallets/federated-authority-observation/README.md): Governance synchronization with Cardano mainchain
+- [pallets/system-parameters/README.md](pallets/system-parameters/README.md): On-chain governance parameters (Terms and Conditions, D-Parameter)
+- [pallets/cnight-observation](pallets/cnight-observation): Native token (cNIGHT) bridge integration with Cardano
+- [pallets/version](pallets/version): Runtime version tracking in block digests
+
+## Node Components
+
+- [node](node): Midnight node binary with RPC server, consensus (AURA/GRANDPA/BEEFY), P2P networking, and keystore
+- [runtime](runtime): Substrate runtime composing all pallets into the blockchain logic
+- [primitives](primitives): Shared types and traits used across the codebase
+- [ledger/README.md](ledger/README.md): Privacy-preserving ledger implementation with zero-knowledge proof support
+- [relay/README.md](relay/README.md): Cross-chain relay for Cardano bridge operations
+
+## Utilities
+
+- [util/toolkit/README.md](util/toolkit/README.md): CLI tool for transaction generation, wallet management, contract deployment, and testing
+- [local-environment/README.md](local-environment/README.md): Tools for launching local development networks and performing state changes
+
+## Resources and Configuration
+
+- [res](res): Chain specifications, genesis configurations, and network-specific resources
+- [static/contracts](static/contracts): Compiled contract artifacts (provers, verifiers)
+- [scripts](scripts): Development and operational scripts
+
+## External Resources
+
+- [Midnight Developer Documentation](https://docs.midnight.network/): Official developer documentation
+- [Discord](https://discord.com/invite/midnightnetwork): Community support and discussions
+- [Telegram](https://t.me/Midnight_Network_Official): Official Telegram channel
+- [X/Twitter](https://x.com/MidnightNtwrk): Official announcements and updates
+
