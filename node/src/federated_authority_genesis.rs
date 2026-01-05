@@ -55,13 +55,15 @@ pub async fn generate_federated_authority_genesis(
 
 	// update the members of the council
 	let (council_members, council_mainchain_members) =
-		get_members_and_mainchain_members(data.council_authorities.into_iter());
+		get_members_and_mainchain_members(data.council_authorities.authorities.into_iter());
 	config.council.members = council_members;
 	config.council.members_mainchain = council_mainchain_members;
 
 	// update the members of the technical committee
 	let (technical_committee_members, technical_committee_mainchain_members) =
-		get_members_and_mainchain_members(data.technical_committee_authorities.into_iter());
+		get_members_and_mainchain_members(
+			data.technical_committee_authorities.authorities.into_iter(),
+		);
 	config.technical_committee.members = technical_committee_members;
 	config.technical_committee.members_mainchain = technical_committee_mainchain_members;
 

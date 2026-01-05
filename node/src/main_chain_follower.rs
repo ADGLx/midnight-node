@@ -299,6 +299,7 @@ pub async fn create_federated_authority_observation_data_source(
 		&cfg.db_sync_postgres_connection_string
 			.ok_or(missing("db_sync_postgres_connection_string"))?,
 		FEDERATED_AUTHORITY_OBSERVATION_POOL_CFG,
+		cfg.allow_non_ssl,
 	)
 	.await?;
 
