@@ -102,7 +102,7 @@ See `res/mock-bridge-data/beefy-keys-mock.json` for example configuration.
                                                   +------------------+
 ```
 
-**Sources**: [`relay/src/main.rs`](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs) - CLI entry, [`relay/src/beefy_keys.rs#L37`](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/beefy_keys.rs#L37) - `insert_key`
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/beefy_keys.rs#L37)
 
 ## Integration
 

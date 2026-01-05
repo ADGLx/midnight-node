@@ -62,7 +62,7 @@ upgrader \
                                                   +------------------+
 ```
 
-**Sources**: [`util/upgrader/src/main.rs#L58-L66`](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/main.rs#L58-L66) - `/execute` handler, [`util/upgrader/src/lib.rs#L40`](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/lib.rs#L40) - `execute_upgrade`
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/main.rs#L58-L66) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/lib.rs#L40)
 
 ## Example Workflow
 

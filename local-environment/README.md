@@ -135,7 +135,7 @@ earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 +------------------+
 ```
 
-**Sources**: [`docker-compose.yml`](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml) - Cardano Node (L2-42), Ogmios (L66-95), DB-Sync (L97-157), midnight-setup (L454-481), Midnight Nodes (L279-453)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml)
 
 ### Component Summary
 

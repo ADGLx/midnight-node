@@ -86,7 +86,7 @@ Block Lifecycle:
 +------------------+     +------------------+     +------------------+
 ```
 
-**Sources**: [`pallets/midnight/src/lib.rs#L288-L306`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L288-L306) - `on_initialize` (L288), `on_finalize` (L296), [`send_mn_transaction`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L355) (L355)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L288-L306) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L355)
 
 ## Usage
 

@@ -85,7 +85,7 @@ Cardano Observation Flow:
                              +--------------------+
 ```
 
-**Sources**: [`pallets/midnight-system/src/lib.rs#L93-L120`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L93-L120) - `MidnightSystemTransactionExecutor::execute_system_transaction`
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L93-L120)
 
 ## Integration
 

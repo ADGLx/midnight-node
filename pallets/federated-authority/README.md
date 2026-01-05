@@ -126,9 +126,7 @@ The `motion_revoke` [extrinsic](https://docs.midnight.network/learn/glossary#ext
                     +------------------------------+
 ```
 
-**Sources**: 
-- Dispatchables: [`pallets/federated-authority/src/lib.rs#L125-L280`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L125-L280) - `motion_approve` (L133), `motion_close` (L261)
-- Runtime config: [`runtime/src/lib.rs#L916-L954`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L916-L954) - Council and TechnicalCommittee authority bodies
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L125-L280) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L916-L954)
 
 ## Usage
 

@@ -150,7 +150,7 @@ See `res/cfg/*.toml` for network-specific presets (dev, qanet, preview).
 +------------------+     +------------------+
 ```
 
-**Sources**: Service builder [`node/src/service.rs#L209-L283`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L209-L283), Ledger init [`node/src/service.rs#L217-L223`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223), Consensus [`node/src/service.rs#L327-L360`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L327-L360)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L209-L283) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L327-L360)
 
 ## Cargo Features
 

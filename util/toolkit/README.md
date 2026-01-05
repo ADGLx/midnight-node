@@ -195,7 +195,7 @@ midnight-node-toolkit dust-balance \
                          +------------------+
 ```
 
-**Sources**: [`util/toolkit/src/tx_generator/mod.rs#L51`](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/mod.rs#L51) - `TxGenerator`, [`util/toolkit/src/tx_generator/builder/mod.rs#L16-L18`](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L16-L18) - builder modules
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/mod.rs#L51) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L16-L18)
 
 ### Data Flow Modes
 

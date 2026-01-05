@@ -83,7 +83,7 @@ When compiled for WASM (`no_std`), it only includes `host_api` and minimal stubs
                          +------------------+
 ```
 
-**Sources**: Host functions [`ledger/src/lib.rs`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs), storage init [`node/src/service.rs#L217-L223`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223)
 
 ## Usage
 

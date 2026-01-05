@@ -107,7 +107,7 @@ Two methods:
                                                   +------------------+
 ```
 
-**Sources**: [`src/substrate-lib/SubstrateContext.jsx`](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx) - useSubstrate hook (L182), ApiPromise connection (L82-83), keyring loading (L111-142)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx)
 
 ### Directory Structure
 

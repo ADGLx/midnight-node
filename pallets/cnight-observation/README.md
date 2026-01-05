@@ -88,7 +88,7 @@ Data Types:
 +------------------+
 ```
 
-**Sources**: [`primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33`](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33), [`node/src/inherent_data.rs#L141`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs#L141)
+**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs#L141)
 
 ## Usage
 
