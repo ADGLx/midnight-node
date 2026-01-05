@@ -18,47 +18,6 @@ This crate defines types for synchronizing governance body membership ([Council]
 | `FederatedAuthorityObservationConfig` | Genesis configuration |
 | `AuthBodyConfig` | Per-body configuration ([Council](https://docs.midnight.network/learn/glossary#council) or TC) |
 
-### FederatedAuthorityData
-
-```rust
-pub struct FederatedAuthorityData {
-    pub council_authorities: Vec<(AuthorityMemberPublicKey, MainchainMember)>,
-    pub technical_committee_authorities: Vec<(AuthorityMemberPublicKey, MainchainMember)>,
-    pub mc_block_hash: McBlockHash,
-}
-```
-
-### AuthBodyConfig (std only)
-
-```rust
-pub struct AuthBodyConfig {
-    pub address: String,                      // Cardano script address
-    pub policy_id: PolicyId,                  // Native asset policy
-    pub members: Vec<sr25519::Public>,        // Initial sidechain members
-    pub members_mainchain: Vec<MainchainMember>, // Mainchain member hashes
-}
-```
-
-### FederatedAuthorityObservationConfig
-
-```rust
-pub struct FederatedAuthorityObservationConfig {
-    pub council: AuthBodyConfig,
-    pub technical_committee: AuthBodyConfig,
-}
-```
-
-### Runtime API
-
-```rust
-pub trait FederatedAuthorityObservationApi {
-    fn get_council_address() -> MainchainAddress;
-    fn get_council_policy_id() -> PolicyId;
-    fn get_technical_committee_address() -> MainchainAddress;
-    fn get_technical_committee_policy_id() -> PolicyId;
-}
-```
-
 ### Inherent
 
 | Identifier | Type |
@@ -95,20 +54,6 @@ pub trait FederatedAuthorityObservationApi {
     "members": ["0x..."],
     "members_mainchain": ["def456..."]
   }
-}
-```
-
-### Processing Inherent Data
-
-```rust
-use midnight_primitives_federated_authority_observation::FederatedAuthorityData;
-
-fn process_authority_data(data: FederatedAuthorityData) {
-    // Extract sr25519 public keys for membership updates
-    let council_members: Vec<AccountId> = data.council_authorities
-        .into_iter()
-        .map(|(pk, _)| pk.0.try_into().expect("valid"))
-        .collect();
 }
 ```
 

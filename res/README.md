@@ -37,25 +37,6 @@ The crate uses `include_bytes!` to embed genesis data at compile time, ensuring 
 | `MainChainScripts` | Cardano script addresses and policy IDs |
 | `EndowedAccount` | [Genesis](https://docs.midnight.network/learn/glossary#genesis) account with initial balance |
 
-### MidnightNetwork Trait
-
-```rust
-pub trait MidnightNetwork {
-    fn name(&self) -> &str;
-    fn id(&self) -> &str;
-    fn genesis_state(&self) -> &[u8];
-    fn genesis_block(&self) -> &[u8];
-    fn genesis_utxo(&self) -> &str;
-    fn main_chain_scripts(&self) -> MainChainScripts;
-    fn initial_authorities(&self) -> Vec<InitialAuthorityData>;
-    fn federated_authority_config(&self) -> FederatedAuthorityObservationConfig;
-    fn cnight_genesis(&self) -> CNightGenesis;
-    fn root_key(&self) -> Option<sr25519::Public>;
-    fn chain_type(&self) -> ChainType;
-    fn network_id(&self) -> String;
-}
-```
-
 ### Cargo Features
 
 | Feature | Default | Description |
@@ -87,61 +68,6 @@ res/
 └── test-claim-mint/        # Claim mint test data
 ```
 
-## Usage
-
-### Load Configuration
-
-```rust
-use midnight_node_res::{default_cfg, get_config, list_configs};
-
-// Get default configuration
-let config = default_cfg();
-
-// List available presets
-let presets = list_configs(); // ["dev", "qanet", "preview", ...]
-
-// Load specific preset
-if let Some(dev_config) = get_config("dev") {
-    // Parse TOML...
-}
-```
-
-### Define a Network (with `chain-spec` feature)
-
-```rust
-use midnight_node_res::networks::{MidnightNetwork, UndeployedNetwork};
-
-let network = UndeployedNetwork;
-
-// Access network configuration
-let genesis = network.genesis_block();
-let authorities = network.initial_authorities();
-let network_id = network.network_id(); // "undeployed"
-```
-
-### Serialize Ledger Types
-
-```rust
-use midnight_node_res::{serialize_mn, deserialize_mn};
-
-// Serialize a transaction
-let bytes = serialize_mn(&transaction)?;
-
-// Deserialize from bytes
-let tx: Transaction = deserialize_mn(&bytes[..])?;
-```
-
-### Test Fixtures (with `test` feature)
-
-```rust
-use midnight_node_res::undeployed::transactions::*;
-
-// Pre-built test transactions
-let deploy_tx_bytes: &[u8] = DEPLOY_TX;
-let store_tx_bytes: &[u8] = STORE_TX;
-let contract_address: &[u8] = CONTRACT_ADDR;
-```
-
 ## Available Networks
 
 | Network | Chain Type | Description |
@@ -169,14 +95,7 @@ let contract_address: &[u8] = CONTRACT_ADDR;
 
 ## Configuration Root Override
 
-The `CFG_ROOT` static allows overriding the config directory at runtime:
-
-```rust
-use midnight_node_res::CFG_ROOT;
-
-// Override config root (useful for testing)
-*CFG_ROOT.lock().unwrap() = Some("/custom/path".to_string());
-```
+The `CFG_ROOT` static allows overriding the config directory at runtime for testing or custom deployments.
 
 ## Testing
 

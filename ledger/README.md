@@ -85,42 +85,9 @@ When compiled for WASM (`no_std`), it only includes `host_api` and minimal stubs
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223)
 
-## Usage
+## JSON Transformation
 
-### From Pallets
-
-```rust
-use midnight_node_ledger::types::{
-    active_ledger_bridge as LedgerApi,
-    active_version::LedgerApiError,
-};
-
-// Apply transaction
-let result = LedgerApi::apply_transaction(
-    &state_key,
-    &tx_bytes,
-    block_context,
-    runtime_version,
-)?;
-
-// Get contract state
-let state = LedgerApi::get_contract_state(&state_key, &contract_addr)?;
-```
-
-### JSON Transformation (std only)
-
-The json module provides utilities for transforming JSON values (from `ledger/src/json.rs`):
-
-```rust
-use midnight_node_ledger::json;
-use serde_json::Value;
-
-// Transform byte arrays in JSON to hex strings
-let json_value: Value = serde_json::from_str(&json_str)?;
-let transformed = json::transform(json_value);
-```
-
-The `transform` function converts byte arrays to hex strings (e.g., `[0x24, 0x42]` → `"0x2442"`).
+The `json::transform` function converts byte arrays to hex strings (e.g., `[0x24, 0x42]` → `"0x2442"`).
 
 ## Integration
 

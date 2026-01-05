@@ -148,19 +148,7 @@ cargo build -p midnight-node-runtime --release --features try-runtime
 
 ## Runtime Version
 
-The runtime version determines upgrade compatibility:
-
-```rust
-RuntimeVersion {
-    spec_name: "midnight",
-    spec_version: 000_018_001,  // Major.Minor.Patch encoded
-    transaction_version: 2,
-    // ...
-}
-```
-
-- `spec_version` changes trigger runtime upgrades
-- `transaction_version` changes indicate extrinsic format changes
+The runtime version determines upgrade compatibility. `spec_version` changes trigger runtime upgrades, while `transaction_version` changes indicate extrinsic format changes.
 
 ## Integration
 

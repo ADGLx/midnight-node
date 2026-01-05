@@ -90,37 +90,17 @@ Block Lifecycle:
 
 ## Usage
 
-### Runtime Configuration
-
-```rust
-impl pallet_midnight::Config for Runtime {
-    type BlockReward = LedgerBlockReward;
-    type SlotDuration = ConstU64<SLOT_DURATION>;
-}
-```
-
 ### Querying State (via RPC)
 
-RPC methods defined in `pallets/midnight/rpc/src/lib.rs`:
-
-```rust
-// RPC: midnight_contractState
-fn get_state(contract_address: String, at: Option<BlockHash>) -> Result<String, StateRpcError>;
-
-// RPC: midnight_zswapStateRoot  
-fn get_zswap_state_root(at: Option<BlockHash>) -> Result<Vec<u8>, StateRpcError>;
-
-// RPC: midnight_ledgerVersion
-fn get_ledger_version(at: Option<BlockHash>) -> Result<String, BlockRpcError>;
-
-// RPC: midnight_apiVersions
-fn get_supported_api_versions() -> RpcResult<Vec<u32>>;
-```
-
-**Example curl usage:**
 ```bash
+# Get contract state
 curl -X POST -H "Content-Type: application/json" \
   --data '{"jsonrpc":"2.0","method":"midnight_contractState","params":["<hex_address>"],"id":1}' \
+  http://localhost:9944
+
+# Get ledger version
+curl -X POST -H "Content-Type: application/json" \
+  --data '{"jsonrpc":"2.0","method":"midnight_ledgerVersion","params":[],"id":1}' \
   http://localhost:9944
 ```
 

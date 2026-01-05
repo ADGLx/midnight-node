@@ -26,40 +26,7 @@ This crate provides WebSocket/HTTP RPC methods for external clients to query con
 | [`StateRpcError`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L60) | Contract/account state errors |
 | [`BlockRpcError`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L70) | Block query errors |
 
-### Error Types
-
-```rust
-pub enum StateRpcError {
-    BadContractAddress(String),
-    BadAccountAddress(String),
-    UnableToGetContractState,
-    UnableToGetZSwapChainState,
-    UnableToGetZSwapStateRoot,
-}
-
-pub enum BlockRpcError {
-    UnableToGetBlock(String),
-    BlockNotFound,
-    UnableToGetLedgerState,
-    UnableToDecodeTransactions(String),
-    UnableToSerializeBlock(String),
-    UnableToGetChainVersion,
-}
-```
-
 ## Usage
-
-### Node Integration
-
-```rust
-use pallet_midnight_rpc::{Midnight, MidnightApiServer};
-
-// In RPC builder
-let midnight = Midnight::new(client.clone());
-module.merge(midnight.into_rpc())?;
-```
-
-### Client Calls
 
 ```bash
 # Get contract state

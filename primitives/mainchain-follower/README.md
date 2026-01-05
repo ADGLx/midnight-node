@@ -43,23 +43,6 @@ From `midnight-primitives-cnight-observation`:
 |------|-------------|
 | `MidnightObservationTokenMovement` | Batch of observed UTXOs with next position |
 
-## Usage
-
-### Implementing a Data Source
-
-Data sources implement traits from `partner-chains-db-sync-data-sources`:
-
-```rust
-use midnight_primitives_mainchain_follower::*;
-
-async fn get_observations(
-    start: CardanoPosition,
-    end: CardanoPosition,
-) -> Vec<ObservedUtxo> {
-    // Query db-sync for UTXOs in range
-}
-```
-
 ## Integration
 
 ### Dependencies

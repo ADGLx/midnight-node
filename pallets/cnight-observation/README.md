@@ -90,17 +90,7 @@ Data Types:
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs#L141)
 
-## Usage
-
-### Runtime Configuration
-
-```rust
-impl pallet_cnight_observation::Config for Runtime {
-    type MidnightSystemTransactionExecutor = MidnightSystem;
-}
-```
-
-### Genesis Configuration
+## Genesis Configuration
 
 From `pallets/cnight-observation/src/config.rs` - genesis is configured via JSON:
 

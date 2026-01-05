@@ -44,38 +44,9 @@ This pallet deposits the runtime's `spec_version` into each block's digest as a 
 | `std` | Yes | Standard library support |
 | `try-runtime` | No | Try-runtime support (stub) |
 
-## Usage
+## Digest Format
 
-### Runtime Configuration
-
-```rust
-impl pallet_version::Config for Runtime {
-    type WeightInfo = pallet_version::VersionWeight<Runtime>;
-    type RuntimeVersion = Version;  // parameter_types! constant
-}
-```
-
-### Reading Version from Blocks
-
-```rust
-use pallet_version::{VERSION_ID, Pallet as NodeVersion};
-
-// From a block digest
-for log in block.header.digest.logs {
-    if let Some(version) = NodeVersion::<Runtime>::decode_version(&log) {
-        println!("Block produced with runtime version: {}", version);
-    }
-}
-```
-
-### Digest Format
-
-The version is encoded as:
-```
-DigestItem::Consensus(VERSION_ID, spec_version.encode())
-```
-
-Where `VERSION_ID = b"MNSV"` (Midnight Node Spec Version).
+The version is encoded as `DigestItem::Consensus(VERSION_ID, spec_version.encode())` where `VERSION_ID = b"MNSV"` (Midnight Node Spec Version).
 
 ## Integration
 

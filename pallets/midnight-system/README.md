@@ -47,28 +47,6 @@ This pallet provides a privileged interface for applying system-level transactio
 | `runtime-benchmarks` | No | Weight benchmarking |
 | `try-runtime` | No | Migration testing |
 
-## Usage
-
-### Runtime Configuration
-
-```rust
-impl pallet_midnight_system::Config for Runtime {
-    type LedgerStateProviderMut = Midnight;  // pallet-midnight
-    type LedgerBlockContextProvider = Midnight;
-}
-```
-
-### Via MidnightSystemTransactionExecutor Trait
-
-From `pallets/midnight-system/src/lib.rs` (L94-L96):
-
-```rust
-use midnight_primitives::MidnightSystemTransactionExecutor;
-
-// Signature: fn execute_system_transaction(Vec<u8>) -> Result<Hash, DispatchError>
-let tx_hash = MidnightSystem::execute_system_transaction(serialized_tx)?;
-```
-
 ## Architecture
 
 ```

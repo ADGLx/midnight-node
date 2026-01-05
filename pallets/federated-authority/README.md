@@ -128,35 +128,6 @@ The `motion_revoke` [extrinsic](https://docs.midnight.network/learn/glossary#ext
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L125-L280) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L916-L954)
 
-## Usage
-
-### Runtime Configuration
-
-```rust
-impl pallet_federated_authority::Config for Runtime {
-    type RuntimeEvent = RuntimeEvent;
-    type RuntimeCall = RuntimeCall;
-    type AuthorityBodies = AuthorityBodyList;
-    type RequiredApprovals = ConstU32<2>;
-    type MotionDuration = ConstU32<14400>; // ~24 hours
-}
-```
-
-### Dispatching from a Collective
-
-```rust
-// Council approves a runtime upgrade
-Council::execute(
-    origin,
-    Box::new(Call::FederatedAuthority(
-        pallet_federated_authority::Call::motion_approve {
-            call: Box::new(system_set_code_call)
-        }
-    )),
-    weight
-)?;
-```
-
 ## Integration
 
 ### Dependencies
