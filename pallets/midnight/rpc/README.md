@@ -4,7 +4,9 @@ JSON-RPC interface for querying Midnight ledger state.
 
 ## Overview
 
-This crate provides WebSocket/HTTP RPC methods for external clients to query contract state, ledger version, and [ZSwap](../https://docs.midnight.network/learn/glossary#zswap) state root. It bridges the [runtime API](../https://docs.midnight.network/learn/glossary#runtime-api) (`MidnightRuntimeApi`) to JSON-RPC endpoints accessible via the node's RPC server.
+This crate provides WebSocket/HTTP RPC methods for external clients to query contract state, ledger version, and [ZSwap](https://docs.midnight.network/learn/glossary#zswap) state root. It bridges the [runtime API](https://docs.midnight.network/learn/glossary#runtime-api) (`MidnightRuntimeApi`) to JSON-RPC endpoints accessible via the node's RPC server.
+
+The RPC implementation uses jsonrpsee for async request handling and supports both HTTP and WebSocket transports. Each method internally calls the corresponding runtime API function, handling block hash resolution (defaulting to best block when not specified) and error translation. This layer is essential for DApp integration, allowing wallets and frontends to read contract state without direct chain access.
 
 ## API Specification
 

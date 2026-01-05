@@ -6,6 +6,8 @@ A pallet responsible for observing and propagating [federated authority](https:/
 
 This pallet provides mechanisms for observing [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) membership changes that originate from the main chain and automatically updating the corresponding governance body memberships on the [partner chain](https://docs.midnight.network/learn/glossary#partner-chain). It acts as a bridge between the main chain's authority decisions and the [partner chain](https://docs.midnight.network/learn/glossary#partner-chain)'s governance structures.
 
+Membership changes are delivered via inherents from the mainchain follower data source, similar to cNIGHT observations. The pallet compares incoming authority lists against current on-chain membership and triggers updates only when differences are detected. This event-driven approach minimizes unnecessary state changes while ensuring governance bodies remain synchronized with mainchain authority decisions within the observation latency window.
+
 ## Features
 
 - **[Inherent](https://docs.midnight.network/learn/glossary#inherent)-based Updates**: Receives [federated authority](https://docs.midnight.network/learn/glossary#federated-authority) data through inherents (unsigned transactions)

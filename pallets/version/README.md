@@ -4,11 +4,9 @@
 
 ## Overview
 
-This pallet deposits the runtime's `spec_version` into each block's digest as a consensus log item. This enables:
+This pallet deposits the runtime's `spec_version` into each block's digest as a consensus log item. This enables external monitoring tools to track runtime versions across blocks, detection of runtime upgrades by watching for version changes, and light clients to verify runtime version without full block execution.
 
-- External monitoring tools to track runtime versions across blocks
-- Detection of runtime upgrades by watching for version changes
-- Light clients to verify runtime version without full block execution
+The version is recorded during `on_initialize` using the consensus engine ID `*b"MNSV"` (Midnight Node Spec Version). Block explorers and indexers can decode this log to build a historical timeline of runtime upgrades. The pallet has minimal weight impact since it only performs a single digest write per block with no storage reads beyond the runtime version constant.
 
 ## API Specification
 

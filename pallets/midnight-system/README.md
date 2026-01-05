@@ -6,6 +6,8 @@
 
 This pallet provides a privileged interface for applying system-level transactions to the Midnight ledger. System transactions are generated from Cardano observations (e.g., [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) registrations, [DUST](https://docs.midnight.network/learn/glossary#dust) generation) and require root origin to execute. The pallet implements `MidnightSystemTransactionExecutor` trait used by observation pallets.
 
+Unlike regular user transactions processed through `pallet-midnight`, system transactions bypass standard validation and fee mechanisms since they represent state changes already finalized on the Cardano mainchain. The root origin requirement ensures only trusted pallets (specifically `pallet-cnight-observation`) can invoke these privileged operations, maintaining the security boundary between user-submitted and system-generated state transitions.
+
 ## API Specification
 
 ### Dispatchables

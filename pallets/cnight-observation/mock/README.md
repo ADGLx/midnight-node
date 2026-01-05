@@ -6,6 +6,8 @@ Mock runtime for testing pallet-cnight-observation.
 
 This crate provides a minimal mock runtime that configures `pallet-cnight-observation` for unit and integration testing. It sets up all required pallets (System, Timestamp, Midnight, MidnightSystem) with test-friendly configurations.
 
+The mock runtime uses simplified types (u64 for AccountId, block numbers) and minimal genesis state to reduce test complexity. It exports `new_test_ext()` for creating fresh test externalities and provides access to all configured pallet instances. Test developers can simulate Cardano observations, verify CMST generation, and check event emissions without running a full node.
+
 ## Usage
 
 ### In Tests

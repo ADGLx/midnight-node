@@ -1,6 +1,10 @@
 # System Parameters Pallet
 
-The `system_parameters` pallet stores and manages on-chain governance parameters that control critical aspects of the Midnight network. It provides a secure mechanism for updating these parameters through privileged governance origins.
+## Overview
+
+The `system_parameters` pallet stores and manages on-chain governance parameters that control critical aspects of the Midnight network. It provides a secure mechanism for updating these parameters through privileged governance origins, ensuring that only authorized governance actions can modify network-wide settings.
+
+Parameter updates are dispatched through the federated authority mechanism, requiring multi-body approval before changes take effect. This ensures that critical network parameters like Terms and Conditions references and validator selection ratios cannot be unilaterally modified. The pallet emits events on parameter changes, enabling external systems to track governance decisions.
 
 ## Parameters
 
