@@ -44,19 +44,6 @@ Custom FRAME pallets implementing Midnight-specific blockchain logic.
 ### [federated-authority-observation/](federated-authority-observation/README.md)
 **pallet-federated-authority-observation** - Observes and propagates Council/Technical Committee membership changes from Cardano.
 
-## Package Index
-
-| Package | Path | Description |
-|---------|------|-------------|
-| `pallet-midnight` | `midnight/` | Core ledger pallet |
-| `pallet-midnight-rpc` | `midnight/rpc/` | RPC interface |
-| `pallet-midnight-system` | `midnight-system/` | System transactions |
-| `pallet-cnight-observation` | `cnight-observation/` | Cardano bridge |
-| `pallet-cnight-observation-mock` | `cnight-observation/mock/` | Test mock |
-| `pallet-version` | `version/` | Version logging |
-| `pallet-federated-authority` | `federated-authority/` | Multi-body governance |
-| `pallet-federated-authority-observation` | `federated-authority-observation/` | Governance observation |
-
 ## See Also
 
 - [runtime/](../runtime/README.md) - Runtime that wires these pallets together
