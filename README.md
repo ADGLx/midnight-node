@@ -68,8 +68,6 @@ Port │                                                                    │ 
      Other Midnight Nodes ◀────P2P Network (Port 30333)────▶ Other Midnight Nodes
 ```
 
-> **Security Note:** Database connections to PostgreSQL require SSL/TLS by default. Set `ALLOW_NON_SSL=true` only for local development environments without SSL certificates.
-
 ## Components
 
 ### Runtime Pallets
@@ -117,6 +115,22 @@ Midnight Node includes six custom runtime pallets that implement core blockchain
 **Network** - P2P networking via libp2p (default port 30333)
 
 **Keystore** - Local cryptographic key management for validators
+
+## Project Structure
+
+| Directory | Description | README |
+|-----------|-------------|--------|
+| `node/` | Main node executable | [node/README.md](node/README.md) |
+| `runtime/` | WASM runtime and pallet wiring | [runtime/README.md](runtime/README.md) |
+| `pallets/` | Custom FRAME pallets | [pallets/README.md](pallets/README.md) |
+| `primitives/` | Shared types and traits | [primitives/README.md](primitives/README.md) |
+| `ledger/` | ZSwap ledger bridge | [ledger/README.md](ledger/README.md) |
+| `util/` | CLI tools and utilities | [util/README.md](util/README.md) |
+| `res/` | Chain resources and configs | [res/README.md](res/README.md) |
+| `tests/` | E2E and integration tests | [tests/README.md](tests/README.md) |
+| `scripts/` | Development scripts | [scripts/README.md](scripts/README.md) |
+| `docs/` | Documentation | [docs/README.md](docs/README.md) |
+| `local-environment/` | Docker network tools | [local-environment/README.md](local-environment/README.md) |
 
 ## Features
 
@@ -269,7 +283,6 @@ Chain specifications are located in `/res/` directory.
 | RPC port | - | `--rpc-port 9944` | WebSocket RPC port (default: 9944) |
 | Node key | `NODE_KEY_FILE=/path/to/key` | `--node-key "0x..."` | Network identity key file |
 | Bootstrap nodes | `BOOTNODES="/ip4/... /ip4/..."` | `--bootnodes "/ip4/..."` | Space-separated initial peers |
-| Allow non-SSL DB | `ALLOW_NON_SSL=false` | - | Allow non-SSL PostgreSQL connections |
 
 **Start single-node local network** for development:
 

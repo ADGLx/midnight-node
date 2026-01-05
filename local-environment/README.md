@@ -1,28 +1,48 @@
-# Midnight Network Tools
+# local-environment
 
-A flexible set of tools for launching **well-known networks, custom networks, and dynamic local environments**, as well as **performing state changes** against those networks (image upgrades now, runtime upgrades and hard forks coming soon).
+Docker-based tooling for launching Midnight networks and performing state operations.
+
+## Overview
+
+A flexible set of tools for launching **well-known networks, custom networks, and dynamic local environments**, as well as **performing state changes** against those networks (image upgrades, [runtime](https://docs.midnight.network/learn/glossary#runtime) upgrades, and hard forks).
 
 This project provides a unified way to spin up Midnight resources for development, testing, and experimentation.
 
----
-
 ## Features
 
-- Launch dockerized **well-known Midnight networks** (e.g. `qanet`, `devnet`, `testnet-02`, etc.)
-- Perform **state-changing operations** such as image upgrades (runtime upgrades and hard forks planned).
-- Launch a fully **dynamic local environment** with sped-up Cardano resources for quick testing of Partner Chains/Cardano capabilities.
+- Launch dockerized **well-known Midnight networks** (e.g., `qanet`, `devnet`, `testnet-02`)
+- Perform **state-changing operations** such as image upgrades ([runtime](https://docs.midnight.network/learn/glossary#runtime) upgrades and hard forks planned)
+- Launch a fully **dynamic local environment** with sped-up Cardano resources for quick testing of [Partner Chain](https://docs.midnight.network/learn/glossary#partner-chain)/Cardano capabilities
 
----
+## API Specification
+
+### npm Scripts
+
+| Script | Description |
+|--------|-------------|
+| `npm run run:qanet` | Launch QAnet network |
+| `npm run run:devnet` | Launch [Devnet](https://docs.midnight.network/learn/glossary#devnet) network |
+| `npm run run:testnet-02` | Launch [Testnet](https://docs.midnight.network/learn/glossary#testnet) 02 |
+| `npm run run:node-dev-01` | Launch node-dev-01 network |
+| `npm run run:local-env` | Launch dynamic local environment |
+| `npm run run:local-env-with-indexer` | Local env with indexer |
+| `npm run stop:*` | Stop corresponding network |
+| `npm run image-upgrade:*` | Launch and apply image upgrade |
+
+### Earthly Targets
+
+| Target | Description |
+|--------|-------------|
+| `+start-local-env-latest` | Start local env with latest node |
+| `+start-local-env --NODE-IMAGE=<image>` | Start with specific node image |
+| `+stop-local-env-latest` | Stop local env and wipe volumes |
 
 ## Usage
 
-All functionality is available via npm/yarn scripts defined in `package.json`.
-
 ### Launching Networks
 
-You can run different Midnight networks locally with:
-
 ```bash
+# Well-known networks
 npm run run:qanet
 npm run run:devnet
 npm run run:testnet-02
@@ -31,79 +51,126 @@ npm run run:node-dev-01
 
 ### Upgrading Networks
 
-You can also launch a network and immediately apply image upgrades:
-
 ```bash
 npm run image-upgrade:qanet
 npm run image-upgrade:devnet
 npm run image-upgrade:testnet-02
-npm run image-upgrade:node-dev-01
 ```
 
 ### Stopping Networks
-
-To stop any running network:
 
 ```bash
 npm run stop:qanet
 npm run stop:devnet
 npm run stop:testnet-02
-npm run stop:node-dev-01
 ```
-
-### Fork Testing
-
-See [fork-testing.md](../docs/fork-testing.md)
 
 ### Local Environment
 
-In addition to well-known networks, you can launch a dynamic local environment that connects multiple components together.
+#### Starting
 
-### Local env – step by step
-
-> **Note:** Local development environments set `ALLOW_NON_SSL=true` to allow connections to PostgreSQL without SSL certificates. Production deployments require SSL.
-
-When first run, all images are pulled from public repositories. This may take some time.
-
-The stack is built and started. A Cardano node begins block production from a pre-configured genesis file (private testnet, no public connectivity).
-
-Once Cardano is synced, Ogmios and DB-Sync connect and begin syncing.
-
-pc-contracts-cli inserts D parameter values and registers Midnight Node keys with Cardano.
-
-Once Postgres is populated, Midnight nodes begin block production after 2 main chain epochs.
-
-Starting the environment
-
-To start the environment via Earthly:
-
+Via Earthly:
 ```bash
 earthly +start-local-env-latest
 ```
 
-Or specify a released node image:
-
+With specific node image:
 ```bash
 earthly +start-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 ```
 
-You can also use npm scripts:
-
+Via npm:
 ```bash
 npm run run:local-env
 npm run run:local-env-with-indexer
 ```
 
-Stopping the environment
+#### Stopping
 
-When stopping, volumes must also be wiped (persistent state is not supported yet).
+When stopping, volumes must be wiped (persistent state not yet supported):
 
 ```bash
 earthly +stop-local-env-latest
 ```
 
-# or
-
+Or with specific image:
 ```bash
 earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 ```
+
+## Architecture
+
+### Local Environment Startup Sequence
+
+```
++------------------+
+| Docker Compose   |
++--------+---------+
+         |
+         v
++------------------+
+| Cardano Node     |
+| (private testnet)|
++--------+---------+
+         |
+    +----+----+
+    |         |
+    v         v
++--------+ +--------+     +------------------+
+| Ogmios | |DB-Sync | --> | PostgreSQL       |
++--------+ +---+----+     +------------------+
+    |          |
+    +----+-----+
+         |
+         v
++------------------+
+| midnight-setup   |
+| (chain spec gen) |
++--------+---------+
+         |
+         v (service_completed_successfully)
++------------------+
+| Midnight Nodes   |
+| (x5 validators)  |
++------------------+
+```
+
+**Sources**: [`docker-compose.yml`](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml) - Cardano Node (L2-42), Ogmios (L66-95), DB-Sync (L97-157), midnight-setup (L454-481), Midnight Nodes (L279-453)
+
+### Component Summary
+
+| Component | Purpose |
+|-----------|---------|
+| Cardano Node | Private testnet block production |
+| Ogmios | Cardano chain sync API |
+| [db-sync](https://docs.midnight.network/learn/glossary#db-sync) | Cardano to PostgreSQL indexer |
+| PostgreSQL | Cardano data storage |
+| midnight-setup | Chain spec generation and initialization |
+| Midnight Node(s) | Sidechain block production (5 validators) |
+
+## Configuration
+
+Configuration is managed via:
+- `package.json` - npm scripts
+- Docker Compose files - container orchestration
+- Earthfile - Earthly targets
+
+## Integration
+
+### Dependencies
+
+- Docker and Docker Compose
+- Earthly (optional, for Earthly targets)
+- Node.js and npm
+
+### Used By
+
+- Development and testing workflows
+- CI/CD pipelines
+- Fork testing (see [fork-testing.md](../docs/fork-testing.md))
+
+## See Also
+
+- [Fork Testing Guide](../docs/fork-testing.md) - Hard fork testing procedures
+- [node](../node/README.md) - Node documentation
+- [Glossary](https://docs.midnight.network/learn/glossary) - Term definitions

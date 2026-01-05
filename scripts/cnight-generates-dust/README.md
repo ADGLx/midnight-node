@@ -51,7 +51,7 @@ Test procedure:
      generate observable events.
 
   8. Run `deregister.sh alice` and `deregister.sh bob` to deregister these two
-     users for DUST production.  Can be repeated as long as they are registered.
+     users for [DUST](https://docs.midnight.network/learn/glossary#dust) production.  Can be repeated as long as they are registered.
      This script requires supplying registration UTxO manually, meaning it must
      be edited before every call.
 
