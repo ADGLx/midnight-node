@@ -1,10 +1,10 @@
 # Midnight Node Runtime
 
-The WASM runtime that defines the Midnight blockchain's state transition function, consensus rules, and on-chain logic.
+The [WASM](https://docs.polkadot.com/polkadot-protocol/glossary/#webassembly-wasm) runtime that defines the Midnight blockchain's state transition function, consensus rules, and on-chain logic.
 
 ## Overview
 
-This crate compiles to WebAssembly (WASM) and executes within the Substrate executor to process blocks and transactions. It composes [FRAME](https://docs.polkadot.com/polkadot-protocol/glossary/#frame-framework-for-runtime-aggregation-of-modularized-entities) pallets into a complete blockchain runtime, defining:
+This crate compiles to [WebAssembly (WASM)](https://docs.polkadot.com/polkadot-protocol/glossary/#webassembly-wasm) and executes within the Substrate executor to process blocks and transactions. It composes [FRAME](https://docs.polkadot.com/polkadot-protocol/glossary/#frame-framework-for-runtime-aggregation-of-modularized-entities) pallets into a complete blockchain runtime, defining:
 
 - **[Pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) composition** - Which pallets are included and how they're configured
 - **Consensus parameters** - [AURA](https://docs.polkadot.com/polkadot-protocol/glossary/#authority-round-aura) (6-second blocks), [GRANDPA](https://docs.polkadot.com/polkadot-protocol/glossary/#grandpa) finality, [BEEFY](https://docs.midnight.network/learn/glossary#beefy-bridge-efficiency-enabling-finality-yielder) bridge support
