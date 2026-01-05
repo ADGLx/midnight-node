@@ -48,27 +48,17 @@ The runtime is the "business logic" of the chain—validators execute it identic
 
 ### Pallet Composition
 
-```
-+-----------------------------------------------------------------------+
-|                              Runtime                                  |
-+-----------------------------------------------------------------------+
-| System Pallets                                                        |
-|   System, Timestamp, Sudo, Scheduler, TxPause, Preimage, Migrations   |
-+-----------------------------------------------------------------------+
-| Consensus Pallets                                                     |
-|   Aura, Grandpa, Beefy, Mmr, BeefyMmrLeaf                             |
-+-----------------------------------------------------------------------+
-| Midnight Pallets                                                      |
-|   Midnight, MidnightSystem, CNightObservation, NodeVersion            |
-+-----------------------------------------------------------------------+
-| Governance Pallets                                                    |
-|   Council, CouncilMembership, TechnicalCommittee,                     |
-|   TechnicalCommitteeMembership, FederatedAuthority,                   |
-|   FederatedAuthorityObservation                                       |
-+-----------------------------------------------------------------------+
-| Partner Chain Pallets                                                 |
-|   Sidechain, Session, SessionCommitteeManagement, GovernedMap         |
-+-----------------------------------------------------------------------+
+```mermaid
+block-beta
+    columns 1
+    block:runtime["Runtime"]
+        columns 1
+        A["System Pallets: System, Timestamp, Sudo, Scheduler, TxPause, Preimage, Migrations"]
+        B["Consensus Pallets: Aura, Grandpa, Beefy, Mmr, BeefyMmrLeaf"]
+        C["Midnight Pallets: Midnight, MidnightSystem, CNightObservation, NodeVersion"]
+        D["Governance Pallets: Council, CouncilMembership, TechnicalCommittee, TechnicalCommitteeMembership, FederatedAuthority, FederatedAuthorityObservation"]
+        E["Partner Chain Pallets: Sidechain, Session, SessionCommitteeManagement, GovernedMap"]
+    end
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L992-L1090)

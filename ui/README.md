@@ -90,17 +90,11 @@ Two methods:
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-| React Components | --> | useSubstrate     | --> | Polkadot.js API  |
-| (UI)             |     | Hook             |     |                  |
-+------------------+     +------------------+     +------------------+
-                                                          |
-                                                          v
-                                                  +------------------+
-                                                  | Midnight Node    |
-                                                  | (WebSocket RPC)  |
-                                                  +------------------+
+```mermaid
+flowchart LR
+    A[React Components<br/>UI] --> B[useSubstrate<br/>Hook]
+    B --> C[Polkadot.js API]
+    C --> D[Midnight Node<br/>WebSocket RPC]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx)

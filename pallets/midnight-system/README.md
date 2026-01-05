@@ -31,18 +31,11 @@ This pallet provides a privileged interface for applying system-level transactio
 
 ## Architecture
 
-```
-Cardano Observation Flow:
-+----------------------+     +--------------------+     +------------------+
-| pallet-cnight-       | --> | MidnightSystem::   | --> | LedgerApi::      |
-| observation          |     | execute_system_tx  |     | apply_system_tx  |
-+----------------------+     +--------------------+     +------------------+
-                                      |
-                                      v
-                             +--------------------+
-                             | Event:             |
-                             | SystemTxApplied    |
-                             +--------------------+
+```mermaid
+flowchart LR
+    A[pallet-cnight-<br/>observation] --> B[MidnightSystem::<br/>execute_system_tx]
+    B --> C[LedgerApi::<br/>apply_system_tx]
+    B --> D[Event:<br/>SystemTxApplied]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs#L93-L120)

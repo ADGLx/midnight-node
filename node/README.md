@@ -124,24 +124,15 @@ See `res/cfg/*.toml` for network-specific presets (dev, qanet, preview).
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-| CLI / Config     | --> | Service Builder  | --> | Node Service     |
-+------------------+     +------------------+     +------------------+
-                                                          |
-        +------------------+------------------+------------+
-        |                  |                  |
-        v                  v                  v
-+-------------+   +---------------+   +------------------+
-| Consensus   |   | RPC Server    |   | Network          |
-| AURA/GRANDPA|   | jsonrpsee     |   | libp2p           |
-+-------------+   +---------------+   +------------------+
-        |
-        v
-+------------------+     +------------------+
-| Runtime          | --> | Ledger Storage   |
-| (WASM)           |     | (ParityDB)       |
-+------------------+     +------------------+
+```mermaid
+flowchart TB
+    A[CLI / Config] --> B[Service Builder]
+    B --> C[Node Service]
+    C --> D[Consensus<br/>AURA/GRANDPA]
+    C --> E[RPC Server<br/>jsonrpsee]
+    C --> F[Network<br/>libp2p]
+    D --> G[Runtime<br/>WASM]
+    G --> H[Ledger Storage<br/>ParityDB]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L209-L283) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223) [[3]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L327-L360)

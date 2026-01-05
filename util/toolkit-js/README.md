@@ -129,18 +129,12 @@ midnight-node-toolkit-js maintain circuit --input state.bin -s <signing_key> <ad
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-| contract.config  | --> | toolkit-js CLI   | --> | Intent Output    |
-| .ts              |     |                  |     | (output.bin)     |
-+------------------+     +------------------+     +------------------+
-        |                        |
-        v                        v
-+------------------+     +------------------+
-| Compiled         |     | @midnight-ntwrk/ |
-| Contract Assets  |     | compact-js       |
-| (.cjs, .zkir)    |     |                  |
-+------------------+     +------------------+
+```mermaid
+flowchart LR
+    A[contract.config.ts] --> B[toolkit-js CLI]
+    B --> C[Intent Output<br/>output.bin]
+    A --> D[Compiled Contract Assets<br/>.cjs, .zkir]
+    B --> E["@midnight-ntwrk/compact-js"]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/bin.ts) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/test/contract/contract.config.ts)

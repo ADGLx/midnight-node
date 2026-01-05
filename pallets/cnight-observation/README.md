@@ -42,28 +42,31 @@ Observations arrive via inherents from the mainchain follower data source. The p
 
 ## Architecture
 
-```
-Observation Flow:
-+------------------+     +------------------+     +------------------+
-| db-sync          | --> | Inherent Data    | --> | pallet-cnight-   |
-| (PostgreSQL)     |     | Provider         |     | observation      |
-+------------------+     +------------------+     +------------------+
-                                                          |
-                                                          v
-                         +------------------+     +------------------+
-                         | MidnightSystem:: | <-- | Generate CMST    |
-                         | execute_system_tx|     | (Registration/   |
-                         +------------------+     |  UTXO changes)   |
-                                                  +------------------+
+### Observation Flow
 
-Data Types:
-+------------------+     +------------------+
-| ObservedUtxo     |     | CardanoPosition  |
-|  - header        |     |  - block_hash    |
-|  - data (enum)   |     |  - block_number  |
-|    - Registration|     |  - tx_index      |
-|    - Create/Spend|     +------------------+
-+------------------+
+```mermaid
+flowchart LR
+    A[db-sync<br/>PostgreSQL] --> B[Inherent Data<br/>Provider]
+    B --> C[pallet-cnight-<br/>observation]
+    C --> D[Generate CMST<br/>Registration/UTXO changes]
+    D --> E[MidnightSystem::<br/>execute_system_tx]
+```
+
+### Data Types
+
+```mermaid
+classDiagram
+    class ObservedUtxo {
+        header
+        data: enum
+        - Registration
+        - Create/Spend
+    }
+    class CardanoPosition {
+        block_hash
+        block_number
+        tx_index
+    }
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/mainchain-follower/src/idp/cnight_observation.rs#L30-L33) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs#L141)

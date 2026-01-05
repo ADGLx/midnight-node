@@ -171,20 +171,11 @@ midnight-node-toolkit dust-balance \
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-| Source           |     | TxGenerator      |     | Destination      |
-| - File (.mn)     | --> | - Builder        | --> | - File (.mn)     |
-| - Chain (RPC)    |     | - Prover         |     | - Chain (RPC)    |
-+------------------+     +------------------+     +------------------+
-                                |
-                                v
-                         +------------------+
-                         | Builders         |
-                         | - batches        |
-                         | - single-tx      |
-                         | - contract-*     |
-                         +------------------+
+```mermaid
+flowchart LR
+    A[Source<br/>File .mn / Chain RPC] --> B[TxGenerator<br/>Builder + Prover]
+    B --> C[Destination<br/>File .mn / Chain RPC]
+    B --> D[Builders<br/>batches, single-tx, contract-*]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/mod.rs#L51) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L16-L18)

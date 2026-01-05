@@ -46,24 +46,24 @@ The pallet implements `LedgerStateProviderMut` and `LedgerBlockContextProvider` 
 
 ## Architecture
 
-```
-Transaction Flow:
-+------------------+     +------------------+     +------------------+
-| send_mn_transaction | --> | LedgerApi::      | --> | Update StateKey  |
-| (unsigned)       |     | apply_transaction|     | + Emit Events    |
-+------------------+     +------------------+     +------------------+
+### Transaction Flow
 
-Block Lifecycle:
-+------------------+     +------------------+     +------------------+
-| on_initialize    | --> | pre_fetch_storage| --> | Cache ledger     |
-+------------------+     +------------------+     +------------------+
-        |
-        v (block execution - transactions processed)
-        |
-+------------------+     +------------------+     +------------------+
-| on_finalize      | --> | post_block_update| --> | Mint rewards     |
-+------------------+     | flush_storage    |     | Update state     |
-+------------------+     +------------------+     +------------------+
+```mermaid
+flowchart LR
+    A[send_mn_transaction<br/>unsigned] --> B[LedgerApi::<br/>apply_transaction]
+    B --> C[Update StateKey<br/>+ Emit Events]
+```
+
+### Block Lifecycle
+
+```mermaid
+flowchart TB
+    A[on_initialize] --> B[pre_fetch_storage]
+    B --> C[Cache ledger]
+    C --> D["Block execution<br/>(transactions processed)"]
+    D --> E[on_finalize]
+    E --> F[post_block_update<br/>flush_storage]
+    F --> G[Mint rewards<br/>Update state]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L288-L306) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs#L355)

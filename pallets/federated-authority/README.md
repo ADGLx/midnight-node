@@ -68,36 +68,17 @@ The `motion_revoke` [extrinsic](https://docs.midnight.network/learn/glossary#ext
 
 ## Architecture
 
-```
-+-------------------+                       +-------------------+
-|     Council       |                       | Technical         |
-|   (2/3 approval)  |                       | Committee         |
-+--------+----------+                       | (2/3 approval)    |
-         |                                  +--------+----------+
-         |                                           |
-         v                                           v
-+--------+-------------------------------------------+----------+
-|                      motion_approve()                         |
-+---------------------------------------------------------------+
-                                   |
-                                   v
-                    +------------------------------+
-                    |     Federated Authority      |
-                    |     Pallet                   |
-                    |  +-----------------------+   |
-                    |  | Motion Storage        |   |
-                    |  | - Hash -> Motion      |   |
-                    |  | - Approvals tracking  |   |
-                    |  +-----------------------+   |
-                    +------------------------------+
-                                   |
-                    (when both bodies have approved)
-                                   |
-                                   v
-                    +------------------------------+
-                    |     motion_close()           |
-                    |     Execute with Root        |
-                    +------------------------------+
+```mermaid
+flowchart TB
+    A[Council<br/>2/3 approval] --> C[motion_approve]
+    B[Technical Committee<br/>2/3 approval] --> C
+    C --> D[Federated Authority Pallet]
+    
+    subgraph D[Federated Authority Pallet]
+        E[Motion Storage<br/>Hash → Motion<br/>Approvals tracking]
+    end
+    
+    D -->|when both bodies approved| F[motion_close<br/>Execute with Root]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs#L125-L280) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L916-L954)

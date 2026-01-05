@@ -49,17 +49,11 @@ upgrader \
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-| HTTP Request     | --> | upgrader         | --> | Node RPC         |
-| GET /execute     |     | (actix-web)      |     | (subxt)          |
-+------------------+     +------------------+     +------------------+
-                                                          |
-                                                          v
-                                                  +------------------+
-                                                  | sudo.sudo_       |
-                                                  | unchecked_weight |
-                                                  +------------------+
+```mermaid
+flowchart LR
+    A[HTTP Request<br/>GET /execute] --> B[upgrader<br/>actix-web]
+    B --> C[Node RPC<br/>subxt]
+    C --> D[sudo.sudo_<br/>unchecked_weight]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/main.rs#L58-L66) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/util/upgrader/src/lib.rs#L40)

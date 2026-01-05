@@ -79,17 +79,11 @@ See `res/mock-bridge-data/beefy-keys-mock.json` for example configuration.
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-| BEEFY Key JSON   | --> | midnight-beefy-  | --> | Node RPC         |
-| (keys + URLs)    |     | relay            |     | author_insertKey |
-+------------------+     +------------------+     +------------------+
-                                                          |
-                                                          v
-                                                  +------------------+
-                                                  | BEEFY Consensus  |
-                                                  | Key Storage      |
-                                                  +------------------+
+```mermaid
+flowchart LR
+    A[BEEFY Key JSON<br/>keys + URLs] --> B[midnight-beefy-<br/>relay]
+    B --> C[Node RPC<br/>author_insertKey]
+    C --> D[BEEFY Consensus<br/>Key Storage]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/main.rs) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/relay/src/beefy_keys.rs#L37)

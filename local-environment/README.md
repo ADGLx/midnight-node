@@ -102,37 +102,15 @@ earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 
 ### Local Environment Startup Sequence
 
-```
-+------------------+
-| Docker Compose   |
-+--------+---------+
-         |
-         v
-+------------------+
-| Cardano Node     |
-| (private testnet)|
-+--------+---------+
-         |
-    +----+----+
-    |         |
-    v         v
-+--------+ +--------+     +------------------+
-| Ogmios | |DB-Sync | --> | PostgreSQL       |
-+--------+ +---+----+     +------------------+
-    |          |
-    +----+-----+
-         |
-         v
-+------------------+
-| midnight-setup   |
-| (chain spec gen) |
-+--------+---------+
-         |
-         v (service_completed_successfully)
-+------------------+
-| Midnight Nodes   |
-| (x5 validators)  |
-+------------------+
+```mermaid
+flowchart TB
+    A[Docker Compose] --> B[Cardano Node<br/>private testnet]
+    B --> C[Ogmios]
+    B --> D[DB-Sync]
+    D --> E[PostgreSQL]
+    C --> F[midnight-setup<br/>chain spec gen]
+    D --> F
+    F -->|service_completed_successfully| G[Midnight Nodes<br/>x5 validators]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/local-environment/src/networks/local-env/docker-compose.yml)

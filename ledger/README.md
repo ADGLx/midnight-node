@@ -55,17 +55,11 @@ When compiled for WASM (`no_std`), it only includes `host_api` and minimal stubs
 
 ## Architecture
 
-```
-+------------------+     +------------------+     +------------------+
-| pallet-midnight  | --> | ledger_bridge    | --> | mn-ledger        |
-| (WASM runtime)   |     | (host functions) |     | (native library) |
-+------------------+     +------------------+     +------------------+
-                                 |
-                                 v
-                         +------------------+
-                         | ledger-storage   |
-                         | (ParityDB)       |
-                         +------------------+
+```mermaid
+flowchart LR
+    A[pallet-midnight<br/>WASM runtime] --> B[ledger_bridge<br/>host functions]
+    B --> C[mn-ledger<br/>native library]
+    B --> D[ledger-storage<br/>ParityDB]
 ```
 
 **Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs#L217-L223)
