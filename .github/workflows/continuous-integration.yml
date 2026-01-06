@@ -646,6 +646,9 @@ jobs:
           cargo install cargo-nextest --locked
 
       - name: just test
+        # Skip for Dependabot PRs - GitHub doesn't expose secrets to Dependabot workflows
+        # and the indexer tests require APP__INFRA__SECRET for cipher creation
+        if: github.actor != 'dependabot[bot]'
         env:
           APP__INFRA__SECRET: ${{ secrets.APP__INFRA__SECRET }}
         run: |
