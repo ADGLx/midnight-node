@@ -34,7 +34,8 @@ pub struct SubstrateCfg {
 	pub append_args: Vec<String>,
 	/// Optional override for base_path. --base-path in argv takes precedence
 	pub base_path: Option<String>,
-	/// Path to a file containing the node key. Alternative to and takes precedence over --node-key
+	/// Secret URI for the node key. Supports file paths, file://, aws://, gcp://, vault:// schemes.
+	/// Alternative to and takes precedence over --node-key
 	pub node_key_file: Option<String>,
 	/// Optional override for chain. --chain in argv takes precedence
 	pub chain: Option<String>,
@@ -74,11 +75,11 @@ impl TryFrom<SubstrateCfg> for RunCmd {
 				"Warning: NODE_KEY passed as a CLI arg is not recommended. Use NODE_KEY_FILE env-var instead."
 			);
 		}
-		if let Some(filepath) = value.node_key_file {
+		if let Some(node_key_uri) = value.node_key_file {
 			let node_key =
-				std::fs::read_to_string(&filepath).map(|s| s.trim().to_string()).map_err(|e| {
+				crate::secret_provider::fetch_secret_blocking(&node_key_uri).map_err(|e| {
 					sc_cli::Error::Input(format!(
-						"error when reading node key file at {filepath}. Error: {e}"
+						"error when reading node key from {node_key_uri}. Error: {e}"
 					))
 				})?;
 			run_cmd.network_params.node_key_params.node_key = Some(node_key);

@@ -280,7 +280,7 @@ Chain specifications are located in `/res/` directory.
 | Validator mode | `VALIDATOR=true` | `--validator` | Run as validator (true/1/TRUE) |
 | P2P port | - | `--port 30333` | Networking port (default: 30333) |
 | RPC port | - | `--rpc-port 9944` | WebSocket RPC port (default: 9944) |
-| Node key | `NODE_KEY_FILE=/path/to/key` | `--node-key "0x..."` | Network identity key file |
+| Node key | `NODE_KEY_FILE=<uri>` | `--node-key "0x..."` | Network identity key (supports file paths, aws://, gcp://, vault:// URIs) |
 | Bootstrap nodes | `BOOTNODES="/ip4/... /ip4/..."` | `--bootnodes "/ip4/..."` | Space-separated initial peers |
 | Allow non-SSL DB | `ALLOW_NON_SSL=false` | - | Allow non-SSL PostgreSQL connections |
 | Remote write | `PROMETHEUS_PUSH_ENDPOINT=https://thanos:9091/api/v1/receive` | - | Push metrics via Prometheus Remote Write (Thanos, Cortex, Mimir) |
