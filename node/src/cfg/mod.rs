@@ -48,7 +48,7 @@ pub mod shell_words_environment;
 pub(crate) mod util;
 
 /// Contains all configuration for the node application
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub struct Cfg {
 	pub config: Config,
 	/// Configuration required to initialize the chainspec

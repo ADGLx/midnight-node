@@ -20,6 +20,8 @@ use std::{path::Path, sync::Arc};
 use serde_json;
 use tokio::{fs::File, io::AsyncWriteExt};
 
+use crate::{cfg::midnight_cfg::MidnightCfg, cli::CNightGenesisCmd};
+
 const UTXO_CAPACITY: usize = 1000;
 
 #[derive(Debug, thiserror::Error)]
@@ -73,6 +75,26 @@ fn exec_pallet(utxos: &ObservedUtxos) -> PalletExecResult {
 }
 
 pub async fn generate_cnight_genesis(
+	cmd: &CNightGenesisCmd,
+	midnight_cfg: MidnightCfg,
+) -> sc_cli::Result<()> {
+	let data_sources =
+		crate::main_chain_follower::create_cnight_observation_data_source(midnight_cfg, None)
+			.await?;
+
+	let cnight_addresses_str = std::fs::read_to_string(&cmd.cnight_addresses)?;
+	let addresses: CNightAddresses = serde_json::from_str(&cnight_addresses_str).map_err(|e| {
+		sc_cli::Error::Input(format!("failed to read cnight addresses file as json: {e:?}"))
+	})?;
+
+	_generate_cnight_genesis(addresses, data_sources, cmd.cardano_tip.clone(), &cmd.output.clone())
+		.await
+		.map_err(|e| sc_cli::Error::Input(format!("cNGD genesis generation failed: {e}")))?;
+
+	Ok(())
+}
+
+async fn _generate_cnight_genesis(
 	addresses: CNightAddresses,
 	cnight_observation_data_source: Arc<dyn MidnightCNightObservationDataSource>,
 	// Cardano block hash("mc hash") which is assumed to be the tip for the queries
@@ -101,10 +123,18 @@ pub async fn generate_cnight_genesis(
 			.map_err(CNightGenesisError::UtxoQueryError)?;
 
 		current_position = observed.end;
-		log::info!(
-			"Fetched {} cNight utxos. Current tip: {current_position:?}",
-			observed.utxos.len(),
-		);
+		if log::log_enabled!(log::Level::Info) {
+			log::info!(
+				"Fetched {} cNight utxos. Current tip: {current_position:?}",
+				observed.utxos.len(),
+			);
+		} else {
+			println!(
+				"Fetched {} cNight utxos. Current tip: {current_position:?}",
+				observed.utxos.len(),
+			);
+		}
+
 		all_utxos.extend(observed.utxos);
 
 		// Optional: break early if position is past the tip
@@ -134,6 +164,10 @@ pub async fn generate_cnight_genesis(
 	let json = serde_json::to_string_pretty(&config)?;
 	let mut file = File::create(output_path.as_ref()).await?;
 	file.write_all(json.as_bytes()).await?;
-	log::info!("Wrote cNIGHT Generates Dust genesis to {}", output_path.as_ref().display());
+	if log::log_enabled!(log::Level::Info) {
+		log::info!("Wrote cNIGHT Generates Dust genesis to {}", output_path.as_ref().display());
+	} else {
+		println!("Wrote cNIGHT Generates Dust genesis to {}", output_path.as_ref().display());
+	}
 	Ok(())
 }

@@ -17,7 +17,7 @@ use documented::{Documented, DocumentedFields as _};
 use serde::{Deserialize, Serialize};
 use serde_valid::{Validate, validation};
 
-#[derive(Debug, Serialize, Deserialize, Default, Validate, Documented)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, Validate, Documented)]
 #[validate(custom = all_required)]
 /// Parameters required for chainspec generation
 pub struct ChainSpecCfg {

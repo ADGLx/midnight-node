@@ -19,7 +19,7 @@ use serde_valid::Validate;
 
 use super::{CfgHelp, HelpField, cfg_help, error::CfgError, util::get_keys};
 
-#[derive(Debug, Serialize, Deserialize, Default, Validate, Documented)]
+#[derive(Clone, Debug, Serialize, Deserialize, Default, Validate, Documented)]
 /// Meta parameters that change how config is read and displayed
 pub struct MetaCfg {
 	/// Use a preset of default config values
@@ -36,7 +36,7 @@ impl CfgHelp for MetaCfg {
 	}
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct CfgPreset(pub String);
 
 impl CfgPreset {

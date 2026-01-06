@@ -62,6 +62,19 @@ pub struct FederatedAuthorityGenesisCmd {
 	pub output: std::path::PathBuf,
 }
 
+#[derive(Debug, Parser)]
+pub struct GenerateGenesisCmd {
+	/// The Cardano block hash assumed to be the latest for this query
+	#[arg(short, long)]
+	pub cardano_tip: McBlockHash,
+
+	#[arg(long)]
+	pub cnight_addresses: std::path::PathBuf,
+
+	#[arg(long = "federated-auth-addresses")]
+	pub federated_authority_addresses: std::path::PathBuf,
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
@@ -84,6 +97,9 @@ pub enum Subcommand {
 
 	/// Generate Federed Authority Genesis file.
 	GenerateFederatedAuthorityGenesis(FederatedAuthorityGenesisCmd),
+
+	/// Generates the cNIGHT and Fededrated Authority Genesis file
+	GenerateGenesis(GenerateGenesisCmd),
 
 	/// Export blocks.
 	ExportBlocks(sc_cli::ExportBlocksCmd),

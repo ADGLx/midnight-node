@@ -15,7 +15,10 @@
 
 use crate::{
 	cfg::Cfg,
-	cli::{self, Cli, Subcommand},
+	cli::{
+		self, CNightGenesisCmd, Cli, FederatedAuthorityGenesisCmd, MidnightAddress,
+		MidnightRuntime, Subcommand,
+	},
 	cnight_genesis::generate_cnight_genesis,
 	federated_authority_genesis::generate_federated_authority_genesis,
 	service::{self, StorageInit},
@@ -23,8 +26,7 @@ use crate::{
 use clap::Parser;
 use midnight_node_res::networks::MidnightNetwork as _;
 use midnight_node_runtime::Block;
-use midnight_primitives_cnight_observation::CNightAddresses;
-use midnight_primitives_federated_authority_observation::FederatedAuthorityAddresses;
+use partner_chains_node_commands::PartnerChainsSubcommand;
 use sc_cli::{CliConfiguration, LoggerBuilder, RunCmd, SubstrateCli};
 use sc_keystore::LocalKeystore;
 use sc_service::{BasePath, PartialComponents, config::KeystoreConfig};
@@ -448,34 +450,8 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
 			// Init tokio runtime
 			let tokio_handle = sc_cli::build_runtime()?;
-			tokio_handle.block_on(async {
-				let data_sources =
-					crate::main_chain_follower::create_cnight_observation_data_source(
-						cfg.midnight_cfg.clone(),
-						None,
-					)
-					.await?;
 
-				let cnight_addresses_str = std::fs::read_to_string(&cmd.cnight_addresses)?;
-				let addresses: CNightAddresses = serde_json::from_str(&cnight_addresses_str)
-					.map_err(|e| {
-						sc_cli::Error::Input(format!(
-							"failed to read cnight addresses file as json: {e:?}"
-						))
-					})?;
-				generate_cnight_genesis(
-					addresses,
-					data_sources,
-					cmd.cardano_tip.clone(),
-					&cmd.output.clone(),
-				)
-				.await
-				.map_err(|e| {
-					sc_cli::Error::Input(format!("cNGD genesis generation failed: {e}"))
-				})?;
-
-				Ok(())
-			})
+			tokio_handle.block_on(generate_cnight_genesis(cmd, cfg.midnight_cfg.clone()))
 		},
 		Subcommand::GenerateFederatedAuthorityGenesis(ref cmd) => {
 			// Init logging
@@ -483,38 +459,41 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 
 			// Init tokio runtime
 			let tokio_handle = sc_cli::build_runtime()?;
+			tokio_handle
+				.block_on(generate_federated_authority_genesis(cmd, cfg.midnight_cfg.clone()))
+		},
+		Subcommand::GenerateGenesis(cmd) => {
+			let federated_auth_genesis_cmd = FederatedAuthorityGenesisCmd {
+				cardano_tip: cmd.cardano_tip.clone(),
+				federated_authority_addresses: cmd.federated_authority_addresses,
+				output: "federated-authority-genesis.json".into(),
+			};
+
+			let cnight_genesis_cmd = CNightGenesisCmd {
+				cardano_tip: cmd.cardano_tip,
+				cnight_addresses: cmd.cnight_addresses,
+				output: "cnight-genesis.json".into(),
+			};
+
+			let tokio_handle = sc_cli::build_runtime()?;
 			tokio_handle.block_on(async {
-				let data_sources =
-					crate::main_chain_follower::create_federated_authority_observation_data_source(
-						cfg.midnight_cfg.clone(),
-						None,
-					)
-					.await?;
-
-				let fed_auth_addresses_str =
-					std::fs::read_to_string(&cmd.federated_authority_addresses)?;
-				let federated_authority_addresses: FederatedAuthorityAddresses =
-					serde_json::from_str(&fed_auth_addresses_str).map_err(|e| {
-						sc_cli::Error::Input(format!(
-							"failed to read federated authority addresses file as json: {e}"
-						))
-					})?;
-
 				generate_federated_authority_genesis(
-					federated_authority_addresses,
-					data_sources,
-					cmd.cardano_tip.clone(),
-					&cmd.output.clone(),
+					&federated_auth_genesis_cmd,
+					cfg.midnight_cfg.clone(),
 				)
-				.await
-				.map_err(|e| {
-					sc_cli::Error::Input(format!(
-						"federated authority genesis generation failed: {e}"
-					))
-				})?;
+				.await?;
 
-				Ok(())
-			})
+				generate_cnight_genesis(&cnight_genesis_cmd, cfg.midnight_cfg.clone()).await
+			})?;
+
+			let wizard_cmd =
+				partner_chains_cli::Command::parse_from(vec!["wizards", "prepare-configuration"]);
+			let pc_subcommand: PartnerChainsSubcommand<MidnightRuntime, MidnightAddress> =
+				PartnerChainsSubcommand::Wizards(wizard_cmd);
+
+			println!("calling partnerchains command...");
+
+			run_subcommand(Subcommand::PartnerChains(pc_subcommand), cfg)
 		},
 	}
 }

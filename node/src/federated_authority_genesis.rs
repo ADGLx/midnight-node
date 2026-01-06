@@ -11,6 +11,8 @@ use sp_core::{ByteArray, sr25519::Public};
 
 use tokio::{fs::File, io::AsyncWriteExt};
 
+use crate::{cfg::midnight_cfg::MidnightCfg, cli::FederatedAuthorityGenesisCmd};
+
 #[derive(Debug, thiserror::Error)]
 pub enum FederatedAuthorityGenesisError {
 	#[error("Failed to serialize UTXOs to JSON: {0}")]
@@ -23,8 +25,41 @@ pub enum FederatedAuthorityGenesisError {
 	IoError(#[from] std::io::Error),
 }
 
-/// Saves as json file the Federated Authority Genesis Config
 pub async fn generate_federated_authority_genesis(
+	cmd: &FederatedAuthorityGenesisCmd,
+	midnight_cfg: MidnightCfg,
+) -> sc_cli::Result<()> {
+	let data_sources =
+		crate::main_chain_follower::create_federated_authority_observation_data_source(
+			midnight_cfg,
+			None,
+		)
+		.await?;
+
+	let fed_auth_addresses_str = std::fs::read_to_string(&cmd.federated_authority_addresses)?;
+	let federated_authority_addresses: FederatedAuthorityAddresses =
+		serde_json::from_str(&fed_auth_addresses_str).map_err(|e| {
+			sc_cli::Error::Input(format!(
+				"failed to read federated authority addresses file as json: {e}"
+			))
+		})?;
+
+	_generate_federated_authority_genesis(
+		federated_authority_addresses,
+		data_sources,
+		cmd.cardano_tip.clone(),
+		&cmd.output.clone(),
+	)
+	.await
+	.map_err(|e| {
+		sc_cli::Error::Input(format!("federated authority genesis generation failed: {e}"))
+	})?;
+
+	Ok(())
+}
+
+/// Saves as json file the Federated Authority Genesis Config
+async fn _generate_federated_authority_genesis(
 	federated_authority_addresses: FederatedAuthorityAddresses,
 	federated_authority_observation_data_source: Arc<dyn FederatedAuthorityObservationDataSource>,
 	// Cardano block hash("mc hash") which is assumed to be the tip for the queries
@@ -70,7 +105,12 @@ pub async fn generate_federated_authority_genesis(
 	let json = serde_json::to_string_pretty(&config)?;
 	let mut file = File::create(output_path.as_ref()).await?;
 	file.write_all(json.as_bytes()).await?;
-	log::info!("Wrote Federated Authority genesis to {}", output_path.as_ref().display());
+
+	if log::log_enabled!(log::Level::Info) {
+		log::info!("Wrote Federated Authority genesis to {}", output_path.as_ref().display());
+	} else {
+		println!("Wrote Federated Authority genesis to {}", output_path.as_ref().display());
+	}
 
 	Ok(())
 }
@@ -85,7 +125,16 @@ fn get_members_and_mainchain_members(
 		|(mut members, mut mainchain_members), (member, mainchain_member)| {
 			match Public::from_slice(member.0.as_slice()) {
 				Ok(member) => members.push(member),
-				Err(_) => log::warn!("Failed to convert to s255519 key: {}", hex::encode(member.0)),
+				Err(_) => {
+					if log::log_enabled!(log::Level::Info) {
+						log::warn!("Failed to convert to s255519 key: {}", hex::encode(member.0))
+					} else {
+						println!(
+							"WARN: Failed to convert to s255519 key: {}",
+							hex::encode(member.0)
+						)
+					}
+				},
 			};
 
 			mainchain_members.push(mainchain_member);
