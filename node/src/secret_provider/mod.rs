@@ -138,9 +138,13 @@ pub fn fetch_secret_blocking(uri: &str) -> Result<String, SecretProviderError> {
 		tokio::task::block_in_place(|| handle.block_on(provider.get_secret()))
 	} else {
 		// Create a new runtime
-		let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(
-			|e| SecretProviderError::ConfigError(format!("Failed to create runtime: {e}")),
-		)?;
+		let rt =
+			tokio::runtime::Builder::new_current_thread()
+				.enable_all()
+				.build()
+				.map_err(|e| {
+					SecretProviderError::ConfigError(format!("Failed to create runtime: {e}"))
+				})?;
 		rt.block_on(provider.get_secret())
 	}
 }
