@@ -13,6 +13,6 @@ Supported URI schemes:
 - GCP Secret Manager: `gcp://projects/PROJECT/secrets/SECRET/versions/VERSION`
 - HashiCorp Vault: `vault://secret/data/path#field`
 
-PR:
+PR: https://github.com/midnightntwrk/midnight-node/pull/440
 Ticket: https://shielded.atlassian.net/browse/PM-21111
 

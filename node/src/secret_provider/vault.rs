@@ -64,7 +64,9 @@ impl SecretProvider for VaultSecretProvider {
 
 			// Get Vault address
 			let vault_addr = std::env::var("VAULT_ADDR").map_err(|_| {
-				SecretProviderError::VaultError("VAULT_ADDR environment variable not set".to_string())
+				SecretProviderError::VaultError(
+					"VAULT_ADDR environment variable not set".to_string(),
+				)
 			})?;
 
 			// Build client settings
@@ -176,7 +178,10 @@ async fn get_vault_token() -> Result<String, SecretProviderError> {
 }
 
 #[cfg(feature = "vault-secrets")]
-async fn authenticate_approle(role_id: &str, secret_id: &str) -> Result<String, SecretProviderError> {
+async fn authenticate_approle(
+	role_id: &str,
+	secret_id: &str,
+) -> Result<String, SecretProviderError> {
 	use vaultrs::auth::approle;
 	use vaultrs::client::{VaultClient, VaultClientSettingsBuilder};
 
@@ -267,4 +272,3 @@ fn parse_vault_path(path: &str) -> Result<(String, String), SecretProviderError>
 
 	Ok((mount, secret_path))
 }
-

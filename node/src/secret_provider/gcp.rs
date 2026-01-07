@@ -41,7 +41,10 @@ impl GcpSecretProvider {
 	pub fn new(secret_path: String, params: HashMap<String, String>) -> Self {
 		Self {
 			secret_path,
-			key_field: params.get("field").cloned().or_else(|| std::env::var("GCP_SECRET_KEY_FIELD").ok()),
+			key_field: params
+				.get("field")
+				.cloned()
+				.or_else(|| std::env::var("GCP_SECRET_KEY_FIELD").ok()),
 		}
 	}
 }
@@ -54,10 +57,9 @@ impl SecretProvider for GcpSecretProvider {
 			use google_cloud_secretmanager_v1::client::SecretManagerService;
 
 			// Create client with default credentials (uses Application Default Credentials)
-			let client = SecretManagerService::builder()
-				.build()
-				.await
-				.map_err(|e| SecretProviderError::GcpError(format!("Failed to create client: {}", e)))?;
+			let client = SecretManagerService::builder().build().await.map_err(|e| {
+				SecretProviderError::GcpError(format!("Failed to create client: {}", e))
+			})?;
 
 			// Access the secret version
 			let response = client
@@ -73,9 +75,9 @@ impl SecretProvider for GcpSecretProvider {
 				})?;
 
 			// Get the payload
-			let payload = response
-				.payload
-				.ok_or_else(|| SecretProviderError::GcpError("Secret has no payload".to_string()))?;
+			let payload = response.payload.ok_or_else(|| {
+				SecretProviderError::GcpError("Secret has no payload".to_string())
+			})?;
 
 			let secret_string = String::from_utf8(payload.data.to_vec()).map_err(|e| {
 				SecretProviderError::GcpError(format!("Secret is not valid UTF-8: {}", e))
@@ -83,12 +85,13 @@ impl SecretProvider for GcpSecretProvider {
 
 			// If a key field is specified, parse as JSON and extract the field
 			if let Some(field) = &self.key_field {
-				let json: serde_json::Value = serde_json::from_str(&secret_string).map_err(|e| {
-					SecretProviderError::GcpError(format!(
-						"Failed to parse secret as JSON for field extraction: {}",
-						e
-					))
-				})?;
+				let json: serde_json::Value =
+					serde_json::from_str(&secret_string).map_err(|e| {
+						SecretProviderError::GcpError(format!(
+							"Failed to parse secret as JSON for field extraction: {}",
+							e
+						))
+					})?;
 
 				json.get(field)
 					.and_then(|v| v.as_str())
@@ -114,4 +117,3 @@ impl SecretProvider for GcpSecretProvider {
 		}
 	}
 }
-

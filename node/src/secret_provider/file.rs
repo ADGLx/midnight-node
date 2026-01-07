@@ -33,4 +33,3 @@ impl SecretProvider for FileSecretProvider {
 		Ok(content.trim().to_string())
 	}
 }
-

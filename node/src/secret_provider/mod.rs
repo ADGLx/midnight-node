@@ -111,7 +111,9 @@ pub fn parse_secret_uri(uri: &str) -> Result<Box<dyn SecretProvider>, SecretProv
 }
 
 /// Parse URI path and query parameters
-fn parse_uri_with_params(rest: &str) -> Result<(String, HashMap<String, String>), SecretProviderError> {
+fn parse_uri_with_params(
+	rest: &str,
+) -> Result<(String, HashMap<String, String>), SecretProviderError> {
 	let (path, query) = rest.split_once('?').unwrap_or((rest, ""));
 
 	let params: HashMap<String, String> = query
@@ -131,17 +133,17 @@ pub fn fetch_secret_blocking(uri: &str) -> Result<String, SecretProviderError> {
 	let provider = parse_secret_uri(uri)?;
 
 	// Use tokio runtime if available, otherwise create a new one
-	let result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-		// We're in an async context, use block_in_place
-		tokio::task::block_in_place(|| handle.block_on(provider.get_secret()))
-	} else {
-		// Create a new runtime
-		let rt = tokio::runtime::Builder::new_current_thread()
-			.enable_all()
-			.build()
-			.map_err(|e| SecretProviderError::ConfigError(format!("Failed to create runtime: {e}")))?;
-		rt.block_on(provider.get_secret())
-	};
+	let result =
+		if let Ok(handle) = tokio::runtime::Handle::try_current() {
+			// We're in an async context, use block_in_place
+			tokio::task::block_in_place(|| handle.block_on(provider.get_secret()))
+		} else {
+			// Create a new runtime
+			let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(
+				|e| SecretProviderError::ConfigError(format!("Failed to create runtime: {e}")),
+			)?;
+			rt.block_on(provider.get_secret())
+		};
 
 	result
 }
@@ -168,22 +170,27 @@ mod tests {
 
 	#[test]
 	fn test_parse_aws_uri_with_params() {
-		let _provider = parse_secret_uri("aws://my-secret?region=us-west-2&version_id=abc123").unwrap();
+		let _provider =
+			parse_secret_uri("aws://my-secret?region=us-west-2&version_id=abc123").unwrap();
 	}
 
 	#[test]
 	fn test_parse_aws_uri_with_field() {
-		let _provider = parse_secret_uri("aws://my-secret?region=us-east-1&field=aura_key").unwrap();
+		let _provider =
+			parse_secret_uri("aws://my-secret?region=us-east-1&field=aura_key").unwrap();
 	}
 
 	#[test]
 	fn test_parse_gcp_uri() {
-		let _provider = parse_secret_uri("gcp://projects/my-project/secrets/my-secret/versions/latest").unwrap();
+		let _provider =
+			parse_secret_uri("gcp://projects/my-project/secrets/my-secret/versions/latest")
+				.unwrap();
 	}
 
 	#[test]
 	fn test_parse_gcp_uri_with_field() {
-		let _provider = parse_secret_uri("gcp://projects/proj/secrets/sec/versions/1?field=key").unwrap();
+		let _provider =
+			parse_secret_uri("gcp://projects/proj/secrets/sec/versions/1?field=key").unwrap();
 	}
 
 	#[test]
@@ -202,4 +209,3 @@ mod tests {
 		assert!(matches!(result, Err(SecretProviderError::UnsupportedScheme(_))));
 	}
 }
-

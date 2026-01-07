@@ -46,7 +46,10 @@ impl AwsSecretsProvider {
 			region: params.get("region").cloned(),
 			version_id: params.get("version_id").cloned(),
 			version_stage: params.get("version_stage").cloned(),
-			key_field: params.get("field").cloned().or_else(|| std::env::var("AWS_SECRET_KEY_FIELD").ok()),
+			key_field: params
+				.get("field")
+				.cloned()
+				.or_else(|| std::env::var("AWS_SECRET_KEY_FIELD").ok()),
 		}
 	}
 }
@@ -98,12 +101,13 @@ impl SecretProvider for AwsSecretsProvider {
 
 			// If a key field is specified, parse as JSON and extract the field
 			if let Some(field) = &self.key_field {
-				let json: serde_json::Value = serde_json::from_str(&secret_string).map_err(|e| {
-					SecretProviderError::AwsError(format!(
-						"Failed to parse secret as JSON for field extraction: {}",
-						e
-					))
-				})?;
+				let json: serde_json::Value =
+					serde_json::from_str(&secret_string).map_err(|e| {
+						SecretProviderError::AwsError(format!(
+							"Failed to parse secret as JSON for field extraction: {}",
+							e
+						))
+					})?;
 
 				json.get(field)
 					.and_then(|v| v.as_str())
@@ -129,4 +133,3 @@ impl SecretProvider for AwsSecretsProvider {
 		}
 	}
 }
-
