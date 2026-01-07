@@ -33,7 +33,7 @@ pub struct MidnightCfg {
 	///   - AWS Secrets Manager: aws://secret-name?region=us-east-1
 	///   - GCP Secret Manager: gcp://projects/PROJECT/secrets/SECRET/versions/VERSION
 	///   - HashiCorp Vault: vault://secret/data/path#field
-	/// Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
+	///     Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
 	pub aura_seed_file: Option<String>,
 
 	/// URI or path to the GRANDPA seed (32 bytes)
@@ -43,7 +43,7 @@ pub struct MidnightCfg {
 	///   - AWS Secrets Manager: aws://secret-name?region=us-east-1
 	///   - GCP Secret Manager: gcp://projects/PROJECT/secrets/SECRET/versions/VERSION
 	///   - HashiCorp Vault: vault://secret/data/path#field
-	/// Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
+	///     Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
 	pub grandpa_seed_file: Option<String>,
 
 	/// URI or path to the CROSS_CHAIN seed (32 bytes)
@@ -53,7 +53,7 @@ pub struct MidnightCfg {
 	///   - AWS Secrets Manager: aws://secret-name?region=us-east-1
 	///   - GCP Secret Manager: gcp://projects/PROJECT/secrets/SECRET/versions/VERSION
 	///   - HashiCorp Vault: vault://secret/data/path#field
-	/// Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
+	///     Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase
 	pub cross_chain_seed_file: Option<String>,
 
 	/// Mock ariadne parameters

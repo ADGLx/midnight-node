@@ -133,19 +133,16 @@ pub fn fetch_secret_blocking(uri: &str) -> Result<String, SecretProviderError> {
 	let provider = parse_secret_uri(uri)?;
 
 	// Use tokio runtime if available, otherwise create a new one
-	let result =
-		if let Ok(handle) = tokio::runtime::Handle::try_current() {
-			// We're in an async context, use block_in_place
-			tokio::task::block_in_place(|| handle.block_on(provider.get_secret()))
-		} else {
-			// Create a new runtime
-			let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(
-				|e| SecretProviderError::ConfigError(format!("Failed to create runtime: {e}")),
-			)?;
-			rt.block_on(provider.get_secret())
-		};
-
-	result
+	if let Ok(handle) = tokio::runtime::Handle::try_current() {
+		// We're in an async context, use block_in_place
+		tokio::task::block_in_place(|| handle.block_on(provider.get_secret()))
+	} else {
+		// Create a new runtime
+		let rt = tokio::runtime::Builder::new_current_thread().enable_all().build().map_err(
+			|e| SecretProviderError::ConfigError(format!("Failed to create runtime: {e}")),
+		)?;
+		rt.block_on(provider.get_secret())
+	}
 }
 
 #[cfg(test)]
