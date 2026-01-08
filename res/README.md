@@ -140,6 +140,19 @@ A team member with AWS access will download the secrets and run the rebuild comm
 cargo test -p midnight-node-res --features test
 ```
 
+## Cardano Smart Contracts
+
+Midnight uses smart contracts on Cardano for cross-chain functionality. These are maintained in [midnight-reserve-contracts](https://github.com/midnightntwrk/midnight-reserve-contracts) and built using:
+
+```shell
+./build_contracts.sh <network> verbose
+```
+
+| Contract | Commit | Output |
+|----------|--------|--------|
+| `cnight-mapping-validator.ak` | [f11d278](https://github.com/midnightntwrk/midnight-reserve-contracts/commit/f11d27828666e887fb495a85242edf9b8a78192f) | mapping_validator_address `addr_test1wplxjzranravtp574s2wz00md7vz9rzpucu252je68u9a8qzjheng` |
+| `test_cnight_no_audit.ak` | [f11d278](https://github.com/midnightntwrk/midnight-reserve-contracts/commit/f11d27828666e887fb495a85242edf9b8a78192f) | tcnight policy id `d2dbff622e509dda256fedbd31ef6e9fd98ed49ad91d5c0e07f68af1` |
+
 ## See Also
 
 - [runtime](../runtime/README.md) - [Runtime](https://docs.polkadot.com/polkadot-protocol/glossary/#runtime) that uses these resources

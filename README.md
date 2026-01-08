@@ -100,51 +100,6 @@ Midnight ◀──▶├──────────────────�
 
 > **Security Note:** Database connections to PostgreSQL require SSL/TLS by default. Set `ALLOW_NON_SSL=true` only for local development environments without SSL certificates.
 
-## Components
-
-### Runtime Pallets
-
-Midnight Node includes six custom runtime pallets that implement core blockchain functionality:
-
-**[pallet-midnight](pallets/midnight)** - Core pallet managing ledger state and transaction execution
-- Processes privacy-preserving smart contract transactions
-- Maintains ledger state root and provides state access interface
-- Integrates with midnight-ledger for zero-knowledge proof verification
-
-**[pallet-midnight-system](pallets/midnight-system)** - System transaction management
-- Handles administrative operations requiring root privileges
-- Applies system-level transactions to ledger state
-
-**[pallet-cnight-observation](pallets/cnight-observation)** - Cardano bridge integration
-- Tracks cNIGHT token registration from Cardano mainchain
-- Manages DUST generation and UTXO tracking
-- Processes Cardano Midnight System Transactions (CMST)
-
-**[pallet-federated-authority](pallets/federated-authority)** - Multi-collective governance
-- Requires consensus from multiple authority bodies for critical operations
-- Motion-based proposal system with time limits
-- Executes approved motions with root privileges
-
-**[pallet-federated-authority-observation](pallets/federated-authority-observation)** - Governance synchronization
-- Observes authority changes from mainchain
-- Updates Council and Technical Committee memberships
-- Propagates governance changes across the network
-
-**[pallet-version](pallets/version)** - Runtime version tracking
-- Records runtime spec version in block digests
-- Enables version monitoring and upgrade tracking
-
-### Cardano Smart Contracts
-
-We make use of several smart contracts on Cardano to support Midnight functionality. These can be found in [midnight-reserve-contracts](https://github.com/midnightntwrk/midnight-reserve-contracts). These are built in verbose mode using the command:
-
-```shell
-./build_contracts.sh <network> verbose
-```
-
-- `cnight-mapping-validator.ak`@[f11d27828666e887fb495a85242edf9b8a78192f](https://github.com/midnightntwrk/midnight-reserve-contracts/commit/f11d27828666e887fb495a85242edf9b8a78192f) provides the mapping_validator_address `addr_test1wplxjzranravtp574s2wz00md7vz9rzpucu252je68u9a8qzjheng`
-- `test_cnight_no_audit.ak`@[f11d27828666e887fb495a85242edf9b8a78192f](https://github.com/midnightntwrk/midnight-reserve-contracts/commit/f11d27828666e887fb495a85242edf9b8a78192f) provides the tcnight policy id `d2dbff622e509dda256fedbd31ef6e9fd98ed49ad91d5c0e07f68af1`
-
 ## Quick Start
 
 If you just want to run midnight-node, the easiest option is to use the Docker setup:
