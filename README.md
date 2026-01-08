@@ -110,17 +110,6 @@ that we are still in the process of being release. As such:
 - If you raise a PR, the CI will be able to compile it.
 - We're actively working to open-source dependencies in the coming months.
 
-## Documentation
-
-[Proposals](docs/proposals)
-[Decisions](docs/decisions)
-
-- [Development Workflow](docs/development-workflow.md) - Best practices for cargo vs earthly, debugging, and common tasks
-- [Rust Installation](docs/rust-setup.md) - Setup instructions and toolchain information
-- [Chain Specifications](docs/chain_specs.md) - Working with different networks
-- [Block Weights](docs/weights.md) - Runtime weights documentation
-- [Actionlint Guide](docs/actionlint-guide.md) - GitHub Actions validation
-
 ## Prerequisites
 
 - rustup installed
