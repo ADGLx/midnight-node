@@ -24,6 +24,18 @@ Implementation of the Midnight blockchain node, providing consensus, transaction
 
 Smart contracts written in [Compact](https://docs.midnight.network/learn/glossary#compact) execute within the [ZSwap](https://docs.midnight.network/learn/glossary#zswap) ledger, which provides cryptographic guarantees for transaction privacy while preserving on-chain verifiability. The node supports cross-chain token bridging between [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) on Cardano and [DUST](https://docs.midnight.network/learn/glossary#dust) on Midnight, federated multi-body governance synchronized with the mainchain, and achieves finality through [AURA](https://docs.polkadot.com/polkadot-protocol/glossary#authority-round-aura) block production with [GRANDPA](https://docs.polkadot.com/polkadot-protocol/glossary#grandpa) and [BEEFY](https://github.com/paritytech/polkadot-sdk/blob/master/substrate/client/consensus/beefy/README.md) consensus mechanisms.
 
+## Features
+
+* **Privacy-Preserving Smart Contracts** - Execute contracts with zero-knowledge proofs while maintaining public blockchain state
+
+* **Partner Chain Architecture** - Integrated with Cardano mainchain as a partner chain with cross-chain token bridging (cNIGHT to DUST)
+
+* **Multi-Layer Governance** - Federated authority system requiring consensus from multiple governance bodies with automatic mainchain synchronization
+
+* **High Performance** - 6-second block time with efficient finality mechanism and optimized transaction processing
+
+* **Developer Tools** - Comprehensive CLI with chain specification generation, runtime benchmarking, and upgrade testing capabilities
+
 ## Architecture
 
 ```
@@ -89,18 +101,6 @@ Port │                                                                    │ 
 ```
 
 > **Security Note:** Database connections to PostgreSQL require SSL/TLS by default. Set `ALLOW_NON_SSL=true` only for local development environments without SSL certificates.
-
-## Features
-
-* **Privacy-Preserving Smart Contracts** - Execute contracts with zero-knowledge proofs while maintaining public blockchain state
-
-* **Partner Chain Architecture** - Integrated with Cardano mainchain as a partner chain with cross-chain token bridging (cNIGHT to DUST)
-
-* **Multi-Layer Governance** - Federated authority system requiring consensus from multiple governance bodies with automatic mainchain synchronization
-
-* **High Performance** - 6-second block time with efficient finality mechanism and optimized transaction processing
-
-* **Developer Tools** - Comprehensive CLI with chain specification generation, runtime benchmarking, and upgrade testing capabilities
 
 ## Quick Start
 
