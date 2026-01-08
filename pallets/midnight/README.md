@@ -100,9 +100,9 @@ curl -X POST -H "Content-Type: application/json" \
 
 ### Used By
 
-- `runtime` - Wired as primary transaction processor
-- `pallet-midnight-rpc` - RPC interface to ledger queries
-- `pallet-cnight-observation` - [System transaction](https://docs.midnight.network/learn/glossary#system-transaction) execution
+- [`runtime`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs) - Wired as primary transaction processor
+- [`pallet-midnight-rpc`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs) - RPC interface to ledger queries
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) - [System transaction](https://docs.midnight.network/learn/glossary#system-transaction) execution
 
 ## Testing
 

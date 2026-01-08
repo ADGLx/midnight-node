@@ -70,10 +70,10 @@ println!("Using ledger version: {}", version);
 
 ### Used By
 
-- `pallet-midnight` tests
-- `pallet-cnight-observation` tests
-- `tests/e2e` - End-to-end tests
-- `util/toolkit` - CLI tools
+- [`pallet-midnight`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs) tests
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) tests
+- [`tests/e2e`](https://github.com/midnightntwrk/midnight-node/blob/main/tests/e2e/src/lib.rs) - End-to-end tests
+- [`util/toolkit`](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/lib.rs) - CLI tools
 
 ## Testing
 

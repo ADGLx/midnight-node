@@ -46,7 +46,7 @@ A `DefaultVote` implementation for `pallet_collective`. Ensures abstentions coun
 
 ### Used By
 
-- `midnight-node-runtime` - Governance pallet configuration
+- [`midnight-node-runtime`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs) - Governance pallet configuration
 
 ## Why Sufficients?
 

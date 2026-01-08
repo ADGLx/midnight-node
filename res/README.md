@@ -76,9 +76,9 @@ res/
 
 ### Used By
 
-- `midnight-node` - Chain spec generation
-- `midnight-node-toolkit` - Genesis generation and testing
-- `tests/e2e` - Integration test fixtures
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/chain_spec/mod.rs) - Chain spec generation
+- [`midnight-node-toolkit`](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/lib.rs) - Genesis generation and testing
+- [`tests/e2e`](https://github.com/midnightntwrk/midnight-node/blob/main/tests/e2e/src/lib.rs) - Integration test fixtures
 
 ## Configuration Root Override
 

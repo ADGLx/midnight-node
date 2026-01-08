@@ -55,8 +55,8 @@ Constants from `primitives/ledger/src/lib.rs` (L41-L52):
 
 ### Used By
 
-- `midnight-node` - Metric registration
-- `midnight-node-ledger` - [Host function](https://docs.midnight.network/learn/glossary#host-function) metrics
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs) - Metric registration
+- [`midnight-node-ledger`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) - [Host function](https://docs.midnight.network/learn/glossary#host-function) metrics
 
 ## See Also
 

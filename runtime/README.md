@@ -129,9 +129,9 @@ This package integrates:
 
 ### Used By
 
-- `midnight-node` (node) - Embeds runtime for block execution
-- `midnight-node-metadata` - Generates subxt interfaces
-- `midnight-node-toolkit` - Transaction generation
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs) - Embeds runtime for block execution
+- [`midnight-node-metadata`](https://github.com/midnightntwrk/midnight-node/blob/main/metadata/src/lib.rs) - Generates subxt interfaces
+- [`midnight-node-toolkit`](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/lib.rs) - Transaction generation
 
 ## Testing
 

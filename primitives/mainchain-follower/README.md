@@ -47,9 +47,9 @@ From `midnight-primitives-cnight-observation`:
 
 ### Used By
 
-- `pallet-cnight-observation` - UTXO processing
-- `partner-chains-db-sync-data-sources` - PostgreSQL queries
-- `partner-chains-mock-data-sources` - Test data
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) - UTXO processing
+- `partner-chains-db-sync-data-sources` - PostgreSQL queries (external)
+- `partner-chains-mock-data-sources` - Test data (external)
 
 ## See Also
 

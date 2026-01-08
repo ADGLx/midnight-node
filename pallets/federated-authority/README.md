@@ -94,8 +94,8 @@ flowchart TB
 
 ### Used By
 
-- `runtime` - Governance configuration
-- `pallet-federated-authority-observation` - Membership updates
+- [`runtime`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs) - Governance configuration
+- [`pallet-federated-authority-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority-observation/src/lib.rs) - Membership updates
 
 ## Testing
 

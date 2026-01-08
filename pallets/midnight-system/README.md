@@ -53,7 +53,7 @@ flowchart LR
 
 ### Used By
 
-- `pallet-cnight-observation` - Executes [DUST](https://docs.midnight.network/learn/glossary#dust) registration system transactions
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) - Executes [DUST](https://docs.midnight.network/learn/glossary#dust) registration system transactions
 
 ## See Also
 

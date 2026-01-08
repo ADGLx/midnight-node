@@ -60,7 +60,7 @@ documented/
 
 ### Used By
 
-- `midnight-node` - Configuration documentation
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/cli.rs) - Configuration documentation
 
 ## See Also
 

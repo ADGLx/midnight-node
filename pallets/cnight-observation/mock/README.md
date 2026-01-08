@@ -54,7 +54,7 @@ Genesis state is initialized from `midnight-node-res` test fixtures.
 
 ### Used By
 
-- `pallet-cnight-observation` tests
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) tests
 - Integration tests requiring Cardano observation simulation
 
 ## See Also

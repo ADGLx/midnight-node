@@ -110,8 +110,8 @@ See `pallets/cnight-observation/src/config.rs` for full `CNightGenesis` structur
 
 ### Used By
 
-- `runtime` - Inherent provider
-- `midnight-node` - Data source wiring
+- [`runtime`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs) - Inherent provider
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs) - Data source wiring
 
 ## Testing
 

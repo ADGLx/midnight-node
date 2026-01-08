@@ -40,7 +40,7 @@ The version is encoded as `DigestItem::Consensus(VERSION_ID, spec_version.encode
 
 ### Used By
 
-- `runtime` - Block production
+- [`runtime`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs) - Block production
 - External indexers/monitors - Version tracking
 
 ## Testing

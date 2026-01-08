@@ -47,9 +47,9 @@ This crate defines types for tracking [cNIGHT](https://docs.midnight.network/lea
 
 ### Used By
 
-- `pallet-cnight-observation` - Inherent processing
-- `midnight-node` - Data source queries
-- `partner-chains-db-sync-data-sources` - PostgreSQL queries
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) - Inherent processing
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/inherent_data.rs) - Data source queries
+- `partner-chains-db-sync-data-sources` - PostgreSQL queries (external)
 
 ## See Also
 

@@ -81,9 +81,9 @@ The `json::transform` function converts byte arrays to hex strings (e.g., `[0x24
 
 ### Used By
 
-- `pallet-midnight` - Transaction processing
-- `pallet-midnight-system` - System transactions
-- `midnight-node` - Storage initialization
+- [`pallet-midnight`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs) - Transaction processing
+- [`pallet-midnight-system`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs) - System transactions
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/service.rs) - Storage initialization
 
 ## Testing
 

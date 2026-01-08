@@ -56,7 +56,7 @@ Version 1 (deprecated) used `Option` return types.
 
 ### Used By
 
-- `midnight-node` - RPC server setup
+- [`midnight-node`](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/rpc.rs) - RPC server setup
 
 ## See Also
 

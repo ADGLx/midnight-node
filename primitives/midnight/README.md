@@ -34,9 +34,9 @@ These primitives are `no_std` compatible for use in both native and WASM runtime
 
 ### Used By
 
-- `pallet-midnight` - Implements all traits
-- `pallet-midnight-system` - Uses `LedgerStateProviderMut`
-- `pallet-cnight-observation` - Uses `MidnightSystemTransactionExecutor`
+- [`pallet-midnight`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs) - Implements all traits
+- [`pallet-midnight-system`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs) - Uses `LedgerStateProviderMut`
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) - Uses `MidnightSystemTransactionExecutor`
 
 ## See Also
 
