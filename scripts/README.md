@@ -4,16 +4,7 @@ Development, testing, and operational scripts for the Midnight blockchain.
 
 ## Overview
 
-```
-+-----------------------------------------------------------------------+
-|                             Scripts                                    |
-+-----------------------------------------------------------------------+
-| cnight-generates-dust/ | cNIGHT → DUST generation test scripts        |
-| partnerchains-dev/     | Partner chain development utilities          |
-| tests/                 | E2E test shell scripts                       |
-| *.py, *.sh             | Utility scripts                               |
-+-----------------------------------------------------------------------+
-```
+This directory contains development, testing, and operational scripts for the Midnight node. The scripts are organized into subdirectories for specific purposes: cNIGHT to DUST generation testing, partner chain development utilities, and end-to-end test automation. Individual Python and shell scripts at the root level provide common utilities for key generation, runtime analysis, and genesis configuration.
 
 ## Directories
 

@@ -4,14 +4,7 @@ End-to-end and integration test suites.
 
 ## Overview
 
-```
-+-----------------------------------------------------------------------+
-|                              Tests                                     |
-+-----------------------------------------------------------------------+
-| e2e/                  | Full node stack integration tests             |
-| redemption-skeleton/  | Glacier Drop redemption test fixtures         |
-+-----------------------------------------------------------------------+
-```
+This directory contains integration and end-to-end tests for the Midnight node. The e2e package exercises the full node stack including consensus, transaction processing, and RPC interfaces. The redemption-skeleton package provides test fixtures specifically for validating Glacier Drop redemption contract behavior.
 
 ## Packages
 

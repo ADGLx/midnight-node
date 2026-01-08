@@ -4,16 +4,7 @@ Development tools and CLI utilities for working with the Midnight blockchain.
 
 ## Overview
 
-```
-+-----------------------------------------------------------------------+
-|                            Utilities                                   |
-+-----------------------------------------------------------------------+
-| toolkit/      | Rust CLI for wallet, tx, and contract operations      |
-| toolkit-js/   | JavaScript CLI for Compact contract execution         |
-| upgrader/     | HTTP service for runtime upgrades                     |
-| documented/   | Procedural macro for runtime doc extraction           |
-+-----------------------------------------------------------------------+
-```
+This directory contains utility tools and libraries supporting Midnight node development and operations. The toolkit provides a feature-complete Rust CLI for wallet management, transaction generation, and contract deployment. The toolkit-js offers a JavaScript/TypeScript alternative for executing compiled Compact contracts. The upgrader service enables runtime upgrades via HTTP API, while the documented crate provides procedural macros for extracting documentation at runtime.
 
 ## Packages
 

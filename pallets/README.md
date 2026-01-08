@@ -4,17 +4,7 @@ Custom FRAME pallets implementing Midnight-specific blockchain logic.
 
 ## Overview
 
-```
-+-----------------------------------------------------------------------+
-|                              Pallets                                   |
-+-----------------------------------------------------------------------+
-| Core                           | Governance                            |
-|   midnight (ledger/tx)         |   federated-authority                 |
-|   midnight-system (sys tx)     |   federated-authority-observation     |
-|   cnight-observation (bridge)  |                                       |
-|   version (tracking)           |                                       |
-+-----------------------------------------------------------------------+
-```
+This directory contains the custom FRAME pallets that implement Midnight's blockchain logic. The pallets are divided into two categories: core pallets handling ledger operations, transaction processing, cross-chain observation, and version tracking; and governance pallets managing federated authority membership and mainchain synchronization. Together, these pallets enable privacy-preserving smart contract execution, cNIGHT to DUST bridging, and multi-body governance coordination.
 
 ## Core Pallets
 
