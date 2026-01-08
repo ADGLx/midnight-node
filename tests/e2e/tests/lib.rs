@@ -1933,7 +1933,7 @@ async fn deregister_first_mapping() {
             dust_warp: true,
             fetch_cache: FetchCacheConfig::InMemory,
         },
-        seed: midnight_wallet_seed2,
+        seed: midnight_wallet_seed,
         dry_run: false,
     };
 
