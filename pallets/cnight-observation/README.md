@@ -104,9 +104,9 @@ See `pallets/cnight-observation/src/config.rs` for full `CNightGenesis` structur
 
 ### Dependencies
 
-- `midnight-primitives-cnight-observation` - Shared types
-- `midnight-primitives-mainchain-follower` - Data source traits
-- `pallet-midnight-system` - System transaction execution
+- [`midnight-primitives-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs) - Shared types
+- [`midnight-primitives-mainchain-follower`](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/mainchain-follower/src/lib.rs) - Data source traits
+- [`pallet-midnight-system`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs) - System transaction execution
 
 ### Used By
 

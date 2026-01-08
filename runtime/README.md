@@ -121,11 +121,11 @@ The runtime version determines upgrade compatibility. `spec_version` changes tri
 ### Dependencies
 
 This package integrates:
-- `pallet-midnight` - Core ledger functionality
-- `pallet-midnight-system` - System transactions
-- `pallet-cnight-observation` - Cardano bridge
-- `pallet-federated-authority` - Governance
-- `runtime-common` - Shared runtime utilities
+- [`pallet-midnight`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs) - Core ledger functionality
+- [`pallet-midnight-system`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs) - System transactions
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) - Cardano bridge
+- [`pallet-federated-authority`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/federated-authority/src/lib.rs) - Governance
+- [`runtime-common`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/common/src/lib.rs) - Shared runtime utilities
 
 ### Used By
 

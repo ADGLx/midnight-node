@@ -29,8 +29,8 @@ These primitives are `no_std` compatible for use in both native and WASM runtime
 
 ### Dependencies
 
-- `midnight-node-ledger` - Ledger types (`BlockContext`, `Hash`, `Tx`)
-- `sp-runtime` - `DispatchError`
+- [`midnight-node-ledger`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) - Ledger types (`BlockContext`, `Hash`, `Tx`)
+- `sp-runtime` - `DispatchError` (Substrate)
 
 ### Used By
 

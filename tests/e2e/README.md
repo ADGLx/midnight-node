@@ -84,9 +84,9 @@ async fn test_feature() {
 
 ### Dependencies
 
-- `midnight-node-runtime` - Runtime under test
-- `midnight-node-ledger-helpers` - Transaction building
-- `subxt` - RPC client
+- [`midnight-node-runtime`](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs) - Runtime under test
+- [`midnight-node-ledger-helpers`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/lib.rs) - Transaction building
+- `subxt` - RPC client (external)
 
 ### Related Tests
 

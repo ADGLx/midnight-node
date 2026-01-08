@@ -48,9 +48,9 @@ Genesis state is initialized from `midnight-node-res` test fixtures.
 
 ### Dependencies
 
-- `pallet-cnight-observation` - Pallet under test
-- `midnight-node-res` - Test genesis data
-- `pallet-midnight` / `pallet-midnight-system` - Required pallets
+- [`pallet-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/cnight-observation/src/lib.rs) - Pallet under test
+- [`midnight-node-res`](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/lib.rs) - Test genesis data
+- [`pallet-midnight`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs) / [`pallet-midnight-system`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight-system/src/lib.rs) - Required pallets
 
 ### Used By
 

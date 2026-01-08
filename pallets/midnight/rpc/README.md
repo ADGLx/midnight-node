@@ -50,9 +50,9 @@ Version 1 (deprecated) used `Option` return types.
 
 ### Dependencies
 
-- `jsonrpsee` - RPC framework
-- `pallet-midnight` - Runtime API trait
-- `sc-client-api` - Substrate client abstractions
+- `jsonrpsee` - RPC framework (external)
+- [`pallet-midnight`](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/src/lib.rs) - Runtime API trait
+- `sc-client-api` - Substrate client abstractions (Substrate)
 
 ### Used By
 

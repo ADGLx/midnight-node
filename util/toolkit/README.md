@@ -195,10 +195,10 @@ flowchart LR
 
 ### Dependencies
 
-- `midnight-node-ledger-helpers` - Transaction building
-- `mn-ledger` - Ledger types and proving
-- `subxt` - Substrate RPC client
-- `toolkit-js` (optional) - Custom contract support
+- [`midnight-node-ledger-helpers`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/lib.rs) - Transaction building
+- `mn-ledger` - Ledger types and proving (external)
+- `subxt` - Substrate RPC client (external)
+- [`toolkit-js`](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit-js/src/index.ts) (optional) - Custom contract support
 
 ### Used By
 

@@ -94,9 +94,9 @@ curl -X POST -H "Content-Type: application/json" \
 
 ### Dependencies
 
-- `midnight-node-ledger` - Ledger bridge API
-- `midnight-primitives` - Shared types and traits
-- `pallet-timestamp` - Block timestamp for context
+- [`midnight-node-ledger`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) - Ledger bridge API
+- [`midnight-primitives`](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/midnight/src/lib.rs) - Shared types and traits
+- `pallet-timestamp` - Block timestamp for context (Substrate)
 
 ### Used By
 

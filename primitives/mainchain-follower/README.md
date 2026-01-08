@@ -43,7 +43,7 @@ From `midnight-primitives-cnight-observation`:
 
 ### Dependencies
 
-- `midnight-primitives-cnight-observation` - Core observation types
+- [`midnight-primitives-cnight-observation`](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs) - Core observation types
 
 ### Used By
 

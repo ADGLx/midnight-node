@@ -48,8 +48,8 @@ flowchart LR
 
 ### Dependencies
 
-- `midnight-node-ledger` - Ledger bridge API
-- `midnight-primitives` - `MidnightSystemTransactionExecutor` trait
+- [`midnight-node-ledger`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/lib.rs) - Ledger bridge API
+- [`midnight-primitives`](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/midnight/src/lib.rs) - `MidnightSystemTransactionExecutor` trait
 
 ### Used By
 

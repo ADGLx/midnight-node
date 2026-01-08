@@ -74,10 +74,10 @@ The `json::transform` function converts byte arrays to hex strings (e.g., `[0x24
 
 ### Dependencies (Native)
 
-- `mn-ledger` / `mn-ledger-hf` - Core ledger logic
-- `ledger-storage` - RocksDB state storage
-- `zswap` - ZSwap proving system
-- `midnight-node-ledger-helpers` - Test utilities
+- `mn-ledger` / `mn-ledger-hf` - Core ledger logic (external)
+- `ledger-storage` - RocksDB state storage (external)
+- `zswap` - ZSwap proving system (external)
+- [`midnight-node-ledger-helpers`](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/lib.rs) - Test utilities
 
 ### Used By
 
