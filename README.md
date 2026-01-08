@@ -88,6 +88,8 @@ Port │                                                                    │ 
      Other Midnight Nodes ◀────P2P Network (Port 30333)────▶ Other Midnight Nodes
 ```
 
+> **Security Note:** Database connections to PostgreSQL require SSL/TLS by default. Set `ALLOW_NON_SSL=true` only for local development environments without SSL certificates.
+
 ## Features
 
 **Privacy-Preserving Smart Contracts** - Execute contracts with zero-knowledge proofs while maintaining public blockchain state
