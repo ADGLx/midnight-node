@@ -24,6 +24,15 @@ Implementation of the Midnight blockchain node, providing consensus, transaction
 
 Smart contracts written in [Compact](https://docs.midnight.network/learn/glossary#compact) execute within the [ZSwap](https://docs.midnight.network/learn/glossary#zswap) ledger, which provides cryptographic guarantees for transaction privacy while preserving on-chain verifiability. The node supports cross-chain token bridging between [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) on Cardano and [DUST](https://docs.midnight.network/learn/glossary#dust) on Midnight, federated multi-body governance synchronized with the mainchain, and achieves finality through [AURA](https://docs.polkadot.com/polkadot-protocol/glossary#authority-round-aura) block production with [GRANDPA](https://docs.polkadot.com/polkadot-protocol/glossary#grandpa) and [BEEFY](https://github.com/paritytech/polkadot-sdk/blob/master/substrate/client/consensus/beefy/README.md) consensus mechanisms.
 
+## Contents
+
+- [Architecture](#architecture)
+- [Features](#features)
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+- [Contributing](#contributing)
+- [Documentation](#documentation)
+
 ## Architecture
 
 ```
@@ -126,183 +135,17 @@ that we are still in the process of being release. As such:
 
 ## Contributing
 
-[Guide lines on contributing](./CONTRIBUTING.md).
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this project.
 
-## Development Workflow
+## Documentation
 
-See [docs/development-workflow.md](docs/development-workflow.md) for complete workflow guidance including:
-- Environment setup (Nix, Direnv, or manual)
-- Cargo vs Earthly best practices (when to use each)
-- Common development tasks and commands
-- Ledger upgrade procedures
-- Debugging tips and techniques
-- Chain specification workflow
-- AWS secrets workflow
+| Topic | Description |
+|-------|-------------|
+| [Development Workflow](docs/development-workflow.md) | Environment setup, Cargo vs Earthly, debugging tips |
+| [Local Environment](local-environment/README.md) | Docker-based networks, manual node startup |
+| [Chain Specifications](res/README.md) | Genesis rebuilding, network configurations |
+| [Toolkit Usage](util/toolkit/README.md) | Transaction generation, wallet management |
+| [Scripts Reference](scripts/README.md) | Key generation, utility scripts |
+| [Fork Testing](docs/fork-testing.md) | Hard fork testing procedures |
 
-For quick earthly target reference, run `earthly doc` to list all available targets.
-
-## How-To Guides
-
-### Rebuilding preprod/prod genesis
-
-For `preprod` and `prod` chains, node keys and wallet seeds used in genesis are stored as AWS secrets.
-
-**Working without AWS access:**
-
-If you don't have AWS access, you can still rebuild chainspecs without rebuilding the genesis, since the public keys for the initial authority nodes are stored in `/res/$NETWORK_NAME/initial-authorities.json`:
-
-```shell
-$ earthly +rebuild-chainspecs
-```
-
-For local development without secrets, use the `undeployed` network.
-
-**Working with AWS access:**
-
-If you have AWS access, you can perform full genesis rebuilds:
-
-1. Copy secrets from AWS into the `/secrets` directory:
-   ```shell
-   # Example for testnet
-   secrets/testnet-seeds-aws.json
-   secrets/testnet-keys-aws.json
-   ```
-
-2. Regenerate the mock file:
-   ```shell
-   $ earthly +generate-keys
-   # Output: /res/testnet/initial-authorities.json and /res/mock-bridge-data/testnet-mock.json
-   ```
-
-3. Rebuild genesis for a preprod environment:
-   ```shell
-   # secrets copied from /secrets/testnet-02-genesis-seeds.json
-   $ earthly +rebuild-genesis-testnet-02
-   ```
-
-4. (Optional) Regenerate the genesis seeds:
-   ```shell
-   $ earthly +generate-testnet-02-genesis-seeds
-   ```
-
-**Need genesis rebuilt but don't have AWS access?**
-
-Contact the node team in Slack. Provide:
-- Your PR number
-- Which network needs genesis rebuilt (qanet/preview/testnet)
-- Confirmation that you've committed all necessary changes
-
-A team member with AWS access will download the secrets and run the rebuild command for you.
-
-### How to use transaction generator in the midnight toolkit
-
-See this [document](util/toolkit/README.md)
-
-### Build Docker images
-
-These are built in CI. See the workflow files for the latest `earthly` commands:
-
-- [node](.github/workflows/main.yml)
-- [toolkit](.github/workflows/main.yml)
-
-### Start local network
-
-**Available Networks:**
-- `local` - Development network (default)
-- `qanet` - QA testing network
-- `preview` - Preview/staging network
-- `perfnet` - Performance testing network
-
-Chain specifications are located in `/res/` directory.
-
-**Configuration Parameters:**
-
-| Parameter | Environment Variable | CLI Flag (Alternative) | Description |
-|-----------|---------------------|------------------------|-------------|
-| Config preset | `CFG_PRESET=dev` | - | Development mode configuration |
-| AURA seed | `AURA_SEED_FILE=/path/to/seed` | - | Path to AURA consensus seed file |
-| GRANDPA seed | `GRANDPA_SEED_FILE=/path/to/seed` | - | Path to GRANDPA finality seed file |
-| Cross-chain seed | `CROSS_CHAIN_SEED_FILE=/path/to/seed` | - | Path to cross-chain seed file |
-| Chain spec | `CHAIN=local` | `--chain local` | Network to connect to |
-| Base path | `BASE_PATH=/tmp/node-1` | `--base-path /tmp/node-1` | Data directory |
-| Validator mode | `VALIDATOR=true` | `--validator` | Run as validator (true/1/TRUE) |
-| P2P port | - | `--port 30333` | Networking port (default: 30333) |
-| RPC port | - | `--rpc-port 9944` | WebSocket RPC port (default: 9944) |
-| Node key | `NODE_KEY_FILE=/path/to/key` | `--node-key "0x..."` | Network identity key file |
-| Bootstrap nodes | `BOOTNODES="/ip4/... /ip4/..."` | `--bootnodes "/ip4/..."` | Space-separated initial peers |
-
-**Start single-node local network** for development:
-
-```shell
-echo "//Alice" > /tmp/alice-seed && \
-CFG_PRESET=dev AURA_SEED_FILE=/tmp/alice-seed GRANDPA_SEED_FILE=/tmp/alice-seed CROSS_CHAIN_SEED_FILE=/tmp/alice-seed \
-  BASE_PATH=/tmp/node-1 CHAIN=local VALIDATOR=true ./target/release/midnight-node
-```
-
-**Start multi-node local network** with 6/7 authority nodes using the `local` chain specification:
-
-```shell
-echo "//Alice" > /tmp/alice-seed && echo "0000000000000000000000000000000000000000000000000000000000000001" > /tmp/alice-key && \
-CFG_PRESET=dev AURA_SEED_FILE=/tmp/alice-seed GRANDPA_SEED_FILE=/tmp/alice-seed CROSS_CHAIN_SEED_FILE=/tmp/alice-seed \
-  NODE_KEY_FILE=/tmp/alice-key BASE_PATH=/tmp/node-1 CHAIN=local VALIDATOR=true ./target/release/midnight-node --port 30333
-
-echo "//Bob" > /tmp/bob-seed && echo "0000000000000000000000000000000000000000000000000000000000000002" > /tmp/bob-key && \
-CFG_PRESET=dev AURA_SEED_FILE=/tmp/bob-seed GRANDPA_SEED_FILE=/tmp/bob-seed CROSS_CHAIN_SEED_FILE=/tmp/bob-seed \
-  NODE_KEY_FILE=/tmp/bob-key BASE_PATH=/tmp/node-2 CHAIN=local VALIDATOR=true \
-  BOOTNODES="/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
-  ./target/release/midnight-node --port 30334
-
-echo "//Charlie" > /tmp/charlie-seed && echo "0000000000000000000000000000000000000000000000000000000000000003" > /tmp/charlie-key && \
-CFG_PRESET=dev AURA_SEED_FILE=/tmp/charlie-seed GRANDPA_SEED_FILE=/tmp/charlie-seed CROSS_CHAIN_SEED_FILE=/tmp/charlie-seed \
-  NODE_KEY_FILE=/tmp/charlie-key BASE_PATH=/tmp/node-3 CHAIN=local VALIDATOR=true \
-  BOOTNODES="/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
-  ./target/release/midnight-node --port 30335
-
-echo "//Dave" > /tmp/dave-seed && echo "0000000000000000000000000000000000000000000000000000000000000004" > /tmp/dave-key && \
-CFG_PRESET=dev AURA_SEED_FILE=/tmp/dave-seed GRANDPA_SEED_FILE=/tmp/dave-seed CROSS_CHAIN_SEED_FILE=/tmp/dave-seed \
-  NODE_KEY_FILE=/tmp/dave-key BASE_PATH=/tmp/node-4 CHAIN=local VALIDATOR=true \
-  BOOTNODES="/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
-  ./target/release/midnight-node --port 30336
-
-echo "//Eve" > /tmp/eve-seed && echo "0000000000000000000000000000000000000000000000000000000000000005" > /tmp/eve-key && \
-CFG_PRESET=dev AURA_SEED_FILE=/tmp/eve-seed GRANDPA_SEED_FILE=/tmp/eve-seed CROSS_CHAIN_SEED_FILE=/tmp/eve-seed \
-  NODE_KEY_FILE=/tmp/eve-key BASE_PATH=/tmp/node-5 CHAIN=local VALIDATOR=true \
-  BOOTNODES="/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
-  ./target/release/midnight-node --port 30337
-
-echo "//Ferdie" > /tmp/ferdie-seed && echo "0000000000000000000000000000000000000000000000000000000000000006" > /tmp/ferdie-key && \
-CFG_PRESET=dev AURA_SEED_FILE=/tmp/ferdie-seed GRANDPA_SEED_FILE=/tmp/ferdie-seed CROSS_CHAIN_SEED_FILE=/tmp/ferdie-seed \
-  NODE_KEY_FILE=/tmp/ferdie-key BASE_PATH=/tmp/node-6 CHAIN=local VALIDATOR=true \
-  BOOTNODES="/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
-  ./target/release/midnight-node --port 30338
-```
-
-### How to build runtime in Docker
-
-```shell
-earthly +build
-cp ./artifacts-amd64/midnight-node-runtime/target/wasm32-unknown-unknown/release/midnight_node_runtime.wasm  .
-```
-
-### How to generate node public keys
-
-- For generating single keys:
-    - Build node and then run:
-
-```shell
-./target/release/midnight-node key generate
-```
-
-See the `--help` flag for more information on other arguments, including key schemes.
-
-- For generating multiple keys for bootstrapping:
-    - Run the following script to generate $n$ number of key triples and seed phrases. The triples are formatted as
-      Rust `enum`s for easy pasting into chain spec files, in the order: `(aura, grandpa, cross_chain)`
-
-```shell
-python ./scripts/generate-keys.py --help
-```
-
-### Fork Testing
-
-See [fork-testing.md](docs/fork-testing.md)
+For a quick Earthly target reference, run `earthly doc` to list all available targets.

@@ -48,6 +48,28 @@ End-to-end test shell scripts for various node and toolkit scenarios.
 | [`tests/toolkit-update-ledger-parameters-e2e.sh`](tests/toolkit-update-ledger-parameters-e2e.sh) | Ledger parameter updates |
 | [`tests/toolkit-ut-e2e.sh`](tests/toolkit-ut-e2e.sh) | Toolkit unit test integration |
 
+## Key Generation
+
+### Single Keys
+
+Build the node and generate a single key:
+
+```shell
+./target/release/midnight-node key generate
+```
+
+See `--help` for key scheme options.
+
+### Multiple Keys for Bootstrapping
+
+Generate multiple key triples and seed phrases for chain bootstrapping:
+
+```shell
+python ./scripts/generate-keys.py --help
+```
+
+This generates key triples formatted as Rust `enum`s for chain spec files, in the order: `(aura, grandpa, cross_chain)`.
+
 ## See Also
 
 - [local-environment/](../local-environment/README.md) - Docker-based network tools

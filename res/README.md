@@ -84,6 +84,55 @@ res/
 
 The `CFG_ROOT` static allows overriding the config directory at runtime for testing or custom deployments.
 
+## Rebuilding Genesis and Chain Specifications
+
+### Without AWS Access
+
+You can rebuild chainspecs without rebuilding the genesis, since the public keys for the initial authority nodes are stored in `/res/$NETWORK_NAME/initial-authorities.json`:
+
+```shell
+earthly +rebuild-chainspecs
+```
+
+For local development without secrets, use the `undeployed` network.
+
+### With AWS Access
+
+For `preprod` and `prod` chains, node keys and wallet seeds used in genesis are stored as AWS secrets.
+
+1. Copy secrets from AWS into the `/secrets` directory:
+   ```shell
+   # Example for testnet
+   secrets/testnet-seeds-aws.json
+   secrets/testnet-keys-aws.json
+   ```
+
+2. Regenerate the mock file:
+   ```shell
+   earthly +generate-keys
+   # Output: /res/testnet/initial-authorities.json and /res/mock-bridge-data/testnet-mock.json
+   ```
+
+3. Rebuild genesis for a preprod environment:
+   ```shell
+   # secrets copied from /secrets/testnet-02-genesis-seeds.json
+   earthly +rebuild-genesis-testnet-02
+   ```
+
+4. (Optional) Regenerate the genesis seeds:
+   ```shell
+   earthly +generate-testnet-02-genesis-seeds
+   ```
+
+### Need Genesis Rebuilt Without AWS Access?
+
+Contact the node team in Slack. Provide:
+- Your PR number
+- Which network needs genesis rebuilt (qanet/preview/testnet)
+- Confirmation that you've committed all necessary changes
+
+A team member with AWS access will download the secrets and run the rebuild command for you.
+
 ## Testing
 
 ```bash

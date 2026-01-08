@@ -128,6 +128,55 @@ flowchart TB
 | midnight-setup | Chain spec generation and initialization |
 | Midnight Node(s) | Sidechain block production (5 validators) |
 
+## Manual Node Startup (Without Docker)
+
+For development without Docker, you can start nodes directly using the binary.
+
+### Configuration Parameters
+
+| Parameter | Environment Variable | CLI Flag | Description |
+|-----------|---------------------|----------|-------------|
+| Config preset | `CFG_PRESET=dev` | - | Development mode configuration |
+| AURA seed | `AURA_SEED_FILE=/path/to/seed` | - | Path to AURA consensus seed file |
+| GRANDPA seed | `GRANDPA_SEED_FILE=/path/to/seed` | - | Path to GRANDPA finality seed file |
+| Cross-chain seed | `CROSS_CHAIN_SEED_FILE=/path/to/seed` | - | Path to cross-chain seed file |
+| Chain spec | `CHAIN=local` | `--chain local` | Network to connect to |
+| Base path | `BASE_PATH=/tmp/node-1` | `--base-path /tmp/node-1` | Data directory |
+| Validator mode | `VALIDATOR=true` | `--validator` | Run as validator |
+| P2P port | - | `--port 30333` | Networking port (default: 30333) |
+| RPC port | - | `--rpc-port 9944` | WebSocket RPC port (default: 9944) |
+| Node key | `NODE_KEY_FILE=/path/to/key` | `--node-key "0x..."` | Network identity key file |
+| Bootstrap nodes | `BOOTNODES="/ip4/..."` | `--bootnodes "/ip4/..."` | Initial peers |
+
+### Single-Node Local Network
+
+```shell
+echo "//Alice" > /tmp/alice-seed && \
+CFG_PRESET=dev AURA_SEED_FILE=/tmp/alice-seed GRANDPA_SEED_FILE=/tmp/alice-seed CROSS_CHAIN_SEED_FILE=/tmp/alice-seed \
+  BASE_PATH=/tmp/node-1 CHAIN=local VALIDATOR=true ./target/release/midnight-node
+```
+
+### Multi-Node Local Network
+
+Start 6 authority nodes using the `local` chain specification:
+
+```shell
+# Node 1 (Alice) - Bootstrap node
+echo "//Alice" > /tmp/alice-seed && echo "0000000000000000000000000000000000000000000000000000000000000001" > /tmp/alice-key && \
+CFG_PRESET=dev AURA_SEED_FILE=/tmp/alice-seed GRANDPA_SEED_FILE=/tmp/alice-seed CROSS_CHAIN_SEED_FILE=/tmp/alice-seed \
+  NODE_KEY_FILE=/tmp/alice-key BASE_PATH=/tmp/node-1 CHAIN=local VALIDATOR=true ./target/release/midnight-node --port 30333
+
+# Node 2-6 (Bob, Charlie, Dave, Eve, Ferdie) - Connect to Alice
+# Replace seed name and port for each node (30334-30338)
+echo "//Bob" > /tmp/bob-seed && echo "0000000000000000000000000000000000000000000000000000000000000002" > /tmp/bob-key && \
+CFG_PRESET=dev AURA_SEED_FILE=/tmp/bob-seed GRANDPA_SEED_FILE=/tmp/bob-seed CROSS_CHAIN_SEED_FILE=/tmp/bob-seed \
+  NODE_KEY_FILE=/tmp/bob-key BASE_PATH=/tmp/node-2 CHAIN=local VALIDATOR=true \
+  BOOTNODES="/ip4/127.0.0.1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
+  ./target/release/midnight-node --port 30334
+```
+
+Repeat for Charlie (node-3, port 30335), Dave (node-4, port 30336), Eve (node-5, port 30337), and Ferdie (node-6, port 30338).
+
 ## Configuration
 
 Configuration is managed via:
