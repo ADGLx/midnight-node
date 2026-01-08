@@ -2256,7 +2256,8 @@ async fn change_dust_address() {
 
     let faucet = global_faucet_manager().await;
     let collateral_utxo = faucet.request_tokens(&address_bech32, 5_000_000).await;
-    let _max_amount_for_minting = faucet.request_tokens(&address_bech32, 15_000_000).await;
+    // it's needed for minting tokens because we choose UTxO with max lovelace
+    faucet.request_tokens(&address_bech32, 15_000_000).await;
     let tx_in = faucet.request_tokens(&address_bech32, 10_000_000).await;
     let second_tx_in = faucet.request_tokens(&address_bech32, 10_000_000).await;
     let tx_in_for_deregister = faucet.request_tokens(&address_bech32, 10_000_000).await;
@@ -2278,11 +2279,6 @@ async fn change_dust_address() {
         "Registration transaction submitted with hash: {}",
         hex::encode(register_tx_id)
     );
-
-    let _registration_events = midnight_client
-        .subscribe_to_cnight_observation_events(&register_tx_id)
-        .await
-        .expect("Failed to listen to cNgD registration event");
 
     let amount = 100;
     let tx_id = cardano_client
@@ -2391,7 +2387,7 @@ async fn change_dust_address() {
         dry_run: false,
     };
 
-    let _spend_cnight_event = midnight_client
+    midnight_client
         .subscribe_to_cnight_observation_events(&cnight_utxo_new.transaction.id)
         .await
         .expect("Failed to listen to cNgD registration event");
