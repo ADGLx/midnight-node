@@ -1765,29 +1765,6 @@ async fn deregister_first_mapping() {
         "UTXO owner does not match DUST address"
     );
 
-    //check utxo1 producing dust
-    let args = DustBalanceArgs {
-        source: Source {
-            src_files: None,
-            src_url: Some(settings.node_client.base_url.clone()),
-            fetch_concurrency: 1,
-            dust_warp: true,
-            fetch_cache: FetchCacheConfig::InMemory,
-        },
-        seed: midnight_wallet_seed,
-        dry_run: false,
-    };
-
-    let result = dust_balance::execute(args)
-        .await
-        .expect("dust-balance error");
-
-    if let DustBalanceResult::Json(DustBalanceJson { total, .. }) = &result {
-        println!("Total dust balance: {}", total);
-    }
-
-    assert!(matches!(result, DustBalanceResult::Json(DustBalanceJson{total, ..}) if total > 0));
-
     // register second time
     let tx_in2 = faucet.request_tokens(&address_bech32, 10_000_000).await;
 
@@ -1900,6 +1877,29 @@ async fn deregister_first_mapping() {
         MidnightClient::calculate_nonce(prefix3, cnight_utxo3.transaction.id, cnight_utxo3.index);
     println!("Calculated nonce for cNIGHT UTXO: {}", nonce3);
 
+    //check utxo1 producing dust
+    let args = DustBalanceArgs {
+        source: Source {
+            src_files: None,
+            src_url: Some(settings.node_client.base_url.clone()),
+            fetch_concurrency: 1,
+            dust_warp: true,
+            fetch_cache: FetchCacheConfig::InMemory,
+        },
+        seed: midnight_wallet_seed,
+        dry_run: false,
+    };
+
+    let result = dust_balance::execute(args)
+        .await
+        .expect("dust-balance error");
+
+    if let DustBalanceResult::Json(DustBalanceJson { total, .. }) = &result {
+        println!("Total dust balance: {}", total);
+    }
+
+    assert!(matches!(result, DustBalanceResult::Json(DustBalanceJson{total, ..}) if total > 0));
+
     //check utxo3 producing dust
     let args3 = DustBalanceArgs {
         source: Source {
@@ -1933,7 +1933,7 @@ async fn deregister_first_mapping() {
             dust_warp: true,
             fetch_cache: FetchCacheConfig::InMemory,
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed2,
         dry_run: false,
     };
 
