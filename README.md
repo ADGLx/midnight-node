@@ -6,7 +6,7 @@
   <a href="runtime/README.md"><img src="https://img.shields.io/badge/Runtime-8b5cf6?style=for-the-badge&logo=webassembly&logoColor=white" alt="Runtime"></a>
   <a href="pallets/README.md"><img src="https://img.shields.io/badge/Pallets-a855f7?style=for-the-badge&logo=polkadot&logoColor=white" alt="Pallets"></a>
   <a href="primitives/README.md"><img src="https://img.shields.io/badge/Primitives-c084fc?style=for-the-badge&logo=databricks&logoColor=white" alt="Primitives"></a>
-  <a href="ledger/README.md"><img src="https://img.shields.io/badge/Ledger-7c3aed?style=for-the-badge&logo=hyperledger&logoColor=white" alt="Ledger"></a>
+  <a href="ledger/README.md"><img src="https://img.shields.io/badge/Ledger-7c3aed?style=for-the-badge&logo=bookstack&logoColor=white" alt="Ledger"></a>
   <a href="util/README.md"><img src="https://img.shields.io/badge/Utils-4f46e5?style=for-the-badge&logo=gnubash&logoColor=white" alt="Util"></a>
   <a href="res/README.md"><img src="https://img.shields.io/badge/Resources-6366f1?style=for-the-badge&logo=toml&logoColor=white" alt="Res"></a>
   <a href="tests/README.md"><img src="https://img.shields.io/badge/Tests-8b5cf6?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests"></a>
