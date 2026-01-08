@@ -21,23 +21,32 @@ End-to-end test shell scripts for various node and toolkit scenarios.
 
 | Script | Description |
 |--------|-------------|
-| `analyse_runtime.sh` | Runtime analysis utilities |
-| `generate-genesis-seeds.py` | Generate genesis wallet seeds |
-| `generate-keys.py` | Generate node keys (AURA, GRANDPA, etc.) |
-| `genesis_wallets_test.sh` | Genesis wallet testing |
-| `setup_sidechain.sh` | Sidechain setup automation |
-| `sync.sh` | Network sync utilities |
-| `upgrade_test.sh` | Runtime upgrade testing |
+| [`analyse_runtime.sh`](analyse_runtime.sh) | Runtime analysis utilities |
+| [`generate-genesis-seeds.py`](generate-genesis-seeds.py) | Generate genesis wallet seeds |
+| [`generate-keys.py`](generate-keys.py) | Generate node keys (AURA, GRANDPA, etc.) |
+| [`genesis_wallets_test.sh`](genesis_wallets_test.sh) | Genesis wallet testing |
+| [`setup_sidechain.sh`](setup_sidechain.sh) | Sidechain setup automation |
+| [`sync.sh`](sync.sh) | Network sync utilities |
+| [`upgrade_test.sh`](upgrade_test.sh) | Runtime upgrade testing |
 
 ## Test Scripts
 
 | Script | Description |
 |--------|-------------|
-| `tests/genesis-wallets-devnet-e2e.sh` | Genesis wallets on devnet |
-| `tests/hardfork-e2e.sh` | Hard fork scenario testing |
-| `tests/indexer-api-e2e.sh` | Indexer API testing |
-| `tests/node-e2e.sh` | Node integration testing |
-| `tests/toolkit-e2e.sh` | Toolkit integration testing |
+| [`tests/genesis-wallets-devnet-e2e.sh`](tests/genesis-wallets-devnet-e2e.sh) | Genesis wallets on devnet |
+| [`tests/genesis-wallets-undeployed-e2e.sh`](tests/genesis-wallets-undeployed-e2e.sh) | Genesis wallets on undeployed network |
+| [`tests/hardfork-e2e.sh`](tests/hardfork-e2e.sh) | Hard fork scenario testing |
+| [`tests/indexer-api-e2e.sh`](tests/indexer-api-e2e.sh) | Indexer API testing |
+| [`tests/ledger-rollback-e2e.sh`](tests/ledger-rollback-e2e.sh) | Ledger rollback testing |
+| [`tests/node-e2e.sh`](tests/node-e2e.sh) | Node integration testing |
+| [`tests/startup-dev-e2e.sh`](tests/startup-dev-e2e.sh) | Dev network startup testing |
+| [`tests/startup-qanet-e2e.sh`](tests/startup-qanet-e2e.sh) | QAnet startup testing |
+| [`tests/toolkit-contracts-e2e.sh`](tests/toolkit-contracts-e2e.sh) | Toolkit contract operations |
+| [`tests/toolkit-e2e.sh`](tests/toolkit-e2e.sh) | Toolkit integration testing |
+| [`tests/toolkit-maintenance-e2e.sh`](tests/toolkit-maintenance-e2e.sh) | Toolkit maintenance operations |
+| [`tests/toolkit-mint-e2e.sh`](tests/toolkit-mint-e2e.sh) | Toolkit minting operations |
+| [`tests/toolkit-update-ledger-parameters-e2e.sh`](tests/toolkit-update-ledger-parameters-e2e.sh) | Ledger parameter updates |
+| [`tests/toolkit-ut-e2e.sh`](tests/toolkit-ut-e2e.sh) | Toolkit unit test integration |
 
 ## See Also
 
