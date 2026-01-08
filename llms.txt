@@ -14,7 +14,7 @@
 ## Documentation
 
 - [docs/README.md](docs/README.md): Documentation index and resources
-
+- [docs/signatures/README.md](docs/signatures/README.md): GPG signatures for releases
 - [docs/development-workflow.md](docs/development-workflow.md): Development environment setup, Cargo vs Earthly best practices, debugging tips
 - [docs/rust-setup.md](docs/rust-setup.md): Rust toolchain installation and configuration
 - [docs/chain_specs.md](docs/chain_specs.md): Chain specification documentation for different networks
@@ -40,34 +40,64 @@ Custom Substrate pallets implementing core blockchain functionality:
 
 - [pallets/README.md](pallets/README.md): Pallets index and overview
 - [pallets/midnight/README.md](pallets/midnight/README.md): Core pallet managing ledger state, transaction execution, and zero-knowledge proof verification
+- [pallets/midnight/rpc/README.md](pallets/midnight/rpc/README.md): JSON-RPC interface for querying contract state and ledger info
 - [pallets/midnight-system/README.md](pallets/midnight-system/README.md): System transaction management with root privileges
 - [pallets/federated-authority/README.md](pallets/federated-authority/README.md): Multi-collective governance requiring consensus from multiple authority bodies
 - [pallets/federated-authority-observation/README.md](pallets/federated-authority-observation/README.md): Governance synchronization with Cardano mainchain
 - [pallets/system-parameters/README.md](pallets/system-parameters/README.md): On-chain governance parameters (Terms and Conditions, D-Parameter)
 - [pallets/cnight-observation/README.md](pallets/cnight-observation/README.md): Native token (cNIGHT) bridge integration with Cardano
+- [pallets/cnight-observation/mock/README.md](pallets/cnight-observation/mock/README.md): Mock runtime for cNIGHT observation testing
 - [pallets/version/README.md](pallets/version/README.md): Runtime version tracking in block digests
 
 ## Node Components
 
 - [node/README.md](node/README.md): Midnight node binary with RPC server, consensus (AURA/GRANDPA/BEEFY), P2P networking, and keystore
 - [runtime/README.md](runtime/README.md): Substrate runtime composing all pallets into the blockchain logic
-- [primitives/README.md](primitives/README.md): Shared types and traits used across the codebase
-- [ledger/README.md](ledger/README.md): Privacy-preserving ledger implementation with zero-knowledge proof support
+- [runtime/common/README.md](runtime/common/README.md): Shared runtime components and membership handlers
 - [relay/README.md](relay/README.md): Cross-chain relay for Cardano bridge operations
+- [metadata/README.md](metadata/README.md): Subxt metadata types for runtime interaction
+- [ui/README.md](ui/README.md): Frontend UI for interacting with the Midnight node
+
+## Primitives
+
+Shared types and traits used across the codebase:
+
+- [primitives/README.md](primitives/README.md): Primitives index and overview
+- [primitives/midnight/README.md](primitives/midnight/README.md): Core primitive types and traits
+- [primitives/ledger/README.md](primitives/ledger/README.md): Ledger metrics and storage configuration
+- [primitives/mainchain-follower/README.md](primitives/mainchain-follower/README.md): Data source traits for following Cardano mainchain
+- [primitives/cnight-observation/README.md](primitives/cnight-observation/README.md): Shared types for cNIGHT token observation
+- [primitives/federated-authority-observation/README.md](primitives/federated-authority-observation/README.md): Shared types for federated authority observation
+
+## Ledger
+
+- [ledger/README.md](ledger/README.md): Privacy-preserving ledger implementation with zero-knowledge proof support
+- [ledger/helpers/README.md](ledger/helpers/README.md): Helper utilities for ledger interaction
 
 ## Utilities
 
 - [util/README.md](util/README.md): Utilities index and overview
 - [util/toolkit/README.md](util/toolkit/README.md): CLI tool for transaction generation, wallet management, contract deployment, and testing
 - [util/toolkit-js/README.md](util/toolkit-js/README.md): JavaScript CLI for Compact contract execution
+- [util/upgrader/README.md](util/upgrader/README.md): HTTP service for runtime upgrades
+- [util/documented/README.md](util/documented/README.md): Procedural macro workspace for doc extraction
+- [util/documented/documented_types/README.md](util/documented/documented_types/README.md): Type definitions for documented macro
+- [util/documented/documented_proc_macro/README.md](util/documented/documented_proc_macro/README.md): Procedural macro implementation
 - [local-environment/README.md](local-environment/README.md): Tools for launching local development networks and performing state changes
 
 ## Resources and Configuration
 
 - [res/README.md](res/README.md): Chain specifications, genesis configurations, and network-specific resources
+- [res/test-zswap/README.md](res/test-zswap/README.md): Test ZSwap configuration resources
 - [static/contracts](static/contracts): Compiled contract artifacts (provers, verifiers)
 - [scripts/README.md](scripts/README.md): Development and operational scripts
-- [tests/README.md](tests/README.md): End-to-end and integration test suites
+- [scripts/cnight-generates-dust/README.md](scripts/cnight-generates-dust/README.md): cNIGHT to DUST generation test scripts
+
+## Testing
+
+- [tests/README.md](tests/README.md): Testing index and overview
+- [tests/e2e/README.md](tests/e2e/README.md): End-to-end integration tests
+- [tests/redemption-skeleton/README.md](tests/redemption-skeleton/README.md): Glacier Drop redemption test fixtures
 
 ## External Resources
 
