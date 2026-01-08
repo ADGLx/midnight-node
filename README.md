@@ -20,6 +20,9 @@
   <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs-059669?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Docs"></a>
 </p>
 
+> [!NOTE]
+> **Open Sourcing Progress:** While this repository is open source, it depends on repositories still being released. It's not possible to compile midnight-node independently yet, but PRs will compile via CI. We're actively working to open-source dependencies in the coming months.
+
 Implementation of the Midnight blockchain node, providing consensus, transaction processing, and privacy-preserving smart contract execution. Built on [Substrate](https://github.com/paritytech/polkadot-sdk) and operating as a [Cardano Partner Chain](https://github.com/input-output-hk/partner-chains), the node enables participants to maintain both public blockchain state and private user state through zero-knowledge proofs.
 
 Smart contracts written in [Compact](https://docs.midnight.network/learn/glossary#compact) execute within the [ZSwap](https://docs.midnight.network/learn/glossary#zswap) ledger, which provides cryptographic guarantees for transaction privacy while preserving on-chain verifiability. The node supports cross-chain token bridging between [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) on Cardano and [DUST](https://docs.midnight.network/learn/glossary#dust) on Midnight, federated multi-body governance synchronized with the mainchain, and achieves finality through [AURA](https://docs.polkadot.com/polkadot-protocol/glossary#authority-round-aura) block production with [GRANDPA](https://docs.polkadot.com/polkadot-protocol/glossary#grandpa) and [BEEFY](https://github.com/paritytech/polkadot-sdk/blob/master/substrate/client/consensus/beefy/README.md) consensus mechanisms.
@@ -111,15 +114,6 @@ git clone https://github.com/midnightntwrk/midnight-node-docker
 cd midnight-node-docker
 docker compose up
 ```
-
-## **Note on Open Sourcing Progress**
-
-While this repository is open source, it depends on some repositories
-that we are still in the process of being release. As such:
-
-- It's not possible to compile midnight-node independently.
-- If you raise a PR, the CI will be able to compile it.
-- We're actively working to open-source dependencies in the coming months.
 
 ## Prerequisites
 
