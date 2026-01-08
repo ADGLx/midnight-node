@@ -44,9 +44,7 @@ Smart contracts written in [Compact](https://docs.midnight.network/learn/glossar
                                         │  (Wallets, Indexers, │
                                         │     Applications)    │
                                         └──────────────────────┘
-                                                   │
-                                                   │ WebSocket RPC
-                                                   │ Port: 9944
+                                                   │ WebSocket RPC (Port 9944)
                                                    ▼
                    ┌────────────────────────────────────────────────────────────────────┐
       Other        │                         Midnight Node                              │       Other
@@ -82,9 +80,7 @@ Smart contracts written in [Compact](https://docs.midnight.network/learn/glossar
                    │  │    └──────────┘  └──────────┘  └──────────┘  └──────────┘    │  │
                    │  └──────────────────────────────────────────────────────────────┘  │
                    └────────────────────────────────────────────────────────────────────┘
-                                                     │
-                                                     │ Queries mainchain data (cNIGHT, governance, bridge)
-                                                     │ 
+                                                     │ Queries data (cNIGHT, governance, bridge)
                                                      ▼
                                              ┌───────────────┐
                                              │  PostgreSQL   │
@@ -92,11 +88,9 @@ Smart contracts written in [Compact](https://docs.midnight.network/learn/glossar
                                              └───────────────┘
                                                      ▲
                                                      │ Indexes data
-                                                     │
                                              ┌───────────────┐
                                              │    db-sync    │ 
                                              └───────────────┘ 
-                                                     │
                                                      │ Observes state
                                                      ▼
                   ┌────────────────────────────────────────────────────────────────────┐
