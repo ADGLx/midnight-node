@@ -24,9 +24,6 @@ Implementation of the Midnight blockchain node, providing consensus, transaction
 
 Smart contracts written in [Compact](https://docs.midnight.network/learn/glossary#compact) execute within the [ZSwap](https://docs.midnight.network/learn/glossary#zswap) ledger, which provides cryptographic guarantees for transaction privacy while preserving on-chain verifiability. The node supports cross-chain token bridging between [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) on Cardano and [DUST](https://docs.midnight.network/learn/glossary#dust) on Midnight, federated multi-body governance synchronized with the mainchain, and achieves finality through [AURA](https://docs.polkadot.com/polkadot-protocol/glossary#authority-round-aura) block production with [GRANDPA](https://docs.polkadot.com/polkadot-protocol/glossary#grandpa) and [BEEFY](https://github.com/paritytech/polkadot-sdk/blob/master/substrate/client/consensus/beefy/README.md) consensus mechanisms.
 
-> [!NOTE]
-> **Open Sourcing Progress:** While this repository is open source, it depends on repositories still being released. It's not possible to compile midnight-node independently yet, but PRs will compile via CI. We're actively working to open-source dependencies in the coming months.
-
 ## Architecture
 
 ```
@@ -139,3 +136,6 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this 
 | [Fork Testing](docs/fork-testing.md) | Hard fork testing procedures |
 
 For a quick Earthly target reference, run `earthly doc` to list all available targets.
+
+> [!NOTE]
+> **Open Sourcing Progress:** While this repository is open source, it depends on repositories still being released. It's not possible to compile midnight-node independently yet, but PRs will compile via CI. We're actively working to open-source dependencies in the coming months.
