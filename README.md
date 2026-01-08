@@ -70,19 +70,21 @@ Port │                                                                    │ 
 
 ## Project Structure
 
-| Directory | Description | README |
-|-----------|-------------|--------|
-| `node/` | Main node executable | [node/README.md](node/README.md) |
-| `runtime/` | WASM runtime and pallet wiring | [runtime/README.md](runtime/README.md) |
-| `pallets/` | Custom FRAME pallets | [pallets/README.md](pallets/README.md) |
-| `primitives/` | Shared types and traits | [primitives/README.md](primitives/README.md) |
-| `ledger/` | ZSwap ledger bridge | [ledger/README.md](ledger/README.md) |
-| `util/` | CLI tools and utilities | [util/README.md](util/README.md) |
-| `res/` | Chain resources and configs | [res/README.md](res/README.md) |
-| `tests/` | E2E and integration tests | [tests/README.md](tests/README.md) |
-| `scripts/` | Development scripts | [scripts/README.md](scripts/README.md) |
-| `docs/` | Documentation | [docs/README.md](docs/README.md) |
-| `local-environment/` | Docker network tools | [local-environment/README.md](local-environment/README.md) |
+<p align="center">
+  <a href="node/README.md"><img src="https://img.shields.io/badge/Node-Executable-6366f1?style=for-the-badge&logo=rust&logoColor=white" alt="Node"></a>
+  <a href="runtime/README.md"><img src="https://img.shields.io/badge/Runtime-WASM-8b5cf6?style=for-the-badge&logo=webassembly&logoColor=white" alt="Runtime"></a>
+  <a href="pallets/README.md"><img src="https://img.shields.io/badge/Pallets-FRAME-a855f7?style=for-the-badge&logo=substrate&logoColor=white" alt="Pallets"></a>
+  <a href="primitives/README.md"><img src="https://img.shields.io/badge/Primitives-Types-c084fc?style=for-the-badge" alt="Primitives"></a>
+  <a href="ledger/README.md"><img src="https://img.shields.io/badge/Ledger-ZSwap-7c3aed?style=for-the-badge" alt="Ledger"></a>
+</p>
+<p align="center">
+  <a href="util/README.md"><img src="https://img.shields.io/badge/Util-CLI_Tools-4f46e5?style=for-the-badge&logo=gnubash&logoColor=white" alt="Util"></a>
+  <a href="res/README.md"><img src="https://img.shields.io/badge/Res-Configs-6366f1?style=for-the-badge&logo=json&logoColor=white" alt="Res"></a>
+  <a href="tests/README.md"><img src="https://img.shields.io/badge/Tests-E2E-8b5cf6?style=for-the-badge&logo=vitest&logoColor=white" alt="Tests"></a>
+  <a href="scripts/README.md"><img src="https://img.shields.io/badge/Scripts-Dev-a855f7?style=for-the-badge&logo=gnubash&logoColor=white" alt="Scripts"></a>
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs-📚-c084fc?style=for-the-badge" alt="Docs"></a>
+  <a href="local-environment/README.md"><img src="https://img.shields.io/badge/Local_Env-Docker-7c3aed?style=for-the-badge&logo=docker&logoColor=white" alt="Local Environment"></a>
+</p>
 
 ## Features
 
