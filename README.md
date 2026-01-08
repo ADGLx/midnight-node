@@ -39,15 +39,15 @@ Smart contracts written in [Compact](https://docs.midnight.network/learn/glossar
 ## Architecture
 
 ```
-                                      ┌──────────────────────┐
-                                      │   External Clients   │
-                                      │  (Wallets, Indexers, │
-                                      │     Applications)    │
-                                      └──────────────────────┘
-                                                 │ WebSocket RPC (Port 9944)
-                                                 ▼
+                                    ┌──────────────────────┐
+                                    │   External Clients   │
+                                    │  (Wallets, Indexers, │
+                                    │     Applications)    │
+                                    └──────────────────────┘
+                                               │ WebSocket RPC (Port 9944)
+                                               ▼
              ┌────────────────────────────────────────────────────────────────────┐
- Other       │                         Midnight Node                              │     Other
+ Other       │                           Midnight Node                            │     Other
 Midnight ◀──▶├────────────────────────────────────────────────────────────────────┤◀──▶Midnight
  Nodes       │                                                                    │     Nodes
   P2P        │  ┌──────────────────────────────────────────────────────────────┐  │      P2P
