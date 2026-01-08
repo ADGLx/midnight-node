@@ -98,8 +98,6 @@ Midnight ◀──▶├──────────────────�
             
 ```
 
-> **Security Note:** Database connections to PostgreSQL require SSL/TLS by default. Set `ALLOW_NON_SSL=true` only for local development environments without SSL certificates.
-
 ## Quick Start
 
 If you just want to run midnight-node, the easiest option is to use the Docker setup:
@@ -137,3 +135,5 @@ For a quick Earthly target reference, run `earthly doc` to list all available ta
 
 > [!NOTE]
 > **Open Sourcing Progress:** While this repository is open source, it depends on repositories still being released. It's not possible to compile midnight-node independently yet, but PRs will compile via CI. We're actively working to open-source dependencies in the coming months.
+
+> **Security Note:** Database connections to PostgreSQL require SSL/TLS by default. Set `ALLOW_NON_SSL=true` only for local development environments without SSL certificates.
