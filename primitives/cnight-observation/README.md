@@ -22,12 +22,12 @@ This crate defines types for tracking [cNIGHT](https://docs.midnight.network/lea
 
 ### ObservedUtxoData Variants
 
-- **`Registration`** - New Cardano-to-DUST wallet mapping
-- **`Deregistration`** - Wallet mapping removal
-- **`RedemptionCreate`** - Glacier Drop claim created
-- **`RedemptionSpend`** - Glacier Drop claim spent
-- **`AssetCreate`** - [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) UTXO created
-- **`AssetSpend`** - [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) UTXO spent
+- [**`Registration`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L276) - New Cardano-to-DUST wallet mapping
+- [**`Deregistration`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L277) - Wallet mapping removal
+- [**`RedemptionCreate`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L274) - Glacier Drop claim created
+- [**`RedemptionSpend`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L275) - Glacier Drop claim spent
+- [**`AssetCreate`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L278) - [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) UTXO created
+- [**`AssetSpend`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L279) - [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) UTXO spent
 
 ### Address Types
 
@@ -36,7 +36,7 @@ This crate defines types for tracking [cNIGHT](https://docs.midnight.network/lea
 
 ### Inherent
 
-- **`ntobsrve`** - `MidnightObservationTokenMovement`
+- [**`INHERENT_IDENTIFIER`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L213) (`ntobsrve`) - `MidnightObservationTokenMovement`
 
 ## Integration
 

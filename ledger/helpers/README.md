@@ -22,13 +22,13 @@ This crate provides high-level utilities for:
 
 Each version module re-exports:
 
-- **`mn_ledger`** - Core ledger types and logic
-- **`base_crypto`** - Cryptographic primitives
-- **`coin_structure`** - UTXO and coin types
-- **`zswap`** - ZSwap proving system
-- **`zkir`** - Zero-knowledge IR
-- **`ledger_storage`** - Storage interface
-- **`onchain_runtime`** - On-chain execution
+- **`mn_ledger`** - Core ledger types and logic (external)
+- **`base_crypto`** - Cryptographic primitives (external)
+- **`coin_structure`** - UTXO and coin types (external)
+- **`zswap`** - ZSwap proving system (external)
+- **`zkir`** - Zero-knowledge IR (external)
+- **`ledger_storage`** - Storage interface (external)
+- **`onchain_runtime`** - On-chain execution (external)
 
 ### Common Utilities
 

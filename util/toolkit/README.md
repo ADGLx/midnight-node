@@ -30,19 +30,19 @@ A comprehensive command-line toolkit supporting transaction generation, wallet m
 
 ### Commands
 
-- **`version`** - Show Node, Ledger, and Compactc versions
-- **`generate-txs`** - Generate and send transactions
-- **`generate-genesis`** - Generate genesis block
-- **`generate-intent`** - Generate contract intent via toolkit-js
-- **`send-intent`** - Build and send transaction from intent
-- **`show-transaction`** - Deserialize and display transaction
-- **`show-wallet`** - Display wallet state as JSON
-- **`show-address`** - Get address for a seed
-- **`dust-balance`** - Show [DUST](https://docs.midnight.network/learn/glossary#dust) balance breakdown
-- **`contract-address`** - Extract contract address from deploy tx
-- **`contract-state`** - Get contract on-chain state
-- **`random-address`** - Generate random address
-- **`get-tx-from-context`** - Extract transaction from context
+- [**`version`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L87) - Show Node, Ledger, and Compactc versions
+- [**`generate-txs`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L51) - Generate and send transactions
+- [**`generate-genesis`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L54) - Generate genesis block
+- [**`generate-intent`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L55) - Generate contract intent via toolkit-js
+- [**`send-intent`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L59) - Build and send transaction from intent
+- [**`show-transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L75) - Deserialize and display transaction
+- [**`show-wallet`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L63) - Display wallet state as JSON
+- [**`show-address`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L65) - Get address for a seed
+- [**`dust-balance`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L61) - Show [DUST](https://docs.midnight.network/learn/glossary#dust) balance breakdown
+- [**`contract-address`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L77) - Extract contract address from deploy tx
+- [**`contract-state`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L79) - Get contract on-chain state
+- [**`random-address`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L83) - Generate random address
+- [**`get-tx-from-context`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/cli.rs#L81) - Extract transaction from context
 
 ### Transaction Generator Components
 
@@ -53,15 +53,13 @@ A comprehensive command-line toolkit supporting transaction generation, wallet m
 
 ### Builder Subcommands
 
-- **`send`** - Pass-through from JSON file
-- **`single-tx`** - Single tx to N destinations
-- **`migrate`** - Migrate txs between chains
-- **`batches`** - Generate [ZSwap](https://docs.midnight.network/learn/glossary#zswap) & Unshielded [UTXO](https://docs.midnight.network/learn/glossary#utxo-unspent-transaction-output) batches
-- **`claim-mint`** - Build claim mint transactions
-- **`contract-simple deploy`** - Deploy built-in contract
-- **`contract-simple maintenance`** - Update contract authority/verifiers
-- **`contract-simple call`** - Call contract entrypoint
-- **`register-dust-address`** - Register wallet for [DUST](https://docs.midnight.network/learn/glossary#dust) generation
+- [**`send`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L295) - Pass-through from JSON file
+- [**`single-tx`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L292) - Single tx to N destinations
+- [**`migrate`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L296) - Migrate txs between chains
+- [**`batches`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L283) - Generate [ZSwap](https://docs.midnight.network/learn/glossary#zswap) & Unshielded [UTXO](https://docs.midnight.network/learn/glossary#utxo-unspent-transaction-output) batches
+- **`claim-mint`** - Build claim mint transactions (via ContractSimple)
+- [**`contract-simple`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L286) - Deploy/maintain/call built-in contracts
+- [**`register-dust-address`**](https://github.com/midnightntwrk/midnight-node/blob/main/util/toolkit/src/tx_generator/builder/mod.rs#L293) - Register wallet for [DUST](https://docs.midnight.network/learn/glossary#dust) generation
 
 ## Usage
 

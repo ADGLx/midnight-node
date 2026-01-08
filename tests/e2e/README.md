@@ -74,11 +74,11 @@ async fn test_feature() {
 }
 ```
 
-### Available Helpers
+### Available Modules
 
-- **`TestNode`** - Spawns and manages test node
-- **`TestClient`** - RPC client for node interaction
-- **`TxBuilder`** - Transaction construction
+- [**`api`**](https://github.com/midnightntwrk/midnight-node/blob/main/tests/e2e/src/api/) - API clients for Midnight and Cardano
+- [**`config`**](https://github.com/midnightntwrk/midnight-node/blob/main/tests/e2e/src/config.rs) - Test configuration
+- [**`faucet`**](https://github.com/midnightntwrk/midnight-node/blob/main/tests/e2e/src/faucet.rs) - Token faucet utilities
 
 ## Integration
 
