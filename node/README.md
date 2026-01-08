@@ -59,12 +59,12 @@ midnight-node \
 
 ### Subcommands
 
-- **`key`** - Key management (generate, inspect)
-- **`build-spec`** - Generate chain specification
-- **`export-genesis-state`** - Export genesis state
-- **`export-genesis-wasm`** - Export genesis WASM
-- **`benchmark`** - Runtime benchmarking
-- **`try-runtime`** - Test runtime upgrades
+- [**`key`**](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/cli.rs#L57) - Key management (generate, inspect)
+- [**`build-spec`**](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/cli.rs#L64) - Generate chain specification
+- [**`export-blocks`**](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/cli.rs#L73) - Export blocks
+- [**`export-state`**](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/cli.rs#L76) - Export chain state
+- [**`benchmark`**](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/cli.rs#L90) - Runtime benchmarking
+- [**`chain-info`**](https://github.com/midnightntwrk/midnight-node/blob/main/node/src/cli.rs#L93) - Chain database information
 
 ## RPC Endpoints
 
