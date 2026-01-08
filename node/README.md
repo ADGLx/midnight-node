@@ -70,9 +70,9 @@ midnight-node \
 
 ### Midnight-Specific
 
-- **`midnight_contractState`** - Get contract state
-- **`midnight_zswapStateRoot`** - Get ZSwap root
-- **`midnight_ledgerVersion`** - Get ledger version
+- [**`midnight_contractState`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L34) - Get contract state
+- [**`midnight_zswapStateRoot`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L41) - Get ZSwap root
+- [**`midnight_ledgerVersion`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L47) - Get ledger version
 
 ### Substrate Standard
 

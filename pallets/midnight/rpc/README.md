@@ -12,10 +12,10 @@ The RPC implementation uses jsonrpsee for async request handling and supports bo
 
 ### RPC Methods
 
-- **`midnight_contractState`** - Get contract state at address
-- **`midnight_zswapStateRoot`** - Get ZSwap Merkle root
-- **`midnight_apiVersions`** - Supported API versions
-- **`midnight_ledgerVersion`** - Ledger version string
+- [**`midnight_contractState`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L34) - Get contract state at address
+- [**`midnight_zswapStateRoot`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L41) - Get ZSwap Merkle root
+- [**`midnight_apiVersions`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L44) - Supported API versions
+- [**`midnight_ledgerVersion`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/midnight/rpc/src/lib.rs#L47) - Ledger version string
 
 ### Public Types
 

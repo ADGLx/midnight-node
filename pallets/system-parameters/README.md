@@ -55,5 +55,5 @@ Both [extrinsics](https://docs.polkadot.com/polkadot-protocol/glossary/#extrinsi
 
 JSON-RPC endpoints are available for external queries:
 
-- `systemParameters_getTermsAndConditions`: Returns Terms and Conditions with hex-encoded hash
-- `systemParameters_getDParameter`: Returns the D-Parameter values
+- [**`systemParameters_getTermsAndConditions`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/system-parameters/rpc/src/lib.rs#L95) - Returns Terms and Conditions with hex-encoded hash
+- [**`systemParameters_getDParameter`**](https://github.com/midnightntwrk/midnight-node/blob/main/pallets/system-parameters/rpc/src/lib.rs#L104) - Returns the D-Parameter values
