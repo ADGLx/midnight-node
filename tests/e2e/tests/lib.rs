@@ -1895,7 +1895,7 @@ async fn deregister_first_mapping() {
         .expect("dust-balance error");
 
     if let DustBalanceResult::Json(DustBalanceJson { total, .. }) = &result {
-        println!("Total dust balance: {}", total);
+        println!("Total dust balance #1: {}", total);
     }
 
     assert!(matches!(result, DustBalanceResult::Json(DustBalanceJson{total, ..}) if total > 0));
@@ -1919,7 +1919,7 @@ async fn deregister_first_mapping() {
 
     let mut balance: &u128 = &0;
     if let DustBalanceResult::Json(DustBalanceJson { total, .. }) = &result3 {
-        println!("Total dust balance: {}", total);
+        println!("Total dust balance #2: {}", total);
         balance = total;
     }
 
