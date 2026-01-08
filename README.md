@@ -25,16 +25,16 @@ Implementation of the Midnight blockchain node, providing consensus, transaction
          │
          │ Observes mainchain state
          ▼
-┌─────────────┐      ┌─────────────┐      ┌──────────────┐
-│   Cardano   │ ───▶ │   db-sync   │ ───▶ │  PostgreSQL  │
-│  Mainchain  │      │             │      │  (cexplorer) │
-└─────────────┘      └─────────────┘      └──────────────┘
+  ┌─────────────┐      ┌─────────────┐      ┌──────────────┐
+  │   Cardano   │ ───▶│   db-sync   │ ───▶│  PostgreSQL  │
+  │  Mainchain  │      │             │      │  (cexplorer) │
+  └─────────────┘      └─────────────┘      └──────────────┘
                                                    │
                                                    │ Queries Cardano data
                                                    │ (cNIGHT, governance)
                                                    ▼
      ┌────────────────────────────────────────────────────────────────────┐
-◀──▶ │                         Midnight Node                              │ ◀──▶
+◀─▶│                         Midnight Node                              │ ◀─▶
 P2P  ├────────────────────────────────────────────────────────────────────┤  P2P
 Port │                                                                    │  Port
 30333│  ┌──────────────────────────────────────────────────────────────┐  │  30333
@@ -104,25 +104,6 @@ that we are still in the process of being release. As such:
 - It's not possible to compile midnight-node independently.
 - If you raise a PR, the CI will be able to compile it.
 - We're actively working to open-source dependencies in the coming months.
-
-## Documentation
-
-[Proposals](docs/proposals)
-[Decisions](docs/decisions)
-
-- [Development Workflow](docs/development-workflow.md) - Best practices for cargo vs earthly, debugging, and common tasks
-- [Rust Installation](docs/rust-setup.md) - Setup instructions and toolchain information
-- [Chain Specifications](docs/chain_specs.md) - Working with different networks
-- [Block Weights](docs/weights.md) - Runtime weights documentation
-- [Actionlint Guide](docs/actionlint-guide.md) - GitHub Actions validation
-
-## Prerequisites
-
-- rustup installed
-- For any docker steps: [Docker](https://docs.docker.com/get-docker/)
-  and [Docker Compose](https://docs.docker.com/compose/install/) (or podman).
-- [Earthly](https://earthly.dev/get-earthly) - containerized build system
-- [Direnv](https://direnv.net/docs/installation.html) - manages environment variables
 
 ## Contributing
 
