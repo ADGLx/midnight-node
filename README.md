@@ -2,17 +2,22 @@
 
 # Midnight Node
 <p align="center">
-  <a href="node/README.md"><img src="https://img.shields.io/badge/Node-6366f1?style=for-the-badge&logo=rust&logoColor=white" alt="Node"></a>
-  <a href="runtime/README.md"><img src="https://img.shields.io/badge/Runtime-8b5cf6?style=for-the-badge&logo=webassembly&logoColor=white" alt="Runtime"></a>
-  <a href="pallets/README.md"><img src="https://img.shields.io/badge/Pallets-a855f7?style=for-the-badge&logo=polkadot&logoColor=white" alt="Pallets"></a>
-  <a href="primitives/README.md"><img src="https://img.shields.io/badge/Primitives-c084fc?style=for-the-badge&logo=databricks&logoColor=white" alt="Primitives"></a>
+  <!-- Execution Stack (Indigo) -->
+  <a href="node/README.md"><img src="https://img.shields.io/badge/Node-4f46e5?style=for-the-badge&logo=rust&logoColor=white" alt="Node"></a>
+  <a href="runtime/README.md"><img src="https://img.shields.io/badge/Runtime-4f46e5?style=for-the-badge&logo=webassembly&logoColor=white" alt="Runtime"></a>
+  <a href="pallets/README.md"><img src="https://img.shields.io/badge/Pallets-4f46e5?style=for-the-badge&logo=polkadot&logoColor=white" alt="Pallets"></a>
+  <!-- Data Layer (Violet) -->
+  <a href="primitives/README.md"><img src="https://img.shields.io/badge/Primitives-7c3aed?style=for-the-badge&logo=databricks&logoColor=white" alt="Primitives"></a>
   <a href="ledger/README.md"><img src="https://img.shields.io/badge/Ledger-7c3aed?style=for-the-badge&logo=bookstack&logoColor=white" alt="Ledger"></a>
-  <a href="util/README.md"><img src="https://img.shields.io/badge/Utils-4f46e5?style=for-the-badge&logo=gnubash&logoColor=white" alt="Util"></a>
-  <a href="res/README.md"><img src="https://img.shields.io/badge/Resources-6366f1?style=for-the-badge&logo=toml&logoColor=white" alt="Res"></a>
-  <a href="tests/README.md"><img src="https://img.shields.io/badge/Tests-8b5cf6?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests"></a>
-  <a href="scripts/README.md"><img src="https://img.shields.io/badge/Scripts-a855f7?style=for-the-badge&logo=gnubash&logoColor=white" alt="Scripts"></a>
-  <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs-c084fc?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Docs"></a>
-  <a href="local-environment/README.md"><img src="https://img.shields.io/badge/Local_Env-7c3aed?style=for-the-badge&logo=docker&logoColor=white" alt="Local Environment"></a>
+  <!-- Developer Tools (Teal) -->
+  <a href="util/README.md"><img src="https://img.shields.io/badge/Utils-0891b2?style=for-the-badge&logo=gnubash&logoColor=white" alt="Util"></a>
+  <a href="scripts/README.md"><img src="https://img.shields.io/badge/Scripts-0891b2?style=for-the-badge&logo=gnubash&logoColor=white" alt="Scripts"></a>
+  <!-- Infrastructure (Slate) -->
+  <a href="res/README.md"><img src="https://img.shields.io/badge/Resources-475569?style=for-the-badge&logo=toml&logoColor=white" alt="Res"></a>
+  <a href="local-environment/README.md"><img src="https://img.shields.io/badge/Local_Env-475569?style=for-the-badge&logo=docker&logoColor=white" alt="Local Environment"></a>
+  <!-- Quality (Emerald) -->
+  <a href="tests/README.md"><img src="https://img.shields.io/badge/Tests-059669?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests"></a>
+  <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs-059669?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Docs"></a>
 </p>
 Implementation of the Midnight blockchain node, providing consensus, transaction processing, and privacy-preserving smart contract execution. The node enables participants to maintain both public blockchain state and private user state through zero-knowledge proofs.
 
