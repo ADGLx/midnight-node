@@ -9,15 +9,6 @@ This crate exists primarily to enable compile-time validation of code examples i
 - Test utilities for documentation validation
 - Integration tests that verify doc examples compile
 
-## Structure
-
-```
-docs/
-+-- Cargo.toml
-+-- tests/
-    +-- docs_tests.rs   # Documentation compile tests
-```
-
 ## Documentation Resources
 
 The actual documentation files are located in this directory (not as Rust code):
