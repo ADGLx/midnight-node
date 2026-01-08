@@ -272,9 +272,9 @@ Chain specifications are located in `/res/` directory.
 | Parameter | Environment Variable | CLI Flag (Alternative) | Description |
 |-----------|---------------------|------------------------|-------------|
 | Config preset | `CFG_PRESET=dev` | - | Development mode configuration |
-| AURA seed | `AURA_SEED_FILE=/path/to/seed` | - | Path to AURA consensus seed file |
-| GRANDPA seed | `GRANDPA_SEED_FILE=/path/to/seed` | - | Path to GRANDPA finality seed file |
-| Cross-chain seed | `CROSS_CHAIN_SEED_FILE=/path/to/seed` | - | Path to cross-chain seed file |
+| AURA seed | `AURA_SEED_FILE=<uri>` | - | AURA consensus seed (supports file paths, aws://, gcp://, vault:// URIs) |
+| GRANDPA seed | `GRANDPA_SEED_FILE=<uri>` | - | GRANDPA finality seed (supports file paths, aws://, gcp://, vault:// URIs) |
+| Cross-chain seed | `CROSS_CHAIN_SEED_FILE=<uri>` | - | Cross-chain seed (supports file paths, aws://, gcp://, vault:// URIs) |
 | Chain spec | `CHAIN=local` | `--chain local` | Network to connect to |
 | Base path | `BASE_PATH=/tmp/node-1` | `--base-path /tmp/node-1` | Data directory |
 | Validator mode | `VALIDATOR=true` | `--validator` | Run as validator (true/1/TRUE) |
