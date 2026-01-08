@@ -23,44 +23,66 @@ Implementation of the Midnight blockchain node, providing consensus, transaction
 
 ## Architecture
 
-```mermaid
-flowchart TB
-    subgraph CardanoStack["Cardano Partner Chain Stack"]
-        Cardano["Cardano<br/>Mainchain"]
-        DbSync["db-sync"]
-        Postgres["PostgreSQL<br/>(cexplorer)"]
-        Cardano -->|"Observes<br/>mainchain state"| DbSync --> Postgres
-    end
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                        Cardano Partner Chain Stack                         │
+└────────────────────────────────────────────────────────────────────────────┘
+         │
+         │ Observes mainchain state
+         ▼
+┌─────────────┐      ┌─────────────┐      ┌──────────────┐
+│   Cardano   │ ───▶ │   db-sync   │ ───▶ │  PostgreSQL  │
+│  Mainchain  │      │             │      │  (cexplorer) │
+└─────────────┘      └─────────────┘      └──────────────┘
+                                                   │
+                                                   │ Queries Cardano data
+                                                   │ (cNIGHT, governance)
+                                                   ▼
+     ┌────────────────────────────────────────────────────────────────────┐
+◀──▶ │                         Midnight Node                              │ ◀──▶
+P2P  ├────────────────────────────────────────────────────────────────────┤  P2P
+Port │                                                                    │  Port
+30333│  ┌──────────────────────────────────────────────────────────────┐  │  30333
+     │  │                          Runtime                             │  │
+     │  │                                                              │  │
+     │  │  ┌────────────────────────────────────────────────────────┐  │  │
+     │  │  │                       Pallets                          │  │  │
+     │  │  │                                                        │  │  │
+     │  │  │  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐   │  │  │
+     │  │  │  │  Midnight   │  │   Native     │  │  Federated   │   │  │  │
+     │  │  │  │   System    │  │    Token     │  │  Authority   │   │  │  │
+     │  │  │  │             │  │ Observation  │  │              │   │  │  │
+     │  │  │  └─────────────┘  └──────────────┘  └──────────────┘   │  │  │
+     │  │  │                                                        │  │  │
+     │  │  │  ┌─────────────┐  ┌──────────────┐  ┌──────────────┐   │  │  │
+     │  │  │  │   Version   │  │   Midnight   │  │  Federated   │   │  │  │
+     │  │  │  │             │  │              │  │  Authority   │   │  │  │
+     │  │  │  │             │  │              │  │ Observation  │   │  │  │
+     │  │  │  └─────────────┘  └──────────────┘  └──────────────┘   │  │  │
+     │  │  └────────────────────────────────────────────────────────┘  │  │
+     │  └──────────────────────────────────────────────────────────────┘  │
+     │                                                                    │
+     │  ┌──────────────────────────────────────────────────────────────┐  │
+     │  │                      Node Services                           │  │
+     │  │                                                              │  │
+     │  │    ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐    │  │
+     │  │    │   RPC    │  │Consensus │  │ Network  │  │ Keystore │    │  │
+     │  │    │  Server  │  │   AURA   │  │   P2P    │  │          │    │  │
+     │  │    │          │  │ GRANDPA  │  │          │  │          │    │  │
+     │  │    └──────────┘  └──────────┘  └──────────┘  └──────────┘    │  │
+     │  └──────────────────────────────────────────────────────────────┘  │
+     └────────────────────────────────────────────────────────────────────┘
+                                    │
+                                    │ WebSocket RPC
+                                    │ Port: 9944
+                                    ▼
+                         ┌──────────────────────┐
+                         │   External Clients   │
+                         │  (Wallets, Indexers, │
+                         │     Applications)    │
+                         └──────────────────────┘
 
-    subgraph MidnightNode["Midnight Node"]
-        subgraph Runtime["Runtime"]
-            subgraph Pallets["Pallets"]
-                MidnightSystem["Midnight<br/>System"]
-                NativeToken["Native Token<br/>Observation"]
-                FedAuth["Federated<br/>Authority"]
-                Version["Version"]
-                Midnight["Midnight"]
-                FedAuthObs["Federated Authority<br/>Observation"]
-            end
-        end
-        subgraph NodeServices["Node Services"]
-            RPC["RPC Server"]
-            Consensus["Consensus<br/>AURA/GRANDPA"]
-            Network["Network<br/>P2P"]
-            Keystore["Keystore"]
-        end
-    end
-
-    subgraph Clients["External Clients"]
-        Wallets["Wallets, Indexers,<br/>Applications"]
-    end
-
-    OtherNodes1["Other Midnight Nodes"]
-    OtherNodes2["Other Midnight Nodes"]
-
-    Postgres -->|"Queries Cardano data<br/>(cNIGHT, governance)"| MidnightNode
-    MidnightNode -->|"WebSocket RPC<br/>Port: 9944"| Clients
-    OtherNodes1 <-->|"P2P Network<br/>Port: 30333"| MidnightNode <-->|"P2P Network<br/>Port: 30333"| OtherNodes2
+     Other Midnight Nodes ◀────P2P Network (Port 30333)────▶ Other Midnight Nodes
 ```
 ## Features
 
@@ -87,6 +109,17 @@ that we are still in the process of being release. As such:
 - It's not possible to compile midnight-node independently.
 - If you raise a PR, the CI will be able to compile it.
 - We're actively working to open-source dependencies in the coming months.
+
+## Documentation
+
+[Proposals](docs/proposals)
+[Decisions](docs/decisions)
+
+- [Development Workflow](docs/development-workflow.md) - Best practices for cargo vs earthly, debugging, and common tasks
+- [Rust Installation](docs/rust-setup.md) - Setup instructions and toolchain information
+- [Chain Specifications](docs/chain_specs.md) - Working with different networks
+- [Block Weights](docs/weights.md) - Runtime weights documentation
+- [Actionlint Guide](docs/actionlint-guide.md) - GitHub Actions validation
 
 ## Prerequisites
 
