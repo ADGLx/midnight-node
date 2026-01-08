@@ -25,19 +25,19 @@ $ earthly +rebuild-sqlx
 
 From `midnight-primitives-cnight-observation`:
 
-- **`ObservedUtxo`** - Complete observed UTXO with header and data
-- **`ObservedUtxoHeader`** - Position and identification
-- **`ObservedUtxoData`** - Enum of observation types
-- **`RegistrationData`** - Registration details
-- **`DeregistrationData`** - Deregistration details
-- **`CreateData`** - UTXO creation details
-- **`SpendData`** - UTXO spend details
-- **`RedemptionCreateData`** - Glacier Drop create
-- **`RedemptionSpendData`** - Glacier Drop spend
+- [**`ObservedUtxo`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L241) - Complete observed UTXO with header and data
+- [**`ObservedUtxoHeader`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L346) - Position and identification
+- [**`ObservedUtxoData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L273) - Enum of observation types
+- [**`RegistrationData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L306) - Registration details
+- [**`DeregistrationData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L314) - Deregistration details
+- [**`CreateData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L322) - UTXO creation details
+- [**`SpendData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L332) - UTXO spend details
+- [**`RedemptionCreateData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L285) - Glacier Drop create
+- [**`RedemptionSpendData`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/cnight-observation/src/lib.rs#L295) - Glacier Drop spend
 
 ### Local Type
 
-- **`MidnightObservationTokenMovement`** - Batch of observed UTXOs with next position
+- [**`MidnightObservationTokenMovement`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/mainchain-follower/src/lib.rs#L19) - Batch of observed UTXOs with next position
 
 ## Integration
 

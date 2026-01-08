@@ -39,8 +39,8 @@ Open `build/index.html` in your browser.
 
 ### React Hooks
 
-- **`useSubstrate()`** - Access to Polkadot.js API, keyring, and blockchain
-- **`useSubstrateState()`** - Shorthand for read-only state access
+- [**`useSubstrate()`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx#L182) - Access to Polkadot.js API, keyring, and blockchain
+- [**`useSubstrateState()`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/SubstrateContext.jsx#L183) - Shorthand for read-only state access
 
 ### useSubstrate State
 
@@ -58,8 +58,8 @@ Open `build/index.html` in your browser.
 
 ### Components
 
-- **`TxButton`** - Handles query and transaction requests
-- **`AccountSelector`** - Unified account selection with balance display
+- [**`TxButton`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/substrate-lib/components/TxButton.jsx#L22) - Handles query and transaction requests
+- [**`AccountSelector`**](https://github.com/midnightntwrk/midnight-node/blob/main/ui/src/AccountSelector.jsx#L152) - Unified account selection with balance display
 
 ## Configuration
 

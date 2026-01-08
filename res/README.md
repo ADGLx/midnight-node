@@ -26,12 +26,12 @@ The crate uses `include_bytes!` to embed genesis data at compile time, ensuring 
 
 ### Public Types (with `chain-spec` feature)
 
-- **`MidnightNetwork`** - Trait defining network configuration interface
-- **`UndeployedNetwork`** - Local development network (Alice as authority)
-- **`CustomNetwork`** - Runtime-configurable network definition
-- **`InitialAuthorityData`** - Validator public keys (aura, grandpa, crosschain, beefy)
-- **`MainChainScripts`** - Cardano script addresses and policy IDs
-- **`EndowedAccount`** - [Genesis](https://docs.polkadot.com/polkadot-protocol/glossary/#genesis-configuration) account with initial balance
+- [**`MidnightNetwork`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L148) - Trait defining network configuration interface
+- [**`UndeployedNetwork`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/definitions.rs#L20) - Local development network (Alice as authority)
+- [**`CustomNetwork`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/definitions.rs#L78) - Runtime-configurable network definition
+- [**`InitialAuthorityData`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L37) - Validator public keys (aura, grandpa, crosschain, beefy)
+- [**`MainChainScripts`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L89) - Cardano script addresses and policy IDs
+- [**`EndowedAccount`**](https://github.com/midnightntwrk/midnight-node/blob/main/res/src/networks/mod.rs#L83) - [Genesis](https://docs.polkadot.com/polkadot-protocol/glossary/#genesis-configuration) account with initial balance
 
 ## Directory Structure
 

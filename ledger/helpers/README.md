@@ -15,8 +15,8 @@ This crate provides high-level utilities for:
 
 ### Version Modules
 
-- **`latest`** - Current ledger version helpers
-- **`hard_fork_test`** - Hard fork test helpers (with `hardfork_test` cfg flag)
+- [**`latest`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/lib.rs#L33) - Current ledger version helpers
+- [**`hard_fork_test`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/lib.rs#L19) - Hard fork test helpers (with `hardfork_test` cfg flag)
 
 ### Re-exported Crates (std only)
 
@@ -32,7 +32,7 @@ Each version module re-exports:
 
 ### Common Utilities
 
-- **`find_dependency_version`** - Get version string for a dependency
+- [**`find_dependency_version`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/helpers/src/utils.rs#L45) - Get version string for a dependency
 
 ## Usage
 

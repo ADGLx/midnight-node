@@ -13,8 +13,8 @@ This crate contains SCALE-encoded runtime metadata used by:
 
 ### Modules
 
-- **`midnight_metadata_latest`** - Latest protocol version interfaces
-- **`midnight_metadata_X_Y_Z`** - Specific version (e.g., `midnight_metadata_0_17_0`)
+- [**`midnight_metadata_latest`**](https://github.com/midnightntwrk/midnight-node/blob/main/metadata/src/lib.rs#L20) - Latest protocol version interfaces
+- [**`midnight_metadata_X_Y_Z`**](https://github.com/midnightntwrk/midnight-node/blob/main/metadata/src/lib.rs#L3) - Specific version (e.g., `midnight_metadata_0_17_0`)
 
 ### Static Files
 

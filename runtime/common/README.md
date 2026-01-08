@@ -10,9 +10,9 @@ This crate provides adapter types that bridge governance pallets (`pallet_collec
 
 ### Public Types
 
-- **`MembershipHandler<T, P>`** - Wrapper that manages account sufficients when membership changes
-- **`MembershipObservationHandler<T, I>`** - Dispatches membership resets from inherent observations
-- **`AlwaysNo`** - Default vote strategy that votes NO on abstentions
+- [**`MembershipHandler<T, P>`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/common/src/governance.rs#L23) - Wrapper that manages account sufficients when membership changes
+- [**`MembershipObservationHandler<T, I>`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/common/src/governance.rs#L82) - Dispatches membership resets from inherent observations
+- [**`AlwaysNo`**](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/common/src/governance.rs#L68) - Default vote strategy that votes NO on abstentions
 
 ### MembershipHandler
 

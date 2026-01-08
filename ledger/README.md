@@ -27,25 +27,25 @@ When compiled for [WASM](https://docs.polkadot.com/polkadot-protocol/glossary/#w
 
 ### Host Functions (via `ledger_bridge`)
 
-- **`apply_transaction`** - Process a user transaction
-- **`apply_system_transaction`** - Process a system transaction (from observations)
-- **`validate_transaction`** - Validate without applying
-- **`pre_fetch_storage`** - Cache ledger state for block
-- **`post_block_update`** - Finalize block state
-- **`flush_storage`** - Persist state to disk
-- **`get_contract_state`** - Query contract state
-- **`get_zswap_state_root`** - Get ZSwap Merkle root
-- **`mint_coins`** - Mint block rewards
-- **`get_version`** - Get ledger library version
+- [**`apply_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L171) - Process a user transaction
+- [**`apply_system_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L259) - Process a system transaction (from observations)
+- [**`validate_transaction`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L303) - Validate without applying
+- [**`pre_fetch_storage`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L113) - Cache ledger state for block
+- [**`post_block_update`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L143) - Finalize block state
+- [**`flush_storage`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L132) - Persist state to disk
+- [**`get_contract_state`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L431) - Query contract state
+- [**`get_zswap_state_root`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L453) - Get ZSwap Merkle root
+- [**`mint_coins`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L460) - Mint block rewards
+- [**`get_version`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/mod.rs#L167) - Get ledger library version
 
 ### Types (via `types` module)
 
-- **`Tx`** - Decoded transaction
-- **`Hash`** - 32-byte ledger hash
-- **`BlockContext`** - Timestamp and parent hash
-- **`GasCost`** / **`StorageCost`** - Transaction costs
-- **`UtxoInfo`** - UTXO details
-- **`LedgerApiError`** - Error variants
+- [**`Tx`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/common/types.rs#L75) - Decoded transaction
+- [**`Hash`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/common/types.rs#L21) - 32-byte ledger hash
+- [**`BlockContext`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/common/types.rs#L86) - Timestamp and parent hash
+- **`GasCost`** / **`StorageCost`** - Transaction costs (external: mn-ledger)
+- [**`UtxoInfo`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/common/types.rs#L289) - UTXO details
+- [**`LedgerApiError`**](https://github.com/midnightntwrk/midnight-node/blob/main/ledger/src/versions/common/types.rs#L135) - Error variants
 
 ### Version Modules
 

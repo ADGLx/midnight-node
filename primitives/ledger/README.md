@@ -19,12 +19,12 @@ This crate provides infrastructure for ledger performance monitoring and storage
 
 ### LedgerMetricsExt Methods
 
-- **`observe_txs_processing_time`** - Record transaction processing duration
-- **`observe_system_txs_processing_time`** - Record system tx duration
-- **`observe_txs_validating_time`** - Record validation duration
-- **`observe_txs_size`** - Record transaction size
-- **`observe_storage_fetch_time`** - Record state fetch duration
-- **`observe_storage_flush_time`** - Record state persist duration
+- [**`observe_txs_processing_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L189) - Record transaction processing duration
+- [**`observe_system_txs_processing_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L183) - Record system tx duration
+- [**`observe_txs_validating_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L195) - Record validation duration
+- [**`observe_txs_size`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L201) - Record transaction size
+- [**`observe_storage_fetch_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L207) - Record state fetch duration
+- [**`observe_storage_flush_time`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L213) - Record state persist duration
 
 ## Histogram Buckets
 
@@ -34,17 +34,17 @@ Constants from `primitives/ledger/src/lib.rs` (L41-L52):
 
 **Time buckets:**
 
-- **`TIME_INTERVAL_LINEAR`** - 0.05 (50ms) - Linear step size
-- **`TIME_MAX_LINEAR`** - 1.0 (1s) - Switch to exponential
-- **`TIME_INCREASE_EXP`** - 1.5 - Exponential growth factor
-- **`TIME_MAX_EXP`** - 60.0 (1min) - Maximum bucket
+- [**`TIME_INTERVAL_LINEAR`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L41) - 0.05 (50ms) - Linear step size
+- [**`TIME_MAX_LINEAR`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L42) - 1.0 (1s) - Switch to exponential
+- [**`TIME_INCREASE_EXP`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L43) - 1.5 - Exponential growth factor
+- [**`TIME_MAX_EXP`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L44) - 60.0 (1min) - Maximum bucket
 
 **Size buckets:**
 
-- **`SIZE_INTERVAL_LINEAR`** - 10 KiB - Linear step size
-- **`SIZE_MAX_LINEAR`** - 200 KiB - Switch to exponential
-- **`SIZE_INCREASE_EXP`** - 1.5 - Exponential growth factor
-- **`SIZE_MAX_EXP`** - 5 MiB - Maximum bucket
+- [**`SIZE_INTERVAL_LINEAR`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L49) - 10 KiB - Linear step size
+- [**`SIZE_MAX_LINEAR`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L50) - 200 KiB - Switch to exponential
+- [**`SIZE_INCREASE_EXP`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L51) - 1.5 - Exponential growth factor
+- [**`SIZE_MAX_EXP`**](https://github.com/midnightntwrk/midnight-node/blob/main/primitives/ledger/src/lib.rs#L52) - 5 MiB - Maximum bucket
 
 ## Integration
 
