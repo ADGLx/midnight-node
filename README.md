@@ -19,7 +19,7 @@
   <a href="tests/README.md"><img src="https://img.shields.io/badge/Tests-059669?style=for-the-badge&logo=pytest&logoColor=white" alt="Tests"></a>
   <a href="docs/README.md"><img src="https://img.shields.io/badge/Docs-059669?style=for-the-badge&logo=readthedocs&logoColor=white" alt="Docs"></a>
 </p>
-Implementation of the Midnight blockchain node, providing consensus, transaction processing, and privacy-preserving smart contract execution. The node enables participants to maintain both public blockchain state and private user state through zero-knowledge proofs.
+Implementation of the Midnight blockchain node, providing consensus, transaction processing, and privacy-preserving smart contract execution. Built on [Substrate](https://docs.polkadot.com/polkadot-protocol/glossary/#substrate) and operating as a [Cardano Partner Chain](https://docs.midnight.network/learn/glossary#partner-chain), the node enables participants to maintain both public blockchain state and private user state through zero-knowledge proofs. Smart contracts written in [Compact](https://docs.midnight.network/learn/glossary#compact) execute within the [ZSwap](https://docs.midnight.network/learn/glossary#zswap) ledger, which provides cryptographic guarantees for transaction privacy while preserving on-chain verifiability. The node supports cross-chain token bridging between [cNIGHT](https://docs.midnight.network/learn/glossary#cnight) on Cardano and [DUST](https://docs.midnight.network/learn/glossary#dust) on Midnight, federated multi-body governance synchronized with the mainchain, and achieves finality through AURA block production with GRANDPA and BEEFY consensus mechanisms.
 
 ## Architecture
 
