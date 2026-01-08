@@ -56,8 +56,6 @@ The runtime composes FRAME pallets into five functional layers. System pallets p
 - **Governance Pallets**: Council, CouncilMembership, TechnicalCommittee, TechnicalCommitteeMembership, FederatedAuthority, FederatedAuthorityObservation
 - **Partner Chain Pallets**: Sidechain, Session, SessionCommitteeManagement, GovernedMap
 
-**Sources**: [[1]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L924-L1010) [[2]](https://github.com/midnightntwrk/midnight-node/blob/main/runtime/src/lib.rs#L360-L410)
-
 ### Pallet Index Map
 
 | Index | [Pallet](https://docs.polkadot.com/polkadot-protocol/glossary/#pallet) | Purpose |
