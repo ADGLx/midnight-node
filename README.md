@@ -87,6 +87,7 @@ Port │                                                                    │ 
 
      Other Midnight Nodes ◀────P2P Network (Port 30333)────▶ Other Midnight Nodes
 ```
+
 ## Features
 
 **Privacy-Preserving Smart Contracts** - Execute contracts with zero-knowledge proofs while maintaining public blockchain state
