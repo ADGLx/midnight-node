@@ -1,12 +1,13 @@
 #![allow(dead_code)]
 
 use midnight_primitives_beefy::{
-	BeefyStakes,
+	BEEFY_LOG_TARGET, BeefyStakes,
 	known_payloads::{
 		CURRENT_BEEFY_AUTHORITY_SET, CURRENT_BEEFY_STAKES_ID, NEXT_BEEFY_AUTHORITY_SET,
 		NEXT_BEEFY_STAKES_ID,
 	},
 };
+use parity_scale_codec::Encode;
 use sp_consensus_beefy::{
 	BeefyPayloadId, Payload as BeefyPayload,
 	ecdsa_crypto::AuthorityId as BeefyId,
@@ -14,7 +15,7 @@ use sp_consensus_beefy::{
 };
 use sp_core::H256;
 
-use crate::{Error, cardano_encoding::Payload};
+use crate::{Error, cardano_encoding::Payload, helper::HexExt};
 #[derive(Debug)]
 pub struct BeefyStakesInfo {
 	pub current_stakes: BeefyStakes<BeefyId>,
@@ -38,15 +39,45 @@ impl TryFrom<&BeefyPayload> for BeefyStakesInfo {
 		let current_stakes: BeefyStakes<BeefyId> = value
 			.get_decoded(&CURRENT_BEEFY_STAKES_ID)
 			.ok_or(Error::MissingCurrentBeefyStakes)?;
+
+		if log::log_enabled!(log::Level::Trace) {
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Current Stakes: {current_stakes:?}");
+
+			let current_stakes_encoded = current_stakes.encode();
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Current Stakes Encoded: {:?}", current_stakes_encoded.as_hex());
+		}
+
 		let current_authority_set: BeefyAuthoritySet<H256> = value
 			.get_decoded(&CURRENT_BEEFY_AUTHORITY_SET)
 			.ok_or(Error::MissingCurrentAuthoritySet)?;
 
+		if log::log_enabled!(log::Level::Trace) {
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Current Authority Set: {current_authority_set:?}");
+
+			let current_authority_set_encoded = current_authority_set.encode();
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Current Authority Set Encoded: {:?}", current_authority_set_encoded.as_hex());
+		}
+
 		let next_stakes: BeefyStakes<BeefyId> =
 			value.get_decoded(&NEXT_BEEFY_STAKES_ID).ok_or(Error::MissingNextBeefyStakes)?;
+
+		if log::log_enabled!(log::Level::Trace) {
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Next Stakes: {next_stakes:?}");
+
+			let next_stakes_encoded = next_stakes.encode();
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Next Stakes Encoded: {:?}", next_stakes_encoded.as_hex());
+		}
+
 		let next_authority_set: BeefyNextAuthoritySet<H256> = value
 			.get_decoded(&NEXT_BEEFY_AUTHORITY_SET)
 			.ok_or(Error::MissingNextAuthoritySet)?;
+
+		if log::log_enabled!(log::Level::Trace) {
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Next Authority Set: {next_authority_set:?}");
+
+			let next_authority_set_encoded = next_authority_set.encode();
+			log::trace!(target: BEEFY_LOG_TARGET, "🥩 Next Authority Set Encoded: {:?}", next_authority_set_encoded.as_hex());
+		}
 
 		Ok(BeefyStakesInfo {
 			current_stakes,

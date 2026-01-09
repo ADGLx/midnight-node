@@ -8,9 +8,12 @@ use crate::{
 	helper::HexExt, justification::extract_all_payloads,
 };
 
-use midnight_primitives_beefy::known_payloads::{
-	CURRENT_BEEFY_AUTHORITY_SET, CURRENT_BEEFY_STAKES_ID, NEXT_BEEFY_AUTHORITY_SET,
-	NEXT_BEEFY_STAKES_ID,
+use midnight_primitives_beefy::{
+	BEEFY_LOG_TARGET,
+	known_payloads::{
+		CURRENT_BEEFY_AUTHORITY_SET, CURRENT_BEEFY_STAKES_ID, NEXT_BEEFY_AUTHORITY_SET,
+		NEXT_BEEFY_STAKES_ID,
+	},
 };
 
 use pallas::{
@@ -44,6 +47,7 @@ impl RelayChainProof {
 	) -> Result<Self, crate::error::Error> {
 		// generate proofs for each signer in the commitment, with the validator set as basis
 		let proof = AuthoritiesProof::try_new(&beefy_signed_commitment, &validator_set)?;
+		log::trace!(target: BEEFY_LOG_TARGET, "🥩 Beefy AuthoritiesProof {proof:#?}");
 
 		Ok(RelayChainProof {
 			signed_commitment: SignedCommitment::from_signed_commitment_and_validators(

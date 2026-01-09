@@ -39,7 +39,6 @@ impl AuthoritiesProof {
 
 		let payload = &beefy_signed_commitment.commitment.payload;
 		let stakes_info = BeefyStakesInfo::try_from(payload)?;
-		log::debug!(target: BEEFY_LOG_TARGET, "🥩 Beefy Stakes Info: {stakes_info:#?}");
 
 		// convert current stakes into keccak hashes
 		let keccak_hashes = prep_merkle_leaves(stakes_info.current_stakes);
@@ -52,6 +51,7 @@ impl AuthoritiesProof {
 		let root = RootHash::from_slice(&root_slice);
 
 		let proof = tree.ordered_proof_tree(&sig_indices);
+		log::trace!(target: BEEFY_LOG_TARGET, "🥩 Beefy Proof Node: {proof:#?}");
 
 		Ok(AuthoritiesProof { root, total_leaves: validator_set.validators().len() as u32, proof })
 	}
