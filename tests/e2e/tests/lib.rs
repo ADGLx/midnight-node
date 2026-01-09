@@ -1923,7 +1923,7 @@ async fn deregister_first_mapping() {
         balance = total;
     }
 
-    assert!(matches!(result, DustBalanceResult::Json(DustBalanceJson{total, ..}) if total > 0));
+    assert!(matches!(result3, DustBalanceResult::Json(DustBalanceJson{total, ..}) if total > 0));
 
     let args4 = DustBalanceArgs {
         source: Source {
