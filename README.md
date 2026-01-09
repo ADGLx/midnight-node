@@ -127,11 +127,14 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines on contributing to this 
 | Topic | Description |
 |-------|-------------|
 | [Development Workflow](docs/development-workflow.md) | Environment setup, Cargo vs Earthly, debugging tips |
+| [Rust Setup](docs/rust-setup.md) | Rust toolchain installation and configuration |
 | [Local Environment](local-environment/README.md) | Docker-based networks, manual node startup |
-| [Chain Specifications](res/README.md) | Genesis rebuilding, network configurations |
+| [Chain Specifications](docs/chain_specs.md) | Chain spec documentation and network configurations |
+| [Runtime Weights](docs/weights.md) | Runtime weights and benchmarking documentation |
 | [Toolkit Usage](util/toolkit/README.md) | Transaction generation, wallet management |
 | [Scripts Reference](scripts/README.md) | Key generation, utility scripts |
 | [Fork Testing](docs/fork-testing.md) | Hard fork testing procedures |
+| [GitHub Actions Linting](docs/actionlint-guide.md) | Workflow validation with actionlint |
 
 For a quick Earthly target reference, run `earthly doc` to list all available targets.
 
