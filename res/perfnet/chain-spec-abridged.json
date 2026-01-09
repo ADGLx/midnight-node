@@ -1,0 +1,399 @@
+{
+  "name": "Midnight Perfnet",
+  "id": "midnight_perfnet",
+  "chainType": "Live",
+  "bootNodes": [],
+  "telemetryEndpoints": null,
+  "protocolId": null,
+  "properties": {
+    "genesis_extrinsics": "<snipped>",
+    "genesis_state": "<snipped>"
+  },
+  "forkBlocks": null,
+  "badBlocks": null,
+  "codeSubstitutes": {},
+  "genesis": {
+    "runtimeGenesis": {
+      "code": "<snipped>",
+      "config": {
+        "system": {},
+        "aura": {
+          "authorities": []
+        },
+        "grandpa": {
+          "authorities": []
+        },
+        "sidechain": {
+          "genesisUtxo": "46cf713fcba7b4c4597978d94c4f4a13f5db2b6dfeda8a03e48b761b54106bf7#1",
+          "slotsPerEpoch": 300
+        },
+        "midnight": {
+          "networkId": "perfnet",
+          "genesisStateKey": [
+            109,
+            105,
+            100,
+            110,
+            105,
+            103,
+            104,
+            116,
+            58,
+            115,
+            116,
+            111,
+            114,
+            97,
+            103,
+            101,
+            45,
+            107,
+            101,
+            121,
+            40,
+            108,
+            101,
+            100,
+            103,
+            101,
+            114,
+            45,
+            115,
+            116,
+            97,
+            116,
+            101,
+            91,
+            118,
+            49,
+            51,
+            93,
+            41,
+            58,
+            0,
+            23,
+            181,
+            176,
+            243,
+            21,
+            157,
+            175,
+            157,
+            174,
+            115,
+            56,
+            246,
+            244,
+            53,
+            216,
+            9,
+            65,
+            4,
+            228,
+            219,
+            130,
+            32,
+            203,
+            117,
+            76,
+            56,
+            166,
+            4,
+            255,
+            73,
+            35,
+            175
+          ]
+        },
+        "sudo": {
+          "key": "5CGMadHiaEyE5AtzePPmW1ue2iMv4DW3Fyh1GncmmZTeN2n5"
+        },
+        "sessionCommitteeManagement": {
+          "initialAuthorities": [
+            {
+              "Permissioned": {
+                "id": "KW45qkwmGr3ig1DcdFZEbAQNSkd1HZWFkduDzZvj19hPb7HZZ",
+                "keys": {
+                  "aura": "5CGMadHiaEyE5AtzePPmW1ue2iMv4DW3Fyh1GncmmZTeN2n5",
+                  "grandpa": "5EW3gDRqh8Qz3UM2ZQYvo58LDcgxjzfZnzDqvyxDVia6uyKH"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KW9G3igjmNrhtooqNvbEf9QNWSenDTaMpAWkDHLy3LnG7VJZz",
+                "keys": {
+                  "aura": "5DUmBLbpJc4q854PPkzSzrc8NwvpcubqdKPdGsxAzv8pzVws",
+                  "grandpa": "5DozP7A7bSddKh6ToUKL2aVZigqTCJXf14bAPEX4BQLvQnsa"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KW4H85GyDbWnPXXZCFGtGaTTKDHNWGSyyuwHJumHwhGr7tLmC",
+                "keys": {
+                  "aura": "5F7PgXfekrhwYkuNfpaWDTeNwS2nEZBqMBiG4wJfg8pcPVMf",
+                  "grandpa": "5H8nQvkEkzCMB93UpeA8B9xTa9LnRCZc49mBbFht6qecSR9i"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KW3MrBZRvx9w8vmNSWnC2X3oEYmSif9nAjtwi1k1TtKeJxcLu",
+                "keys": {
+                  "aura": "5C5q7ae7g7whrvuRRormrHBLWkYuaWB4XKoeXigAr8SpVC5T",
+                  "grandpa": "5EFN7RdK8d6HGYV8qvFQKUEDJUjXSWMFYnytTkz1MjLyMXRw"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KW7BWiRVDi7G3pACMb6JkxYTDsCJqLpGCGroA1UU8tG68CRTj",
+                "keys": {
+                  "aura": "5Epj5FuXFTfr9PZFzLDfiQ3NGSju4oA7ZGALVY9HHwvkA88f",
+                  "grandpa": "5D5ng4Gnzchb7JXD56oqtt8KVHPpR1BJPos2dmMhPHqjRU6y"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KWA8mt1TJdCArjziGY93rsRAon6fatpYmnCKHreendxGRCcXh",
+                "keys": {
+                  "aura": "5FLSX2sxr336UwQVyxC6UMdFzFamXwRzx9JBZREWEPS1LeHn",
+                  "grandpa": "5Fn3mvA9BC3gJa6Gs2SXsArBcnCKD4JqTS26t4f6yfb1svLF"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KW5h8BzVpySMN6ezuTuzRRuKgCaUKkChpTWwvxWzYZQMLQLze",
+                "keys": {
+                  "aura": "5DFNgEQDCjv6Ta2Zc8XKLFaR3a5zb5DHWZthma6Emivi3jAh",
+                  "grandpa": "5EF1wGogx9hPYKrV4ojnqyTtWydKnLxCx4aWDbtBDE9UsyFi"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KWBt26h7UuRHpuew4wMpDuxjTR1S5s49K23y8imwwuTaMTPmW",
+                "keys": {
+                  "aura": "5FHFCH1aBS1oCbMH7iDrmHZuagWyaF9pH7mCgkvn8HpiBooQ",
+                  "grandpa": "5CWo5qAk28XQkPRQg9EyDurD4jozt78vqsw5MgQov4t9Qkv4"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KWEM2fifF9KjY3WkXPscq3PCoSySmGgEr9eqYfi3qtbhSC6fo",
+                "keys": {
+                  "aura": "5GzvRpCNutDZkpPUtTm8bHysRrzEA7D1KJVc8Y7wDY9Z2x92",
+                  "grandpa": "5EsFEEqFhx6ew8d9qmkFSvtcX6cXSuKkwGCTpVCgotQ6nUya"
+                }
+              }
+            },
+            {
+              "Permissioned": {
+                "id": "KW56YkUhfJY2jkKoh6wijDSYCeSpSqzBDur4rP9BsECnTvSVF",
+                "keys": {
+                  "aura": "5DcMack5k4mcD9c75ZhTgHQ1v3J1mFmVWx87evQfn6QKm4GY",
+                  "grandpa": "5FV36RCiMxZATouHnAG5h3vpCsyXfS8pM3W5xk1gHdcW25y5"
+                }
+              }
+            }
+          ],
+          "mainChainScripts": {
+            "committee_candidate_address": "addr_test1wq7vey2u7enfsr23fqwneu57cpahmlk6493xr9adkcdlveq8mvht9",
+            "d_parameter_policy_id": "0xf25a048664252d8798b77be39e71ebd3f422f4e2da440a26f28f3e6b",
+            "permissioned_candidates_policy_id": "0x27eaf2ce9f4224944d9e9c7e54d213f5e1c5a621ca4b7f655bd74d7e"
+          }
+        },
+        "cNightObservation": {
+          "config": {
+            "addresses": {
+              "mapping_validator_address": "addr_test1wpztklvv6scgyzne56ky0va0x5dmje56lf39eshxdha68rclu8fje",
+              "auth_token_asset_name": "",
+              "redemption_validator_address": "addr_test1wz3t0v4r0kwdfnh44m87z4rasp4nj0rcplfpmwxvhhrzhdgl45vx4",
+              "cnight_policy_id": "03cf16101d110dcad9cacb225f0d1e63a8809979e7feb60426995414",
+              "cnight_asset_name": ""
+            },
+            "observed_utxos": {
+              "start": {
+                "block_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "block_number": 0,
+                "block_timestamp": 0,
+                "tx_index_in_block": 0
+              },
+              "end": {
+                "block_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+                "block_number": 0,
+                "block_timestamp": 0,
+                "tx_index_in_block": 0
+              },
+              "utxos": []
+            },
+            "mappings": {},
+            "utxo_owners": {},
+            "next_cardano_position": {
+              "block_hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+              "block_number": 0,
+              "block_timestamp": 0,
+              "tx_index_in_block": 0
+            },
+            "system_tx": null
+          },
+          "marker": null
+        },
+        "palletSession": {
+          "keys": [],
+          "nonAuthorityKeys": []
+        },
+        "txPause": {
+          "paused": []
+        },
+        "beefy": {
+          "authorities": [
+            "KW45qkwmGr3ig1DcdFZEbAQNSkd1HZWFkduDzZvj19hPb7HZZ",
+            "KW9G3igjmNrhtooqNvbEf9QNWSenDTaMpAWkDHLy3LnG7VJZz",
+            "KW4H85GyDbWnPXXZCFGtGaTTKDHNWGSyyuwHJumHwhGr7tLmC",
+            "KW3MrBZRvx9w8vmNSWnC2X3oEYmSif9nAjtwi1k1TtKeJxcLu",
+            "KW7BWiRVDi7G3pACMb6JkxYTDsCJqLpGCGroA1UU8tG68CRTj",
+            "KWA8mt1TJdCArjziGY93rsRAon6fatpYmnCKHreendxGRCcXh",
+            "KW5h8BzVpySMN6ezuTuzRRuKgCaUKkChpTWwvxWzYZQMLQLze",
+            "KWBt26h7UuRHpuew4wMpDuxjTR1S5s49K23y8imwwuTaMTPmW",
+            "KWEM2fifF9KjY3WkXPscq3PCoSySmGgEr9eqYfi3qtbhSC6fo",
+            "KW56YkUhfJY2jkKoh6wijDSYCeSpSqzBDur4rP9BsECnTvSVF"
+          ],
+          "genesisBlock": 1
+        },
+        "session": {
+          "initialValidators": [
+            [
+              "5DsLANppbK8HqqBMZeta5rX5x2xLRRxq9sXcB8yQwe2wnrZL",
+              {
+                "aura": "5CGMadHiaEyE5AtzePPmW1ue2iMv4DW3Fyh1GncmmZTeN2n5",
+                "grandpa": "5EW3gDRqh8Qz3UM2ZQYvo58LDcgxjzfZnzDqvyxDVia6uyKH"
+              }
+            ],
+            [
+              "5DbARztikMRTSysZeHzL7KbD9vsuesNLwZvUQShcnxk1R6Bz",
+              {
+                "aura": "5DUmBLbpJc4q854PPkzSzrc8NwvpcubqdKPdGsxAzv8pzVws",
+                "grandpa": "5DozP7A7bSddKh6ToUKL2aVZigqTCJXf14bAPEX4BQLvQnsa"
+              }
+            ],
+            [
+              "5HHChco1RJi6Spr4foQejyYzFU7qQfbuPLc2eVEA2gQ9uCe6",
+              {
+                "aura": "5F7PgXfekrhwYkuNfpaWDTeNwS2nEZBqMBiG4wJfg8pcPVMf",
+                "grandpa": "5H8nQvkEkzCMB93UpeA8B9xTa9LnRCZc49mBbFht6qecSR9i"
+              }
+            ],
+            [
+              "5DFBgkzRrU61ioDSwPmovuQk1Vt3ucaNK3PYp4Npq2JrwKEp",
+              {
+                "aura": "5C5q7ae7g7whrvuRRormrHBLWkYuaWB4XKoeXigAr8SpVC5T",
+                "grandpa": "5EFN7RdK8d6HGYV8qvFQKUEDJUjXSWMFYnytTkz1MjLyMXRw"
+              }
+            ],
+            [
+              "5H8eDmikmpWH29Lwep81LQ9whgsdjoAzyevWbMRTvur4DXhN",
+              {
+                "aura": "5Epj5FuXFTfr9PZFzLDfiQ3NGSju4oA7ZGALVY9HHwvkA88f",
+                "grandpa": "5D5ng4Gnzchb7JXD56oqtt8KVHPpR1BJPos2dmMhPHqjRU6y"
+              }
+            ],
+            [
+              "5CmAEV5wvZMeQyJgXXogajTLfLncLLUtLVa4LZeyATJpktcm",
+              {
+                "aura": "5FLSX2sxr336UwQVyxC6UMdFzFamXwRzx9JBZREWEPS1LeHn",
+                "grandpa": "5Fn3mvA9BC3gJa6Gs2SXsArBcnCKD4JqTS26t4f6yfb1svLF"
+              }
+            ],
+            [
+              "5HnXFGmRf5v5zYPZkFUAvM4L6JHwsV3V6jL4bEsoSk6QRJD1",
+              {
+                "aura": "5DFNgEQDCjv6Ta2Zc8XKLFaR3a5zb5DHWZthma6Emivi3jAh",
+                "grandpa": "5EF1wGogx9hPYKrV4ojnqyTtWydKnLxCx4aWDbtBDE9UsyFi"
+              }
+            ],
+            [
+              "5CBJXuwRsLKtw2ZkJz7HK1FX3N4vo78gURGfsXG9v14MNBMC",
+              {
+                "aura": "5FHFCH1aBS1oCbMH7iDrmHZuagWyaF9pH7mCgkvn8HpiBooQ",
+                "grandpa": "5CWo5qAk28XQkPRQg9EyDurD4jozt78vqsw5MgQov4t9Qkv4"
+              }
+            ],
+            [
+              "5CEzZyHegjTA9BjTYVTaQmw5WaTmZiSpkdpXuv6LPsE1vEqU",
+              {
+                "aura": "5GzvRpCNutDZkpPUtTm8bHysRrzEA7D1KJVc8Y7wDY9Z2x92",
+                "grandpa": "5EsFEEqFhx6ew8d9qmkFSvtcX6cXSuKkwGCTpVCgotQ6nUya"
+              }
+            ],
+            [
+              "5FAs3hxHYyfKmiTG92AXNQTvDQoUqVPBCmZB2ZKj71GRZPDz",
+              {
+                "aura": "5DcMack5k4mcD9c75ZhTgHQ1v3J1mFmVWx87evQfn6QKm4GY",
+                "grandpa": "5FV36RCiMxZATouHnAG5h3vpCsyXfS8pM3W5xk1gHdcW25y5"
+              }
+            ]
+          ]
+        },
+        "governedMap": {
+          "mainChainScripts": {
+            "validator_address": "addr_test1wzwe2xwpy8rj98rywy5rla5y99up542jtmsxqpy9jf6xh9grethu4",
+            "asset_policy_id": "0x99083bf5a74406ae1bd1b820c425d0d7fddc529411ebd9a1b6c3c313"
+          },
+          "marker": null
+        },
+        "bridge": {
+          "mainChainScripts": null,
+          "initialCheckpoint": null,
+          "marker": null
+        },
+        "council": {
+          "members": []
+        },
+        "councilMembership": {
+          "members": [
+            "5FLSigC9HGRKVhB9FiEo4Y3koPsNmBmLJbpXg2mp1hXcS59Y",
+            "5DAAnrj7VHTznn2AWBemMuyBwZWs6FNFjdyVXUeYum3PTXFy"
+          ]
+        },
+        "technicalCommittee": {
+          "members": []
+        },
+        "technicalCommitteeMembership": {
+          "members": [
+            "5GrwvaEF5zXb26Fz9rcQpDWS57CtERHpNehXCPcNoHGKutQY",
+            "5FHneW46xGXgs5mUiveU4sbTyGBzmstUspZC92UhjJM694ty"
+          ]
+        },
+        "federatedAuthorityObservation": {
+          "councilAddress": "addr_test1wr5ten6pq29qwts3kh3lq5ze8ut850dd3kjajw39y9dnuysylyesz",
+          "councilPolicyId": "0xe8bccf41028a072e11b5e3f050593f167a3dad8da5d93a25215b3e12",
+          "technicalCommitteeAddress": "addr_test1wpkhtwu2gfwsj8kpy2k3yanl4eaw6v26373rnzs07hanhec0lnrts",
+          "technicalCommitteePolicyId": "0x6d75bb8a425d091ec122ad12767fae7aed315a8fa2398a0ff5fb3be7",
+          "councilMembersMainchain": [
+            "0xd390ef0f34b32040dc4e9d65a05c609310e06d78ea7a96746326f870",
+            "0x1985f4819b7c4ef72207aa6f923ddd572e30d24da7253907ade9500e"
+          ],
+          "technicalCommitteeMembersMainchain": [
+            "0xd4a36042b35d53d44414099ec60e9706ce67ac9058b6ca12de4dc253",
+            "0xc8675a815cea6702583ae738abf7fd50e21e499bdedb5a9962b42e78"
+          ]
+        },
+        "systemParameters": {
+          "termsAndConditions": {
+            "hash": "0x0000000000000000000000000000000000000000000000000000000000000000",
+            "url": "https://midnight.network/terms-and-conditions"
+          },
+          "dParameter": {
+            "num_permissioned_candidates": 10,
+            "num_registered_candidates": 0
+          }
+        }
+      }
+    }
+  }
+}
