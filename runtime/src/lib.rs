@@ -719,6 +719,13 @@ impl pallet_tx_pause::Config for Runtime {
 	type WeightInfo = pallet_tx_pause::weights::SubstrateWeight<Runtime>;
 }
 
+impl pallet_utility::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type PalletsOrigin = OriginCaller;
+	type WeightInfo = pallet_utility::weights::SubstrateWeight<Runtime>;
+}
+
 pub const MOTION_DURATION: BlockNumber = 5 * DAYS;
 pub const MAX_PROPOSALS: u32 = 100;
 pub const MAX_MEMBERS: u32 = 10;
@@ -945,7 +952,10 @@ mod runtime {
 	#[runtime::pallet_index(13)]
 	pub type CNightObservation = pallet_cnight_observation::Pallet<Runtime>;
 
-	// Utility
+	// Utilities:
+	#[runtime::pallet_index(14)]
+	pub type Utility = pallet_utility::Pallet<Runtime>;
+
 	#[runtime::pallet_index(15)]
 	pub type Preimage = pallet_preimage::Pallet<Runtime>;
 
