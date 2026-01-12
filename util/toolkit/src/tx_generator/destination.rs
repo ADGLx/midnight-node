@@ -40,28 +40,27 @@ pub struct Destination {
 	pub to_bytes: bool,
 }
 
-pub struct SendTxsToFile<S, P> {
+pub struct SendTxsToFile<S, P, D: DB + Clone> {
 	file: String,
 	to_bytes: bool,
-	_marker_p: PhantomData<P>,
-	_marker_s: PhantomData<S>,
+	_marker: PhantomData<(S, P, D)>,
 }
 
-impl<S: SignatureKind<DefaultDB> + Tagged, P: ProofKind<DefaultDB> + Send + Sync + 'static>
-	SendTxsToFile<S, P>
+impl<S: SignatureKind<D> + Tagged, P: ProofKind<D> + Send + Sync + 'static, D: DB + Clone>
+	SendTxsToFile<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-	<P as ProofKind<DefaultDB>>::LatestProof: Send + Sync,
-	<P as ProofKind<DefaultDB>>::Proof: Send + Sync,
-	Transaction<S, P, PedersenRandomness, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+	Transaction<S, P, PedersenRandomness, D>: Tagged,
 {
 	pub fn new(file: String, to_bytes: bool) -> Self {
-		Self { file, to_bytes, _marker_p: PhantomData, _marker_s: PhantomData }
+		Self { file, to_bytes, _marker: PhantomData }
 	}
 
 	fn save_json_file(
 		&self,
-		txs: &DeserializedTransactionsWithContext<S, P>,
+		txs: &DeserializedTransactionsWithContext<S, P, D>,
 		filename: &str,
 	) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 		let mut file = File::create(filename)?;
@@ -71,19 +70,17 @@ where
 	}
 }
 
-pub struct SendTxsToUrl<
-	S: SignatureKind<DefaultDB>,
-	P: ProofKind<DefaultDB> + Send + Sync + 'static,
-> {
+pub struct SendTxsToUrl<S: SignatureKind<D>, P: ProofKind<D> + Send + Sync + 'static, D: DB + Clone>
+{
 	url: String,
 	rate: f32,
-	_marker: PhantomData<(S, P)>,
+	_marker: PhantomData<(S, P, D)>,
 }
 
-impl<S: SignatureKind<DefaultDB>, P: ProofKind<DefaultDB> + Send + Sync + 'static>
-	SendTxsToUrl<S, P>
+impl<S: SignatureKind<D>, P: ProofKind<D> + Send + Sync + 'static, D: DB + Clone>
+	SendTxsToUrl<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send,
+	<P as ProofKind<D>>::Pedersen: Send,
 {
 	pub fn new(url: String, rate: f32) -> Self {
 		Self { url, rate, _marker: Default::default() }
@@ -92,26 +89,25 @@ where
 
 #[async_trait]
 pub trait SendTxs<
-	S: SignatureKind<DefaultDB> + Tagged + Send + 'static,
-	P: ProofKind<DefaultDB> + Send + 'static,
+	S: SignatureKind<D> + Tagged + Send + 'static,
+	P: ProofKind<D> + Send + 'static,
+	D: DB + Clone,
 > where
-	Transaction<S, P, PedersenRandomness, DefaultDB>: Tagged,
+	Transaction<S, P, PedersenRandomness, D>: Tagged,
 {
 	async fn send_txs(
 		&self,
-		txs: &DeserializedTransactionsWithContext<S, P>,
+		txs: &DeserializedTransactionsWithContext<S, P, D>,
 	) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }
 
 #[async_trait]
-impl<
-	S: SignatureKind<DefaultDB> + Tagged + Send + 'static,
-	P: ProofKind<DefaultDB> + Send + 'static,
-> SendTxs<S, P> for ()
+impl<S: SignatureKind<D> + Tagged + Send + 'static, P: ProofKind<D> + Send + 'static, D: DB + Clone>
+	SendTxs<S, P, D> for ()
 {
 	async fn send_txs(
 		&self,
-		_txs: &DeserializedTransactionsWithContext<S, P>,
+		_txs: &DeserializedTransactionsWithContext<S, P, D>,
 	) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 		Ok(())
 	}
@@ -119,18 +115,19 @@ impl<
 
 #[async_trait]
 impl<
-	S: SignatureKind<DefaultDB> + Tagged + Send + Sync + 'static,
-	P: ProofKind<DefaultDB> + Send + Sync + 'static,
-> SendTxs<S, P> for SendTxsToFile<S, P>
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static,
+	D: DB + Clone,
+> SendTxs<S, P, D> for SendTxsToFile<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-	<P as ProofKind<DefaultDB>>::LatestProof: Send + Sync,
-	<P as ProofKind<DefaultDB>>::Proof: Send + Sync,
-	Transaction<S, P, PedersenRandomness, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+	Transaction<S, P, PedersenRandomness, D>: Tagged,
 {
 	async fn send_txs(
 		&self,
-		txs: &DeserializedTransactionsWithContext<S, P>,
+		txs: &DeserializedTransactionsWithContext<S, P, D>,
 	) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 		if !self.to_bytes {
 			self.save_json_file(&txs, &self.file)?;
@@ -145,25 +142,26 @@ where
 
 #[async_trait]
 impl<
-	S: SignatureKind<DefaultDB> + Tagged + Send + Sync + 'static,
-	P: ProofKind<DefaultDB> + Send + Sync + 'static,
-> SendTxs<S, P> for SendTxsToUrl<S, P>
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static,
+	D: DB + Clone,
+> SendTxs<S, P, D> for SendTxsToUrl<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-	<P as ProofKind<DefaultDB>>::LatestProof: Send + Sync,
-	<P as ProofKind<DefaultDB>>::Proof: Send + Sync,
-	Transaction<S, P, PedersenRandomness, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+	Transaction<S, P, PedersenRandomness, D>: Tagged,
 {
 	async fn send_txs(
 		&self,
-		txs: &DeserializedTransactionsWithContext<S, P>,
+		txs: &DeserializedTransactionsWithContext<S, P, D>,
 	) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 		let num_batches = txs.batches.len();
 		let num_per_batch = txs.batches.first().map(|batch| batch.txs.len()).unwrap_or(0);
 		let total_txs = num_per_batch * num_batches;
 
 		let api = OnlineClient::<PolkadotConfig>::from_insecure_url(self.url.clone()).await?;
-		let sender = Arc::new(Sender::<S, P>::new(api, self.url.clone()));
+		let sender = Arc::new(Sender::<S, P, D>::new(api, self.url.clone()));
 
 		println!("Sending initial tx...");
 		sender.send_tx(&txs.initial_tx.tx).await?;

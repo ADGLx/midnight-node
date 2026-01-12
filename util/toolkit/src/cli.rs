@@ -26,6 +26,7 @@ use crate::{
 	serde_def::SourceTransactions,
 	tx_generator::source::{GetTxs, GetTxsFromUrl, Source},
 };
+use midnight_node_ledger_helpers::DefaultDB;
 use clap::{Args, Parser, Subcommand};
 use midnight_node_ledger_helpers::find_dependency_version;
 use std::time::Duration;
@@ -243,7 +244,7 @@ pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error 
 				panic!("error: fetch command doesn't work with '--src-files'");
 			}
 			let start = std::time::Instant::now();
-			let txs: SourceTransactions<Signature, ProofMarker> = GetTxsFromUrl::new(
+			let txs: SourceTransactions<Signature, ProofMarker, DefaultDB> = GetTxsFromUrl::new(
 				&src.src_url.unwrap(),
 				src.fetch_concurrency,
 				src.dust_warp,

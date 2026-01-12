@@ -36,9 +36,9 @@ impl BuildTxs for DoNothingBuilder {
 	type Error = Infallible;
 	async fn build_txs_from(
 		&self,
-		mut received_tx: SourceTransactions<SignatureType, ProofType>,
+		mut received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		_prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType>, Self::Error> {
+	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
 		let initial_block = received_tx.blocks.first_mut().unwrap();
 		let initial_tx = TransactionWithContext {
 			tx: initial_block.transactions.remove(0),

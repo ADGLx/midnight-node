@@ -56,30 +56,30 @@ impl TxHashes {
 	}
 }
 
-pub struct Sender<S: SignatureKind<DefaultDB>, P: ProofKind<DefaultDB> + Send + Sync + 'static> {
+pub struct Sender<S: SignatureKind<D>, P: ProofKind<D> + Send + Sync + 'static, D: DB + Clone> {
 	api: OnlineClient<PolkadotConfig>,
 	url: String,
-	_marker_p: PhantomData<P>,
-	_marker_s: PhantomData<S>,
+	_marker: PhantomData<(S, P, D)>,
 }
 
 impl<
-	S: SignatureKind<DefaultDB> + Send + Sync + 'static,
-	P: ProofKind<DefaultDB> + Send + Sync + 'static,
-> Sender<S, P>
+	S: SignatureKind<D> + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static,
+	D: DB + Clone,
+> Sender<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-	<P as ProofKind<DefaultDB>>::LatestProof: Send + Sync,
-	<P as ProofKind<DefaultDB>>::Proof: Send + Sync,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
 	pub fn new(api: OnlineClient<PolkadotConfig>, url: String) -> Self {
-		Self { api, url, _marker_p: PhantomData, _marker_s: PhantomData }
+		Self { api, url, _marker: PhantomData }
 	}
 
 	pub async fn send_tx(
 		&self,
-		tx: &SerdeTransaction<S, P, DefaultDB>,
+		tx: &SerdeTransaction<S, P, D>,
 	) -> Result<(), SendToUrlError> {
 		let (tx_hash_string, tx_progress) = self.send_tx_no_wait(tx).await?;
 		self.send_and_log(&tx_hash_string, tx_progress).await;
@@ -89,7 +89,7 @@ where
 	pub async fn send_worker(
 		self: Arc<Self>,
 		semaphore: Arc<Semaphore>,
-		txs: Vec<TransactionWithContext<S, P, DefaultDB>>,
+		txs: Vec<TransactionWithContext<S, P, D>>,
 	) {
 		let mut permits = vec![];
 		let mut pending_finalized = vec![];
@@ -112,7 +112,7 @@ where
 
 	async fn send_tx_no_wait(
 		&self,
-		tx: &SerdeTransaction<S, P, DefaultDB>,
+		tx: &SerdeTransaction<S, P, D>,
 	) -> Result<(TxHashes, TxProgress<PolkadotConfig, OnlineClient<PolkadotConfig>>), SendToUrlError>
 	{
 		let midnight_tx_hash = tx.transaction_hash();

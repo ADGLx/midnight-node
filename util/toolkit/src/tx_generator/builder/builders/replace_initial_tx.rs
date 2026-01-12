@@ -41,9 +41,9 @@ impl BuildTxs for ReplaceInitialTxBuilder {
 	type Error = ReplaceInitialTxError;
 	async fn build_txs_from(
 		&self,
-		mut received_tx: SourceTransactions<SignatureType, ProofType>,
+		mut received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		_prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType>, Self::Error> {
+	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
 		received_tx.blocks.remove(0);
 		let initial_block = received_tx
 			.blocks

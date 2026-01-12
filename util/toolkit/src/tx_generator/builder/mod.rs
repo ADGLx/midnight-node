@@ -335,9 +335,9 @@ impl<T: BuildTxs + Send + Sync> BuildTxs for DynamicTransactionBuilder<T> {
 
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType>,
+		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType>, Self::Error> {
+	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
 		let x = self.builder.build_txs_from(received_tx, prover_arc).await;
 
 		x.map_err(|e| DynamicError { error: Box::new(e) })
@@ -378,9 +378,9 @@ pub trait BuildTxs {
 	type Error: std::error::Error + Send + Sync + 'static;
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType>,
+		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType>, Self::Error>;
+	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error>;
 }
 
 /// An extension to help build transactions
@@ -392,7 +392,7 @@ pub trait BuildTxsExt {
 	/// Returns a tuple of an Arc<LedgerContext> and the StandardTransactionInfo
 	fn context_and_tx_info(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType>,
+		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
 	) -> (Arc<LedgerContext<DefaultDB>>, StandardTrasactionInfo<DefaultDB>) {
 		// - Calculate the funding `WalletSeed` (can be more than one)
@@ -432,7 +432,7 @@ pub trait CreateIntentInfo {
 pub trait IntentToFile: CreateIntentInfo + BuildTxsExt {
 	async fn generate_intent_file(
 		&mut self,
-		received_tx: SourceTransactions<SignatureType, ProofType>,
+		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
 		// the directory where to save the file
 		dir: &str,

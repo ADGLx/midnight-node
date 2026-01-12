@@ -22,19 +22,19 @@ use crate::fetcher::fetch_storage::BlockData;
 use midnight_node_ledger_helpers::*;
 
 #[derive(Clone, Debug)]
-pub struct SourceTransactions<S: SignatureKind<DefaultDB> + Tagged, P: ProofKind<DefaultDB>>
+pub struct SourceTransactions<S: SignatureKind<D> + Tagged, P: ProofKind<D>, D: DB + Clone>
 where
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
-	pub blocks: Vec<BlockData<S, P, DefaultDB>>,
+	pub blocks: Vec<BlockData<S, P, D>>,
 }
 
-impl<S: SignatureKind<DefaultDB> + Tagged, P: ProofKind<DefaultDB>> SourceTransactions<S, P>
+impl<S: SignatureKind<D> + Tagged, P: ProofKind<D>, D: DB + Clone> SourceTransactions<S, P, D>
 where
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
 	pub fn from_txs_with_context(
-		txs: impl IntoIterator<Item = TransactionWithContext<S, P, DefaultDB>>,
+		txs: impl IntoIterator<Item = TransactionWithContext<S, P, D>>,
 		dust_warp: bool,
 	) -> Self {
 		let mut blocks = vec![];
@@ -98,12 +98,12 @@ where
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub struct SourceBlockTransactions<S: SignatureKind<DefaultDB>, P: ProofKind<DefaultDB>>
+pub struct SourceBlockTransactions<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone>
 where
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
 	#[serde(bound = "")]
-	pub transactions: Vec<SerdeTransaction<S, P, DefaultDB>>,
+	pub transactions: Vec<SerdeTransaction<S, P, D>>,
 	pub context: BlockContext,
 	#[serde(default)]
 	pub state_root: Option<Vec<u8>>,
@@ -111,30 +111,31 @@ where
 
 #[derive(Clone, Debug)]
 pub struct DeserializedTransactionsWithContextBatch<
-	S: SignatureKind<DefaultDB>,
-	P: ProofKind<DefaultDB>,
+	S: SignatureKind<D>,
+	P: ProofKind<D>,
+	D: DB + Clone,
 > where
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
-	pub txs: Vec<TransactionWithContext<S, P, DefaultDB>>,
+	pub txs: Vec<TransactionWithContext<S, P, D>>,
 }
 
 #[derive(Debug, Clone)]
-pub struct DeserializedTransactionsWithContext<S: SignatureKind<DefaultDB>, P: ProofKind<DefaultDB>>
+pub struct DeserializedTransactionsWithContext<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone>
 where
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
-	pub initial_tx: TransactionWithContext<S, P, DefaultDB>,
-	pub batches: Vec<DeserializedTransactionsWithContextBatch<S, P>>,
+	pub initial_tx: TransactionWithContext<S, P, D>,
+	pub batches: Vec<DeserializedTransactionsWithContextBatch<S, P, D>>,
 }
 
-impl<S: SignatureKind<DefaultDB>, P: ProofKind<DefaultDB> + Send + Sync + 'static>
-	DeserializedTransactionsWithContext<S, P>
+impl<S: SignatureKind<D>, P: ProofKind<D> + Send + Sync + 'static, D: DB + Clone>
+	DeserializedTransactionsWithContext<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
-	pub fn flat(self) -> Vec<TransactionWithContext<S, P, DefaultDB>> {
+	pub fn flat(self) -> Vec<TransactionWithContext<S, P, D>> {
 		let mut result =
 			Vec::with_capacity(1 + self.batches.iter().map(|b| b.txs.len()).sum::<usize>());
 		result.push(self.initial_tx); // Add initial_tx first
@@ -161,12 +162,12 @@ pub struct SerializedTransactionsWithContextBatch {
 }
 
 impl SerializedTransactionsWithContextBatch {
-	fn new<S: SignatureKind<DefaultDB>, P: ProofKind<DefaultDB> + Send + Sync + 'static>(
-		batch_txs: &[TransactionWithContext<S, P, DefaultDB>],
+	fn new<S: SignatureKind<D>, P: ProofKind<D> + Send + Sync + 'static, D: DB + Clone>(
+		batch_txs: &[TransactionWithContext<S, P, D>],
 	) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
 	where
-		<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-		Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+		<P as ProofKind<D>>::Pedersen: Send + Sync,
+		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
 		let txs = batch_txs
 			.iter()
@@ -187,12 +188,12 @@ pub struct SerializedTransactionsWithContext {
 }
 
 impl SerializedTransactionsWithContext {
-	pub fn new<S: SignatureKind<DefaultDB>, P: ProofKind<DefaultDB> + Send + Sync + 'static>(
-		txs: &DeserializedTransactionsWithContext<S, P>,
+	pub fn new<S: SignatureKind<D>, P: ProofKind<D> + Send + Sync + 'static, D: DB + Clone>(
+		txs: &DeserializedTransactionsWithContext<S, P, D>,
 	) -> Result<Self, Box<dyn std::error::Error + Send + Sync>>
 	where
-		<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-		Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+		<P as ProofKind<D>>::Pedersen: Send + Sync,
+		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
 		// Serialize initial_tx
 		let initial_tx = serde_json::to_string(&txs.initial_tx).map_err(|e| Box::new(e))?;

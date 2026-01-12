@@ -192,9 +192,9 @@ impl BuildTxs for BatchesBuilder {
 	type Error = JoinError;
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType>,
+		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType>, Self::Error> {
+	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
 		// --------------------------------------------------------------
 		// Simulates what in the future will be the output of the YAML file based on `num_batches`
 		// and `num_txs_per_batch` when https://shielded.atlassian.net/browse/PM-10459 is implemented

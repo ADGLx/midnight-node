@@ -10,6 +10,7 @@ use crate::{
 	},
 };
 use clap::Args;
+use midnight_node_ledger_helpers::DefaultDB;
 
 #[derive(Args)]
 pub struct GenerateSampleIntentArgs {
@@ -43,7 +44,7 @@ pub async fn execute(args: GenerateSampleIntentArgs) {
 	let source = TxGenerator::source(args.source, args.dry_run)
 		.await
 		.expect("failed to init tx source");
-	let prover = TxGenerator::<SignatureType, ProofType>::prover(args.proof_server, args.dry_run);
+	let prover = TxGenerator::<SignatureType, ProofType, DefaultDB>::prover(args.proof_server, args.dry_run);
 
 	if args.dry_run {
 		println!("Dry-run: generate intent for contract call {:?}", args.contract_call);

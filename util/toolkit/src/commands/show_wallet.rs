@@ -55,7 +55,7 @@ pub struct ShowWalletArgs {
 pub async fn execute(
 	args: ShowWalletArgs,
 ) -> Result<ShowWalletResult<DefaultDB>, Box<dyn std::error::Error + Send + Sync>> {
-	let src = TxGenerator::<SignatureType, ProofType>::source(args.source, args.dry_run).await?;
+	let src = TxGenerator::<SignatureType, ProofType, DefaultDB>::source(args.source, args.dry_run).await?;
 
 	if args.dry_run {
 		if let Some(seed) = args.seed {

@@ -92,7 +92,7 @@ pub async fn fetch_zswap_state(
 	coin_public: CoinPublicKey,
 	dry_run: bool,
 ) -> Result<EncodedZswapLocalState, Box<dyn std::error::Error + Send + Sync>> {
-	let source = TxGenerator::<SignatureType, ProofType>::source(source, dry_run).await?;
+	let source = TxGenerator::<SignatureType, ProofType, DefaultDB>::source(source, dry_run).await?;
 	if dry_run {
 		println!("Dry-run: fetching zswap state for wallet seed {:?}", wallet_seed);
 		println!("Dry-run: attributing to coin-public {:?}", coin_public);

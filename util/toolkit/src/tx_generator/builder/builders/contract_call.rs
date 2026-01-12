@@ -92,9 +92,9 @@ impl BuildTxs for ContractCallBuilder {
 
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType>,
+		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
 		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType>, Self::Error> {
+	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
 		// - LedgerContext and TransactionInfo
 		let (_, mut tx_info) = self.context_and_tx_info(received_tx, prover_arc);
 

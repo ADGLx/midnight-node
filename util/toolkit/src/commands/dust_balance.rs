@@ -9,7 +9,7 @@ use crate::{
 	serde_def::{DustGenerationInfoSer, QualifiedDustOutputSer},
 };
 use clap::Args;
-use midnight_node_ledger_helpers::{DustOutput, Timestamp};
+use midnight_node_ledger_helpers::{DefaultDB, DustOutput, Timestamp};
 
 #[derive(Args)]
 pub struct DustBalanceArgs {
@@ -44,7 +44,7 @@ pub enum DustBalanceResult {
 pub async fn execute(
 	args: DustBalanceArgs,
 ) -> Result<DustBalanceResult, Box<dyn std::error::Error + Send + Sync>> {
-	let src = TxGenerator::<SignatureType, ProofType>::source(args.source, args.dry_run).await?;
+	let src = TxGenerator::<SignatureType, ProofType, DefaultDB>::source(args.source, args.dry_run).await?;
 
 	if args.dry_run {
 		println!("Dry-run: fetching wallet for seed {:?}", args.seed);

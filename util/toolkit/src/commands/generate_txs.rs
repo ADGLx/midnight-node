@@ -6,7 +6,7 @@ use crate::{
 	},
 };
 use clap::Args;
-use midnight_node_ledger_helpers::{ProofMarker, Signature};
+use midnight_node_ledger_helpers::{DefaultDB, ProofMarker, Signature};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -38,7 +38,7 @@ pub struct GenerateTxsArgs {
 }
 
 pub async fn execute(args: GenerateTxsArgs) -> Result<(), GenerateTxsError> {
-	let generator = TxGenerator::<SignatureType, ProofType>::new(
+	let generator = TxGenerator::<SignatureType, ProofType, DefaultDB>::new(
 		args.source,
 		args.destination,
 		args.builder,
@@ -58,9 +58,9 @@ pub async fn execute(args: GenerateTxsArgs) -> Result<(), GenerateTxsError> {
 }
 
 async fn generate_txs(
-	generator: &TxGenerator<SignatureType, ProofType>,
-	received_txs: SourceTransactions<Signature, ProofMarker>,
-) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker>, GenerateTxsError> {
+	generator: &TxGenerator<SignatureType, ProofType, DefaultDB>,
+	received_txs: SourceTransactions<Signature, ProofMarker, DefaultDB>,
+) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker, DefaultDB>, GenerateTxsError> {
 	generator
 		.build_txs(&received_txs)
 		.await
@@ -68,8 +68,8 @@ async fn generate_txs(
 }
 
 async fn send_txs(
-	generator: &TxGenerator<SignatureType, ProofType>,
-	generated_txs: DeserializedTransactionsWithContext<Signature, ProofMarker>,
+	generator: &TxGenerator<SignatureType, ProofType, DefaultDB>,
+	generated_txs: DeserializedTransactionsWithContext<Signature, ProofMarker, DefaultDB>,
 ) -> Result<(), GenerateTxsError> {
 	generator
 		.send_txs(&generated_txs)
@@ -201,8 +201,8 @@ mod tests {
 	#[tokio::test]
 	async fn test_generation(
 		args: GenerateTxsArgs,
-	) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker>, GenerateTxsError> {
-		let generator = TxGenerator::<SignatureType, ProofType>::new(
+	) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker, DefaultDB>, GenerateTxsError> {
+		let generator = TxGenerator::<SignatureType, ProofType, DefaultDB>::new(
 			args.source,
 			args.destination,
 			args.builder,

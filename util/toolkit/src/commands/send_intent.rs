@@ -8,6 +8,7 @@ use crate::{
 	},
 };
 use clap::Args;
+use midnight_node_ledger_helpers::DefaultDB;
 
 #[derive(Args)]
 pub struct SendIntentArgs {
@@ -28,7 +29,7 @@ pub struct SendIntentArgs {
 pub async fn execute(args: SendIntentArgs) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 	let builder = Builder::ContractCustom(args.contract_args);
 
-	let generator = TxGenerator::<SignatureType, ProofType>::new(
+	let generator = TxGenerator::<SignatureType, ProofType, DefaultDB>::new(
 		args.source,
 		args.destination,
 		builder,

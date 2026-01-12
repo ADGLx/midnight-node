@@ -135,57 +135,59 @@ pub enum SourceError {
 
 #[async_trait]
 pub trait GetTxs<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + 'static,
+	S: SignatureKind<D> + Tagged,
+	P: ProofKind<D> + std::fmt::Debug + Send + 'static,
+	D: DB + Clone,
 > where
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
 	async fn get_txs(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>>;
+	) -> Result<SourceTransactions<S, P, D>, Box<dyn std::error::Error + Send + Sync>>;
 }
 
 #[async_trait]
 impl<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + 'static,
-> GetTxs<S, P> for ()
+	S: SignatureKind<D> + Tagged,
+	P: ProofKind<D> + std::fmt::Debug + Send + 'static,
+	D: DB + Clone,
+> GetTxs<S, P, D> for ()
 {
 	async fn get_txs(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
+	) -> Result<SourceTransactions<S, P, D>, Box<dyn std::error::Error + Send + Sync>> {
 		Ok(SourceTransactions { blocks: vec![] })
 	}
 }
 
-pub struct GetTxsFromFile<S, P> {
+pub struct GetTxsFromFile<S, P, D> {
 	files: Vec<String>,
 	extension: String,
 	dust_warp: bool,
-	_marker_p: PhantomData<P>,
-	_marker_s: PhantomData<S>,
+	_marker: PhantomData<(S, P, D)>,
 }
 
 impl<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + Send + std::fmt::Debug + 'static,
-> GetTxsFromFile<S, P>
+	S: SignatureKind<D> + Tagged,
+	P: ProofKind<D> + Send + std::fmt::Debug + 'static,
+	D: DB + Clone,
+> GetTxsFromFile<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
 	pub fn new(files: Vec<String>, extension: String, dust_warp: bool) -> Self {
-		Self { files, extension, dust_warp, _marker_p: PhantomData, _marker_s: PhantomData }
+		Self { files, extension, dust_warp, _marker: Default::default() }
 	}
 
 	fn txs_from_files(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
+	) -> Result<SourceTransactions<S, P, D>, Box<dyn std::error::Error + Send + Sync>> {
 		if self.extension == "json" {
 			// For json extension, we only handle 1 file
 			let file = File::open(&self.files[0])?;
 			let loaded_txs: SerializedTransactionsWithContext = serde_json::from_reader(file)?;
-			let mut txs: Vec<TransactionWithContext<S, P, DefaultDB>> =
+			let mut txs: Vec<TransactionWithContext<S, P, D>> =
 				vec![serde_json::from_str(&loaded_txs.initial_tx).map_err(|e| Box::new(e))?];
 			for batch in loaded_txs.batches {
 				for tx in batch.txs {
@@ -211,16 +213,17 @@ where
 
 #[async_trait]
 impl<
-	S: SignatureKind<DefaultDB> + Tagged + Send + Sync + 'static,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + Sync + 'static,
-> GetTxs<S, P> for GetTxsFromFile<S, P>
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + std::fmt::Debug + Send + Sync + 'static,
+	D: DB + Clone,
+> GetTxs<S, P, D> for GetTxsFromFile<S, P, D>
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
 	async fn get_txs(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
+	) -> Result<SourceTransactions<S, P, D>, Box<dyn std::error::Error + Send + Sync>> {
 		let txs = self.txs_from_files()?;
 		Ok(txs)
 	}
@@ -246,18 +249,19 @@ impl GetTxsFromUrl {
 
 #[async_trait]
 impl<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + 'static,
-> GetTxs<S, P> for GetTxsFromUrl
+	S: SignatureKind<D> + Tagged,
+	P: ProofKind<D> + std::fmt::Debug + Send + 'static,
+	D: DB + Clone,
+> GetTxs<S, P, D> for GetTxsFromUrl
 where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send,
-	<P as ProofKind<DefaultDB>>::LatestProof: Send + Sync,
-	<P as ProofKind<DefaultDB>>::Proof: Send + Sync,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
+	<P as ProofKind<D>>::Pedersen: Send,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+	Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 {
 	async fn get_txs(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
+	) -> Result<SourceTransactions<S, P, D>, Box<dyn std::error::Error + Send + Sync>> {
 		let mut blocks = match &self.fetch_cache_config {
 			FetchCacheConfig::InMemory => {
 				fetch_all(&self.rpc_url, self.num_fetch_workers, fetch_storage::InMemory::default())
