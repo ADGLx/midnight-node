@@ -29,7 +29,7 @@ jobs:
       # Install Earthly
       - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
         with:
-          version: v0.8.17-rc2
+          version: v0.8.17-rc-2
           prerelease: true
           github-token: ${{ github.token }}
           use-cache: false
