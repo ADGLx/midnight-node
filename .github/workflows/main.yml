@@ -25,9 +25,10 @@ jobs:
       contents: write
       packages: write
     steps:
-      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
         with:
-          version: v0.8.16
+          version: v0.8.17-rc2
+          prerelease: true
           github-token: ${{ github.token }}
           use-cache: false
 
@@ -167,9 +168,10 @@ jobs:
           image: tonistiigi/binfmt@sha256:1b804311fe87047a4c96d38b4b3ef6f62fca8cd125265917a9e3dc3c996c39e6 # latest
           platforms: "amd64"
 
-      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
         with:
-          version: v0.8.16
+          version: v0.8.17-rc2
+          prerelease: true
           github-token: ${{ github.token }}
           use-cache: false
 

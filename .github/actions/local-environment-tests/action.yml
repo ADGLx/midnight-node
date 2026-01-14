@@ -37,9 +37,10 @@ runs:
     - name: Install jq
       uses: dcarbone/install-jq-action@b7ef57d46ece78760b4019dbc4080a1ba2a40b45 # v3.2.0
 
-    - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+    - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
       with:
-        version: v0.8.16
+        version: v0.8.17-rc2
+        prerelease: true
         use-cache: false
 
     - name: Docker Login

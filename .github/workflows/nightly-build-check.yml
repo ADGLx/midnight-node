@@ -18,9 +18,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 #v6.0.1
 
-      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
         with:
-          version: v0.8.16
+          version: v0.8.17-rc2
+          prerelease: true
           github-token: ${{ github.token }}
           use-cache: false
 
