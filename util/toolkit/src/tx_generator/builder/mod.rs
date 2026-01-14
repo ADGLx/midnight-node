@@ -19,7 +19,7 @@ use builders::{
 };
 use clap::{Args, Subcommand};
 use midnight_node_ledger_helpers::*;
-use std::{path::PathBuf, sync::Arc};
+use std::{marker::PhantomData, path::PathBuf, sync::Arc};
 
 use crate::{
 	ProofType, SignatureType, cli_parsers as cli,
@@ -299,8 +299,22 @@ pub enum Builder {
 	Migrate,
 }
 
-pub struct DynamicTransactionBuilder<T: BuildTxs + Send + Sync> {
+pub struct DynamicTransactionBuilder<
+	S: SignatureKind<D>,
+	P: ProofKind<D>,
+	D: DB + Clone,
+	T: BuildTxs<S, P, D> + Send + Sync,
+> {
 	builder: T,
+	_marker: PhantomData<(S, P, D)>,
+}
+
+impl<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone, T: BuildTxs<S, P, D> + Send + Sync>
+	DynamicTransactionBuilder<S, P, D, T>
+{
+	pub fn new(builder: T) -> Self {
+		Self { builder, _marker: PhantomData }
+	}
 }
 
 #[derive(Debug)]
@@ -330,14 +344,16 @@ impl std::fmt::Display for DynamicError {
 }
 
 #[async_trait]
-impl<T: BuildTxs + Send + Sync> BuildTxs for DynamicTransactionBuilder<T> {
+impl<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone, T: BuildTxs<S, P, D> + Send + Sync>
+	BuildTxs<S, P, D> for DynamicTransactionBuilder<S, P, D, T>
+{
 	type Error = DynamicError;
 
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		let x = self.builder.build_txs_from(received_tx, prover_arc).await;
 
 		x.map_err(|e| DynamicError { error: Box::new(e) })
@@ -345,11 +361,22 @@ impl<T: BuildTxs + Send + Sync> BuildTxs for DynamicTransactionBuilder<T> {
 }
 
 impl Builder {
-	pub fn to_builder(self, dry_run: bool) -> Box<dyn BuildTxs<Error = DynamicError>> {
-		fn constr(
-			builder: impl BuildTxs + Send + Sync + 'static,
-		) -> Box<dyn BuildTxs<Error = DynamicError>> {
-			Box::new(DynamicTransactionBuilder { builder })
+	pub fn to_builder<
+		S: SignatureKind<D>,
+		P: ProofKind<D> + std::fmt::Debug,
+		D: DB + Clone + 'static,
+	>(
+		self,
+		dry_run: bool,
+	) -> Box<dyn BuildTxs<S, P, D, Error = DynamicError>> {
+		fn constr<
+			S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+			P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+			D: DB + Clone + 'static,
+		>(
+			builder: impl BuildTxs<S, P, D> + Send + Sync + 'static,
+		) -> Box<dyn BuildTxs<S, P, D, Error = DynamicError>> {
+			Box::new(DynamicTransactionBuilder::new(builder))
 		}
 
 		if dry_run {
@@ -374,17 +401,17 @@ impl Builder {
 }
 
 #[async_trait]
-pub trait BuildTxs {
+pub trait BuildTxs<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone> {
 	type Error: std::error::Error + Send + Sync + 'static;
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error>;
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error>;
 }
 
 /// An extension to help build transactions
-pub trait BuildTxsExt {
+pub trait BuildTxsExt<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> {
 	fn funding_seed(&self) -> WalletSeed;
 
 	fn rng_seed(&self) -> Option<[u8; 32]>;
@@ -392,9 +419,9 @@ pub trait BuildTxsExt {
 	/// Returns a tuple of an Arc<LedgerContext> and the StandardTransactionInfo
 	fn context_and_tx_info(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> (Arc<LedgerContext<DefaultDB>>, StandardTrasactionInfo<DefaultDB>) {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> (Arc<LedgerContext<D>>, StandardTrasactionInfo<D>) {
 		// - Calculate the funding `WalletSeed` (can be more than one)
 		let input_wallets_seeds = vec![self.funding_seed()];
 
@@ -423,17 +450,19 @@ pub trait BuildTxsExt {
 }
 
 /// Create Intent Info
-pub trait CreateIntentInfo {
-	fn create_intent_info(&self) -> Box<dyn BuildIntent<DefaultDB>>;
+pub trait CreateIntentInfo<D: DB + Clone> {
+	fn create_intent_info(&self) -> Box<dyn BuildIntent<D>>;
 }
 
 /// A trait to save a Contract (serialized`Intent` Structure) into a file
 #[async_trait]
-pub trait IntentToFile: CreateIntentInfo + BuildTxsExt {
+pub trait IntentToFile<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone>:
+	CreateIntentInfo<D> + BuildTxsExt<S, P, D>
+{
 	async fn generate_intent_file(
 		&mut self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
 		// the directory where to save the file
 		dir: &str,
 		// partial name of the file

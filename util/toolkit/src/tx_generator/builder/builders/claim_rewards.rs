@@ -12,13 +12,13 @@
 // limitations under the License.
 
 use async_trait::async_trait;
+use midnight_node_ledger_helpers::{DB, ProofKind, SignatureKind};
 use std::{convert::Infallible, sync::Arc};
 
 use crate::{
 	builder::{
-		BuildTxs, ClaimMintInfo, DefaultDB, DeserializedTransactionsWithContext, FromContext,
-		LedgerContext, ProofProvider, ProofType, RewardsInfo, SignatureType,
-		TransactionWithContext, Wallet,
+		BuildTxs, ClaimMintInfo, DeserializedTransactionsWithContext, FromContext, LedgerContext,
+		ProofProvider, ProofType, RewardsInfo, SignatureType, TransactionWithContext, Wallet,
 	},
 	serde_def::SourceTransactions,
 	tx_generator::builder::ClaimRewardsArgs,
@@ -37,15 +37,17 @@ impl ClaimRewardsBuilder {
 }
 
 #[async_trait]
-impl BuildTxs for ClaimRewardsBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> BuildTxs<S, P, D>
+	for ClaimRewardsBuilder
+{
 	type Error = Infallible;
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		// - Calculate the funding `WalletSeed` (can be more than one)
-		let funding_seed = Wallet::<DefaultDB>::wallet_seed_decode(&self.funding_seed);
+		let funding_seed = Wallet::<D>::wallet_seed_decode(&self.funding_seed);
 		let inputs_wallet_seeds = vec![funding_seed];
 
 		// initialize `LedgerContext` with the wallets

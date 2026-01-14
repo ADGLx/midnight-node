@@ -2,10 +2,10 @@ use std::{convert::Infallible, sync::Arc};
 
 use async_trait::async_trait;
 use midnight_node_ledger_helpers::{
-	BuildIntent, BuildUtxoOutput, BuildUtxoSpend, DefaultDB, DustRegistrationBuilder, DustWallet,
-	FromContext, IntentInfo, LedgerContext, NIGHT, ProofProvider, Segment, StandardTrasactionInfo,
-	TransactionWithContext, UnshieldedOfferInfo, UtxoOutputInfo, UtxoSpendInfo, Wallet,
-	WalletAddress,
+	BuildIntent, BuildUtxoOutput, BuildUtxoSpend, DB, DustRegistrationBuilder, DustWallet,
+	FromContext, IntentInfo, LedgerContext, NIGHT, ProofKind, ProofProvider, Segment,
+	SignatureKind, StandardTrasactionInfo, TransactionWithContext, UnshieldedOfferInfo,
+	UtxoOutputInfo, UtxoSpendInfo, Wallet, WalletAddress,
 };
 
 use crate::{
@@ -34,21 +34,23 @@ impl RegisterDustAddressBuilder {
 }
 
 #[async_trait]
-impl BuildTxs for RegisterDustAddressBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone> BuildTxs<S, P, D>
+	for RegisterDustAddressBuilder
+{
 	type Error = Infallible;
 
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		let spin = Spin::new("building register dust address transaction...");
 
-		let seed = Wallet::<DefaultDB>::wallet_seed_decode(&self.seed);
-		let funding_seed = Wallet::<DefaultDB>::wallet_seed_decode(&self.funding_seed);
+		let seed = Wallet::<D>::wallet_seed_decode(&self.seed);
+		let funding_seed = Wallet::<D>::wallet_seed_decode(&self.funding_seed);
 
 		let network_id = received_tx.network();
-		let context: LedgerContext<DefaultDB> =
+		let context: LedgerContext<D> =
 			LedgerContext::new_from_wallet_seeds(network_id.to_string(), &[seed, funding_seed]);
 
 		for block in &received_tx.blocks {
@@ -80,10 +82,10 @@ impl BuildTxs for RegisterDustAddressBuilder {
 			})
 		});
 
-		let outputs: Vec<Box<dyn BuildUtxoOutput<DefaultDB>>> = inputs
+		let outputs: Vec<Box<dyn BuildUtxoOutput<D>>> = inputs
 			.iter()
 			.map(|input| {
-				let output: Box<dyn BuildUtxoOutput<DefaultDB>> = Box::new(UtxoOutputInfo {
+				let output: Box<dyn BuildUtxoOutput<D>> = Box::new(UtxoOutputInfo {
 					value: input.value,
 					owner: input.owner,
 					token_type: input.token_type,
@@ -92,10 +94,10 @@ impl BuildTxs for RegisterDustAddressBuilder {
 			})
 			.collect();
 
-		let inputs: Vec<Box<dyn BuildUtxoSpend<DefaultDB>>> = inputs
+		let inputs: Vec<Box<dyn BuildUtxoSpend<D>>> = inputs
 			.into_iter()
 			.map(|input| {
-				let input: Box<dyn BuildUtxoSpend<DefaultDB>> = Box::new(input);
+				let input: Box<dyn BuildUtxoSpend<D>> = Box::new(input);
 				input
 			})
 			.collect::<Vec<_>>();
@@ -107,14 +109,14 @@ impl BuildTxs for RegisterDustAddressBuilder {
 			actions: vec![],
 		};
 
-		let boxed_intent: Box<dyn BuildIntent<DefaultDB>> = Box::new(intent_info);
+		let boxed_intent: Box<dyn BuildIntent<D>> = Box::new(intent_info);
 		tx_info.add_intent(Segment::Fallible.into(), boxed_intent);
 
 		context.with_wallet_from_seed(seed, |wallet| {
 			let destination_dust = self.destination_dust.clone().map_or(
 				wallet.dust.public_key,
 				|destination_dust_arg| {
-					DustWallet::<DefaultDB>::try_from(&destination_dust_arg)
+					DustWallet::<D>::try_from(&destination_dust_arg)
 						.expect("failed to decode dust address")
 						.public_key
 				},

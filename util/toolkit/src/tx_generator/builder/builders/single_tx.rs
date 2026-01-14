@@ -15,11 +15,11 @@ use std::{collections::HashMap, convert::Infallible, sync::Arc};
 
 use async_trait::async_trait;
 use midnight_node_ledger_helpers::{
-	BuildInput, BuildIntent, BuildOutput, BuildUtxoOutput, BuildUtxoSpend, DefaultDB,
-	FromContext as _, InputInfo, IntentInfo, LedgerContext, OfferInfo, OutputInfo, ProofProvider,
-	Segment, ShieldedTokenType, ShieldedWallet, StandardTrasactionInfo, TransactionWithContext,
-	UnshieldedOfferInfo, UnshieldedTokenType, UnshieldedWallet, UtxoOutputInfo, UtxoSpendInfo,
-	WalletAddress, WalletSeed,
+	BuildInput, BuildIntent, BuildOutput, BuildUtxoOutput, BuildUtxoSpend, DB, FromContext as _,
+	InputInfo, IntentInfo, LedgerContext, OfferInfo, OutputInfo, ProofKind, ProofProvider, Segment,
+	ShieldedTokenType, ShieldedWallet, SignatureKind, StandardTrasactionInfo,
+	TransactionWithContext, UnshieldedOfferInfo, UnshieldedTokenType, UnshieldedWallet,
+	UtxoOutputInfo, UtxoSpendInfo, WalletAddress, WalletSeed,
 };
 
 use crate::{
@@ -68,13 +68,13 @@ impl SingleTxBuilder {
 }
 
 #[async_trait]
-impl BuildTxs for SingleTxBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone> BuildTxs<S, P, D> for SingleTxBuilder {
 	type Error = Infallible;
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		let spin = Spin::new("generating single tx...");
 
 		let mut wallet_seeds = vec![self.source_seed];
@@ -96,7 +96,7 @@ impl BuildTxs for SingleTxBuilder {
 			self.rng_seed,
 		);
 
-		let shielded_wallets: Vec<ShieldedWallet<DefaultDB>> =
+		let shielded_wallets: Vec<ShieldedWallet<D>> =
 			self.destination_address.iter().filter_map(|d| d.try_into().ok()).collect();
 
 		let unshielded_wallets: Vec<UnshieldedWallet> =
@@ -158,13 +158,13 @@ impl BuildTxs for SingleTxBuilder {
 }
 
 impl SingleTxBuilder {
-	fn build_shielded_offer(
+	fn build_shielded_offer<D: DB + Clone>(
 		&self,
-		context: Arc<LedgerContext<DefaultDB>>,
+		context: Arc<LedgerContext<D>>,
 		funding_seed: WalletSeed,
-		output_wallets: Vec<ShieldedWallet<DefaultDB>>,
+		output_wallets: Vec<ShieldedWallet<D>>,
 		amount: u128,
-	) -> OfferInfo<DefaultDB> {
+	) -> OfferInfo<D> {
 		let total_required = amount * output_wallets.len() as u128;
 
 		let input_info = InputInfo {
@@ -173,15 +173,15 @@ impl SingleTxBuilder {
 			value: total_required,
 		};
 
-		let inputs_info: Vec<Box<dyn BuildInput<DefaultDB>>> = vec![Box::new(input_info)];
+		let inputs_info: Vec<Box<dyn BuildInput<D>>> = vec![Box::new(input_info)];
 
-		let mut outputs_info: Vec<Box<dyn BuildOutput<DefaultDB>>>;
+		let mut outputs_info: Vec<Box<dyn BuildOutput<D>>>;
 
 		// Outputs info
 		outputs_info = output_wallets
 			.iter()
 			.map(|wallet| {
-				let output: Box<dyn BuildOutput<DefaultDB>> = Box::new(OutputInfo {
+				let output: Box<dyn BuildOutput<D>> = Box::new(OutputInfo {
 					destination: wallet.clone(),
 					token_type: self.shielded_token_type,
 					value: amount,
@@ -195,7 +195,7 @@ impl SingleTxBuilder {
 		let remaining_coins = input_amount - total_required;
 
 		// Create an `Output` to its self with the remaining coins to avoid spending the whole `Input`
-		let output_info_refund: Box<dyn BuildOutput<DefaultDB>> = Box::new(OutputInfo {
+		let output_info_refund: Box<dyn BuildOutput<D>> = Box::new(OutputInfo {
 			destination: funding_seed,
 			token_type: self.shielded_token_type,
 			value: remaining_coins,
@@ -206,13 +206,13 @@ impl SingleTxBuilder {
 		OfferInfo { inputs: inputs_info, outputs: outputs_info, transients: vec![] }
 	}
 
-	fn build_unshielded_intents(
+	fn build_unshielded_intents<D: DB + Clone>(
 		&self,
-		context: Arc<LedgerContext<DefaultDB>>,
+		context: Arc<LedgerContext<D>>,
 		source_seed: WalletSeed,
 		output_wallets: Vec<UnshieldedWallet>,
 		amount_to_send_per_output: u128,
-	) -> HashMap<u16, Box<dyn BuildIntent<DefaultDB>>> {
+	) -> HashMap<u16, Box<dyn BuildIntent<D>>> {
 		let total_required = amount_to_send_per_output * output_wallets.len() as u128;
 
 		let utxo_spend_info = UtxoSpendInfo {
@@ -226,13 +226,13 @@ impl SingleTxBuilder {
 		let funding_wallet = context.clone().wallet_from_seed(source_seed);
 		let min_match_utxo = utxo_spend_info.min_match_utxo(context, &funding_wallet);
 
-		let input_info: Box<dyn BuildUtxoSpend<DefaultDB>> = Box::new(utxo_spend_info);
+		let input_info: Box<dyn BuildUtxoSpend<D>> = Box::new(utxo_spend_info);
 
 		// Outputs info
-		let mut outputs_info: Vec<Box<dyn BuildUtxoOutput<DefaultDB>>> = output_wallets
+		let mut outputs_info: Vec<Box<dyn BuildUtxoOutput<D>>> = output_wallets
 			.iter()
 			.map(|wallet| {
-				let output: Box<dyn BuildUtxoOutput<DefaultDB>> = Box::new(UtxoOutputInfo {
+				let output: Box<dyn BuildUtxoOutput<D>> = Box::new(UtxoOutputInfo {
 					value: amount_to_send_per_output,
 					owner: wallet.clone(),
 					token_type: self.unshielded_token_type,
@@ -245,7 +245,7 @@ impl SingleTxBuilder {
 		let remaining_nights = input_amount - total_required;
 
 		// Create an `UtxoOutput` to its self with the remaining nights to avoid spending the whole `UtxoSpend`
-		let output_info_refund: Box<dyn BuildUtxoOutput<DefaultDB>> = Box::new(UtxoOutputInfo {
+		let output_info_refund: Box<dyn BuildUtxoOutput<D>> = Box::new(UtxoOutputInfo {
 			value: remaining_nights,
 			owner: source_seed,
 			token_type: self.unshielded_token_type,
@@ -263,7 +263,7 @@ impl SingleTxBuilder {
 			fallible_unshielded_offer: None,
 			actions: vec![],
 		};
-		let boxed_intent: Box<dyn BuildIntent<DefaultDB>> = Box::new(intent_info);
+		let boxed_intent: Box<dyn BuildIntent<D>> = Box::new(intent_info);
 
 		let mut intents = HashMap::new();
 		intents.insert(Segment::Fallible.into(), boxed_intent);

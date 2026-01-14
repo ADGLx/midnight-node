@@ -1,6 +1,6 @@
 use crate::{
 	builder::{
-		BuildInput, BuildIntent, BuildOutput, BuildTxs, BuildTxsExt, CustomContractArgs, DefaultDB,
+		BuildInput, BuildIntent, BuildOutput, BuildTxs, BuildTxsExt, CustomContractArgs, DB,
 		DeserializedTransactionsWithContext, IntentCustom, OfferInfo, ProofProvider, ProofType,
 		SignatureType, TransactionWithContext, Wallet, WalletSeed,
 	},
@@ -10,8 +10,9 @@ use crate::{
 use async_trait::async_trait;
 use midnight_node_ledger_helpers::{
 	BuildUtxoOutput, BuildUtxoSpend, ClaimedUnshieldedSpendsKey, ContractAction, IntentInfo,
-	ProofPreimageMarker, PublicAddress, ShieldedWallet, StdRng, TokenType, UnshieldedOfferInfo,
-	UnshieldedWallet, UtxoId, UtxoOutputInfo, UtxoSpendInfo, WalletAddress,
+	ProofKind, ProofPreimageMarker, PublicAddress, ShieldedWallet, SignatureKind, StdRng,
+	TokenType, UnshieldedOfferInfo, UnshieldedWallet, UtxoId, UtxoOutputInfo, UtxoSpendInfo,
+	WalletAddress,
 };
 use rand::SeedableRng;
 use std::{collections::HashMap, sync::Arc};
@@ -65,9 +66,11 @@ impl CustomContractBuilder {
 	}
 }
 
-impl BuildTxsExt for CustomContractBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> BuildTxsExt<S, P, D>
+	for CustomContractBuilder
+{
 	fn funding_seed(&self) -> WalletSeed {
-		Wallet::<DefaultDB>::wallet_seed_decode(&self.funding_seed)
+		Wallet::<D>::wallet_seed_decode(&self.funding_seed)
 	}
 
 	fn rng_seed(&self) -> Option<[u8; 32]> {
@@ -76,18 +79,18 @@ impl BuildTxsExt for CustomContractBuilder {
 }
 
 impl CustomContractBuilder {
-	fn build_intent(&self) -> Result<IntentCustom<DefaultDB>, CustomContractBuilderError> {
+	fn build_intent<D: DB + Clone>(&self) -> Result<IntentCustom<D>, CustomContractBuilderError> {
 		let mut rng = self.rng_seed.map(StdRng::from_seed).unwrap_or(StdRng::from_entropy());
 		println!("Create intent info for contract custom");
 		// This is to satisfy the `&'static` need to update the context's resolver
 		// Data lives for the remainder of the program's life.
 		let boxed_resolver =
-			Box::new(IntentCustom::<DefaultDB>::get_resolver(&self.artifact_dirs).unwrap());
+			Box::new(IntentCustom::<D>::get_resolver(&self.artifact_dirs).unwrap());
 		let static_ref_resolver = Box::leak(boxed_resolver);
 
-		let mut actions: Vec<ContractAction<ProofPreimageMarker, DefaultDB>> = vec![];
+		let mut actions: Vec<ContractAction<ProofPreimageMarker, D>> = vec![];
 		for intent in &self.intent_files {
-			let custom_intent = IntentCustom::new_from_file(intent, static_ref_resolver)
+			let custom_intent = IntentCustom::<D>::new_from_file(intent, static_ref_resolver)
 				.map_err(CustomContractBuilderError::FailedReadingIntent)?;
 			actions.extend(custom_intent.intent.actions.iter().map(|c| (*c).clone()));
 		}
@@ -115,25 +118,30 @@ impl CustomContractBuilder {
 }
 
 #[async_trait]
-impl BuildTxs for CustomContractBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> BuildTxs<S, P, D>
+	for CustomContractBuilder
+{
 	type Error = CustomContractBuilderError;
 
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		println!("Building Txs for CustomContract");
 		// - LedgerContext and TransactionInfo
 		let (context, mut tx_info) = self.context_and_tx_info(received_tx, prover_arc);
 
 		let funding_utxos = context.with_ledger_state(|state| {
-			context.with_wallet_from_seed(self.funding_seed(), |w| w.unshielded_utxos(&state))
+			context.with_wallet_from_seed(
+				<CustomContractBuilder as BuildTxsExt<D>>::funding_seed(self),
+				|w| w.unshielded_utxos(&state),
+			)
 		});
 		dbg!(&funding_utxos);
 		dbg!(&self.utxo_inputs);
 
-		let mut input_utxos = Vec::<Box<dyn BuildUtxoSpend<DefaultDB>>>::new();
+		let mut input_utxos = Vec::<Box<dyn BuildUtxoSpend<D>>>::new();
 		for input_utxo in &self.utxo_inputs {
 			let funding_match = funding_utxos
 				.iter()
@@ -145,7 +153,7 @@ impl BuildTxs for CustomContractBuilder {
 
 			input_utxos.push(Box::new(UtxoSpendInfo {
 				value: funding_match.value,
-				owner: self.funding_seed(),
+				owner: <CustomContractBuilder as BuildTxsExt<D>>::funding_seed(self),
 				token_type: funding_match.type_,
 				intent_hash: Some(funding_match.intent_hash),
 				output_number: Some(funding_match.output_no),
@@ -156,14 +164,14 @@ impl BuildTxs for CustomContractBuilder {
 		let contract_segment = 1;
 
 		// - Intents
-		let contract_intent = self.build_intent()?;
+		let contract_intent = self.build_intent::<D>()?;
 		let zswap_state = self.read_zswap_file()?;
 
 		let (guaranteed_effects, _fallible_effects) = contract_intent.find_effects();
 
-		let mut unshielded_offer_info: Option<UnshieldedOfferInfo<DefaultDB>> = None;
+		let mut unshielded_offer_info: Option<UnshieldedOfferInfo<D>> = None;
 		if let Some(effects) = guaranteed_effects {
-			let mut outputs = Vec::<Box<dyn BuildUtxoOutput<DefaultDB>>>::new();
+			let mut outputs = Vec::<Box<dyn BuildUtxoOutput<D>>>::new();
 			for (ClaimedUnshieldedSpendsKey(tt, dest), value) in effects.claimed_unshielded_spends {
 				let TokenType::Unshielded(tt) = tt else {
 					return Err(CustomContractBuilderError::ClaimedUnshieldedSpendTokenTypeError(
@@ -180,7 +188,7 @@ impl BuildTxs for CustomContractBuilder {
 			unshielded_offer_info = Some(UnshieldedOfferInfo { inputs: input_utxos, outputs });
 		}
 
-		let mut intents: HashMap<u16, Box<dyn BuildIntent<DefaultDB>>> = HashMap::new();
+		let mut intents: HashMap<u16, Box<dyn BuildIntent<D>>> = HashMap::new();
 
 		intents.insert(
 			contract_segment,
@@ -194,15 +202,15 @@ impl BuildTxs for CustomContractBuilder {
 		tx_info.set_intents(intents);
 
 		//   - Input
-		let inputs_info: Vec<Box<dyn BuildInput<DefaultDB>>> = vec![];
+		let inputs_info: Vec<Box<dyn BuildInput<D>>> = vec![];
 
 		//   - Output
-		let shielded_wallets: Vec<ShieldedWallet<DefaultDB>> = self
+		let shielded_wallets: Vec<ShieldedWallet<D>> = self
 			.shielded_destinations
 			.iter()
 			.filter_map(|addr| addr.try_into().ok())
 			.collect();
-		let mut outputs_info: Vec<Box<dyn BuildOutput<DefaultDB>>> = Vec::new();
+		let mut outputs_info: Vec<Box<dyn BuildOutput<D>>> = Vec::new();
 		if let Some(zswap_state) = zswap_state {
 			for encoded_output in zswap_state.outputs.into_iter() {
 				// NOTE: Using segment 0 here assumes that the contract is executing a guaranteed
@@ -220,7 +228,8 @@ impl BuildTxs for CustomContractBuilder {
 
 		tx_info.set_guaranteed_offer(offer_info);
 
-		tx_info.set_funding_seeds(vec![self.funding_seed()]);
+		tx_info
+			.set_funding_seeds(vec![<CustomContractBuilder as BuildTxsExt<D>>::funding_seed(self)]);
 		tx_info.use_mock_proofs_for_fees(false);
 
 		#[cfg(not(feature = "erase-proof"))]

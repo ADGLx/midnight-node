@@ -49,14 +49,14 @@ where
 {
 	pub source: Box<dyn GetTxs<S, P, D>>,
 	pub destinations: Vec<Box<dyn SendTxs<S, P, D>>>,
-	pub builder: Box<dyn BuildTxs<Error = DynamicError>>,
+	pub builder: Box<dyn BuildTxs<S, P, D, Error = DynamicError>>,
 	pub prover: Arc<dyn ProofProvider<D>>,
 }
 
 impl<
 	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
 	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
-	D: DB + Clone,
+	D: DB + Clone + 'static,
 > TxGenerator<S, P, D>
 where
 	<P as ProofKind<D>>::Pedersen: Send + Sync,
@@ -73,7 +73,7 @@ where
 	) -> Result<Self, TxGeneratorError> {
 		let source = Self::source(src, dry_run).await?;
 		let destinations = Self::destinations(dest, dry_run).await?;
-		let builder = builder.to_builder(dry_run);
+		let builder = builder.to_builder::<S, P, D>(dry_run);
 		let prover = Self::prover(proof_server, dry_run);
 
 		Ok(Self { source, destinations, builder, prover })
@@ -150,10 +150,7 @@ where
 		Ok(dests)
 	}
 
-	pub fn prover(
-		proof_server: Option<String>,
-		dry_run: bool,
-	) -> Arc<dyn ProofProvider<D>> {
+	pub fn prover(proof_server: Option<String>, dry_run: bool) -> Arc<dyn ProofProvider<D>> {
 		if let Some(url) = proof_server {
 			if dry_run {
 				println!("Dry-run: remove prover: {url}");
@@ -191,17 +188,16 @@ where
 
 		Ok(())
 	}
-
 }
 
-impl TxGenerator<crate::SignatureType, crate::ProofType, DefaultDB>
+impl<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone> TxGenerator<S, P, D>
 where
-	Transaction<crate::SignatureType, crate::ProofType, PedersenRandomness, DefaultDB>: Tagged,
+	Transaction<S, P, PedersenRandomness, D>: Tagged,
 {
 	pub async fn build_txs(
 		&self,
-		received_txs: &SourceTransactions<crate::SignatureType, crate::ProofType, DefaultDB>,
-	) -> Result<DeserializedTransactionsWithContext<crate::SignatureType, crate::ProofType, DefaultDB>, DynamicError> {
+		received_txs: &SourceTransactions<S, P, D>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, DynamicError> {
 		self.builder.build_txs_from(received_txs.clone(), self.prover.clone()).await
 	}
 }

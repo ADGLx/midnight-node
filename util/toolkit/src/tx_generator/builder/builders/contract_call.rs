@@ -14,15 +14,15 @@
 use crate::{
 	builder::{
 		BuildContractAction, BuildInput, BuildIntent, BuildOutput, BuildTxs, BuildTxsExt, CallInfo,
-		DefaultDB, DeserializedTransactionsWithContext, IntentInfo, IntentToFile,
-		MerkleTreeContract, OfferInfo, ProofProvider, ProofType, SignatureType,
-		TransactionWithContext, Wallet, WalletSeed,
+		DeserializedTransactionsWithContext, IntentInfo, IntentToFile, MerkleTreeContract,
+		OfferInfo, ProofProvider, ProofType, SignatureType, TransactionWithContext, Wallet,
+		WalletSeed,
 	},
 	serde_def::SourceTransactions,
 	tx_generator::builder::{ContractCallArgs, CreateIntentInfo},
 };
 use async_trait::async_trait;
-use midnight_node_ledger_helpers::ContractAddress;
+use midnight_node_ledger_helpers::{ContractAddress, DB, ProofKind, SignatureKind};
 use std::{convert::Infallible, marker::PhantomData, sync::Arc};
 
 const CONTRACT_INPUT: u32 = 12;
@@ -48,11 +48,16 @@ impl ContractCallBuilder {
 }
 
 #[async_trait]
-impl IntentToFile for ContractCallBuilder {}
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> IntentToFile<S, P, D>
+	for ContractCallBuilder
+{
+}
 
-impl BuildTxsExt for ContractCallBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> BuildTxsExt<S, P, D>
+	for ContractCallBuilder
+{
 	fn funding_seed(&self) -> WalletSeed {
-		Wallet::<DefaultDB>::wallet_seed_decode(&self.funding_seed)
+		Wallet::<D>::wallet_seed_decode(&self.funding_seed)
 	}
 
 	fn rng_seed(&self) -> Option<[u8; 32]> {
@@ -60,12 +65,12 @@ impl BuildTxsExt for ContractCallBuilder {
 	}
 }
 
-impl CreateIntentInfo for ContractCallBuilder {
-	fn create_intent_info(&self) -> Box<dyn BuildIntent<DefaultDB>> {
+impl<D: DB + Clone> CreateIntentInfo<D> for ContractCallBuilder {
+	fn create_intent_info(&self) -> Box<dyn BuildIntent<D>> {
 		println!("Create intent info for contract call");
 
 		// - Contract Calls
-		let call_contract: Box<dyn BuildContractAction<DefaultDB>> = Box::new(CallInfo {
+		let call_contract: Box<dyn BuildContractAction<D>> = Box::new(CallInfo {
 			type_: MerkleTreeContract::new(),
 			address: self.contract_address,
 			key: self.call_key,
@@ -73,7 +78,7 @@ impl CreateIntentInfo for ContractCallBuilder {
 			_marker: PhantomData,
 		});
 
-		let actions: Vec<Box<dyn BuildContractAction<DefaultDB>>> = vec![call_contract];
+		let actions: Vec<Box<dyn BuildContractAction<D>>> = vec![call_contract];
 
 		// - Intents
 		let intent_info = IntentInfo {
@@ -87,14 +92,16 @@ impl CreateIntentInfo for ContractCallBuilder {
 }
 
 #[async_trait]
-impl BuildTxs for ContractCallBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> BuildTxs<S, P, D>
+	for ContractCallBuilder
+{
 	type Error = Infallible;
 
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		// - LedgerContext and TransactionInfo
 		let (_, mut tx_info) = self.context_and_tx_info(received_tx, prover_arc);
 
@@ -103,17 +110,17 @@ impl BuildTxs for ContractCallBuilder {
 		tx_info.add_intent(1, intent_info);
 
 		//   - Input
-		let inputs_info: Vec<Box<dyn BuildInput<DefaultDB>>> = vec![];
+		let inputs_info: Vec<Box<dyn BuildInput<D>>> = vec![];
 
 		//   - Output
-		let outputs_info: Vec<Box<dyn BuildOutput<DefaultDB>>> = vec![];
+		let outputs_info: Vec<Box<dyn BuildOutput<D>>> = vec![];
 
 		let offer_info =
 			OfferInfo { inputs: inputs_info, outputs: outputs_info, transients: vec![] };
 
 		tx_info.set_guaranteed_offer(offer_info);
 
-		tx_info.set_funding_seeds(vec![self.funding_seed()]);
+		tx_info.set_funding_seeds(vec![<Self as BuildTxsExt<S, P, D>>::funding_seed(self)]);
 		tx_info.use_mock_proofs_for_fees(false);
 
 		#[cfg(not(feature = "erase-proof"))]

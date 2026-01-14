@@ -1,12 +1,11 @@
 use crate::{
-	ProofType, SignatureType,
 	serde_def::{DeserializedTransactionsWithContext, SourceTransactions},
 	tx_generator::{
 		TxGenerator, TxGeneratorError, builder::Builder, destination::Destination, source::Source,
 	},
 };
 use clap::Args;
-use midnight_node_ledger_helpers::{DefaultDB, ProofMarker, Signature};
+use midnight_node_ledger_helpers::{DB, ProofKind, SignatureKind, Tagged};
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -37,8 +36,19 @@ pub struct GenerateTxsArgs {
 	dry_run: bool,
 }
 
-pub async fn execute(args: GenerateTxsArgs) -> Result<(), GenerateTxsError> {
-	let generator = TxGenerator::<SignatureType, ProofType, DefaultDB>::new(
+pub async fn execute<
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+	D: DB + Clone + 'static,
+>(
+	args: GenerateTxsArgs,
+) -> Result<(), GenerateTxsError>
+where
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+{
+	let generator = TxGenerator::<S, P, D>::new(
 		args.source,
 		args.destination,
 		args.builder,
@@ -57,20 +67,38 @@ pub async fn execute(args: GenerateTxsArgs) -> Result<(), GenerateTxsError> {
 	send_txs(&generator, generate_txs(&generator, received_txs).await?).await
 }
 
-async fn generate_txs(
-	generator: &TxGenerator<SignatureType, ProofType, DefaultDB>,
-	received_txs: SourceTransactions<Signature, ProofMarker, DefaultDB>,
-) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker, DefaultDB>, GenerateTxsError> {
+async fn generate_txs<
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+	D: DB + Clone + 'static,
+>(
+	generator: &TxGenerator<S, P, D>,
+	received_txs: SourceTransactions<S, P, D>,
+) -> Result<DeserializedTransactionsWithContext<S, P, D>, GenerateTxsError>
+where
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+{
 	generator
 		.build_txs(&received_txs)
 		.await
 		.map_err(|e| GenerateTxsError::BuildTransactions(e.error))
 }
 
-async fn send_txs(
-	generator: &TxGenerator<SignatureType, ProofType, DefaultDB>,
-	generated_txs: DeserializedTransactionsWithContext<Signature, ProofMarker, DefaultDB>,
-) -> Result<(), GenerateTxsError> {
+async fn send_txs<
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+	D: DB + Clone + 'static,
+>(
+	generator: &TxGenerator<S, P, D>,
+	generated_txs: DeserializedTransactionsWithContext<S, P, D>,
+) -> Result<(), GenerateTxsError>
+where
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+{
 	generator
 		.send_txs(&generated_txs)
 		.await
@@ -83,6 +111,7 @@ mod tests {
 
 	use super::*;
 	use crate::{
+		ProofMarker, Signature,
 		cli_parsers::contract_address_decode,
 		t_token,
 		tx_generator::{
@@ -201,7 +230,10 @@ mod tests {
 	#[tokio::test]
 	async fn test_generation(
 		args: GenerateTxsArgs,
-	) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker, DefaultDB>, GenerateTxsError> {
+	) -> Result<
+		DeserializedTransactionsWithContext<Signature, ProofMarker, DefaultDB>,
+		GenerateTxsError,
+	> {
 		let generator = TxGenerator::<SignatureType, ProofType, DefaultDB>::new(
 			args.source,
 			args.destination,

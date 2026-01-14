@@ -12,13 +12,12 @@
 // limitations under the License.
 
 use async_trait::async_trait;
-use midnight_node_ledger_helpers::TransactionWithContext;
+use midnight_node_ledger_helpers::{DB, ProofKind, SignatureKind, TransactionWithContext};
 use std::{convert::Infallible, sync::Arc};
 
 use crate::{
 	builder::{
-		BuildTxs, DefaultDB, DeserializedTransactionsWithContext, ProofProvider, ProofType,
-		SignatureType,
+		BuildTxs, DeserializedTransactionsWithContext, ProofProvider, ProofType, SignatureType,
 	},
 	serde_def::{DeserializedTransactionsWithContextBatch, SourceTransactions},
 };
@@ -32,13 +31,15 @@ impl DoNothingBuilder {
 }
 
 #[async_trait]
-impl BuildTxs for DoNothingBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> BuildTxs<S, P, D>
+	for DoNothingBuilder
+{
 	type Error = Infallible;
 	async fn build_txs_from(
 		&self,
-		mut received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		_prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		mut received_tx: SourceTransactions<S, P, D>,
+		_prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		let initial_block = received_tx.blocks.first_mut().unwrap();
 		let initial_tx = TransactionWithContext {
 			tx: initial_block.transactions.remove(0),

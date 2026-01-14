@@ -1,23 +1,40 @@
 use std::fmt;
 
-use crate::{
-	DefaultDB, ProofType, SignatureType, Transaction, TransactionWithContext, deserialize,
-};
+use crate::{Transaction, TransactionWithContext, deserialize};
 use clap::Args;
-use midnight_node_ledger_helpers::PureGeneratorPedersen;
+use midnight_node_ledger_helpers::{
+	DB, ProofKind, PureGeneratorPedersen, SignatureKind, Storable, Tagged,
+};
 
-type InnerReturnType = Result<ShowTransactionResult, Box<dyn std::error::Error + Send + Sync>>;
+type InnerReturnType<S, P, D> =
+	Result<ShowTransactionResult<S, P, D>, Box<dyn std::error::Error + Send + Sync>>;
 
-pub enum TransactionInfo {
-	Transaction(Transaction<SignatureType, ProofType, PureGeneratorPedersen, DefaultDB>),
-	TransactionWithContext(TransactionWithContext<SignatureType, ProofType, DefaultDB>),
+pub enum TransactionInfo<
+	S: SignatureKind<D>,
+	P: ProofKind<D>,
+	D: DB,
+	B: Storable<D> = PureGeneratorPedersen, // Binding committment type e.g. PureGeneratorPedersen
+> {
+	Transaction(Transaction<S, P, B, D>),
+	TransactionWithContext(TransactionWithContext<S, P, D>),
 }
-pub struct ShowTransactionResult {
-	transaction: TransactionInfo,
+pub struct ShowTransactionResult<
+	S: SignatureKind<D>,
+	P: ProofKind<D>,
+	D: DB,
+	B: Storable<D> = PureGeneratorPedersen, // Binding committment type e.g. PureGeneratorPedersen
+> {
+	transaction: TransactionInfo<S, P, D, B>,
 	size: usize,
 }
 
-impl fmt::Display for ShowTransactionResult {
+impl<
+	S: SignatureKind<D> + Tagged,
+	P: ProofKind<D> + std::fmt::Debug,
+	D: DB + Clone,
+	B: Storable<D> + std::fmt::Debug, // Binding committment type e.g. PureGeneratorPedersen
+> fmt::Display for ShowTransactionResult<S, P, D, B>
+{
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		writeln!(f)?;
 		writeln!(f, "Tx {}", self.transaction)?;
@@ -26,7 +43,13 @@ impl fmt::Display for ShowTransactionResult {
 	}
 }
 
-impl fmt::Display for TransactionInfo {
+impl<
+	S: SignatureKind<D> + Tagged,
+	P: ProofKind<D> + std::fmt::Debug,
+	D: DB + Clone,
+	B: Storable<D> + std::fmt::Debug,
+> fmt::Display for TransactionInfo<S, P, D, B>
+{
 	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
 		match self {
 			TransactionInfo::Transaction(tx) => write!(f, "{:#?}", tx),
@@ -48,7 +71,9 @@ pub struct ShowTransactionArgs {
 	with_context: bool,
 }
 
-pub fn execute(args: ShowTransactionArgs) -> InnerReturnType {
+pub fn execute<S: SignatureKind<D> + Tagged, P: ProofKind<D>, D: DB>(
+	args: ShowTransactionArgs,
+) -> InnerReturnType<S, P, D> {
 	if args.from_bytes {
 		tx_from_bytes(args.src_file, args.with_context)
 	} else {
@@ -56,7 +81,10 @@ pub fn execute(args: ShowTransactionArgs) -> InnerReturnType {
 	}
 }
 
-fn tx_from_bytes(src_file: String, with_context: bool) -> InnerReturnType {
+fn tx_from_bytes<S: SignatureKind<D> + Tagged, P: ProofKind<D>, D: DB>(
+	src_file: String,
+	with_context: bool,
+) -> InnerReturnType<S, P, D> {
 	let tx_bytes = std::fs::read(&src_file)?;
 	Ok(ShowTransactionResult {
 		transaction: if with_context {
@@ -68,7 +96,10 @@ fn tx_from_bytes(src_file: String, with_context: bool) -> InnerReturnType {
 	})
 }
 
-fn tx_from_hex(src_file: String, with_context: bool) -> InnerReturnType {
+fn tx_from_hex<S: SignatureKind<D> + Tagged, P: ProofKind<D>, D: DB>(
+	src_file: String,
+	with_context: bool,
+) -> InnerReturnType<S, P, D> {
 	let file_content = std::fs::read(&src_file)?;
 	// Some IDEs auto-add an extra empty line at the end of the file
 	let tx_hex = String::from_utf8(file_content)?.trim().to_string();
@@ -87,7 +118,10 @@ fn tx_from_hex(src_file: String, with_context: bool) -> InnerReturnType {
 
 #[cfg(test)]
 mod test {
+	use crate::{ProofType, SignatureType};
+
 	use super::{InnerReturnType, TransactionInfo, tx_from_bytes};
+	use midnight_node_ledger_helpers::DefaultDB;
 	use test_case::test_case;
 
 	#[test_case(
@@ -104,7 +138,7 @@ mod test {
 	)]
 	fn test_show_transaction_funcs<F>(src_file: &str, with_context: bool, func: F)
 	where
-		F: Fn(String, bool) -> InnerReturnType,
+		F: Fn(String, bool) -> InnerReturnType<SignatureType, ProofType, DefaultDB>,
 	{
 		let result = func(src_file.to_string(), with_context).expect("should be ok");
 

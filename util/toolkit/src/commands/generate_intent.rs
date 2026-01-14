@@ -1,10 +1,11 @@
+use crate::toolkit_js;
 use crate::toolkit_js::{EncodedZswapLocalState, RelativePath};
 use crate::tx_generator::source::Source;
-use crate::{ProofType, SignatureType, toolkit_js};
 use crate::{cli_parsers as cli, tx_generator::TxGenerator};
 use clap::{Args, Subcommand};
 use midnight_node_ledger_helpers::{
-	CoinPublicKey, DefaultDB, LedgerContext, WalletSeed, WalletState,
+	CoinPublicKey, DB, DefaultDB, LedgerContext, ProofKind, SignatureKind, Tagged, WalletSeed,
+	WalletState,
 };
 
 #[derive(Subcommand)]
@@ -86,13 +87,22 @@ pub struct GenerateIntentArgs {
 	js_command: JsCommand,
 }
 
-pub async fn fetch_zswap_state(
+pub async fn fetch_zswap_state<
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+	D: DB + Clone + 'static,
+>(
 	source: Source,
 	wallet_seed: WalletSeed,
 	coin_public: CoinPublicKey,
 	dry_run: bool,
-) -> Result<EncodedZswapLocalState, Box<dyn std::error::Error + Send + Sync>> {
-	let source = TxGenerator::<SignatureType, ProofType, DefaultDB>::source(source, dry_run).await?;
+) -> Result<EncodedZswapLocalState, Box<dyn std::error::Error + Send + Sync>>
+where
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+{
+	let source = TxGenerator::<S, P, D>::source(source, dry_run).await?;
 	if dry_run {
 		println!("Dry-run: fetching zswap state for wallet seed {:?}", wallet_seed);
 		println!("Dry-run: attributing to coin-public {:?}", coin_public);
@@ -122,9 +132,18 @@ pub enum GenerateIntentError {
 	FailedToCreateTempDir(std::io::Error),
 }
 
-pub async fn execute(
+pub async fn execute<
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+	D: DB + Clone + 'static,
+>(
 	args: GenerateIntentArgs,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>>
+where
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+{
 	println!("Executing generate-intent");
 	let temp_dir = tempfile::tempdir().map_err(GenerateIntentError::FailedToCreateTempDir)?;
 
@@ -149,7 +168,7 @@ pub async fn execute(
 					return Err(GenerateIntentError::MissingSource.into());
 				};
 				println!("getting input zswap...");
-				let encoded_zswap_state = fetch_zswap_state(
+				let encoded_zswap_state = fetch_zswap_state::<S, P, D>(
 					source,
 					args.source_wallet.wallet_seed.unwrap(),
 					args.circuit_call.coin_public,

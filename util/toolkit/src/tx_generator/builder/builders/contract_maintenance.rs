@@ -14,17 +14,16 @@
 use async_trait::async_trait;
 use midnight_node_ledger_helpers::{
 	BuildIntent, ContractAddress, ContractMaintenanceAuthority,
-	ContractOperationVersionedVerifierKey, EntryPointBuf, SigningKey, UnshieldedWallet,
-	VerifierKey, VerifyingKey, WalletSeed, deserialize, serialize_untagged,
+	ContractOperationVersionedVerifierKey, DB, EntryPointBuf, ProofKind, SignatureKind, SigningKey,
+	UnshieldedWallet, VerifierKey, VerifyingKey, WalletSeed, deserialize, serialize_untagged,
 };
 use std::{path::PathBuf, sync::Arc};
 
 use crate::{
 	builder::{
 		BuildContractAction, BuildInput, BuildOutput, BuildTxs, ContractMaintenanceAuthorityInfo,
-		DefaultDB, DeserializedTransactionsWithContext, IntentInfo, MaintenanceUpdateInfo,
-		OfferInfo, ProofProvider, ProofType, SignatureType, TransactionWithContext, UpdateInfo,
-		Wallet,
+		DeserializedTransactionsWithContext, IntentInfo, MaintenanceUpdateInfo, OfferInfo,
+		ProofProvider, TransactionWithContext, UpdateInfo, Wallet,
 	},
 	serde_def::SourceTransactions,
 	tx_generator::builder::{BuildTxsExt, ContractMaintenanceArgs},
@@ -80,9 +79,11 @@ impl ContractMaintenanceBuilder {
 	}
 }
 
-impl BuildTxsExt for ContractMaintenanceBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug, D: DB + Clone> BuildTxsExt<S, P, D>
+	for ContractMaintenanceBuilder
+{
 	fn funding_seed(&self) -> WalletSeed {
-		Wallet::<DefaultDB>::wallet_seed_decode(&self.funding_seed)
+		Wallet::<D>::wallet_seed_decode(&self.funding_seed)
 	}
 
 	fn rng_seed(&self) -> Option<[u8; 32]> {
@@ -91,12 +92,12 @@ impl BuildTxsExt for ContractMaintenanceBuilder {
 }
 
 impl ContractMaintenanceBuilder {
-	fn create_intent_info(
+	fn create_intent_info<D: DB + Clone>(
 		&self,
 		committee: Vec<SigningKey>,
 		entrypoints_to_remove: Vec<EntryPointBuf>,
 		entrypoints_to_insert: Vec<(EntryPointBuf, ContractOperationVersionedVerifierKey)>,
-	) -> Box<dyn BuildIntent<DefaultDB>> {
+	) -> Box<dyn BuildIntent<D>> {
 		println!("Create intent info for Maintenance");
 
 		let mut updates = vec![];
@@ -118,15 +119,14 @@ impl ContractMaintenanceBuilder {
 			}));
 		}
 
-		let call_contract: Box<dyn BuildContractAction<DefaultDB>> =
-			Box::new(MaintenanceUpdateInfo {
-				committee,
-				address: self.contract_address,
-				updates,
-				counter: self.counter,
-			});
+		let call_contract: Box<dyn BuildContractAction<D>> = Box::new(MaintenanceUpdateInfo {
+			committee,
+			address: self.contract_address,
+			updates,
+			counter: self.counter,
+		});
 
-		let actions: Vec<Box<dyn BuildContractAction<DefaultDB>>> = vec![call_contract];
+		let actions: Vec<Box<dyn BuildContractAction<D>>> = vec![call_contract];
 
 		// - Intents
 		let intent_info = IntentInfo {
@@ -198,14 +198,16 @@ fn check_committee(
 }
 
 #[async_trait]
-impl BuildTxs for ContractMaintenanceBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone> BuildTxs<S, P, D>
+	for ContractMaintenanceBuilder
+{
 	type Error = ContractMaintenanceBuilderError;
 
 	async fn build_txs_from(
 		&self,
-		received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		received_tx: SourceTransactions<S, P, D>,
+		prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		// - LedgerContext and TransactionInfo
 		let (context, mut tx_info) = self.context_and_tx_info(received_tx, prover_arc);
 
@@ -222,8 +224,11 @@ impl BuildTxs for ContractMaintenanceBuilder {
 		let mut committee_verifying_keys: Vec<_> =
 			committee.iter().map(|s| s.verifying_key()).collect();
 
-		let funding_signing_key =
-			UnshieldedWallet::default(self.funding_seed()).signing_key().clone();
+		let funding_signing_key = UnshieldedWallet::default(
+			<ContractMaintenanceBuilder as BuildTxsExt<D>>::funding_seed(self),
+		)
+		.signing_key()
+		.clone();
 		if !committee_verifying_keys.contains(&funding_signing_key.verifying_key())
 			&& contract_state
 				.maintenance_authority
@@ -288,17 +293,19 @@ impl BuildTxs for ContractMaintenanceBuilder {
 		tx_info.add_intent(1, intent_info);
 
 		//   - Input
-		let inputs_info: Vec<Box<dyn BuildInput<DefaultDB>>> = vec![];
+		let inputs_info: Vec<Box<dyn BuildInput<D>>> = vec![];
 
 		//   - Output
-		let outputs_info: Vec<Box<dyn BuildOutput<DefaultDB>>> = vec![];
+		let outputs_info: Vec<Box<dyn BuildOutput<D>>> = vec![];
 
 		let offer_info =
 			OfferInfo { inputs: inputs_info, outputs: outputs_info, transients: vec![] };
 
 		tx_info.set_guaranteed_offer(offer_info);
 
-		tx_info.set_funding_seeds(vec![self.funding_seed()]);
+		tx_info.set_funding_seeds(vec![
+			<ContractMaintenanceBuilder as BuildTxsExt<D>>::funding_seed(self),
+		]);
 		tx_info.use_mock_proofs_for_fees(true);
 
 		#[cfg(not(feature = "erase-proof"))]

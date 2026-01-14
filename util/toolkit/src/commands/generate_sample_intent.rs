@@ -10,7 +10,7 @@ use crate::{
 	},
 };
 use clap::Args;
-use midnight_node_ledger_helpers::DefaultDB;
+use midnight_node_ledger_helpers::{DB, DefaultDB, ProofKind, SignatureKind, Tagged};
 
 #[derive(Args)]
 pub struct GenerateSampleIntentArgs {
@@ -29,22 +29,34 @@ pub struct GenerateSampleIntentArgs {
 	pub dry_run: bool,
 }
 
-pub async fn execute(args: GenerateSampleIntentArgs) {
+pub async fn execute<
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+	D: DB + Clone + 'static,
+>(
+	args: GenerateSampleIntentArgs,
+) where
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+{
 	println!("Generate a contract and save to file");
 
-	let builder_and_contract_type: (Box<dyn IntentToFile + Send>, &str) =
-		match args.contract_call.clone() {
-			ContractCall::Deploy(args) => (Box::new(ContractDeployBuilder::new(args)), "deploy"),
-			ContractCall::Call(args) => (Box::new(ContractCallBuilder::new(args)), "call"),
-			ContractCall::Maintenance(_args) => unimplemented!("not implemented for Maintenance"),
-		};
+	let builder_and_contract_type: (Box<dyn IntentToFile<S, P, D> + Send>, &str) = match args
+		.contract_call
+		.clone()
+	{
+		ContractCall::Deploy(args) => (Box::new(ContractDeployBuilder::new::<D>(args)), "deploy"),
+		ContractCall::Call(args) => (Box::new(ContractCallBuilder::new(args)), "call"),
+		ContractCall::Maintenance(_args) => unimplemented!("not implemented for Maintenance"),
+	};
 	let mut builder = builder_and_contract_type.0;
 	let partial_file_name = builder_and_contract_type.1;
 
 	let source = TxGenerator::source(args.source, args.dry_run)
 		.await
 		.expect("failed to init tx source");
-	let prover = TxGenerator::<SignatureType, ProofType, DefaultDB>::prover(args.proof_server, args.dry_run);
+	let prover = TxGenerator::<S, P, D>::prover(args.proof_server, args.dry_run);
 
 	if args.dry_run {
 		println!("Dry-run: generate intent for contract call {:?}", args.contract_call);

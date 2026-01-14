@@ -12,14 +12,13 @@
 // limitations under the License.
 
 use async_trait::async_trait;
-use midnight_node_ledger_helpers::TransactionWithContext;
+use midnight_node_ledger_helpers::{DB, ProofKind, SignatureKind, TransactionWithContext};
 use std::sync::Arc;
 use thiserror::Error;
 
 use crate::{
 	builder::{
-		BuildTxs, DefaultDB, DeserializedTransactionsWithContext, ProofProvider, ProofType,
-		SignatureType,
+		BuildTxs, DeserializedTransactionsWithContext, ProofProvider, ProofType, SignatureType,
 	},
 	serde_def::{DeserializedTransactionsWithContextBatch, SourceTransactions},
 };
@@ -37,13 +36,15 @@ impl ReplaceInitialTxBuilder {
 pub struct ReplaceInitialTxError(String);
 
 #[async_trait]
-impl BuildTxs for ReplaceInitialTxBuilder {
+impl<S: SignatureKind<D>, P: ProofKind<D>, D: DB + Clone> BuildTxs<S, P, D>
+	for ReplaceInitialTxBuilder
+{
 	type Error = ReplaceInitialTxError;
 	async fn build_txs_from(
 		&self,
-		mut received_tx: SourceTransactions<SignatureType, ProofType, DefaultDB>,
-		_prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	) -> Result<DeserializedTransactionsWithContext<SignatureType, ProofType, DefaultDB>, Self::Error> {
+		mut received_tx: SourceTransactions<S, P, D>,
+		_prover_arc: Arc<dyn ProofProvider<D>>,
+	) -> Result<DeserializedTransactionsWithContext<S, P, D>, Self::Error> {
 		received_tx.blocks.remove(0);
 		let initial_block = received_tx
 			.blocks

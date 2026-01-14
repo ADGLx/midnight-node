@@ -3,13 +3,14 @@ use std::{
 	time::{SystemTime, UNIX_EPOCH},
 };
 
-use crate::{LedgerContext, ProofType, SignatureType, TxGenerator, WalletSeed, source::Source};
+use crate::{LedgerContext, TxGenerator, WalletSeed, source::Source};
 use crate::{
+	ProofKind, SignatureKind,
 	cli_parsers::{self as cli},
 	serde_def::{DustGenerationInfoSer, QualifiedDustOutputSer},
 };
 use clap::Args;
-use midnight_node_ledger_helpers::{DefaultDB, DustOutput, Timestamp};
+use midnight_node_ledger_helpers::{DB, DustOutput, Tagged, Timestamp};
 
 #[derive(Args)]
 pub struct DustBalanceArgs {
@@ -41,10 +42,19 @@ pub enum DustBalanceResult {
 	DryRun(()),
 }
 
-pub async fn execute(
+pub async fn execute<
+	S: SignatureKind<D> + Tagged + Send + Sync + 'static,
+	P: ProofKind<D> + Send + Sync + 'static + std::fmt::Debug,
+	D: DB + Clone + 'static,
+>(
 	args: DustBalanceArgs,
-) -> Result<DustBalanceResult, Box<dyn std::error::Error + Send + Sync>> {
-	let src = TxGenerator::<SignatureType, ProofType, DefaultDB>::source(args.source, args.dry_run).await?;
+) -> Result<DustBalanceResult, Box<dyn std::error::Error + Send + Sync>>
+where
+	<P as ProofKind<D>>::Pedersen: Send + Sync,
+	<P as ProofKind<D>>::LatestProof: Send + Sync,
+	<P as ProofKind<D>>::Proof: Send + Sync,
+{
+	let src = TxGenerator::<S, P, D>::source(args.source, args.dry_run).await?;
 
 	if args.dry_run {
 		println!("Dry-run: fetching wallet for seed {:?}", args.seed);
@@ -97,7 +107,8 @@ pub async fn execute(
 #[cfg(test)]
 mod tests {
 	use super::*;
-	use crate::tx_generator::source::FetchCacheConfig;
+	use crate::{ProofType, SignatureType, tx_generator::source::FetchCacheConfig};
+	use midnight_node_ledger_helpers::DefaultDB;
 	use test_case::test_case;
 
 	/// Test data
@@ -121,7 +132,9 @@ mod tests {
 			dry_run: false,
 		};
 
-		let res = execute(args).await.expect("result was not Ok");
+		let res = execute::<SignatureType, ProofType, DefaultDB>(args)
+			.await
+			.expect("result was not Ok");
 
 		assert!(
 			matches!(res, DustBalanceResult::Json( DustBalanceJson { total, .. }) if total > 0 )

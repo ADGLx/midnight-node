@@ -1,6 +1,7 @@
-use crate::{ProofType, SignatureType};
 use clap::Args;
-use midnight_node_ledger_helpers::{DefaultDB, TransactionWithContext, deserialize};
+use midnight_node_ledger_helpers::{
+	DB, ProofKind, SignatureKind, Tagged, TransactionWithContext, deserialize,
+};
 
 #[derive(Args)]
 pub struct GetTxFromContextArgs {
@@ -18,16 +19,15 @@ pub struct GetTxFromContextArgs {
 	from_bytes: bool,
 }
 
-pub fn execute(
+pub fn execute<S: SignatureKind<D> + Tagged, P: ProofKind<D>, D: DB>(
 	args: &GetTxFromContextArgs,
 ) -> Result<(Vec<u8>, u64), Box<dyn std::error::Error + Send + Sync>> {
-	let deserialized_tx_with_context: TransactionWithContext<SignatureType, ProofType, DefaultDB> =
-		if !args.from_bytes {
-			deserialize_from_bytes(&args.src_file)?
-		} else {
-			let bytes = std::fs::read(&args.src_file)?;
-			deserialize(bytes.as_slice())?
-		};
+	let deserialized_tx_with_context: TransactionWithContext<S, P, D> = if !args.from_bytes {
+		deserialize_from_bytes(&args.src_file)?
+	} else {
+		let bytes = std::fs::read(&args.src_file)?;
+		deserialize(bytes.as_slice())?
+	};
 
 	let tx = deserialized_tx_with_context.tx;
 	let serialized_tx = tx.serialize_inner()?;
@@ -36,12 +36,9 @@ pub fn execute(
 	Ok((serialized_tx, timestamp))
 }
 
-fn deserialize_from_bytes(
+fn deserialize_from_bytes<S: SignatureKind<D> + Tagged, P: ProofKind<D>, D: DB>(
 	src_file: &str,
-) -> Result<
-	TransactionWithContext<SignatureType, ProofType, DefaultDB>,
-	Box<dyn std::error::Error + Send + Sync>,
-> {
+) -> Result<TransactionWithContext<S, P, D>, Box<dyn std::error::Error + Send + Sync>> {
 	// Read single tx from file
 	let file_content = std::fs::read(src_file).expect("failed to read file");
 	let tx_hex = String::from_utf8_lossy(&file_content);
@@ -59,6 +56,10 @@ fn deserialize_from_bytes(
 #[cfg(test)]
 mod test {
 	use std::time::{SystemTime, UNIX_EPOCH};
+
+	use midnight_node_ledger_helpers::DefaultDB;
+
+	use crate::{ProofType, SignatureType};
 
 	use super::{GetTxFromContextArgs, execute};
 
@@ -85,7 +86,8 @@ mod test {
 			from_bytes: true,
 		};
 
-		let (tx, timestamp) = execute(&args).expect("all good");
+		let (tx, timestamp) =
+			execute::<SignatureType, ProofType, DefaultDB>(&args).expect("all good");
 		assert!(!tx.is_empty());
 		assert!(timestamp < SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs());
 	}

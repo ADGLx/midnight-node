@@ -1,33 +1,35 @@
-use crate::commands::{
-	contract_address::{self, ContractAddressArgs},
-	contract_state::{self, ContractStateArgs},
-	dust_balance::{self, DustBalanceArgs, DustBalanceResult},
-	generate_genesis::{self, GenerateGenesisArgs},
-	generate_intent::{self, GenerateIntentArgs},
-	generate_sample_intent::{self, GenerateSampleIntentArgs},
-	generate_txs::{self, GenerateTxsArgs},
-	get_tx_from_context::{self, GetTxFromContextArgs},
-	random_address::{self, RandomAddressArgs},
-	root_call::{self, RootCallArgs},
-	send_intent::{self, SendIntentArgs},
-	show_address::ShowAddress,
-	show_address::{self, ShowAddressArgs},
-	show_ledger_parameters::{self, ShowLedgerParametersArgs},
-	show_seed::{self, ShowSeedArgs},
-	show_token_type::{self, ShowTokenType, ShowTokenTypeArgs},
-	show_transaction::{self, ShowTransactionArgs},
-	show_viewing_key::{self, ShowViewingKeyArgs},
-	show_wallet::{self, ShowWalletArgs, ShowWalletResult},
-	update_ledger_parameters::{self, UpdateLedgerParametersArgs},
-};
 use crate::utils;
 use crate::{
 	ProofMarker, Signature,
 	serde_def::SourceTransactions,
 	tx_generator::source::{GetTxs, GetTxsFromUrl, Source},
 };
-use midnight_node_ledger_helpers::DefaultDB;
+use crate::{
+	ProofType, SignatureType,
+	commands::{
+		contract_address::{self, ContractAddressArgs},
+		contract_state::{self, ContractStateArgs},
+		dust_balance::{self, DustBalanceArgs, DustBalanceResult},
+		generate_genesis::{self, GenerateGenesisArgs},
+		generate_intent::{self, GenerateIntentArgs},
+		generate_sample_intent::{self, GenerateSampleIntentArgs},
+		generate_txs::{self, GenerateTxsArgs},
+		get_tx_from_context::{self, GetTxFromContextArgs},
+		random_address::{self, RandomAddressArgs},
+		root_call::{self, RootCallArgs},
+		send_intent::{self, SendIntentArgs},
+		show_address::{self, ShowAddress, ShowAddressArgs},
+		show_ledger_parameters::{self, ShowLedgerParametersArgs},
+		show_seed::{self, ShowSeedArgs},
+		show_token_type::{self, ShowTokenType, ShowTokenTypeArgs},
+		show_transaction::{self, ShowTransactionArgs},
+		show_viewing_key::{self, ShowViewingKeyArgs},
+		show_wallet::{self, ShowWalletArgs, ShowWalletResult},
+		update_ledger_parameters::{self, UpdateLedgerParametersArgs},
+	},
+};
 use clap::{Args, Parser, Subcommand};
+use midnight_node_ledger_helpers::DefaultDB;
 use midnight_node_ledger_helpers::find_dependency_version;
 use std::time::Duration;
 
@@ -108,15 +110,15 @@ pub struct Cli {
 pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 	match cmd {
 		Commands::GenerateTxs(args) => {
-			generate_txs::execute(args).await?;
+			generate_txs::execute::<SignatureType, ProofType, DefaultDB>(args).await?;
 			Ok(())
 		},
 		Commands::GenerateIntent(args) => {
-			generate_intent::execute(args).await?;
+			generate_intent::execute::<SignatureType, ProofType, DefaultDB>(args).await?;
 			Ok(())
 		},
 		Commands::GenerateSampleIntent(args) => {
-			generate_sample_intent::execute(args).await;
+			generate_sample_intent::execute::<SignatureType, ProofType, DefaultDB>(args).await;
 			Ok(())
 		},
 		Commands::SendIntent(args) => {
@@ -178,7 +180,8 @@ pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error 
 			Ok(())
 		},
 		Commands::ShowTransaction(args) => {
-			let transaction_information = show_transaction::execute(args)?;
+			let transaction_information =
+				show_transaction::execute::<SignatureType, ProofType, DefaultDB>(args)?;
 
 			println!("{transaction_information}");
 			Ok(())
@@ -190,7 +193,8 @@ pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error 
 		},
 		Commands::ContractState(args) => contract_state::execute(args).await,
 		Commands::GetTxFromContext(args) => {
-			let (serialized_tx, timestamp) = get_tx_from_context::execute(&args)?;
+			let (serialized_tx, timestamp) =
+				get_tx_from_context::execute::<SignatureType, ProofType, DefaultDB>(&args)?;
 			std::fs::write(args.dest_file, serialized_tx)?;
 			println!("{}", timestamp);
 			Ok(())
@@ -225,7 +229,7 @@ pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error 
 			Ok(())
 		},
 		Commands::DustBalance(args) => {
-			let result = dust_balance::execute(args).await?;
+			let result = dust_balance::execute::<SignatureType, ProofType, DefaultDB>(args).await?;
 			match result {
 				DustBalanceResult::Json(json) => {
 					println!("{}", serde_json::to_string_pretty(&json)?);
