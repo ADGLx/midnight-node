@@ -41,6 +41,7 @@ pub mod migrations;
 
 #[frame_support::pallet]
 pub mod pallet {
+	use frame_support::dispatch::PostDispatchInfo;
 	use frame_support::{pallet_prelude::*, sp_runtime::traits::UniqueSaturatedInto};
 	use frame_system::pallet_prelude::*;
 	use midnight_primitives::LedgerBlockContextProvider;
@@ -337,7 +338,12 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(Pallet::<T>::get_tx_weight(midnight_tx))]
-		pub fn send_mn_transaction(_origin: OriginFor<T>, midnight_tx: Vec<u8>) -> DispatchResult {
+		pub fn send_mn_transaction(
+			_origin: OriginFor<T>,
+			midnight_tx: Vec<u8>,
+		) -> DispatchResultWithPostInfo {
+			let weight_limit = Pallet::<T>::get_tx_weight(&midnight_tx);
+
 			let state_key = StateKey::<T>::get().expect("Failed to get state key");
 			let block_context = Self::get_block_context();
 			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
@@ -346,6 +352,7 @@ pub mod pallet {
 				&state_key,
 				&midnight_tx,
 				block_context,
+				weight_limit,
 				runtime_version,
 			)
 			.map_err(Error::<T>::from)?;
@@ -393,7 +400,10 @@ pub mod pallet {
 				Self::deposit_event(Event::TxPartialSuccess(TxAppliedDetails { tx_hash }));
 			}
 
-			Ok(())
+			Ok(PostDispatchInfo {
+				actual_weight: Some(result.consumed_weight),
+				pays_fee: Pays::Yes,
+			})
 		}
 
 		#[pallet::call_index(1)]
