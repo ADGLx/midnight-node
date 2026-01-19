@@ -24,8 +24,9 @@ use midnight_serialize_local::Tagged;
 use transient_crypto_local::commitment::PureGeneratorPedersen;
 
 use alloc::vec::Vec;
-use frame_support::{StorageHasher, Twox128};
+use frame_support::{StorageHasher, Twox128, weights::WeightMeter};
 use sp_externalities::{Externalities, ExternalitiesExt};
+use sp_runtime::Weight;
 
 pub mod types;
 use types::LedgerApiError;
@@ -172,10 +173,12 @@ where
 		state_key: &[u8],
 		tx_serialized: &[u8],
 		block_context: BlockContext,
+		weight_limit: Weight,
 		should_skip_failed_segments: bool,
 	) -> Result<TransactionAppliedStateRoot, LedgerApiError> {
 		// Gather metrics for Prometheus
 		let start_tx_processing_time = Instant::now();
+		let meter = WeightMeter::with_limit(weight_limit);
 		let tx_size = tx_serialized.len();
 
 		let api = api::new();
@@ -220,6 +223,7 @@ where
 			claim_rewards: vec![],
 			unshielded_utxos_created: utxo_outputs,
 			unshielded_utxos_spent: utxo_inputs,
+			consumed_weight: meter.consumed(),
 		};
 
 		for op in operations {

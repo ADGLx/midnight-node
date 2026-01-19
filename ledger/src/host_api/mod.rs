@@ -19,6 +19,7 @@ use crate::{
 	hard_fork_test, latest,
 };
 use alloc::vec::Vec;
+use sp_runtime::Weight;
 use sp_runtime_interface::pass_by::{
 	AllocateAndReturnByCodec, AllocateAndReturnFatPointer, PassFatPointerAndDecode,
 	PassFatPointerAndRead,
@@ -89,6 +90,7 @@ pub trait LedgerBridge {
 			state_key,
 			tx,
 			block_context,
+			Weight::MAX,
 			false,
 		)
 	}
@@ -107,6 +109,27 @@ pub trait LedgerBridge {
 			state_key,
 			tx,
 			block_context,
+			Weight::MAX,
+			true,
+		)
+	}
+
+	#[version(3)]
+	fn apply_transaction(
+		&mut self,
+		state_key: PassFatPointerAndRead<&[u8]>,
+		tx: PassFatPointerAndRead<&[u8]>,
+		block_context: PassFatPointerAndDecode<BlockContext>,
+		weight_limit: PassFatPointerAndDecode<Weight>,
+		_runtime_version: u32,
+	) -> AllocateAndReturnByCodec<Result<TransactionAppliedStateRoot, latest::types::LedgerApiError>>
+	{
+		latest::Bridge::<Signature, Database>::apply_transaction(
+			*self,
+			state_key,
+			tx,
+			block_context,
+			weight_limit,
 			true,
 		)
 	}
@@ -342,6 +365,7 @@ pub trait LedgerBridgeHf {
 		state_key: PassFatPointerAndRead<&[u8]>,
 		tx: PassFatPointerAndRead<&[u8]>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
+		weight_limit: PassFatPointerAndDecode<Weight>,
 		_runtime_version: u32,
 	) -> AllocateAndReturnByCodec<
 		Result<TransactionAppliedStateRoot, hard_fork_test::types::LedgerApiError>,
@@ -351,6 +375,7 @@ pub trait LedgerBridgeHf {
 			state_key,
 			tx,
 			block_context,
+			weight_limit,
 			true,
 		)
 	}

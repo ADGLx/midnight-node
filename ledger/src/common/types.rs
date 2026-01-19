@@ -15,6 +15,7 @@ use alloc::{vec, vec::Vec};
 use parity_scale_codec::{Decode, DecodeWithMemTracking, Encode};
 use scale_info::prelude::string::String;
 use scale_info_derive::TypeInfo;
+use sp_runtime::Weight;
 
 pub const PERSISTENT_HASH_BYTES: usize = 32;
 pub type Hash = [u8; PERSISTENT_HASH_BYTES];
@@ -53,6 +54,7 @@ pub struct TransactionAppliedStateRoot {
 	pub claim_rewards: Vec<u128>,
 	pub unshielded_utxos_created: Vec<UtxoInfo>,
 	pub unshielded_utxos_spent: Vec<UtxoInfo>,
+	pub consumed_weight: Weight,
 }
 
 #[derive(Encode, Decode, DecodeWithMemTracking)]
