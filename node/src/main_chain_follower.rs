@@ -272,7 +272,7 @@ pub async fn create_cnight_observation_data_source(
 async fn get_connection(
 	connection_string: &str,
 	pool_cfg: DbPoolCfg,
-	allow_non_ssl: bool,
+	_allow_non_ssl: bool,
 ) -> Result<sqlx::PgPool, Box<dyn Error + Send + Sync + 'static>> {
 	let connect_options = sqlx::postgres::PgConnectOptions::from_str(connection_string)?;
 	let pool = sqlx::postgres::PgPoolOptions::new()
