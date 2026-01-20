@@ -178,7 +178,7 @@ where
 	) -> Result<TransactionAppliedStateRoot, LedgerApiError> {
 		// Gather metrics for Prometheus
 		let start_tx_processing_time = Instant::now();
-		let meter = WeightMeter::with_limit(weight_limit);
+		let mut meter = WeightMeter::with_limit(weight_limit);
 		let tx_size = tx_serialized.len();
 
 		let api = api::new();
@@ -190,6 +190,17 @@ where
 		let tx_hash = tx.hash();
 		let ledger = Self::get_ledger(&api, state_key)?;
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
+
+		// Calculate transaction weight and consume from meter
+		let cost =
+			tx.0.cost(&ledger.state.parameters, true)
+				.map_err(|_| LedgerApiError::FeeCalculationError)?;
+		let limits = ledger.state.parameters.limits.block_limits;
+		let normalized = cost.normalize(limits).ok_or(LedgerApiError::BlockLimitExceededError)?;
+		let max_weight = weight_limit.ref_time();
+		let gas_cost = scale_normalized_cost(&normalized, max_weight);
+		let tx_weight = Weight::from_parts(gas_cost, 0);
+		meter.consume(tx_weight);
 
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
 		let (mut ledger, applied_stage) = Ledger::apply_transaction(ledger, &api, &tx, &tx_ctx)?;
