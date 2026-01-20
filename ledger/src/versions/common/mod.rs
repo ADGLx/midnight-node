@@ -192,13 +192,9 @@ where
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
 
 		// Calculate transaction weight and consume from meter
-		let cost =
-			tx.0.cost(&ledger.state.parameters, true)
-				.map_err(|_| LedgerApiError::FeeCalculationError)?;
-		let limits = ledger.state.parameters.limits.block_limits;
-		let normalized = cost.normalize(limits).ok_or(LedgerApiError::BlockLimitExceededError)?;
 		let max_weight = weight_limit.ref_time();
-		let gas_cost = scale_normalized_cost(&normalized, max_weight);
+		let gas_cost =
+			Self::get_transaction_cost(state_key, tx_serialized, &block_context, max_weight)?;
 		let tx_weight = Weight::from_parts(gas_cost, 0);
 		meter.consume(tx_weight);
 
