@@ -146,7 +146,6 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Council members reset
 		CouncilMembersReset { members: Vec<T::AccountId>, members_mainchain: Vec<MainchainMember> },
@@ -506,6 +505,10 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		fn deposit_event(event: Event<T>) {
+			midnight_primitives::genesis_event::deposit_event::<T, _>(event);
+		}
+
 		fn get_data_from_inherent_data(
 			data: &InherentData,
 		) -> Result<Option<FederatedAuthorityData>, InherentError> {

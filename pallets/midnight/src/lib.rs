@@ -223,7 +223,6 @@ pub mod pallet {
 	// Pallets use events to inform users when important changes are made.
 	// https://docs.substrate.io/main-docs/build/events-errors/
 	#[pallet::event]
-	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event {
 		/// A contract was called.
 		ContractCall(CallDetails),
@@ -455,6 +454,10 @@ pub mod pallet {
 
 	// grcov-excl-start
 	impl<T: Config> Pallet<T> {
+		fn deposit_event(event: Event) {
+			midnight_primitives::genesis_event::deposit_event::<T, _>(event);
+		}
+
 		pub fn initialize_state(network_id: &str, state_key: &[u8]) {
 			//todo add checks
 			let genesis_state_key: BoundedVec<_, _> =

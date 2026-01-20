@@ -180,14 +180,16 @@ pub mod genesis_event {
 	pub fn deposit_event<T, E>(event: E)
 	where
 		T: frame_system::Config,
-		E: Into<T::RuntimeEvent> + core::fmt::Debug,
+		E: Into<T::RuntimeEvent> + core::fmt::Debug + parity_scale_codec::Encode,
 	{
+		use parity_scale_codec::Encode;
 		use sp_runtime::traits::Zero;
 
+		let runtime_event = event.into();
 		if frame_system::Pallet::<T>::block_number().is_zero() {
-			log::trace!(target: LOG_TARGET, "{:?}", event);
+			log::trace!(target: LOG_TARGET, "{:?}", hex::encode(runtime_event.encode()));
 		}
 
-		frame_system::Pallet::<T>::deposit_event(event.into());
+		frame_system::Pallet::<T>::deposit_event(runtime_event);
 	}
 }

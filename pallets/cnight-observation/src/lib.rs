@@ -135,7 +135,6 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		Registration(Registration),
 		Deregistration(Deregistration),
@@ -325,6 +324,10 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		fn deposit_event(event: Event<T>) {
+			midnight_primitives::genesis_event::deposit_event::<T, _>(event);
+		}
+
 		fn get_data_from_inherent_data(
 			data: &InherentData,
 		) -> Option<MidnightObservationTokenMovement> {

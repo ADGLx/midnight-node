@@ -23,7 +23,6 @@ pub mod pallet {
 	pub const EXTRA_WEIGHT_TX_SIZE: Weight = Weight::from_parts(20_000_000_000, 0);
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		SystemTransactionApplied(SystemTransactionApplied),
 	}
@@ -123,6 +122,12 @@ pub mod pallet {
 			));
 
 			Ok(hash)
+		}
+	}
+
+	impl<T: Config> Pallet<T> {
+		fn deposit_event(event: Event<T>) {
+			midnight_primitives::genesis_event::deposit_event::<T, _>(event);
 		}
 	}
 }

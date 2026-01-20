@@ -11,6 +11,7 @@ frame-system.workspace = true
 log.workspace = true
 scale-info = { workspace = true, features = ["derive"] }
 sp-runtime.workspace = true
+hex = { workspace = true }
 sp-core.workspace = true
 parity-scale-codec.workspace = true
 midnight-node-ledger.workspace = true
@@ -23,6 +24,7 @@ std = [
     "parity-scale-codec/std",
     "scale-info/std",
     "sp-runtime/std",
+    "hex/std",
     "sp-core/std",
     "midnight-node-ledger/std",
 ]

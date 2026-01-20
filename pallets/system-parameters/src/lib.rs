@@ -148,7 +148,6 @@ pub mod pallet {
 	// Events
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// Terms and Conditions have been updated
 		TermsAndConditionsUpdated {
@@ -236,6 +235,10 @@ pub mod pallet {
 
 	// Helper functions
 	impl<T: Config> Pallet<T> {
+		fn deposit_event(event: Event<T>) {
+			midnight_primitives::genesis_event::deposit_event::<T, _>(event);
+		}
+
 		/// Get the current Terms and Conditions
 		pub fn get_terms_and_conditions() -> Option<TermsAndConditions<T::Hash>> {
 			TermsAndConditionsStorage::<T>::get()

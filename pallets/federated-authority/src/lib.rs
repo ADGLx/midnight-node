@@ -110,7 +110,6 @@ pub mod pallet {
 	}
 
 	#[pallet::event]
-	#[pallet::generate_deposit(pub(super) fn deposit_event)]
 	pub enum Event<T: Config> {
 		/// A motion was approved by one authority body
 		MotionApproved { motion_hash: T::Hash, auth_id: AuthId },
@@ -321,6 +320,10 @@ pub mod pallet {
 	}
 
 	impl<T: Config> Pallet<T> {
+		fn deposit_event(event: Event<T>) {
+			midnight_primitives::genesis_event::deposit_event::<T, _>(event);
+		}
+
 		fn motion_dispatch(motion_hash: T::Hash) -> DispatchResult {
 			let motion = Motions::<T>::get(motion_hash).ok_or(Error::<T>::MotionNotFound)?;
 			let res = motion.call.dispatch(frame_system::RawOrigin::Root.into());

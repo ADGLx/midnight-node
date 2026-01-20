@@ -7719,7 +7719,10 @@ dependencies = [
 name = "midnight-primitives"
 version = "0.1.0"
 dependencies = [
+ "frame-system",
+ "hex",
  "hex-literal 0.4.1",
+ "log",
  "midnight-node-ledger",
  "parity-scale-codec",
  "scale-info",
@@ -9600,6 +9603,7 @@ dependencies = [
  "frame-system",
  "impl-trait-for-tuples",
  "log",
+ "midnight-primitives",
  "pallet-collective",
  "pallet-membership",
  "parity-scale-codec",
@@ -9617,6 +9621,7 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "midnight-primitives",
  "midnight-primitives-federated-authority-observation",
  "pallet-collective",
  "pallet-membership",
@@ -9975,6 +9980,7 @@ dependencies = [
  "frame-benchmarking",
  "frame-support",
  "frame-system",
+ "midnight-primitives",
  "parity-scale-codec",
  "scale-info",
  "serde",

@@ -15,7 +15,7 @@ scale-info.workspace = true
 log.workspace = true
 sp-inherents.workspace = true
 frame-benchmarking = { workspace = true, optional = true }
-
+midnight-primitives.workspace = true
 
 [dev-dependencies]
 sp-io.workspace = true
@@ -37,6 +37,7 @@ std = [
     "parity-scale-codec/std",
     "midnight-primitives-federated-authority-observation/std",
     "frame-benchmarking?/std",
+    "midnight-primitives/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
