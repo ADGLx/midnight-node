@@ -172,3 +172,22 @@ pub mod well_known_keys {
 	pub const MIDNIGHT_NETWORK_ID_KEY: &[u8] =
 		&hex!["2a760f9a173a6df5cd4373ff49fa999b47872dec514b30607df0c271efce9fc4"];
 }
+
+pub mod genesis_event {
+	const LOG_TARGET: &str = "genesis-event";
+
+	/// Log genesis events and forward the event to `frame_system`.
+	pub fn deposit_event<T, E>(event: E)
+	where
+		T: frame_system::Config,
+		E: Into<T::RuntimeEvent> + core::fmt::Debug,
+	{
+		use sp_runtime::traits::Zero;
+
+		if frame_system::Pallet::<T>::block_number().is_zero() {
+			log::trace!(target: LOG_TARGET, "{:?}", event);
+		}
+
+		frame_system::Pallet::<T>::deposit_event(event.into());
+	}
+}

@@ -7,6 +7,8 @@ license-file.workspace = true
 
 [dependencies]
 hex-literal = { workspace = true, default-features = false }
+frame-system.workspace = true
+log.workspace = true
 scale-info = { workspace = true, features = ["derive"] }
 sp-runtime.workspace = true
 sp-core.workspace = true
@@ -16,6 +18,8 @@ midnight-node-ledger.workspace = true
 [features]
 default = ["std"]
 std = [
+    "frame-system/std",
+    "log/std",
     "parity-scale-codec/std",
     "scale-info/std",
     "sp-runtime/std",
