@@ -226,7 +226,7 @@ jq '[.initial_permissioned_candidates[:3] | .[] | {
     ecdsa_key: .sidechain_pub_key[2:],
     aura_key: .aura_pub_key[2:],
     grandpa_key: .grandpa_pub_key[2:]
-}]' res/qanet/pc-chain-config.json > permissioned_candidates.json
+}]' res/local-environment/pc-chain-config.json > permissioned_candidates.json
 echo "Created permissioned_candidates.json:"
 cat permissioned_candidates.json
 
@@ -259,7 +259,7 @@ echo "=== All Governance Contracts Deployed Successfully ==="
 
 echo "Generating chain-spec.json file for Midnight Nodes..."
 
-cat res/qanet/pc-chain-config.json | jq '.initial_permissioned_candidates |= .[:4]' > /tmp/pc-chain-config-qanet.json
+cat res/local-environment/pc-chain-config.json | jq '.initial_permissioned_candidates |= .[:4]' > /tmp/pc-chain-config-qanet.json
 
 jq 'env as $env | . + {
   "chain_parameters": {
@@ -307,7 +307,7 @@ export CHAINSPEC_GENESIS_BLOCK=res/genesis/genesis_block_undeployed.mn
 export CHAINSPEC_GENESIS_TX=res/genesis/genesis_tx_undeployed.mn  #  0.13.5 compatibility, can be removed in the future
 export CHAINSPEC_CHAIN_TYPE=live
 export CHAINSPEC_PC_CHAIN_CONFIG=/tmp/pc-chain-config.json
-export CHAINSPEC_CNIGHT_GENESIS=res/qanet/cnight-genesis.json
+export CHAINSPEC_CNIGHT_GENESIS=res/local-environment/cnight-genesis.json
 export CHAINSPEC_FEDERATED_AUTHORITY_CONFIG=/tmp/federated-authority-config.json
 export CHAINSPEC_SYSTEM_PARAMETERS_CONFIG=/tmp/system-parameters-config.json
 ./midnight-node build-spec --disable-default-bootnode > chain-spec.json
