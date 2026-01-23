@@ -409,7 +409,7 @@ pub mod pallet {
 		#[pallet::call_index(1)]
 		#[pallet::weight((T::DbWeight::get().writes(1), DispatchClass::Operational))]
 		// A system transaction for configuring contract call weights
-		pub fn set_tx_size_weight(origin: OriginFor<T>, new_weight: Weight) -> DispatchResult {
+		pub fn set_tx_size_weightt(origin: OriginFor<T>, new_weight: Weight) -> DispatchResult {
 			ensure_root(origin)?;
 			ConfigurableTransactionSizeWeight::<T>::set(new_weight);
 			Ok(())
