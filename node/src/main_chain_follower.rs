@@ -280,6 +280,7 @@ async fn get_connection(
 		} else {
 			sqlx::postgres::PgSslMode::Require
 		});
+
 	let pool = sqlx::postgres::PgPoolOptions::new()
 		.max_connections(pool_cfg.max_connections)
 		.acquire_timeout(pool_cfg.acquire_timeout)
