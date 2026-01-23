@@ -25,6 +25,8 @@ use hex::{ToHex, encode as hex_encode};
 use lazy_static::lazy_static;
 use std::{
 	collections::{HashMap, HashSet},
+	fs::OpenOptions,
+	io::Write,
 	sync::Mutex,
 	time::{SystemTime, UNIX_EPOCH},
 };
@@ -120,9 +122,20 @@ impl<D: DB + Clone> LedgerContext<D> {
 	) where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
+		// Capture pre-block state for debugging (before any mutations)
+		let pre_block_state: Option<Vec<u8>> = if state_root.is_some()
+			&& block_context.parent_block_hash.0
+				== hex_literal::hex!(
+					"51eea6988210397f9de4bff178657f1a7bd8fdf7215f9072530aed25e542640d"
+				) {
+			self.ledger_state.lock().ok().and_then(|s| super::serialize(&*s).ok())
+		} else {
+			None
+		};
+
 		let mut total_cost = SyntheticCost::ZERO;
-		for tx in txs {
-			let (events, cost) = self.update_from_tx(&tx, &block_context);
+		for tx in &txs {
+			let (events, cost) = self.update_from_tx(tx, &block_context);
 			for wallet in
 				self.wallets.lock().expect("Error locking `LedgerContext` wallets").values_mut()
 			{
@@ -147,12 +160,41 @@ impl<D: DB + Clone> LedgerContext<D> {
 			.post_block_update(block_context.tblock, normalized_fullness, overall_fullness)
 			.expect("Error applying block updates");
 		if let Some(expected_root) = state_root {
-			match Self::compute_state_root(&*latest_ledger_state) {
-				Some(actual_root) if actual_root != expected_root => {
+			let actual_root = Self::compute_state_root(&*latest_ledger_state);
+
+			// Log every block's state roots for comparison across runs (diagnostic for
+			// intermittent state root mismatch bug)
+			if let Ok(mut file) =
+				OpenOptions::new().create(true).append(true).open("/tmp/state_roots.log")
+			{
+				let _ = writeln!(
+					file,
+					"block={}, expected={}, actual={}, parent={}, tx_count={}",
+					block_context.tblock.to_secs(),
+					hex_encode(&expected_root),
+					actual_root
+						.as_ref()
+						.map(|r| hex_encode(r))
+						.unwrap_or_else(|| "NONE".to_string()),
+					hex_encode(block_context.parent_block_hash.0),
+					txs.len(),
+				);
+			}
+
+			match actual_root {
+				Some(actual) if actual != expected_root => {
+					// Dump reproducible test data
+					Self::dump_mismatch_data(
+						&pre_block_state,
+						&txs,
+						&block_context,
+						&expected_root,
+						&actual,
+					);
 					panic!(
-						"Ledger state root mismatch: expected {}, actual {}. Parent block hash: {}",
+						"Ledger state root mismatch: expected {}, actual {}. Parent block hash: {}. Test data dumped to /tmp/state_mismatch/",
 						hex_encode(&expected_root),
-						hex_encode(&actual_root),
+						hex_encode(&actual),
 						hex_encode(block_context.parent_block_hash.0),
 					);
 				},
@@ -188,11 +230,64 @@ impl<D: DB + Clone> LedgerContext<D> {
 			})
 	}
 
-	fn compute_state_root(state: &LedgerState<D>) -> Option<Vec<u8>> {
+	pub fn compute_state_root(state: &LedgerState<D>) -> Option<Vec<u8>> {
 		let storage = default_storage::<D>();
 		let ledger = StorableLedgerState::new(state.clone());
 		let sp = storage.arena.alloc(ledger);
 		super::serialize(&sp.as_typed_key()).ok()
+	}
+
+	/// Dump all data needed to reproduce a state root mismatch for debugging.
+	fn dump_mismatch_data<S: SignatureKind<D>, P: ProofKind<D>>(
+		pre_block_state: &Option<Vec<u8>>,
+		txs: &[SerdeTransaction<S, P, D>],
+		block_context: &BlockContext,
+		expected_root: &[u8],
+		actual_root: &[u8],
+	) where
+		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
+	{
+		use std::fs;
+
+		let dir = "/tmp/state_mismatch";
+		fs::create_dir_all(dir).expect("Failed to create mismatch dump dir");
+
+		// Dump pre-block ledger state
+		if let Some(state_bytes) = pre_block_state {
+			fs::write(format!("{dir}/pre_block_state.bin"), state_bytes)
+				.expect("Failed to write pre_block_state.bin");
+		}
+
+		// Dump transactions
+		for (i, tx) in txs.iter().enumerate() {
+			let tx_bytes = tx.serialize_inner().expect("Failed to serialize tx");
+			fs::write(format!("{dir}/tx_{i}.bin"), &tx_bytes).expect("Failed to write tx bin");
+		}
+
+		// Dump block context
+		let ctx_bytes = super::serialize(block_context).expect("Failed to serialize block_context");
+		fs::write(format!("{dir}/block_context.bin"), &ctx_bytes)
+			.expect("Failed to write block_context.bin");
+
+		// Dump human-readable summary
+		let summary = format!(
+			"tblock_secs={}\ntblock_err={}\nparent_block_hash={}\nexpected_root={}\nactual_root={}\ntx_count={}\n",
+			block_context.tblock.to_secs(),
+			block_context.tblock_err,
+			hex_encode(block_context.parent_block_hash.0),
+			hex_encode(expected_root),
+			hex_encode(actual_root),
+			txs.len(),
+		);
+		fs::write(format!("{dir}/summary.txt"), &summary).expect("Failed to write summary.txt");
+
+		// Dump expected and actual roots
+		fs::write(format!("{dir}/expected_root.bin"), expected_root)
+			.expect("Failed to write expected_root.bin");
+		fs::write(format!("{dir}/actual_root.bin"), actual_root)
+			.expect("Failed to write actual_root.bin");
+
+		println!("Mismatch data dumped to {dir}/");
 	}
 
 	pub fn update_from_tx<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
@@ -369,13 +464,25 @@ impl<D: DB + Clone> LedgerContext<D> {
 	where
 		F: FnOnce(&mut Wallet<D>, &mut Wallet<D>) -> R,
 	{
-		let mut wallet_guard = self.wallets.lock().expect("Error locking `LedgerContext` wallets");
-		let origin_wallet = Self::wallet_for_seed(&mut wallet_guard, origin_seed);
+		assert_ne!(origin_seed, destination_seed, "Origin and destination seeds must be different");
 
 		let mut wallet_guard = self.wallets.lock().expect("Error locking `LedgerContext` wallets");
-		let destination_wallet = Self::wallet_for_seed(&mut wallet_guard, destination_seed);
 
-		f(origin_wallet, destination_wallet)
+		// Remove both wallets temporarily to get mutable references without borrowing issues
+		let mut origin_wallet = wallet_guard
+			.remove(&origin_seed)
+			.unwrap_or_else(|| panic!("Wallet with seed {:?} does not exist", origin_seed));
+		let mut destination_wallet = wallet_guard
+			.remove(&destination_seed)
+			.unwrap_or_else(|| panic!("Wallet with seed {:?} does not exist", destination_seed));
+
+		let result = f(&mut origin_wallet, &mut destination_wallet);
+
+		// Reinsert wallets
+		wallet_guard.insert(origin_seed, origin_wallet);
+		wallet_guard.insert(destination_seed, destination_wallet);
+
+		result
 	}
 
 	pub fn with_ledger_state<F, R>(&self, f: F) -> R
@@ -395,3 +502,4 @@ impl<D: DB + Clone> LedgerContext<D> {
 		})
 	}
 }
+

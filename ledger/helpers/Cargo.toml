@@ -6,6 +6,7 @@ license-file.workspace = true
 
 [dependencies]
 hex.workspace = true
+hex-literal = { workspace = true}
 mn-ledger = { workspace = true, features = ["proving", "test-utilities"] }
 base-crypto = { workspace = true }
 coin-structure = { workspace = true }

@@ -7418,6 +7418,7 @@ dependencies = [
  "derive-where",
  "futures",
  "hex",
+ "hex-literal 0.4.1",
  "itertools 0.14.0",
  "lazy_static",
  "midnight-base-crypto 1.0.0-rc.4",
