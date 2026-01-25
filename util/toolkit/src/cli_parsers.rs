@@ -15,6 +15,8 @@ use std::str::FromStr;
 
 use midnight_node_ledger_helpers::*;
 
+use crate::tx_generator::source::FetchCacheConfig;
+
 pub trait TokenDecode: Sized + Send + Sync + Clone {
 	fn decode(token_id: [u8; 32]) -> Self;
 }
@@ -44,6 +46,17 @@ pub fn wallet_seed_decode(input: &str) -> Result<WalletSeed, clap::error::Error>
 		err.insert(
 			clap::error::ContextKind::Custom,
 			clap::error::ContextValue::String(format!("failed to parse seed: {}", e)),
+		);
+		err
+	})
+}
+
+pub fn keypair_from_str(input: &str) -> Result<Keypair, clap::error::Error> {
+	input.parse().map_err(|e| {
+		let mut err = clap::Error::new(clap::error::ErrorKind::ValueValidation);
+		err.insert(
+			clap::error::ContextKind::Custom,
+			clap::error::ContextValue::String(format!("failed to parse keypair: {}", e)),
 		);
 		err
 	})
@@ -115,18 +128,24 @@ where
 	Ok(res)
 }
 
-pub fn hex_str_decode<T>(input: &str) -> Result<T, clap::error::Error>
-where
-	T: TryFrom<Vec<u8>, Error = Vec<u8>>,
-{
-	let bytes = hex::decode(input).map_err(|e| {
+pub fn hex_bytes(input: &str) -> Result<Vec<u8>, clap::error::Error> {
+	// Remove 0x prefix if present
+	let hex_str = input.strip_prefix("0x").unwrap_or(input);
+	hex::decode(hex_str).map_err(|e| {
 		let mut err = clap::Error::new(clap::error::ErrorKind::ValueValidation);
 		err.insert(
 			clap::error::ContextKind::Custom,
 			clap::error::ContextValue::String(format!("failed to parse seed: {}", e)),
 		);
 		err
-	})?;
+	})
+}
+
+pub fn hex_str_decode<T>(input: &str) -> Result<T, clap::error::Error>
+where
+	T: TryFrom<Vec<u8>, Error = Vec<u8>>,
+{
+	let bytes = hex_bytes(input)?;
 
 	let res: T = bytes.try_into().map_err(|e: Vec<u8>| {
 		let mut err = clap::Error::new(clap::error::ErrorKind::ValueValidation);
@@ -141,6 +160,19 @@ where
 	})?;
 
 	Ok(res)
+}
+
+pub fn fetch_cache_config(input: &str) -> Result<FetchCacheConfig, clap::Error> {
+	FetchCacheConfig::from_str(input).map_err(|error| {
+		let mut err = clap::Error::new(clap::error::ErrorKind::ValueValidation);
+
+		err.insert(
+			clap::error::ContextKind::Custom,
+			clap::error::ContextValue::String(format!("invalid fetch cache config: {}", error)),
+		);
+
+		err
+	})
 }
 
 pub fn wallet_address(input: &str) -> Result<WalletAddress, clap::Error> {

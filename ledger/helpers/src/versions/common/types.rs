@@ -27,6 +27,7 @@ use std::{
 	marker::PhantomData,
 	time::{SystemTime, UNIX_EPOCH},
 };
+use subxt_signer::{SecretUri, SecretUriError, sr25519};
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug)]
 pub enum WalletSeed {
@@ -144,6 +145,53 @@ impl FromStr for WalletSeed {
 	}
 }
 
+#[derive(Clone)]
+pub struct Keypair(pub sr25519::Keypair);
+
+#[derive(Debug, thiserror::Error)]
+pub enum KeypairParseError {
+	#[error("Falied to decode secret as hex")]
+	HexParseFailed(#[from] hex::FromHexError),
+	#[error("Secret key bytes length != 32")]
+	LengthCheckFailed,
+	#[error("Secret URI parse error: {0}")]
+	UriParseFailed(#[from] SecretUriError),
+	#[error("Subxt signer error: {0}")]
+	SubxtSignerError(#[from] sr25519::Error),
+	#[error("Subxt error: {0}")]
+	SubxtError(#[from] subxt::Error),
+	#[error("BIP error: {0}")]
+	BipError(#[from] bip39::Error),
+}
+
+impl From<sr25519::Keypair> for Keypair {
+	fn from(val: sr25519::Keypair) -> Self {
+		Keypair(val)
+	}
+}
+
+impl FromStr for Keypair {
+	type Err = KeypairParseError;
+	fn from_str(key_str: &str) -> Result<Self, Self::Err> {
+		let key_str = key_str.trim();
+		// Supports seed phrases
+		if key_str.contains('/') {
+			let uri = SecretUri::from_str(key_str)?;
+			Ok(sr25519::Keypair::from_uri(&uri)?.into())
+		} else if key_str.contains(' ') {
+			let phrase = Mnemonic::parse(key_str)?;
+			Ok(sr25519::Keypair::from_phrase(&phrase, None)?.into())
+		} else {
+			// Parse hex-encoded private key (32-byte sr25519 mini secret key)
+			let hex_str = key_str.strip_prefix("0x").unwrap_or(key_str);
+			let seed_bytes = hex::decode(hex_str)?;
+			let secret_key: [u8; 32] =
+				seed_bytes.try_into().map_err(|_| KeypairParseError::LengthCheckFailed)?;
+			Ok(Keypair(sr25519::Keypair::from_secret_key(secret_key)?))
+		}
+	}
+}
+
 pub type MaintenanceCounter = u32;
 
 #[derive(Default, Clone)]
@@ -222,6 +270,12 @@ impl From<Segment> for u16 {
 			Segment::Guaranteed => 0,
 			Segment::Fallible => 1,
 		}
+	}
+}
+
+impl From<Segment> for Option<u16> {
+	fn from(val: Segment) -> Self {
+		Some(val.into())
 	}
 }
 
