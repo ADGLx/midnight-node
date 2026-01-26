@@ -274,12 +274,7 @@ async fn get_connection(
 	pool_cfg: DbPoolCfg,
 	allow_non_ssl: bool,
 ) -> Result<sqlx::PgPool, Box<dyn Error + Send + Sync + 'static>> {
-	let connect_options =
-		sqlx::postgres::PgConnectOptions::from_str(connection_string)?.ssl_mode(if allow_non_ssl {
-			sqlx::postgres::PgSslMode::Prefer
-		} else {
-			sqlx::postgres::PgSslMode::Require
-		});
+	let connect_options = PgConnectOptions::from_str(connection_string)?;
 
 	let pool = sqlx::postgres::PgPoolOptions::new()
 		.max_connections(pool_cfg.max_connections)
