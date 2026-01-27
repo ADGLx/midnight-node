@@ -332,12 +332,12 @@ pub mod pallet {
 	#[pallet::call]
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
-		#[pallet::weight(Pallet::<T>::get_tx_weight(midnight_tx))]
+		#[pallet::weight(16_500_000_000)]
 		pub fn send_mn_transaction(
 			_origin: OriginFor<T>,
 			midnight_tx: Vec<u8>,
 		) -> DispatchResultWithPostInfo {
-			let weight_limit = Pallet::<T>::get_tx_weight(&midnight_tx);
+			let weight_limit = Weight::from_parts(16_500_000_000, 0);
 
 			let state_key = StateKey::<T>::get().expect("Failed to get state key");
 			let block_context = Self::get_block_context();
@@ -395,12 +395,8 @@ pub mod pallet {
 				Self::deposit_event(Event::TxPartialSuccess(TxAppliedDetails { tx_hash }));
 			}
 
-			Ok(PostDispatchInfo {
-				actual_weight: Some(result.consumed_weight),
-				pays_fee: Pays::Yes,
-			})
+			Ok(PostDispatchInfo { actual_weight: Some(weight_limit), pays_fee: Pays::Yes })
 		}
-
 	}
 
 	#[pallet::validate_unsigned]
