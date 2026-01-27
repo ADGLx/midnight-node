@@ -511,6 +511,8 @@ where
 
 		let gas_cost = scale_normalized_cost(&normalized, max_weight);
 
+		let gas_cost = (cost.read_time + cost.compute_time).into_picoseconds();
+
 		Ok(gas_cost)
 	}
 
