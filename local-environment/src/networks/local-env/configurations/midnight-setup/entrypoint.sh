@@ -111,6 +111,7 @@ done
 # This ensures the chain-spec uses the Aiken contract policy ID for permissioned candidates
 AIKEN_PERMISSIONED_CANDIDATES_POLICY_ID=$(cat "${RUNTIME_VALUES}/federated_ops_forever_policy_id.txt")
 export PERMISSIONED_CANDIDATES_POLICY_ID="$AIKEN_PERMISSIONED_CANDIDATES_POLICY_ID"
+echo "Federated Ops policy ID (from ${RUNTIME_VALUES}/federated_ops_forever_policy_id.txt): ${PERMISSIONED_CANDIDATES_POLICY_ID}"
 
 # Get the funded address from the shared volume
 FUNDED_ADDRESS=$(cat /shared/FUNDED_ADDRESS)
@@ -233,6 +234,7 @@ cat permissioned_candidates.json
 # Note: federated-ops uses a different datum structure (FederatedOps with appendix field)
 echo ""
 echo "=== Deploying Federated Ops Forever Contract ==="
+FEDOPS_OUTPUT_FILE=/tmp/federated_ops_deploy_output.txt
 ./aiken-deployer \
     --contract-cbor "${RUNTIME_VALUES}/federated_ops_forever.cbor" \
     --one-shot-utxo "${FEDOPS_ONESHOT_HASH}#${FEDOPS_ONESHOT_INDEX}" \
@@ -241,12 +243,19 @@ echo "=== Deploying Federated Ops Forever Contract ==="
     --members-file council_members.json \
     --ogmios-url "$OGMIOS_URL" \
     --contract-type federated-ops \
-    --candidates-file permissioned_candidates.json
+    --candidates-file permissioned_candidates.json 2>&1 | tee "$FEDOPS_OUTPUT_FILE"
+FEDOPS_EXIT_CODE=${PIPESTATUS[0]}
 
-if [ $? -eq 0 ]; then
+if [ $FEDOPS_EXIT_CODE -eq 0 ]; then
     echo "✓ Federated Ops Forever contract deployed successfully!"
+    # Parse policy ID and script address from output
+    FEDOPS_POLICY_ID=$(grep "Policy ID:" "$FEDOPS_OUTPUT_FILE" | head -1 | awk '{print $3}')
+    FEDOPS_SCRIPT_ADDRESS=$(grep "Script address:" "$FEDOPS_OUTPUT_FILE" | head -1 | awk '{print $3}')
+    echo "  Captured federated-ops policy ID: $FEDOPS_POLICY_ID"
+    echo "  Captured federated-ops script address: $FEDOPS_SCRIPT_ADDRESS"
 else
     echo "✗ Federated Ops Forever contract deployment failed"
+    cat "$FEDOPS_OUTPUT_FILE"
     exit 1
 fi
 
@@ -260,6 +269,10 @@ echo "Generating chain-spec.json file for Midnight Nodes..."
 
 cat res/qanet/pc-chain-config.json | jq '.initial_permissioned_candidates |= .[:4]' > /tmp/pc-chain-config-qanet.json
 
+echo "Injecting Federated Ops values into pc-chain-config.json..."
+echo "  committee_candidates_address: addr_test1wr4zpkfvylru9y3zahezf6vvfz7hlhf2pa4h9vxq70xwqzszre3qk"
+echo "  permissioned_candidates_policy_id: ${PERMISSIONED_CANDIDATES_POLICY_ID}"
+
 jq 'env as $env | . + {
   "chain_parameters": {
     "genesis_utxo": $env.GENESIS_UTXO
@@ -269,6 +282,7 @@ jq 'env as $env | . + {
     "permissioned_candidates_policy_id": $env.PERMISSIONED_CANDIDATES_POLICY_ID,
   }
 }' /tmp/pc-chain-config-qanet.json > /tmp/pc-chain-config.json
+echo "pc-chain-config.json permissioned_candidates_policy_id: $(jq -r '.cardano_addresses.permissioned_candidates_policy_id' /tmp/pc-chain-config.json)"
 
 # Create patched federated-authority-config.json with Aiken policy IDs and addresses
 echo "Patching federated-authority-config.json with deployed Aiken contract values..."

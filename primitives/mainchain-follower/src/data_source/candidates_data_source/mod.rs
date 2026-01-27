@@ -13,6 +13,7 @@
 
 //! Db-Sync data source used by Partner Chain committee selection
 use authority_selection_inherents::*;
+use cardano_serialization_lib::PlutusData;
 use db_sync_sqlx::{Address, Asset, BlockNumber, EpochNumber};
 use itertools::Itertools;
 use log::error;
@@ -20,8 +21,10 @@ use partner_chains_db_sync_data_sources::McFollowerMetrics;
 use partner_chains_plutus_data::{
 	permissioned_candidates::PermissionedCandidateDatums,
 	registered_candidates::RegisterValidatorDatum,
+	PlutusDataExtensions,
 };
 use sidechain_domain::*;
+use sp_runtime::KeyTypeId;
 use sqlx::PgPool;
 use std::collections::HashMap;
 use std::error::Error;
@@ -84,7 +87,7 @@ impl AuthoritySelectionDataSource for CandidatesDataSourceImpl {
 				let candidates_datum = candidates_output.datum.ok_or(
 					db_model::DataSourceError::ExpectedDataNotFound("Permissioned Candidates List Datum".to_string()),
 				)?;
-				Some(PermissionedCandidateDatums::try_from(candidates_datum.0)?.into())
+				Some(decode_permissioned_candidates(&candidates_datum)?)
 			},
 		};
 
@@ -322,6 +325,118 @@ impl CandidatesDataSourceImpl {
 			.into()
 		})
 	}
+}
+
+fn decode_permissioned_candidates(
+	datum: &db_model::DbDatum,
+) -> Result<Vec<PermissionedCandidateData>, Box<dyn std::error::Error + Send + Sync>> {
+	match PermissionedCandidateDatums::try_from(datum.0.clone()) {
+		Ok(parsed) => {
+			let version = permissioned_candidates_version(&datum.0);
+			let candidates: Vec<PermissionedCandidateData> = parsed.into();
+			log::info!(
+				"Decoded permissioned candidates datum (version {:?}) with {} candidates.",
+				version,
+				candidates.len()
+			);
+			Ok(candidates)
+		},
+		Err(err) => match permissioned_candidates_version(&datum.0) {
+			Some(2) => {
+				let candidates = decode_permissioned_candidates_v2(&datum.0)
+					.map_err(|msg| db_model::DataSourceError::InvalidData(msg))?;
+				log::info!(
+					"Decoded permissioned candidates datum (version 2) with {} candidates.",
+					candidates.len()
+				);
+				Ok(candidates)
+			},
+			Some(version) => {
+				log::warn!(
+					"Unsupported PermissionedCandidateDatums version {}. Consider adding a local decoder.",
+					version
+				);
+				Err(err.into())
+			},
+			None => {
+				log::warn!(
+					"Permissioned candidates datum is not versioned or has unexpected shape."
+				);
+				Err(err.into())
+			},
+		},
+	}
+}
+
+fn permissioned_candidates_version(datum: &PlutusData) -> Option<u64> {
+	let fields = datum.as_list().filter(|outer_list| outer_list.len() == 3)?;
+	fields.get(2).as_u64()
+}
+
+fn decode_permissioned_candidates_v2(datum: &PlutusData) -> Result<Vec<PermissionedCandidateData>, String> {
+	let fields = datum
+		.as_list()
+		.filter(|outer_list| outer_list.len() == 3)
+		.ok_or("Expected VersionedGenericDatum list with 3 items")?;
+	let appendix = fields.get(1);
+	decode_permissioned_candidates_appendix_v1(&appendix)
+}
+
+fn decode_permissioned_candidates_appendix_v1(
+	appendix: &PlutusData,
+) -> Result<Vec<PermissionedCandidateData>, String> {
+	let list = appendix
+		.as_list()
+		.ok_or("Expected appendix to be a list of candidates")?;
+	let mut candidates = Vec::with_capacity(list.len());
+	for candidate in list.into_iter() {
+		candidates.push(decode_permissioned_candidate_v1(&candidate)?);
+	}
+	Ok(candidates)
+}
+
+fn decode_permissioned_candidate_v1(candidate: &PlutusData) -> Result<PermissionedCandidateData, String> {
+	let list = candidate
+		.as_list()
+		.filter(|l| l.len() == 2)
+		.ok_or("Expected candidate to be [partner_chains_key, keys]")?;
+	let partner_chains_key = list
+		.get(0)
+		.as_bytes()
+		.ok_or("Expected partner_chains_key as bytes")?;
+	let keys = list
+		.get(1)
+		.as_list()
+		.ok_or("Expected keys list")?;
+
+	let mut candidate_keys = Vec::with_capacity(keys.len());
+	for key in keys.into_iter() {
+		candidate_keys.push(decode_candidate_key_v1(&key)?);
+	}
+
+	Ok(PermissionedCandidateData {
+		sidechain_public_key: SidechainPublicKey(partner_chains_key),
+		keys: CandidateKeys(candidate_keys),
+	})
+}
+
+fn decode_candidate_key_v1(key: &PlutusData) -> Result<CandidateKey, String> {
+	let list = key
+		.as_list()
+		.filter(|l| l.len() == 2)
+		.ok_or("Expected key to be [id, bytes]")?;
+	let id_bytes = list
+		.get(0)
+		.as_bytes()
+		.ok_or("Expected key id bytes")?;
+	let id: [u8; 4] = id_bytes
+		.try_into()
+		.map_err(|_| "Expected key id to be 4 bytes")?;
+	let key_bytes = list
+		.get(1)
+		.as_bytes()
+		.ok_or("Expected key bytes")?;
+	Ok(CandidateKey::new(KeyTypeId(id), key_bytes))
 }
 
 /// Logs each method invocation and each returned result.

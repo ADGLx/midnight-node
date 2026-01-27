@@ -136,7 +136,7 @@ pub fn build_governance_redeemer(members: &[GovernanceMember]) -> serde_json::Va
 /// - appendix: list of `[partner_chains_key, keys]` where:
 ///   - partner_chains_key: ECDSA cross-chain key
 ///   - keys: list of `[id, bytes]` pairs (e.g., `[aura_id, aura_key]`)
-/// - logic_round: 1 (required for partner-chains SDK compatibility - maps to version=1 parsing)
+/// - logic_round: 2 (forces a new version for testing decode changes)
 pub fn build_federated_ops_datum(candidates: &[FederatedOpsCandidate]) -> serde_json::Value {
 	let aura_id = "61757261"; // "aura" in hex
 	let gran_id = "6772616e"; // "gran" in hex
@@ -168,7 +168,7 @@ pub fn build_federated_ops_datum(candidates: &[FederatedOpsCandidate]) -> serde_
 		"list": [
 			{"list": []},           // data: empty
 			{"list": appendix},     // appendix: list of candidates
-			{"int": 1}              // logic_round: 1 (SDK parses as version=1 for V1 appendix format)
+			{"int": 2}              // logic_round: 2 (new version for decode testing)
 		]
 	})
 }
