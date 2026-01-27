@@ -164,11 +164,6 @@ pub mod pallet {
 	}
 
 	#[pallet::storage]
-	#[pallet::getter(fn configurable_transaction_size_weight)]
-	pub type ConfigurableTransactionSizeWeight<T> =
-		StorageValue<_, Weight, ValueQuery, DefaultWeight>;
-
-	#[pallet::storage]
 	pub type ConfigurableOnInitializeWeight<T> = StorageValue<_, Weight, ValueQuery, DefaultWeight>;
 
 	#[pallet::storage]
@@ -395,15 +390,6 @@ pub mod pallet {
 
 			Ok(())
 		}
-
-		#[pallet::call_index(1)]
-		#[pallet::weight((T::DbWeight::get().writes(1), DispatchClass::Operational))]
-		// A system transaction for configuring contract call weights
-		pub fn set_tx_size_weight(origin: OriginFor<T>, new_weight: Weight) -> DispatchResult {
-			ensure_root(origin)?;
-			ConfigurableTransactionSizeWeight::<T>::set(new_weight);
-			Ok(())
-		}
 	}
 
 	#[pallet::validate_unsigned]
@@ -560,7 +546,6 @@ pub mod pallet {
 			Self::get_transaction_cost(tx)
 				.map(|gas_cost| Weight::from_parts(gas_cost, 0))
 				.unwrap_or(crate::EXTRA_WEIGHT_TX_SIZE)
-				+ ConfigurableTransactionSizeWeight::<T>::get()
 		}
 	}
 }
