@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+extern crate alloc;
+
 #[cfg(feature = "runtime-benchmarks")]
 pub mod benchmarking;
 pub mod cfg;
@@ -22,6 +24,7 @@ pub mod extensions;
 pub mod federated_authority_genesis;
 pub mod inherent_data;
 pub mod main_chain_follower;
+pub mod metrics_push;
 pub mod partner_chains;
 pub mod payload;
 pub mod rpc;
