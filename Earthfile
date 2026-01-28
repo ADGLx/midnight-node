@@ -491,11 +491,13 @@ reserve-contracts-base:
     # Install bun
     RUN npm install -g bun
 
-    # Install jq (required by build_contracts.sh)
-    RUN apt-get update && apt-get install -y jq
+    # Install jq and curl (required by build_contracts.sh)
+    RUN apt-get update && apt-get install -y jq curl
 
-    # Install toml-cli (required by build_contracts.sh)
-    RUN npm install -g smol-toml-cli && ln -s /usr/local/bin/smol-toml /usr/local/bin/toml
+    # Install Rust and toml-cli (required by build_contracts.sh for toml get/set commands)
+    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain stable --profile minimal
+    ENV PATH="/root/.cargo/bin:${PATH}"
+    RUN cargo install toml-cli
 
     # Install gh CLI (same pattern as contract-precompile-image)
     RUN (type -p wget >/dev/null || (apt update && apt install wget -y)) \
