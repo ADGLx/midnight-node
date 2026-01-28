@@ -28,6 +28,7 @@ earthly doc                               # List all available targets
 **GitHub PR bots:** Comment on a PR to trigger rebuilds:
 - `/bot rebuild-metadata` - Rebuild runtime metadata
 - `/bot rebuild-chainspec <network1> <network2>` - Rebuild chainspecs for specified networks
+- `/bot rebuild-reserve-contracts-info` - Rebuild reserve contracts info for all networks
 - `/bot cargo-fmt` - Run cargo fmt
 
 **E2E tests (just):**
