@@ -542,10 +542,15 @@ reserve-contracts-info-preview:
 reserve-contracts-info-preprod:
     BUILD +reserve-contracts-info --NETWORK=preprod
 
+# reserve-contracts-info-mainnet Generate reserve contracts info for mainnet network
+reserve-contracts-info-mainnet:
+    BUILD +reserve-contracts-info --NETWORK=mainnet
+
 # reserve-contracts-info-all Generate reserve contracts info for all networks
 reserve-contracts-info-all:
     BUILD +reserve-contracts-info-preview
     BUILD +reserve-contracts-info-preprod
+    BUILD +reserve-contracts-info-mainnet
 
 # ci runs a quick approximation of the ci targets
 ci:
