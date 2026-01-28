@@ -519,7 +519,6 @@ reserve-contracts-info:
 
     # Clone private repo using gh CLI with secret
     RUN --secret GH_TOKEN \
-        export GH_TOKEN=$(cat /run/secrets/GH_TOKEN) && \
         gh repo clone midnightntwrk/midnight-reserve-contracts /reserve-contracts -- \
         --depth 1 --branch $RESERVE_CONTRACTS_REF
 
