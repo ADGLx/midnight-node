@@ -19,6 +19,7 @@ earthly -P +rebuild-chainspec --NETWORK=<network>  # Rebuild chainspec for netwo
 earthly -P +rebuild-all-chainspecs        # Rebuild all chainspecs
 earthly -P +rebuild-genesis-state-<NETWORK>  # Rebuild genesis for specific network
 earthly -P +rebuild-all-genesis-states    # Rebuild all network genesis states
+earthly --secret GH_TOKEN +reserve-contracts-info --NETWORK=<network>  # Generate reserve contracts info JSON
 earthly +node-image                       # Build node Docker image
 earthly --secret GITHUB_TOKEN +toolkit-image  # Build toolkit image
 earthly doc                               # List all available targets

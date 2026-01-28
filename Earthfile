@@ -477,6 +477,71 @@ rebuild-genesis:
     BUILD +rebuild-all-chainspecs
     RUN echo "Rebuilt genesis and chainspecs"
 
+# ================ RESERVE CONTRACTS ================
+
+# reserve-contracts-base Base image for building reserve contracts and running CLI
+reserve-contracts-base:
+    # aiken doesn't support arm yet.
+    FROM --platform=linux/amd64 node:22-trixie
+
+    # renovate: datasource=npm packageName=aiken-lang/aiken
+    ENV aiken_version=1.1.21
+    RUN npm install -g @aiken-lang/aiken@${aiken_version}
+
+    # Install bun
+    RUN npm install -g bun
+
+    # Install jq (required by build_contracts.sh)
+    RUN apt-get update && apt-get install -y jq
+
+    # Install toml-cli (required by build_contracts.sh)
+    RUN npm install -g smol-toml-cli && ln -s /usr/local/bin/smol-toml /usr/local/bin/toml
+
+    # Install gh CLI (same pattern as contract-precompile-image)
+    RUN (type -p wget >/dev/null || (apt update && apt install wget -y)) \
+        && mkdir -p -m 755 /etc/apt/keyrings \
+        && out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        && cat $out | tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+        && chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+        && mkdir -p -m 755 /etc/apt/sources.list.d \
+        && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+        && apt update \
+        && apt install gh -y
+
+# reserve-contracts-info Generate contract info JSON for a network
+reserve-contracts-info:
+    ARG NETWORK=preview
+    ARG RESERVE_CONTRACTS_REF=main
+
+    FROM +reserve-contracts-base
+
+    # Clone private repo using gh CLI with secret
+    RUN --secret GH_TOKEN \
+        gh repo clone midnightntwrk/midnight-reserve-contracts /reserve-contracts -- \
+        --depth 1 --branch $RESERVE_CONTRACTS_REF
+
+    WORKDIR /reserve-contracts
+
+    # Install dependencies
+    RUN bun install
+
+    # Build contracts for network
+    RUN ./build_contracts.sh $NETWORK compact
+    RUN bunx @blaze-cardano/blueprint@latest plutus.json -o contract_blueprint.ts
+
+    # Generate info JSON
+    RUN bun cli info -n $NETWORK --format json > /reserve-contracts-info.json
+
+    SAVE ARTIFACT /reserve-contracts-info.json AS LOCAL artifacts/reserve-contracts-info-$NETWORK.json
+
+# reserve-contracts-info-preview Generate reserve contracts info for preview network
+reserve-contracts-info-preview:
+    BUILD +reserve-contracts-info --NETWORK=preview
+
+# reserve-contracts-info-preprod Generate reserve contracts info for preprod network
+reserve-contracts-info-preprod:
+    BUILD +reserve-contracts-info --NETWORK=preprod
+
 # ci runs a quick approximation of the ci targets
 ci:
     BUILD +scan
