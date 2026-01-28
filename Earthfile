@@ -542,6 +542,11 @@ reserve-contracts-info-preview:
 reserve-contracts-info-preprod:
     BUILD +reserve-contracts-info --NETWORK=preprod
 
+# reserve-contracts-info-all Generate reserve contracts info for all networks
+reserve-contracts-info-all:
+    BUILD +reserve-contracts-info-preview
+    BUILD +reserve-contracts-info-preprod
+
 # ci runs a quick approximation of the ci targets
 ci:
     BUILD +scan
