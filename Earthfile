@@ -532,7 +532,7 @@ reserve-contracts-info:
     # Generate info JSON
     RUN bun cli info -n $NETWORK --format json > /reserve-contracts-info.json
 
-    SAVE ARTIFACT /reserve-contracts-info.json AS LOCAL artifacts/reserve-contracts-info-$NETWORK.json
+    SAVE ARTIFACT /reserve-contracts-info.json AS LOCAL res/$NETWORK/reserve-contracts-info.json
 
 # reserve-contracts-info-preview Generate reserve contracts info for preview network
 reserve-contracts-info-preview:
