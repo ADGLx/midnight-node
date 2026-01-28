@@ -4,6 +4,9 @@ on:
   issue_comment:
     types: [created]
 
+# no top level default permissions for security reasons
+permissions: {}
+
 jobs:
   rebuild-reserve-contracts-info:
     if: github.event.issue.pull_request && contains(github.event.comment.body, '/bot rebuild-reserve-contracts-info')
