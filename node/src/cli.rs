@@ -62,6 +62,20 @@ pub struct FederatedAuthorityGenesisCmd {
 	pub output: std::path::PathBuf,
 }
 
+#[derive(Debug, Parser)]
+pub struct PermissionedCandidatesGenesisCmd {
+	/// The Cardano block hash assumed to be the latest for this query
+	#[arg(short, long)]
+	pub cardano_tip: McBlockHash,
+
+	/// Path to JSON file containing the permissioned candidates policy ID
+	#[arg(long = "permissioned-candidates-addresses")]
+	pub permissioned_candidates_addresses: std::path::PathBuf,
+
+	#[arg(short, long, default_value = "permissioned-candidates-genesis.json")]
+	pub output: std::path::PathBuf,
+}
+
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
@@ -84,6 +98,9 @@ pub enum Subcommand {
 
 	/// Generate Federed Authority Genesis file.
 	GenerateFederatedAuthorityGenesis(FederatedAuthorityGenesisCmd),
+
+	/// Generate Permissioned Candidates Genesis file. This file contains the initial permissioned candidates observed from the mainchain.
+	GeneratePermissionedCandidatesGenesis(PermissionedCandidatesGenesisCmd),
 
 	/// Export blocks.
 	ExportBlocks(sc_cli::ExportBlocksCmd),

@@ -18,6 +18,9 @@ use crate::{
 	cli::{self, Cli, Subcommand},
 	cnight_genesis::generate_cnight_genesis,
 	federated_authority_genesis::generate_federated_authority_genesis,
+	permissioned_candidates_genesis::{
+		PermissionedCandidatesAddresses, generate_permissioned_candidates_genesis,
+	},
 	service::{self, StorageInit},
 };
 use clap::Parser;
@@ -535,6 +538,63 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				.map_err(|e| {
 					sc_cli::Error::Input(format!(
 						"federated authority genesis generation failed: {e}"
+					))
+				})?;
+
+				Ok(())
+			})
+		},
+		Subcommand::GeneratePermissionedCandidatesGenesis(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Init tokio runtime
+			let tokio_handle = sc_cli::build_runtime()?;
+			tokio_handle.block_on(async {
+				let (data_source, pool) =
+					crate::main_chain_follower::create_authority_selection_data_source_with_pool(
+						cfg.midnight_cfg.clone(),
+						None,
+					)
+					.await?;
+
+				// Get the epoch number for the given cardano tip
+				let epoch = midnight_primitives_mainchain_follower::get_epoch_for_block_hash(
+					&pool,
+					&cmd.cardano_tip,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!("failed to get epoch for block hash: {e}"))
+				})?
+				.ok_or_else(|| {
+					sc_cli::Error::Input(format!(
+						"block hash {} not found in db-sync",
+						cmd.cardano_tip
+					))
+				})?;
+
+				log::info!("Resolved cardano tip {} to epoch {}", cmd.cardano_tip, epoch.0);
+
+				let addresses_str =
+					std::fs::read_to_string(&cmd.permissioned_candidates_addresses)?;
+				let addresses: PermissionedCandidatesAddresses =
+					serde_json::from_str(&addresses_str).map_err(|e| {
+						sc_cli::Error::Input(format!(
+							"failed to read permissioned candidates addresses file as json: {e}"
+						))
+					})?;
+
+				generate_permissioned_candidates_genesis(
+					addresses,
+					data_source,
+					epoch,
+					&cmd.output.clone(),
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"permissioned candidates genesis generation failed: {e}"
 					))
 				})?;
 
