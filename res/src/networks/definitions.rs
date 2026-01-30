@@ -44,7 +44,7 @@ impl MidnightNetwork for UndeployedNetwork {
 	}
 
 	fn cnight_genesis(&self) -> CNightGenesis {
-		let config_str = String::from_utf8_lossy(include_bytes!("../../dev/cnight-genesis.json"));
+		let config_str = String::from_utf8_lossy(include_bytes!("../../dev/cnight-config.json"));
 		serde_json::from_str(&config_str).unwrap()
 	}
 

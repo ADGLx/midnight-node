@@ -45,7 +45,7 @@ pub struct CNightGenesisCmd {
 	pub cardano_tip: McBlockHash,
 	#[arg(long)]
 	pub cnight_addresses: std::path::PathBuf,
-	#[arg(short, long, default_value = "cnight-genesis.json")]
+	#[arg(short, long, default_value = "cnight-config.json")]
 	pub output: std::path::PathBuf,
 }
 

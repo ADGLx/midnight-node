@@ -35,7 +35,7 @@ mod mappings_serde {
 		for (k, v) in map {
 			let key_hex = hex::encode(k.0);
 			ser_map.serialize_entry(&key_hex, v)?;
-		} 
+		}
 		ser_map.end()
 	}
 
@@ -60,10 +60,10 @@ mod mappings_serde {
 			{
 				let mut map = BTreeMap::new();
 				while let Some((key, value)) = access.next_entry::<String, Vec<MappingEntry>>()? {
-					let bytes: Vec<u8> =
-						hex::decode(&key).map_err(serde::de::Error::custom)?;
-					let addr = CardanoRewardAddressBytes::try_from(bytes)
-						.map_err(|_| serde::de::Error::custom("invalid CardanoRewardAddressBytes length"))?;
+					let bytes: Vec<u8> = hex::decode(&key).map_err(serde::de::Error::custom)?;
+					let addr = CardanoRewardAddressBytes::try_from(bytes).map_err(|_| {
+						serde::de::Error::custom("invalid CardanoRewardAddressBytes length")
+					})?;
 					map.insert(addr, value);
 				}
 				Ok(map)
@@ -114,11 +114,10 @@ mod utxo_owners_serde {
 			{
 				let mut map = BTreeMap::new();
 				while let Some((key, value)) = access.next_entry::<String, DustPublicKeyBytes>()? {
-					let bytes: Vec<u8> =
-						hex::decode(&key).map_err(serde::de::Error::custom)?;
-					let arr: [u8; 32] = bytes
-						.try_into()
-						.map_err(|_| serde::de::Error::custom("invalid key length, expected 32 bytes"))?;
+					let bytes: Vec<u8> = hex::decode(&key).map_err(serde::de::Error::custom)?;
+					let arr: [u8; 32] = bytes.try_into().map_err(|_| {
+						serde::de::Error::custom("invalid key length, expected 32 bytes")
+					})?;
 					map.insert(arr, value);
 				}
 				Ok(map)
@@ -275,19 +274,21 @@ mod tests {
 
 		// Verify mappings were parsed correctly
 		assert_eq!(genesis.mappings.len(), 1);
-		let expected_reward_addr_bytes: [u8; 29] = hex::decode("e0efc0a73bab244aa74254f9db955e9d47313c15ad9e621bfc669711be")
-			.unwrap()
-			.try_into()
-			.unwrap();
+		let expected_reward_addr_bytes: [u8; 29] =
+			hex::decode("e0efc0a73bab244aa74254f9db955e9d47313c15ad9e621bfc669711be")
+				.unwrap()
+				.try_into()
+				.unwrap();
 		let expected_reward_addr = CardanoRewardAddressBytes(expected_reward_addr_bytes);
 		assert!(genesis.mappings.contains_key(&expected_reward_addr));
 
 		// Verify utxo_owners were parsed correctly
 		assert_eq!(genesis.utxo_owners.len(), 1);
-		let expected_utxo_key: [u8; 32] = hex::decode("0102030405060708091011121314151617181920212223242526272829303132")
-			.unwrap()
-			.try_into()
-			.unwrap();
+		let expected_utxo_key: [u8; 32] =
+			hex::decode("0102030405060708091011121314151617181920212223242526272829303132")
+				.unwrap()
+				.try_into()
+				.unwrap();
 		assert!(genesis.utxo_owners.contains_key(&expected_utxo_key));
 
 		// Serialize back to JSON
@@ -300,6 +301,8 @@ mod tests {
 
 		// Verify the hex keys are present in serialized output
 		assert!(serialized.contains("e0efc0a73bab244aa74254f9db955e9d47313c15ad9e621bfc669711be"));
-		assert!(serialized.contains("0102030405060708091011121314151617181920212223242526272829303132"));
+		assert!(
+			serialized.contains("0102030405060708091011121314151617181920212223242526272829303132")
+		);
 	}
 }

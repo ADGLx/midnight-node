@@ -183,7 +183,8 @@ impl GenesisGenerator {
 		self.set_parameters(original_parameters, &genesis_block_context)?;
 
 		if let Some(system_tx) = cnight_system_tx {
-			self.apply_system_tx(system_tx, &genesis_block_context)?;
+			self.apply_system_tx(system_tx.clone(), &genesis_block_context)?;
+			println!("cNight System Tx applied: {:?}", system_tx);
 		}
 
 		let block_limits = self.state.parameters.limits.block_limits;
