@@ -449,7 +449,7 @@ rebuild-genesis-state:
 rebuild-genesis-state-undeployed:
     BUILD +rebuild-genesis-state \
         --NETWORK=undeployed \
-        --USE_CNIGHT_GENESIS=false
+        --USE_CNIGHT_GENESIS=true
 
 # rebuild-genesis-state-devnet rebuilds the genesis ledger state for devnet network - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-genesis-state-devnet:
