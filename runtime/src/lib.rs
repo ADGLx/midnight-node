@@ -408,6 +408,7 @@ impl frame_system::Config for Runtime {
 	type SingleBlockMigrations = (
 		// Needed if chain is upgradeing from before PC 1.6
 		pallet_session_validator_management::migrations::v1::LegacyToV1Migration<Runtime>,
+		pallet_cnight_observation::migration::v1::RemoveRedemptionStorage<Runtime>,
 	);
 	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
@@ -1478,10 +1479,6 @@ impl_runtime_apis! {
 	}
 
 	impl midnight_primitives_cnight_observation::CNightObservationApi<Block> for Runtime {
-		fn get_redemption_validator_address() -> Vec<u8> {
-			pallet_cnight_observation::MainChainRedemptionValidatorAddress::<Runtime>::get().into_inner()
-		}
-
 		fn get_mapping_validator_address() -> Vec<u8> {
 			pallet_cnight_observation::MainChainMappingValidatorAddress::<Runtime>::get().into_inner()
 		}
