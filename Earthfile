@@ -772,6 +772,7 @@ check-metadata:
     ARG NODE_IMAGE
     #=ghcr.io/midnight-ntwrk/midnight-node:latest
     FROM +subxt
+    DO github.com/EarthBuild/lib+INSTALL_DIND
     COPY local-environment/check-health.sh /usr/local/bin/check-health.sh
 
     WITH DOCKER --pull ${NODE_IMAGE}
