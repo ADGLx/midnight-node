@@ -236,6 +236,16 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	})
 }
 
+/// Returns the CFG_PRESET from environment, defaulting to "dev"
+fn get_cfg_preset() -> String {
+	std::env::var("CFG_PRESET").unwrap_or_else(|_| "dev".to_string())
+}
+
+/// Returns the res/<cfg_preset> directory path
+fn get_res_preset_dir() -> std::path::PathBuf {
+	std::path::PathBuf::from("res").join(get_cfg_preset())
+}
+
 fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 	let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 
@@ -474,6 +484,15 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::GenerateCNightGenesis(ref cmd) => {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default paths based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let cnight_addresses = cmd
+				.cnight_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("cnight-addresses.json"));
+			let output = cmd.output.clone().unwrap_or_else(|| res_dir.join("cnight-config.json"));
+
 			// Init tokio runtime
 			let tokio_handle = sc_cli::build_runtime()?;
 			tokio_handle.block_on(async {
@@ -484,23 +503,18 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					)
 					.await?;
 
-				let cnight_addresses_str = std::fs::read_to_string(&cmd.cnight_addresses)?;
+				let cnight_addresses_str = std::fs::read_to_string(&cnight_addresses)?;
 				let addresses: CNightAddresses = serde_json::from_str(&cnight_addresses_str)
 					.map_err(|e| {
 						sc_cli::Error::Input(format!(
 							"failed to read cnight addresses file as json: {e:?}"
 						))
 					})?;
-				generate_cnight_genesis(
-					addresses,
-					data_sources,
-					cmd.cardano_tip.clone(),
-					&cmd.output.clone(),
-				)
-				.await
-				.map_err(|e| {
-					sc_cli::Error::Input(format!("cNGD genesis generation failed: {e}"))
-				})?;
+				generate_cnight_genesis(addresses, data_sources, cmd.cardano_tip.clone(), &output)
+					.await
+					.map_err(|e| {
+						sc_cli::Error::Input(format!("cNGD genesis generation failed: {e}"))
+					})?;
 
 				Ok(())
 			})
@@ -508,6 +522,17 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::GenerateFederatedAuthorityGenesis(ref cmd) => {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default paths based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let federated_authority_addresses = cmd
+				.federated_authority_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("federated-authority-addresses.json"));
+			let output = cmd
+				.output
+				.clone()
+				.unwrap_or_else(|| res_dir.join("federated-authority-config.json"));
 
 			// Init tokio runtime
 			let tokio_handle = sc_cli::build_runtime()?;
@@ -520,7 +545,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					.await?;
 
 				let fed_auth_addresses_str =
-					std::fs::read_to_string(&cmd.federated_authority_addresses)?;
+					std::fs::read_to_string(&federated_authority_addresses)?;
 				let federated_authority_addresses: FederatedAuthorityAddresses =
 					serde_json::from_str(&fed_auth_addresses_str).map_err(|e| {
 						sc_cli::Error::Input(format!(
@@ -532,7 +557,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					federated_authority_addresses,
 					data_sources,
 					cmd.cardano_tip.clone(),
-					&cmd.output.clone(),
+					&output,
 				)
 				.await
 				.map_err(|e| {
@@ -547,6 +572,17 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::GeneratePermissionedCandidatesGenesis(ref cmd) => {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default paths based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let permissioned_candidates_addresses = cmd
+				.permissioned_candidates_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("permissioned-candidates-addresses.json"));
+			let output = cmd
+				.output
+				.clone()
+				.unwrap_or_else(|| res_dir.join("permissioned-candidates-config.json"));
 
 			// Init tokio runtime
 			let tokio_handle = sc_cli::build_runtime()?;
@@ -576,8 +612,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 
 				log::info!("Resolved cardano tip {} to epoch {}", cmd.cardano_tip, epoch.0);
 
-				let addresses_str =
-					std::fs::read_to_string(&cmd.permissioned_candidates_addresses)?;
+				let addresses_str = std::fs::read_to_string(&permissioned_candidates_addresses)?;
 				let addresses: PermissionedCandidatesAddresses =
 					serde_json::from_str(&addresses_str).map_err(|e| {
 						sc_cli::Error::Input(format!(
@@ -585,18 +620,13 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						))
 					})?;
 
-				generate_permissioned_candidates_genesis(
-					addresses,
-					data_source,
-					epoch,
-					&cmd.output.clone(),
-				)
-				.await
-				.map_err(|e| {
-					sc_cli::Error::Input(format!(
-						"permissioned candidates genesis generation failed: {e}"
-					))
-				})?;
+				generate_permissioned_candidates_genesis(addresses, data_source, epoch, &output)
+					.await
+					.map_err(|e| {
+						sc_cli::Error::Input(format!(
+							"permissioned candidates genesis generation failed: {e}"
+						))
+					})?;
 
 				Ok(())
 			})

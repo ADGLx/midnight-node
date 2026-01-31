@@ -43,10 +43,14 @@ pub struct CNightGenesisCmd {
 	/// The Cardano block hash assumed to be the latest for this query
 	#[arg(short, long)]
 	pub cardano_tip: McBlockHash,
+
+	/// Path to JSON file containing cNight addresses. Defaults to res/<CFG_PRESET>/cnight-addresses.json
 	#[arg(long)]
-	pub cnight_addresses: std::path::PathBuf,
-	#[arg(short, long, default_value = "cnight-config.json")]
-	pub output: std::path::PathBuf,
+	pub cnight_addresses: Option<std::path::PathBuf>,
+
+	/// Output path for the genesis config. Defaults to res/<CFG_PRESET>/cnight-config.json
+	#[arg(short, long)]
+	pub output: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug, Parser)]
@@ -55,11 +59,13 @@ pub struct FederatedAuthorityGenesisCmd {
 	#[arg(short, long)]
 	pub cardano_tip: McBlockHash,
 
+	/// Path to JSON file containing federated authority addresses. Defaults to res/<CFG_PRESET>/federated-authority-addresses.json
 	#[arg(long = "federated-auth-addresses")]
-	pub federated_authority_addresses: std::path::PathBuf,
+	pub federated_authority_addresses: Option<std::path::PathBuf>,
 
-	#[arg(short, long, default_value = "federated-authority-genesis.json")]
-	pub output: std::path::PathBuf,
+	/// Output path for the genesis config. Defaults to res/<CFG_PRESET>/federated-authority-config.json
+	#[arg(short, long)]
+	pub output: Option<std::path::PathBuf>,
 }
 
 #[derive(Debug, Parser)]
@@ -68,12 +74,13 @@ pub struct PermissionedCandidatesGenesisCmd {
 	#[arg(short, long)]
 	pub cardano_tip: McBlockHash,
 
-	/// Path to JSON file containing the permissioned candidates policy ID
+	/// Path to JSON file containing the permissioned candidates policy ID. Defaults to res/<CFG_PRESET>/permissioned-candidates-addresses.json
 	#[arg(long = "permissioned-candidates-addresses")]
-	pub permissioned_candidates_addresses: std::path::PathBuf,
+	pub permissioned_candidates_addresses: Option<std::path::PathBuf>,
 
-	#[arg(short, long, default_value = "permissioned-candidates-genesis.json")]
-	pub output: std::path::PathBuf,
+	/// Output path for the genesis config. Defaults to res/<CFG_PRESET>/permissioned-candidates-config.json
+	#[arg(short, long)]
+	pub output: Option<std::path::PathBuf>,
 }
 
 #[allow(clippy::large_enum_variant)]
