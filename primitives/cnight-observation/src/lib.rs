@@ -267,9 +267,13 @@ pub struct ObservedUtxos {
 	Debug, Clone, PartialEq, Encode, Decode, DecodeWithMemTracking, TypeInfo, Serialize, Deserialize,
 )]
 pub enum ObservedUtxoData {
+	#[codec(index = 2)]
 	Registration(RegistrationData),
+	#[codec(index = 3)]
 	Deregistration(DeregistrationData),
+	#[codec(index = 4)]
 	AssetCreate(CreateData),
+	#[codec(index = 5)]
 	AssetSpend(SpendData),
 }
 
