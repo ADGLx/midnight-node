@@ -30,7 +30,6 @@ use serde::{Deserialize, Serialize};
 use sidechain_domain::McBlockHash;
 
 pub mod config;
-pub mod migration;
 
 /// Cardano-based Midnight System Transaction (CMST)  Header
 ///
@@ -123,7 +122,7 @@ pub mod pallet {
 		pub system_transaction_hash: LedgerHash,
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(0);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]

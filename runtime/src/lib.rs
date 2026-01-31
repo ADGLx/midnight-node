@@ -408,7 +408,6 @@ impl frame_system::Config for Runtime {
 	type SingleBlockMigrations = (
 		// Needed if chain is upgradeing from before PC 1.6
 		pallet_session_validator_management::migrations::v1::LegacyToV1Migration<Runtime>,
-		pallet_cnight_observation::migration::v1::RemoveRedemptionStorage<Runtime>,
 	);
 	type MultiBlockMigrator = MultiBlockMigrations;
 	type PreInherents = ();
