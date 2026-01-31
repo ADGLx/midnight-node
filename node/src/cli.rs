@@ -78,6 +78,10 @@ pub struct PermissionedCandidatesGenesisCmd {
 	#[arg(long = "permissioned-candidates-addresses")]
 	pub permissioned_candidates_addresses: Option<std::path::PathBuf>,
 
+	/// Path to pc-chain-config.json file. Used to read security_parameter if CARDANO_SECURITY_PARAMETER env var is not set. Defaults to res/<CFG_PRESET>/pc-chain-config.json
+	#[arg(long = "pc-config")]
+	pub pc_config: Option<std::path::PathBuf>,
+
 	/// Output path for the genesis config. Defaults to res/<CFG_PRESET>/permissioned-candidates-config.json
 	#[arg(short, long)]
 	pub output: Option<std::path::PathBuf>,
@@ -108,6 +112,10 @@ pub struct GenesisConfigCmd {
 	/// Path to JSON file containing the permissioned candidates policy ID. Defaults to res/<CFG_PRESET>/permissioned-candidates-addresses.json
 	#[arg(long = "permissioned-candidates-addresses")]
 	pub permissioned_candidates_addresses: Option<std::path::PathBuf>,
+
+	/// Path to pc-chain-config.json file. Used to read security_parameter if CARDANO_SECURITY_PARAMETER env var is not set. Defaults to res/<CFG_PRESET>/pc-chain-config.json
+	#[arg(long = "pc-config")]
+	pub pc_config: Option<std::path::PathBuf>,
 
 	/// Output path for the permissioned candidates genesis config. Defaults to res/<CFG_PRESET>/permissioned-candidates-config.json
 	#[arg(long)]

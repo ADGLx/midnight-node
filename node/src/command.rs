@@ -19,7 +19,7 @@ use crate::{
 	cnight_genesis::generate_cnight_genesis,
 	federated_authority_genesis::generate_federated_authority_genesis,
 	permissioned_candidates_genesis::{
-		PermissionedCandidatesAddresses, generate_permissioned_candidates_genesis,
+		PcChainConfig, PermissionedCandidatesAddresses, generate_permissioned_candidates_genesis,
 	},
 	service::{self, StorageInit},
 };
@@ -579,17 +579,41 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				.permissioned_candidates_addresses
 				.clone()
 				.unwrap_or_else(|| res_dir.join("permissioned-candidates-addresses.json"));
+			let pc_config_path =
+				cmd.pc_config.clone().unwrap_or_else(|| res_dir.join("pc-chain-config.json"));
 			let output = cmd
 				.output
 				.clone()
 				.unwrap_or_else(|| res_dir.join("permissioned-candidates-config.json"));
+
+			// Read security_parameter from pc-chain-config.json if env var is not set
+			let mut midnight_cfg = cfg.midnight_cfg.clone();
+			if midnight_cfg.cardano_security_parameter.is_none() {
+				let pc_config_str = std::fs::read_to_string(&pc_config_path).map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"failed to read pc-chain-config.json at {}: {e}",
+						pc_config_path.display()
+					))
+				})?;
+				let pc_config: PcChainConfig =
+					serde_json::from_str(&pc_config_str).map_err(|e| {
+						sc_cli::Error::Input(format!("failed to parse pc-chain-config.json: {e}"))
+					})?;
+				midnight_cfg.cardano_security_parameter =
+					Some(pc_config.cardano.security_parameter);
+				log::info!(
+					"Using security_parameter={} from {}",
+					pc_config.cardano.security_parameter,
+					pc_config_path.display()
+				);
+			}
 
 			// Init tokio runtime
 			let tokio_handle = sc_cli::build_runtime()?;
 			tokio_handle.block_on(async {
 				let (data_source, pool) =
 					crate::main_chain_follower::create_authority_selection_data_source_with_pool(
-						cfg.midnight_cfg.clone(),
+						midnight_cfg,
 						None,
 					)
 					.await?;
@@ -661,10 +685,34 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				.permissioned_candidates_addresses
 				.clone()
 				.unwrap_or_else(|| res_dir.join("permissioned-candidates-addresses.json"));
+			let pc_config_path =
+				cmd.pc_config.clone().unwrap_or_else(|| res_dir.join("pc-chain-config.json"));
 			let permissioned_candidates_output = cmd
 				.permissioned_candidates_output
 				.clone()
 				.unwrap_or_else(|| res_dir.join("permissioned-candidates-config.json"));
+
+			// Read security_parameter from pc-chain-config.json if env var is not set
+			let mut midnight_cfg_for_perm_cand = cfg.midnight_cfg.clone();
+			if midnight_cfg_for_perm_cand.cardano_security_parameter.is_none() {
+				let pc_config_str = std::fs::read_to_string(&pc_config_path).map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"failed to read pc-chain-config.json at {}: {e}",
+						pc_config_path.display()
+					))
+				})?;
+				let pc_config: PcChainConfig =
+					serde_json::from_str(&pc_config_str).map_err(|e| {
+						sc_cli::Error::Input(format!("failed to parse pc-chain-config.json: {e}"))
+					})?;
+				midnight_cfg_for_perm_cand.cardano_security_parameter =
+					Some(pc_config.cardano.security_parameter);
+				log::info!(
+					"Using security_parameter={} from {}",
+					pc_config.cardano.security_parameter,
+					pc_config_path.display()
+				);
+			}
 
 			// Init tokio runtime
 			let tokio_handle = sc_cli::build_runtime()?;
@@ -732,7 +780,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				log::info!("Generating permissioned candidates genesis config...");
 				let (perm_cand_data_source, pool) =
 					crate::main_chain_follower::create_authority_selection_data_source_with_pool(
-						cfg.midnight_cfg.clone(),
+						midnight_cfg_for_perm_cand,
 						None,
 					)
 					.await?;

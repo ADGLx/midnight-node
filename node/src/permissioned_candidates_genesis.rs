@@ -94,6 +94,18 @@ const CROSS_CHAIN: KeyTypeId = KeyTypeId(*b"crch");
 // BEEFY uses the same key as cross-chain for now
 const BEEFY: KeyTypeId = KeyTypeId(*b"beef");
 
+/// Cardano section of pc-chain-config.json
+#[derive(Debug, Clone, Deserialize)]
+pub struct PcChainConfigCardano {
+	pub security_parameter: u32,
+}
+
+/// Partial structure of pc-chain-config.json for reading security_parameter
+#[derive(Debug, Clone, Deserialize)]
+pub struct PcChainConfig {
+	pub cardano: PcChainConfigCardano,
+}
+
 /// Saves as json file the Permissioned Candidates Genesis Config
 ///
 /// The `epoch` parameter specifies the Cardano epoch to query for permissioned candidates.
