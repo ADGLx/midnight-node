@@ -631,5 +631,155 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				Ok(())
 			})
 		},
+		Subcommand::GenerateGenesisConfig(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default paths based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+
+			// cNight paths
+			let cnight_addresses = cmd
+				.cnight_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("cnight-addresses.json"));
+			let cnight_output =
+				cmd.cnight_output.clone().unwrap_or_else(|| res_dir.join("cnight-config.json"));
+
+			// Federated authority paths
+			let federated_authority_addresses = cmd
+				.federated_authority_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("federated-authority-addresses.json"));
+			let federated_authority_output = cmd
+				.federated_authority_output
+				.clone()
+				.unwrap_or_else(|| res_dir.join("federated-authority-config.json"));
+
+			// Permissioned candidates paths
+			let permissioned_candidates_addresses = cmd
+				.permissioned_candidates_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("permissioned-candidates-addresses.json"));
+			let permissioned_candidates_output = cmd
+				.permissioned_candidates_output
+				.clone()
+				.unwrap_or_else(|| res_dir.join("permissioned-candidates-config.json"));
+
+			// Init tokio runtime
+			let tokio_handle = sc_cli::build_runtime()?;
+			tokio_handle.block_on(async {
+				// 1. Generate cNight genesis
+				log::info!("Generating cNight genesis config...");
+				let cnight_data_source =
+					crate::main_chain_follower::create_cnight_observation_data_source(
+						cfg.midnight_cfg.clone(),
+						None,
+					)
+					.await?;
+
+				let cnight_addresses_str = std::fs::read_to_string(&cnight_addresses)?;
+				let cnight_addresses_parsed: CNightAddresses =
+					serde_json::from_str(&cnight_addresses_str).map_err(|e| {
+						sc_cli::Error::Input(format!(
+							"failed to read cnight addresses file as json: {e:?}"
+						))
+					})?;
+
+				generate_cnight_genesis(
+					cnight_addresses_parsed,
+					cnight_data_source,
+					cmd.cardano_tip.clone(),
+					&cnight_output,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!("cNight genesis generation failed: {e}"))
+				})?;
+
+				// 2. Generate federated authority genesis
+				log::info!("Generating federated authority genesis config...");
+				let fed_auth_data_source =
+					crate::main_chain_follower::create_federated_authority_observation_data_source(
+						cfg.midnight_cfg.clone(),
+						None,
+					)
+					.await?;
+
+				let fed_auth_addresses_str =
+					std::fs::read_to_string(&federated_authority_addresses)?;
+				let fed_auth_addresses_parsed: FederatedAuthorityAddresses =
+					serde_json::from_str(&fed_auth_addresses_str).map_err(|e| {
+						sc_cli::Error::Input(format!(
+							"failed to read federated authority addresses file as json: {e}"
+						))
+					})?;
+
+				generate_federated_authority_genesis(
+					fed_auth_addresses_parsed,
+					fed_auth_data_source,
+					cmd.cardano_tip.clone(),
+					&federated_authority_output,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"federated authority genesis generation failed: {e}"
+					))
+				})?;
+
+				// 3. Generate permissioned candidates genesis
+				log::info!("Generating permissioned candidates genesis config...");
+				let (perm_cand_data_source, pool) =
+					crate::main_chain_follower::create_authority_selection_data_source_with_pool(
+						cfg.midnight_cfg.clone(),
+						None,
+					)
+					.await?;
+
+				// Get the epoch number for the given cardano tip
+				let epoch = midnight_primitives_mainchain_follower::get_epoch_for_block_hash(
+					&pool,
+					&cmd.cardano_tip,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!("failed to get epoch for block hash: {e}"))
+				})?
+				.ok_or_else(|| {
+					sc_cli::Error::Input(format!(
+						"block hash {} not found in db-sync",
+						cmd.cardano_tip
+					))
+				})?;
+
+				log::info!("Resolved cardano tip {} to epoch {}", cmd.cardano_tip, epoch.0);
+
+				let perm_cand_addresses_str =
+					std::fs::read_to_string(&permissioned_candidates_addresses)?;
+				let perm_cand_addresses_parsed: PermissionedCandidatesAddresses =
+					serde_json::from_str(&perm_cand_addresses_str).map_err(|e| {
+						sc_cli::Error::Input(format!(
+							"failed to read permissioned candidates addresses file as json: {e}"
+						))
+					})?;
+
+				generate_permissioned_candidates_genesis(
+					perm_cand_addresses_parsed,
+					perm_cand_data_source,
+					epoch,
+					&permissioned_candidates_output,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"permissioned candidates genesis generation failed: {e}"
+					))
+				})?;
+
+				log::info!("All genesis config files generated successfully!");
+				Ok(())
+			})
+		},
 	}
 }
