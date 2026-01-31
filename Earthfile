@@ -458,7 +458,14 @@ rebuild-genesis-state-devnet:
         --GENERATE_TEST_TXS=false \
         --USE_CNIGHT_GENESIS=false
 
-# rebuild-genesis-state-devnet rebuilds the genesis ledger state for node-dev-01 network - this MUST be followed by updating the chainspecs for CI to pass!
+# rebuild-genesis-state-govnet rebuilds the genesis ledger state for devnet network - this MUST be followed by updating the chainspecs for CI to pass!
+rebuild-genesis-state-govnet:
+    BUILD +rebuild-genesis-state \
+        --NETWORK=devnet \
+        --GENERATE_TEST_TXS=false \
+        --USE_CNIGHT_GENESIS=false
+
+# rebuild-genesis-state-node-dev-01 rebuilds the genesis ledger state for node-dev-01 network - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-genesis-state-node-dev-01:
     BUILD +rebuild-genesis-state \
         --NETWORK=node-dev-01 \
@@ -490,10 +497,12 @@ rebuild-genesis-state-preprod:
 rebuild-all-genesis-states:
     BUILD +rebuild-genesis-state-undeployed
     BUILD +rebuild-genesis-state-devnet
+    BUILD +rebuild-genesis-state-govnet
     BUILD +rebuild-genesis-state-node-dev-01
     BUILD +rebuild-genesis-state-qanet
     BUILD +rebuild-genesis-state-preview
-    BUILD +rebuild-genesis-state-preprod
+    # Preprod is not meant to be reset
+    #BUILD +rebuild-genesis-state-preprod
 
 # rebuild-chainspec for a given NETWORK
 rebuild-chainspec:
@@ -506,7 +515,7 @@ rebuild-chainspec:
 
     # create abridge chain-spec that is diff tools and github friendly:
     RUN cat res/$NETWORK/chain-spec.json | \
-      jq '.genesis.runtimeGenesis.code = "<snipped>" | .properties.genesis_extrinsics = "<snipped>" | .properties.genesis_state = "<snipped>"' > res/$NETWORK/chain-spec-abridged.json
+      jq '.genesis.runtimeGenesis.code = "<snipped>" | .properties.genesis_extrinsics = "<snipped>" | .properties.genesis_state = "<snipped>" | .genesis.runtimeGenesis.config.cNightObservation.config.observed_utxos = "<snipped>" | .genesis.runtimeGenesis.config.cNightObservation.config.mappings = "<snipped>" | .genesis.runtimeGenesis.config.cNightObservation.config.utxo_owners = "<snipped>"' > res/$NETWORK/chain-spec-abridged.json
 
     RUN /midnight-node build-spec --chain=res/$NETWORK/chain-spec.json --raw --disable-default-bootnode > res/$NETWORK/chain-spec-raw.json
 
@@ -515,9 +524,12 @@ rebuild-chainspec:
 # rebuild-all-chainspecs Rebuild all chainspecs. No secrets required.
 rebuild-all-chainspecs:
     BUILD +rebuild-chainspec --NETWORK=node-dev-01
+    BUILD +rebuild-chainspec --NETWORK=devnet
+    BUILD +rebuild-chainspec --NETWORK=govnet
     BUILD +rebuild-chainspec --NETWORK=qanet
     BUILD +rebuild-chainspec --NETWORK=preview
-    BUILD +rebuild-chainspec --NETWORK=preprod
+    # Preprod is not meant to be reset
+    #BUILD +rebuild-chainspec --NETWORK=preprod
 
 # rebuild-genesis Rebuild the initial ledger state genesis and chainspecs. Secrets required to rebuild prod/preprod geneses.
 rebuild-genesis:

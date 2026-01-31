@@ -22,19 +22,7 @@
   },
   "cardano_addresses": {
     "committee_candidates_address": "addr_test1wzjn8jdhll6hhg455ew8zxxp97ftjka7h7q7xca625u8kvqkvfy2w",
-    "d_parameter_policy_id": "0xecf195900fa21d8f61e3f16677bbdaf401110dcd7c50d12f9779f25e",
-    "permissioned_candidates_policy_id": "0xb852c6e0883b3dcaedddb36c6b39285414e046d1c05848b50ea9f5fc",
-    "bridge": {
-      "illiquid_circulation_supply_validator_address": "addr_test1wzds0wlu5fzt9shwq0zd698je4lmdjqv885k8x0hy9k27mgny4qlq",
-      "asset": {
-        "policy_id": "0x00000000000000000000000000000000000000000000000000000000",
-        "asset_name": "0x"
-      }
-    },
-    "governed_map": {
-      "validator_address": "addr_test1wzax2v507x04hfmpl8lww82py2mp52dkg3plufcrul04n3csd0lfs",
-      "policy_id": "0x11e8c54c2653e64ee42e263b39a7322cb5f31d3c69d5c92c1d281411"
-    }
+    "permissioned_candidates_policy_id": "0xb852c6e0883b3dcaedddb36c6b39285414e046d1c05848b50ea9f5fc"
   },
   "initial_permissioned_candidates": [
     {
