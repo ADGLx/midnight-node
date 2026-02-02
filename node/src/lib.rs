@@ -29,4 +29,5 @@ pub mod payload;
 pub mod rpc;
 pub mod service;
 pub mod sidechain_params_cmd;
+mod tracing_block_import;
 mod util;

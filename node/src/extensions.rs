@@ -45,8 +45,18 @@ where
 	fn extensions_for(
 		&self,
 		_block_hash: Block::Hash,
-		_block_number: NumberFor<Block>,
+		block_number: NumberFor<Block>,
 	) -> Extensions {
+		// Per-block span for sync diagnostics (Datadog has no auto-instrumentation)
+		#[cfg(feature = "datadog-tracing")]
+		let _ext_span = {
+			use opentelemetry::KeyValue;
+			let tracer = opentelemetry::global::tracer("midnight-node");
+			let mut s = tracer.start("sync.block_execution");
+			s.set_attribute(KeyValue::new("block_number", format!("{}", block_number)));
+			s
+		};
+
 		let mut exts = Extensions::new();
 
 		exts.register(LedgerMetricsExt::new(self.ledger_metrics.clone()));

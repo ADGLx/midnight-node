@@ -136,6 +136,7 @@ shell-words = "1.1.0"
 derive-new.workspace = true
 
 datadog-opentelemetry = { workspace = true, optional = true }
+opentelemetry = { workspace = true, optional = true, features = ["trace"] }
 
 sqlx = { version = "0.8.5",  default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "chrono", "migrate", "bigdecimal"]}
 tokio.workspace = true
@@ -147,7 +148,7 @@ substrate-build-script-utils.workspace = true
 
 [features]
 default = ["datadog-tracing"]
-datadog-tracing = ["dep:datadog-opentelemetry"]
+datadog-tracing = ["dep:datadog-opentelemetry", "dep:opentelemetry"]
 
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [
