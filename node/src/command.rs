@@ -19,6 +19,8 @@ use crate::{
 	cnight_genesis::generate_cnight_genesis,
 	service::{self, StorageInit},
 };
+#[cfg(feature = "datadog-tracing")]
+use opentelemetry::trace::Tracer;
 use clap::Parser;
 use midnight_node_res::networks::MidnightNetwork as _;
 use midnight_node_runtime::Block;

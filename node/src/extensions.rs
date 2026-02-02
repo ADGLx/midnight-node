@@ -21,6 +21,8 @@ use std::{
 	marker::PhantomData,
 	sync::{Arc, Mutex},
 };
+#[cfg(feature = "datadog-tracing")]
+use opentelemetry::trace::{Tracer, Span};
 
 /// Extensions factory
 pub struct ExtensionsFactory<Block> {

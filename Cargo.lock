@@ -7807,6 +7807,7 @@ dependencies = [
  "midnight-primitives-system-parameters",
  "mmr-gadget",
  "mmr-rpc",
+ "opentelemetry",
  "pallet-cnight-observation",
  "pallet-cnight-observation-mock",
  "pallet-midnight",
