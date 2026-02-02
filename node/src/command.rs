@@ -183,6 +183,25 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		log::info!("CROSS_CHAIN pubkey: {}", &keypair.public())
 	}
 
+	// Initialize Datadog OpenTelemetry tracer when trace agent URL is set (sends to datadog-trace-gateway)
+	#[cfg(feature = "datadog-tracing")]
+	if let Some(url) = cfg
+		.midnight_cfg
+		.datadog_trace_agent_url
+		.clone()
+		.or_else(|| std::env::var("DD_TRACE_AGENT_URL").ok())
+	{
+		use datadog_opentelemetry::configuration::Config;
+		let config = Config::builder()
+			.set_service("midnight-node".to_string())
+			.set_trace_agent_url(url.clone())
+			.build();
+		let _tracer_provider = datadog_opentelemetry::tracing()
+			.with_config(config)
+			.init();
+		log::info!("Datadog tracing enabled, sending to {}", url);
+	}
+
 	runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 
