@@ -26,6 +26,7 @@ use midnight_primitives_cnight_observation::CNightAddresses;
 use sc_cli::{CliConfiguration, LoggerBuilder, RunCmd, SubstrateCli};
 use sc_keystore::LocalKeystore;
 use sc_service::{BasePath, PartialComponents, config::KeystoreConfig};
+use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
 use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sp_core::{ByteArray, Pair, offchain::KeyTypeId};
 use sp_keystore::KeystorePtr;
@@ -186,11 +187,13 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 
-		// TODO: Add metrics
+		let mc_follower_metrics =
+			register_metrics_warn_errors(config.prometheus_registry());
+
 		let data_sources =
 			crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
 				cfg.midnight_cfg.clone(),
-				None,
+				mc_follower_metrics.clone(),
 			)
 			.await?;
 
