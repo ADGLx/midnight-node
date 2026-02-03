@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use crate::data_source::candidates_data_source::observed_async_trait;
 use crate::db::{
 	get_deregistrations, get_redemption_creates, get_redemption_spends, get_registrations,
 };
@@ -94,9 +95,7 @@ pub struct MidnightCNightObservationDataSourceImpl {
 	cache_size: u16,
 }
 
-// If we need better logging here, we could use use db_sync_follower::observed_async_trait
-// But perhaps there are better options for tracing
-#[async_trait::async_trait]
+observed_async_trait!(
 impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSourceImpl {
 	async fn get_utxos_up_to_capacity(
 		&self,
@@ -246,6 +245,7 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 		}
 	}
 }
+);
 
 impl MidnightCNightObservationDataSourceImpl {
 	fn decode_registration_datum(
