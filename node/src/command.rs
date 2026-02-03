@@ -152,7 +152,8 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			// Add OpenTelemetry as custom profiler - captures all Substrate spans
 			let handler = Box::new(OpenTelemetryTraceHandler::new("midnight-node"));
 			logger_builder.with_custom_profiling(handler);
-			logger_builder.with_profiling(TracingReceiver::Log, "");
+			// Use "info" so the profiling layer has a valid directive (empty string can cause DirectiveParseError)
+			logger_builder.with_profiling(TracingReceiver::Log, "info");
 			
 			log::info!("Substrate tracing bridge to Datadog enabled");
 			log::info!("Use --tracing-targets to enable specific trace targets (e.g., sync=debug,sc_client=debug)");
@@ -267,20 +268,17 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			});
 
 		//For litep2p use `sc_network::Litep2pNetworkBackend<_, _>``
-		let result = {
-			#[cfg(feature = "datadog-tracing")]
-			let _span = tracer.start("service.new_full");
-			service::new_full::<sc_network::NetworkWorker<_, _>>(
-				config,
-				epoch_config,
-				data_sources,
-				cfg.storage_monitor_params_cfg.into(),
-				storage_config,
-				metrics_push_config,
-			)
-			.await
-		};
-		result.map_err(sc_cli::Error::Service)
+		// Service startup tracing is now handled by Substrate's native tracing system
+		service::new_full::<sc_network::NetworkWorker<_, _>>(
+			config,
+			epoch_config,
+			data_sources,
+			cfg.storage_monitor_params_cfg.into(),
+			storage_config,
+			metrics_push_config,
+		)
+		.await
+		.map_err(sc_cli::Error::Service)
 	})
 }
 
