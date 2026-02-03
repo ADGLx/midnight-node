@@ -153,23 +153,19 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	let runner = if datadog_url.is_some() {
 		cfg.create_runner_with_logger_hook(&run_cmd, |logger_builder, config| {
 			use crate::otel_trace_handler::OpenTelemetryTraceHandler;
+			use sc_tracing::TracingReceiver;
 
-			// Add OpenTelemetry as custom profiler - captures Substrate spans for Datadog
+			// Register the OpenTelemetry handler to receive spans
 			let handler = Box::new(OpenTelemetryTraceHandler::new("midnight-node"));
 			logger_builder.with_custom_profiling(handler);
 
-			// If --tracing-targets wasn't passed, enable profiling with a sensible default
-			// NOTE: In production (devnet, etc.), --tracing-targets should be explicitly set
-			// via helm config to control what gets traced
-			if config.tracing_targets.is_none() {
-				use sc_tracing::TracingReceiver;
-				// Default to INFO level - captures meaningful operations without excessive noise
-				// For more detailed tracing, pass --tracing-targets explicitly
-				logger_builder.with_profiling(TracingReceiver::Log, "sc_service=info,sc_consensus=info,midnight=info");
-				eprintln!("[midnight-node] Substrate tracing bridge enabled (default filter: info level)");
-			} else {
-				eprintln!("[midnight-node] Substrate tracing bridge enabled (filter from --tracing-targets)");
-			}
+			// Use --tracing-targets if specified, otherwise use a sensible default
+			const DEFAULT_TRACING_FILTER: &str = "sc_consensus=info,sc_client=info,midnight=info";
+			let filter = config.tracing_targets.as_deref().unwrap_or(DEFAULT_TRACING_FILTER);
+
+			// Activate the profiling layer
+			logger_builder.with_profiling(TracingReceiver::Log, filter);
+			eprintln!("[midnight-node] Substrate tracing bridge enabled (filter: {})", filter);
 		})?
 	} else {
 		cfg.create_runner(&run_cmd)?
