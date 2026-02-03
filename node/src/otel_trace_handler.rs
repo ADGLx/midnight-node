@@ -27,6 +27,33 @@ use std::{
 	time::{Duration, SystemTime},
 };
 
+/// Minimum duration for a span to be exported (filters out micro-operations)
+const MIN_SPAN_DURATION: Duration = Duration::from_micros(100);
+
+/// Low-level operations to filter out (noise reduction)
+const FILTERED_OPERATIONS: &[&str] = &[
+	"malloc_version_1",
+	"free_version_1",
+	"blake2_256_version_1",
+	"blake2_128_version_1",
+	"twox_128_version_1",
+	"twox_64_version_1",
+	"max_level_version_1",
+	"get_version_1",
+];
+
+/// Operations to always include regardless of duration
+const IMPORTANT_OPERATIONS: &[&str] = &[
+	"import_block",
+	"execute_block",
+	"validate_transaction",
+	"apply_extrinsic",
+	"on_initialize",
+	"on_finalize",
+	"propose",
+	"seal",
+];
+
 /// A trace handler that exports Substrate spans to OpenTelemetry/Datadog.
 ///
 /// This handler receives completed span data from Substrate's tracing system
@@ -45,6 +72,48 @@ impl OpenTelemetryTraceHandler {
 	pub fn new(service_name: &str) -> Self {
 		eprintln!("[OTEL] OpenTelemetryTraceHandler created for service: {}", service_name);
 		Self { service_name: service_name.to_string(), span_contexts: Mutex::new(HashMap::new()) }
+	}
+
+	/// Check if a span should be filtered out
+	fn should_filter_span(name: &str, duration: Duration) -> bool {
+		// Always include important operations
+		if IMPORTANT_OPERATIONS.iter().any(|op| name.contains(op)) {
+			return false;
+		}
+
+		// Filter out known noisy low-level operations
+		if FILTERED_OPERATIONS.iter().any(|op| name == *op) {
+			return true;
+		}
+
+		// Filter out very short spans (likely internal housekeeping)
+		if duration < MIN_SPAN_DURATION {
+			return true;
+		}
+
+		false
+	}
+
+	/// Categorize a span for better Datadog grouping
+	fn categorize_span(name: &str, target: &str) -> (&'static str, String) {
+		// Return (category, resource_name)
+		if name.contains("block") || target.contains("block") {
+			("block", format!("block.{}", name))
+		} else if name.contains("transaction") || name.contains("extrinsic") {
+			("transaction", format!("tx.{}", name))
+		} else if target.starts_with("sc_consensus") || name.contains("consensus") {
+			("consensus", format!("consensus.{}", name))
+		} else if target.starts_with("sc_network") || name.contains("network") {
+			("network", format!("network.{}", name))
+		} else if target.contains("runtime") || target.starts_with("frame") || target.starts_with("pallet") {
+			("runtime", format!("runtime.{}", name))
+		} else if target.starts_with("sp_io") {
+			("wasm", format!("wasm.{}", name))
+		} else if name.contains("db") || name.contains("storage") || target.contains("db") {
+			("storage", format!("storage.{}", name))
+		} else {
+			("substrate", name.to_string())
+		}
 	}
 
 	/// Converts a tracing Level to an OpenTelemetry-compatible string.
@@ -88,11 +157,24 @@ impl OpenTelemetryTraceHandler {
 use std::sync::atomic::{AtomicU64, Ordering};
 
 static SPAN_COUNT: AtomicU64 = AtomicU64::new(0);
+static FILTERED_COUNT: AtomicU64 = AtomicU64::new(0);
 
 impl TraceHandler for OpenTelemetryTraceHandler {
 	fn handle_span(&self, span_datum: &SpanDatum) {
+		// Check if this span should be filtered out
+		if Self::should_filter_span(&span_datum.name, span_datum.overall_time) {
+			let filtered = FILTERED_COUNT.fetch_add(1, Ordering::Relaxed);
+			if filtered < 5 || filtered % 10000 == 0 {
+				eprintln!(
+					"[TRACE] Filtered span #{}: name={}, duration={:?}",
+					filtered, span_datum.name, span_datum.overall_time
+				);
+			}
+			return;
+		}
+
 		let count = SPAN_COUNT.fetch_add(1, Ordering::Relaxed);
-		if count < 10 || count % 1000 == 0 {
+		if count < 20 || count % 100 == 0 {
 			eprintln!(
 				"[TRACE] handle_span #{}: name={}, target={}, duration={:?}",
 				count, span_datum.name, span_datum.target, span_datum.overall_time
@@ -101,12 +183,20 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 
 		let tracer = global::tracer(self.service_name.clone());
 
+		// Categorize the span for better Datadog organization
+		let (category, resource_name) = Self::categorize_span(&span_datum.name, &span_datum.target);
+
 		// Build attributes from span data
 		let mut attributes = Self::values_to_attributes(&span_datum.values);
 		attributes.push(KeyValue::new("substrate.target", span_datum.target.clone()));
 		attributes.push(KeyValue::new("substrate.level", Self::level_to_string(&span_datum.level)));
 		attributes.push(KeyValue::new("substrate.line", span_datum.line as i64));
 		attributes.push(KeyValue::new("substrate.span_id", span_datum.id.into_u64() as i64));
+		attributes.push(KeyValue::new("category", category));
+		attributes.push(KeyValue::new("resource.name", resource_name.clone()));
+
+		// Add duration in milliseconds as an attribute for easier filtering
+		attributes.push(KeyValue::new("duration_ms", span_datum.overall_time.as_millis() as i64));
 
 		// Calculate timing
 		let start_time = Self::calculate_start_time(span_datum.overall_time);
@@ -120,8 +210,8 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 				.and_then(|contexts| contexts.get(&parent_id.into_u64()).cloned())
 		});
 
-		// Create the span builder
-		let span_builder = SpanBuilder::from_name(span_datum.name.clone())
+		// Create the span builder with categorized name
+		let span_builder = SpanBuilder::from_name(resource_name)
 			.with_kind(SpanKind::Internal)
 			.with_start_time(start_time)
 			.with_attributes(attributes);
@@ -159,9 +249,20 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 	}
 
 	fn handle_event(&self, event: &TraceEvent) {
+		// For events, we're more selective - only export important events
+		// Events are typically log messages, not operations we want to trace
+		let dominated_by_noise = event.target.starts_with("sp_io")
+			|| event.target.contains("allocator")
+			|| event.name.contains("malloc")
+			|| event.name.contains("free");
+
+		if dominated_by_noise {
+			return;
+		}
+
 		static EVENT_COUNT: AtomicU64 = AtomicU64::new(0);
 		let count = EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
-		if count < 10 || count % 1000 == 0 {
+		if count < 20 || count % 100 == 0 {
 			eprintln!(
 				"[TRACE] handle_event #{}: name={}, target={}",
 				count, event.name, event.target
@@ -170,11 +271,16 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 
 		let tracer = global::tracer(self.service_name.clone());
 
+		// Categorize the event
+		let (category, resource_name) = Self::categorize_span(&event.name, &event.target);
+
 		// Convert event to a short-lived span (events don't have duration)
 		let mut attributes = Self::values_to_attributes(&event.values);
 		attributes.push(KeyValue::new("substrate.target", event.target.clone()));
 		attributes.push(KeyValue::new("substrate.level", Self::level_to_string(&event.level)));
 		attributes.push(KeyValue::new("event.name", event.name.clone()));
+		attributes.push(KeyValue::new("category", category));
+		attributes.push(KeyValue::new("span.type", "event"));
 
 		// Get parent context if available
 		let parent_context = event.parent_id.as_ref().and_then(|parent_id| {
@@ -185,7 +291,7 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 		});
 
 		let now = SystemTime::now();
-		let span_builder = SpanBuilder::from_name(format!("event: {}", event.name))
+		let span_builder = SpanBuilder::from_name(format!("event: {}", resource_name))
 			.with_kind(SpanKind::Internal)
 			.with_start_time(now)
 			.with_attributes(attributes);
@@ -228,5 +334,35 @@ mod tests {
 	fn test_handler_creation() {
 		let handler = OpenTelemetryTraceHandler::new("test-service");
 		assert_eq!(handler.service_name, "test-service");
+	}
+
+	#[test]
+	fn test_should_filter_span() {
+		// Low-level operations should be filtered
+		assert!(OpenTelemetryTraceHandler::should_filter_span("malloc_version_1", Duration::from_micros(50)));
+		assert!(OpenTelemetryTraceHandler::should_filter_span("free_version_1", Duration::from_micros(50)));
+		assert!(OpenTelemetryTraceHandler::should_filter_span("blake2_256_version_1", Duration::from_micros(50)));
+
+		// Important operations should never be filtered
+		assert!(!OpenTelemetryTraceHandler::should_filter_span("import_block", Duration::from_micros(50)));
+		assert!(!OpenTelemetryTraceHandler::should_filter_span("execute_block", Duration::from_millis(100)));
+
+		// Short unknown operations should be filtered
+		assert!(OpenTelemetryTraceHandler::should_filter_span("unknown_op", Duration::from_micros(50)));
+
+		// Longer operations should pass
+		assert!(!OpenTelemetryTraceHandler::should_filter_span("some_operation", Duration::from_millis(1)));
+	}
+
+	#[test]
+	fn test_categorize_span() {
+		let (cat, _) = OpenTelemetryTraceHandler::categorize_span("import_block", "sc_consensus");
+		assert_eq!(cat, "block");
+
+		let (cat, _) = OpenTelemetryTraceHandler::categorize_span("validate_transaction", "pallet_midnight");
+		assert_eq!(cat, "transaction");
+
+		let (cat, _) = OpenTelemetryTraceHandler::categorize_span("propose", "sc_consensus_aura");
+		assert_eq!(cat, "consensus");
 	}
 }
