@@ -17,13 +17,17 @@
 //! native tracing spans into OpenTelemetry spans and exports them to Datadog.
 
 use opentelemetry::{
-	Context, KeyValue, global,
+	global,
 	trace::{SpanBuilder, SpanKind, TraceContextExt},
+	Context, KeyValue,
 };
 use sc_tracing::{SpanDatum, TraceEvent, TraceHandler};
 use std::{
 	collections::HashMap,
-	sync::Mutex,
+	sync::{
+		atomic::{AtomicU64, Ordering},
+		Mutex,
+	},
 	time::{Duration, SystemTime},
 };
 
@@ -62,6 +66,10 @@ pub struct OpenTelemetryTraceHandler {
 	service_name: String,
 	/// Maps Substrate span IDs to OpenTelemetry contexts for parent-child relationships
 	span_contexts: Mutex<HashMap<u64, Context>>,
+	/// Debug counters
+	spans_received: AtomicU64,
+	spans_filtered: AtomicU64,
+	spans_exported: AtomicU64,
 }
 
 impl OpenTelemetryTraceHandler {
@@ -70,7 +78,13 @@ impl OpenTelemetryTraceHandler {
 	/// # Arguments
 	/// * `service_name` - The service name to use for spans (e.g., "midnight-node")
 	pub fn new(service_name: &str) -> Self {
-		Self { service_name: service_name.to_string(), span_contexts: Mutex::new(HashMap::new()) }
+		Self {
+			service_name: service_name.to_string(),
+			span_contexts: Mutex::new(HashMap::new()),
+			spans_received: AtomicU64::new(0),
+			spans_filtered: AtomicU64::new(0),
+			spans_exported: AtomicU64::new(0),
+		}
 	}
 
 	/// Check if a span should be filtered out
@@ -104,7 +118,10 @@ impl OpenTelemetryTraceHandler {
 			("consensus", format!("consensus.{}", name))
 		} else if target.starts_with("sc_network") || name.contains("network") {
 			("network", format!("network.{}", name))
-		} else if target.contains("runtime") || target.starts_with("frame") || target.starts_with("pallet") {
+		} else if target.contains("runtime")
+			|| target.starts_with("frame")
+			|| target.starts_with("pallet")
+		{
 			("runtime", format!("runtime.{}", name))
 		} else if target.starts_with("sp_io") {
 			("wasm", format!("wasm.{}", name))
@@ -155,8 +172,24 @@ impl OpenTelemetryTraceHandler {
 
 impl TraceHandler for OpenTelemetryTraceHandler {
 	fn handle_span(&self, span_datum: &SpanDatum) {
+		let received = self.spans_received.fetch_add(1, Ordering::Relaxed) + 1;
+
+		// Debug: print first span and every 100th span received
+		if received == 1 {
+			eprintln!(
+				"[otel-debug] FIRST SPAN RECEIVED! name={}, target={}, duration={:?}",
+				span_datum.name, span_datum.target, span_datum.overall_time
+			);
+		} else if received % 100 == 0 {
+			eprintln!(
+				"[otel-debug] Received span #{}: name={}, target={}, duration={:?}",
+				received, span_datum.name, span_datum.target, span_datum.overall_time
+			);
+		}
+
 		// Check if this span should be filtered out
 		if Self::should_filter_span(&span_datum.name, span_datum.overall_time) {
+			self.spans_filtered.fetch_add(1, Ordering::Relaxed);
 			return;
 		}
 
@@ -225,6 +258,18 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 		// End the span with the calculated end time
 		// The span is automatically ended when dropped, but we want explicit timing
 		cx.span().end_with_timestamp(end_time);
+
+		let exported = self.spans_exported.fetch_add(1, Ordering::Relaxed) + 1;
+
+		// Debug: print stats every 100 exported spans
+		if exported % 100 == 1 {
+			let received = self.spans_received.load(Ordering::Relaxed);
+			let filtered = self.spans_filtered.load(Ordering::Relaxed);
+			eprintln!(
+				"[otel-debug] Stats: received={}, filtered={}, exported={}, last={}",
+				received, filtered, exported, resource_name
+			);
+		}
 	}
 
 	fn handle_event(&self, event: &TraceEvent) {
@@ -309,19 +354,40 @@ mod tests {
 	#[test]
 	fn test_should_filter_span() {
 		// Low-level operations should be filtered
-		assert!(OpenTelemetryTraceHandler::should_filter_span("malloc_version_1", Duration::from_micros(50)));
-		assert!(OpenTelemetryTraceHandler::should_filter_span("free_version_1", Duration::from_micros(50)));
-		assert!(OpenTelemetryTraceHandler::should_filter_span("blake2_256_version_1", Duration::from_micros(50)));
+		assert!(OpenTelemetryTraceHandler::should_filter_span(
+			"malloc_version_1",
+			Duration::from_micros(50)
+		));
+		assert!(OpenTelemetryTraceHandler::should_filter_span(
+			"free_version_1",
+			Duration::from_micros(50)
+		));
+		assert!(OpenTelemetryTraceHandler::should_filter_span(
+			"blake2_256_version_1",
+			Duration::from_micros(50)
+		));
 
 		// Important operations should never be filtered
-		assert!(!OpenTelemetryTraceHandler::should_filter_span("import_block", Duration::from_micros(50)));
-		assert!(!OpenTelemetryTraceHandler::should_filter_span("execute_block", Duration::from_millis(100)));
+		assert!(!OpenTelemetryTraceHandler::should_filter_span(
+			"import_block",
+			Duration::from_micros(50)
+		));
+		assert!(!OpenTelemetryTraceHandler::should_filter_span(
+			"execute_block",
+			Duration::from_millis(100)
+		));
 
 		// Short unknown operations should be filtered
-		assert!(OpenTelemetryTraceHandler::should_filter_span("unknown_op", Duration::from_micros(50)));
+		assert!(OpenTelemetryTraceHandler::should_filter_span(
+			"unknown_op",
+			Duration::from_micros(50)
+		));
 
 		// Longer operations should pass
-		assert!(!OpenTelemetryTraceHandler::should_filter_span("some_operation", Duration::from_millis(1)));
+		assert!(!OpenTelemetryTraceHandler::should_filter_span(
+			"some_operation",
+			Duration::from_millis(1)
+		));
 	}
 
 	#[test]
@@ -329,7 +395,8 @@ mod tests {
 		let (cat, _) = OpenTelemetryTraceHandler::categorize_span("import_block", "sc_consensus");
 		assert_eq!(cat, "block");
 
-		let (cat, _) = OpenTelemetryTraceHandler::categorize_span("validate_transaction", "pallet_midnight");
+		let (cat, _) =
+			OpenTelemetryTraceHandler::categorize_span("validate_transaction", "pallet_midnight");
 		assert_eq!(cat, "transaction");
 
 		let (cat, _) = OpenTelemetryTraceHandler::categorize_span("propose", "sc_consensus_aura");
