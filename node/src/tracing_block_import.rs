@@ -13,6 +13,8 @@
 //! Wraps a [`BlockImport`] to add Datadog/OpenTelemetry spans for sync diagnostics.
 
 use async_trait::async_trait;
+#[cfg(feature = "datadog-tracing")]
+use parity_scale_codec::Encode;
 use sc_consensus::block_import::{
 	BlockCheckParams, BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult,
 	JustificationImport, StateAction,
@@ -121,6 +123,16 @@ where
 					.as_ref()
 					.map(|body| body.len())
 					.unwrap_or(0);
+				let body_bytes = block
+					.body
+					.as_ref()
+					.map(|body| body.iter().map(|ext| ext.encode().len() as i64).sum())
+					.unwrap_or(0);
+				let indexed_body_bytes = block
+					.indexed_body
+					.as_ref()
+					.map(|body| body.iter().map(|ext| ext.len() as i64).sum())
+					.unwrap_or(0);
 				let state_action = state_action_label(&block.state_action);
 
 				// Start timing the overall block import process
@@ -139,6 +151,8 @@ where
 				parent_span.set_attribute(KeyValue::new("intermediates_len", block.intermediates.len() as i64));
 				parent_span.set_attribute(KeyValue::new("body_len", body_len as i64));
 				parent_span.set_attribute(KeyValue::new("indexed_body_len", indexed_body_len as i64));
+				parent_span.set_attribute(KeyValue::new("body_bytes", body_bytes));
+				parent_span.set_attribute(KeyValue::new("indexed_body_bytes", indexed_body_bytes));
 				parent_span.set_attribute(KeyValue::new("state_action", state_action));
 				parent_span.set_attribute(KeyValue::new("fork_choice", match block.fork_choice {
 					Some(ForkChoiceStrategy::LongestChain) => "longest",
