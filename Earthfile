@@ -918,9 +918,10 @@ test-toolkit:
 build-prepare:
     # NOTE: This just uses recipe.json - no src files!
     FROM +prep-no-copy
-    COPY +planner/recipe.json /recipe.json
-    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    # TODO: re-enable when chef is improved.
+    # COPY +planner/recipe.json /recipe.json
+    # CACHE --sharing shared --id cargo-git /usr/local/cargo/git
+    # CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
 
     ARG EARTHLY_GIT_SHORT_HASH
     ENV SUBSTRATE_CLI_GIT_COMMIT_HASH=$EARTHLY_GIT_SHORT_HASH
@@ -929,7 +930,8 @@ build-prepare:
     ENV CXX=clang++
 
     # Build dependencies - this is the caching Docker layer!
-    RUN SKIP_WASM_BUILD=1 cargo chef cook --release --workspace --all-targets --recipe-path /recipe.json
+    # TODO: re-enable when chef is improved.
+    # RUN SKIP_WASM_BUILD=1 cargo chef cook --release --workspace --all-targets --recipe-path /recipe.json
 
 build-upgrader:
     FROM +prep
