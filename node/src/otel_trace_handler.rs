@@ -34,6 +34,10 @@ use std::{
 /// Minimum duration for a span to be exported (filters out micro-operations)
 const MIN_SPAN_DURATION: Duration = Duration::from_micros(100);
 
+/// Default sample rate (1.0 = 100%, 0.01 = 1%)
+/// Can be overridden with OTEL_TRACE_SAMPLE_RATE env var
+const DEFAULT_SAMPLE_RATE: f64 = 0.01;
+
 /// Low-level operations to filter out (noise reduction)
 const FILTERED_OPERATIONS: &[&str] = &[
 	"malloc_version_1",
@@ -70,6 +74,9 @@ pub struct OpenTelemetryTraceHandler {
 	spans_received: AtomicU64,
 	spans_filtered: AtomicU64,
 	spans_exported: AtomicU64,
+	/// Sample rate for non-important spans (0.0 to 1.0)
+	/// Important operations are always sampled at 100%
+	sample_rate: f64,
 }
 
 impl OpenTelemetryTraceHandler {
@@ -78,12 +85,24 @@ impl OpenTelemetryTraceHandler {
 	/// # Arguments
 	/// * `service_name` - The service name to use for spans (e.g., "midnight-node")
 	pub fn new(service_name: &str) -> Self {
+		let sample_rate = std::env::var("OTEL_TRACE_SAMPLE_RATE")
+			.ok()
+			.and_then(|s| s.parse::<f64>().ok())
+			.unwrap_or(DEFAULT_SAMPLE_RATE)
+			.clamp(0.0, 1.0);
+
+		eprintln!(
+			"[midnight-node] OpenTelemetry trace handler initialized (sample_rate: {}%)",
+			sample_rate * 100.0
+		);
+
 		Self {
 			service_name: service_name.to_string(),
 			span_contexts: Mutex::new(HashMap::new()),
 			spans_received: AtomicU64::new(0),
 			spans_filtered: AtomicU64::new(0),
 			spans_exported: AtomicU64::new(0),
+			sample_rate,
 		}
 	}
 
@@ -174,16 +193,11 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 	fn handle_span(&self, span_datum: &SpanDatum) {
 		let received = self.spans_received.fetch_add(1, Ordering::Relaxed) + 1;
 
-		// Debug: print first span and every 100th span received
+		// Debug: print first span and periodic stats
 		if received == 1 {
 			eprintln!(
 				"[otel-debug] FIRST SPAN RECEIVED! name={}, target={}, duration={:?}",
 				span_datum.name, span_datum.target, span_datum.overall_time
-			);
-		} else if received % 100 == 0 {
-			eprintln!(
-				"[otel-debug] Received span #{}: name={}, target={}, duration={:?}",
-				received, span_datum.name, span_datum.target, span_datum.overall_time
 			);
 		}
 
@@ -191,6 +205,18 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 		if Self::should_filter_span(&span_datum.name, span_datum.overall_time) {
 			self.spans_filtered.fetch_add(1, Ordering::Relaxed);
 			return;
+		}
+
+		// Apply sampling for non-important operations
+		// Important operations (import_block, execute_block, etc.) are always sampled
+		let is_important = IMPORTANT_OPERATIONS.iter().any(|op| span_datum.name.contains(op));
+		if !is_important && self.sample_rate < 1.0 {
+			// Use counter-based sampling: export every Nth span where N = 1/sample_rate
+			let sample_interval = (1.0 / self.sample_rate) as u64;
+			if sample_interval > 0 && received % sample_interval != 0 {
+				self.spans_filtered.fetch_add(1, Ordering::Relaxed);
+				return;
+			}
 		}
 
 		let tracer = global::tracer(self.service_name.clone());
@@ -262,13 +288,13 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 
 		let exported = self.spans_exported.fetch_add(1, Ordering::Relaxed) + 1;
 
-		// Debug: print stats every 100 exported spans
-		if exported % 100 == 1 {
+		// Debug: print stats every 1000 exported spans
+		if exported == 1 || exported % 1000 == 0 {
 			let received = self.spans_received.load(Ordering::Relaxed);
 			let filtered = self.spans_filtered.load(Ordering::Relaxed);
 			eprintln!(
-				"[otel-debug] Stats: received={}, filtered={}, exported={}, last={}",
-				received, filtered, exported, span_name
+				"[otel-debug] Stats: received={}, filtered={}, exported={} (sample_rate={}%)",
+				received, filtered, exported, self.sample_rate * 100.0
 			);
 		}
 	}
