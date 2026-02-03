@@ -21,7 +21,11 @@ use sc_consensus::block_import::{
 };
 use sp_runtime::{traits::{Block as BlockT, Header, SaturatedConversion}, Justification};
 #[cfg(feature = "datadog-tracing")]
-use opentelemetry::{Context, trace::{Span, TraceContextExt, Tracer}};
+use opentelemetry::{Context, trace::{Span, SpanBuilder, TraceContextExt, Tracer}};
+#[cfg(feature = "datadog-tracing")]
+use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(feature = "datadog-tracing")]
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Wraps a block importer and records a span around each `import_block` for sync diagnostics.
 #[derive(Clone)]
@@ -39,6 +43,19 @@ fn state_action_label<Block: BlockT>(action: &StateAction<Block>) -> &'static st
 		StateAction::Skip => "skip",
 	}
 }
+
+#[cfg(feature = "datadog-tracing")]
+fn now_ns() -> u64 {
+	SystemTime::now()
+		.duration_since(UNIX_EPOCH)
+		.unwrap_or(Duration::from_secs(0))
+		.as_nanos() as u64
+}
+
+#[cfg(feature = "datadog-tracing")]
+static LAST_IMPORT_END_NS: AtomicU64 = AtomicU64::new(0);
+#[cfg(feature = "datadog-tracing")]
+static LAST_CHECK_END_NS: AtomicU64 = AtomicU64::new(0);
 
 #[async_trait]
 impl<B, I> BlockImport<B> for TracingBlockImport<I>
@@ -87,8 +104,10 @@ where
 				let duration = start_time.elapsed();
 				span.set_attribute(KeyValue::new("duration_ms", duration.as_millis() as i64));
 				span.end(); // Explicitly end the span
+				LAST_CHECK_END_NS.store(now_ns(), Ordering::Relaxed);
 				result
 			} else {
+				LAST_CHECK_END_NS.store(now_ns(), Ordering::Relaxed);
 				self.0.check_block(block).await
 			}
 		}
@@ -117,6 +136,10 @@ where
 				
 				let tracer = opentelemetry::global::tracer("midnight-node");
 				
+				let start_ns = now_ns();
+				let last_import_end_ns = LAST_IMPORT_END_NS.load(Ordering::Relaxed);
+				let last_check_end_ns = LAST_CHECK_END_NS.load(Ordering::Relaxed);
+
 				let body_len = block.body.as_ref().map(|body| body.len()).unwrap_or(0);
 				let indexed_body_len = block
 					.indexed_body
@@ -163,6 +186,48 @@ where
 				parent_span.set_attribute(KeyValue::new("sampled", true));
 				parent_span.set_attribute(KeyValue::new("operation", "full_block_import"));
 
+				// Span: idle gap since previous import finished (approx queue/download wait)
+				if last_import_end_ns > 0 && start_ns > last_import_end_ns {
+					let gap_ns = start_ns - last_import_end_ns;
+					let gap_start = UNIX_EPOCH + Duration::from_nanos(last_import_end_ns);
+					let gap_end = UNIX_EPOCH + Duration::from_nanos(start_ns);
+					let gap_span = tracer.build_with_context(
+						SpanBuilder {
+							name: "sync.import_gap".into(),
+							start_time: Some(gap_start),
+							end_time: Some(gap_end),
+							attributes: Some(vec![
+								KeyValue::new("gap_ms", (gap_ns / 1_000_000) as i64),
+								KeyValue::new("gap_type", "idle_or_download_wait"),
+							]),
+							..Default::default()
+						},
+						&Context::current_with_span(parent_span.clone()),
+					);
+					gap_span.end();
+				}
+
+				// Span: time from last check_block completion to this import (pipeline delay)
+				if last_check_end_ns > 0 && start_ns > last_check_end_ns {
+					let delay_ns = start_ns - last_check_end_ns;
+					let delay_start = UNIX_EPOCH + Duration::from_nanos(last_check_end_ns);
+					let delay_end = UNIX_EPOCH + Duration::from_nanos(start_ns);
+					let delay_span = tracer.build_with_context(
+						SpanBuilder {
+							name: "sync.check_to_import_gap".into(),
+							start_time: Some(delay_start),
+							end_time: Some(delay_end),
+							attributes: Some(vec![
+								KeyValue::new("delay_ms", (delay_ns / 1_000_000) as i64),
+								KeyValue::new("gap_type", "pipeline_wait"),
+							]),
+							..Default::default()
+						},
+						&Context::current_with_span(parent_span.clone()),
+					);
+					delay_span.end();
+				}
+
 				let cx = Context::current_with_span(parent_span);
 				let mut child_span = tracer.start_with_context("sync.import_block.exec", &cx);
 				child_span.set_attribute(KeyValue::new("phase", "block_processing"));
@@ -176,8 +241,10 @@ where
 				let parent_span = cx.span();
 				parent_span.set_attribute(KeyValue::new("duration_ms", total_duration.as_millis() as i64));
 				parent_span.end();
+				LAST_IMPORT_END_NS.store(now_ns(), Ordering::Relaxed);
 				result
 			} else {
+				LAST_IMPORT_END_NS.store(now_ns(), Ordering::Relaxed);
 				self.0.import_block(block).await
 			}
 		}
