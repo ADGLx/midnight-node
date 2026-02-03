@@ -186,12 +186,14 @@ where
 				parent_span.set_attribute(KeyValue::new("sampled", true));
 				parent_span.set_attribute(KeyValue::new("operation", "full_block_import"));
 
+				let cx = Context::current_with_span(parent_span);
+
 				// Span: idle gap since previous import finished (approx queue/download wait)
 				if last_import_end_ns > 0 && start_ns > last_import_end_ns {
 					let gap_ns = start_ns - last_import_end_ns;
 					let gap_start = UNIX_EPOCH + Duration::from_nanos(last_import_end_ns);
 					let gap_end = UNIX_EPOCH + Duration::from_nanos(start_ns);
-					let gap_span = tracer.build_with_context(
+					let mut gap_span = tracer.build_with_context(
 						SpanBuilder {
 							name: "sync.import_gap".into(),
 							start_time: Some(gap_start),
@@ -202,7 +204,7 @@ where
 							]),
 							..Default::default()
 						},
-						&Context::current_with_span(parent_span.clone()),
+						&cx,
 					);
 					gap_span.end();
 				}
@@ -212,7 +214,7 @@ where
 					let delay_ns = start_ns - last_check_end_ns;
 					let delay_start = UNIX_EPOCH + Duration::from_nanos(last_check_end_ns);
 					let delay_end = UNIX_EPOCH + Duration::from_nanos(start_ns);
-					let delay_span = tracer.build_with_context(
+					let mut delay_span = tracer.build_with_context(
 						SpanBuilder {
 							name: "sync.check_to_import_gap".into(),
 							start_time: Some(delay_start),
@@ -223,12 +225,10 @@ where
 							]),
 							..Default::default()
 						},
-						&Context::current_with_span(parent_span.clone()),
+						&cx,
 					);
 					delay_span.end();
 				}
-
-				let cx = Context::current_with_span(parent_span);
 				let mut child_span = tracer.start_with_context("sync.import_block.exec", &cx);
 				child_span.set_attribute(KeyValue::new("phase", "block_processing"));
 
