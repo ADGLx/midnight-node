@@ -123,6 +123,7 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		.clone()
 		.or_else(|| std::env::var("DD_TRACE_AGENT_URL").ok());
 
+
 	#[cfg(feature = "datadog-tracing")]
 	let _otel_tracer_provider = if let Some(ref url) = datadog_url {
 		use datadog_opentelemetry::configuration::Config;
@@ -139,7 +140,8 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		// Set the global tracer provider so otel_trace_handler can use global::tracer()
 		global::set_tracer_provider(tracer_provider.clone());
 
-		log::info!("Datadog tracing initialized, will send to {}", url);
+		// Use eprintln since logger isn't initialized yet
+		eprintln!("[midnight-node] Datadog tracing initialized, will send to {}", url);
 		Some(tracer_provider)
 	} else {
 		None
@@ -149,20 +151,29 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	// This bridges ALL Substrate native tracing to Datadog
 	#[cfg(feature = "datadog-tracing")]
 	let runner = if datadog_url.is_some() {
+		eprintln!("[midnight-node] Creating runner with logger hook for Datadog tracing");
 		cfg.create_runner_with_logger_hook(&run_cmd, |logger_builder, config| {
-			use sc_tracing::TracingReceiver;
 			use crate::otel_trace_handler::OpenTelemetryTraceHandler;
-			
+
+			eprintln!("[midnight-node] Logger hook called, creating OpenTelemetryTraceHandler");
+
 			// Add OpenTelemetry as custom profiler - captures all Substrate spans
+			// Note: with_profiling is already called by Substrate if --tracing-targets is passed,
+			// so we only need to add our custom handler here.
 			let handler = Box::new(OpenTelemetryTraceHandler::new("midnight-node"));
+			eprintln!("[midnight-node] Registering handler with logger builder");
 			logger_builder.with_custom_profiling(handler);
-			// Profiling layer uses --tracing-targets from CLI when set.
-			// When not set, default to "error" so we emit nothing unless you opt in with --tracing-targets.
-			let profiling_filter = config.tracing_targets.as_deref().unwrap_or("error");
-			logger_builder.with_profiling(TracingReceiver::Log, profiling_filter);
-			
-			log::info!("Substrate tracing bridge to Datadog enabled");
-			log::info!("Use --tracing-targets to enable specific trace targets (e.g., sync=debug,sc_client=debug)");
+
+			// If --tracing-targets wasn't passed, enable profiling with default "info" filter
+			// so that our handler receives spans
+			if config.tracing_targets.is_none() {
+				use sc_tracing::TracingReceiver;
+				// Use a broad filter to capture spans from all targets at info level
+				logger_builder.with_profiling(TracingReceiver::Log, "sc=trace,sp=trace,frame=trace,pallet=trace,midnight=trace");
+				eprintln!("[midnight-node] Substrate tracing bridge enabled (no --tracing-targets, using broad filter)");
+			} else {
+				eprintln!("[midnight-node] Substrate tracing bridge enabled (filter: {:?})", config.tracing_targets);
+			}
 		})?
 	} else {
 		cfg.create_runner(&run_cmd)?

@@ -43,6 +43,7 @@ impl OpenTelemetryTraceHandler {
 	/// # Arguments
 	/// * `service_name` - The service name to use for spans (e.g., "midnight-node")
 	pub fn new(service_name: &str) -> Self {
+		eprintln!("[OTEL] OpenTelemetryTraceHandler created for service: {}", service_name);
 		Self { service_name: service_name.to_string(), span_contexts: Mutex::new(HashMap::new()) }
 	}
 
@@ -84,8 +85,20 @@ impl OpenTelemetryTraceHandler {
 	}
 }
 
+use std::sync::atomic::{AtomicU64, Ordering};
+
+static SPAN_COUNT: AtomicU64 = AtomicU64::new(0);
+
 impl TraceHandler for OpenTelemetryTraceHandler {
 	fn handle_span(&self, span_datum: &SpanDatum) {
+		let count = SPAN_COUNT.fetch_add(1, Ordering::Relaxed);
+		if count < 10 || count % 1000 == 0 {
+			eprintln!(
+				"[TRACE] handle_span #{}: name={}, target={}, duration={:?}",
+				count, span_datum.name, span_datum.target, span_datum.overall_time
+			);
+		}
+
 		let tracer = global::tracer(self.service_name.clone());
 
 		// Build attributes from span data
@@ -146,6 +159,15 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 	}
 
 	fn handle_event(&self, event: &TraceEvent) {
+		static EVENT_COUNT: AtomicU64 = AtomicU64::new(0);
+		let count = EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
+		if count < 10 || count % 1000 == 0 {
+			eprintln!(
+				"[TRACE] handle_event #{}: name={}, target={}",
+				count, event.name, event.target
+			);
+		}
+
 		let tracer = global::tracer(self.service_name.clone());
 
 		// Convert event to a short-lived span (events don't have duration)
