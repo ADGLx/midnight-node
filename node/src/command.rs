@@ -19,8 +19,6 @@ use crate::{
 	cnight_genesis::generate_cnight_genesis,
 	service::{self, StorageInit},
 };
-#[cfg(feature = "datadog-tracing")]
-use opentelemetry::trace::Tracer;
 use clap::Parser;
 use midnight_node_res::networks::MidnightNetwork as _;
 use midnight_node_runtime::Block;
@@ -116,6 +114,54 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			.map_err(|e| sc_cli::Error::Application(Box::new(e)))?;
 	}
 
+	// Initialize Datadog OpenTelemetry tracer BEFORE creating the runner
+	// This allows us to use the logger hook to add OpenTelemetry profiling
+	#[cfg(feature = "datadog-tracing")]
+	let datadog_url = cfg
+		.midnight_cfg
+		.datadog_trace_agent_url
+		.clone()
+		.or_else(|| std::env::var("DD_TRACE_AGENT_URL").ok());
+
+	#[cfg(feature = "datadog-tracing")]
+	let _otel_tracer_provider = if let Some(ref url) = datadog_url {
+		use datadog_opentelemetry::configuration::Config;
+		
+		let config = Config::builder()
+			.set_service("midnight-node".to_string())
+			.set_trace_agent_url(url.clone())
+			.build();
+		let tracer_provider = datadog_opentelemetry::tracing()
+			.with_config(config)
+			.init();
+		
+		log::info!("Datadog tracing initialized, will send to {}", url);
+		Some(tracer_provider)
+	} else {
+		None
+	};
+
+	// Create runner with logger hook to add OpenTelemetry profiling
+	// This bridges ALL Substrate native tracing to Datadog
+	#[cfg(feature = "datadog-tracing")]
+	let runner = if datadog_url.is_some() {
+		cfg.create_runner_with_logger_hook(&run_cmd, |logger_builder, _config| {
+			use sc_tracing::TracingReceiver;
+			use crate::otel_trace_handler::OpenTelemetryTraceHandler;
+			
+			// Add OpenTelemetry as custom profiler - captures all Substrate spans
+			let handler = Box::new(OpenTelemetryTraceHandler::new("midnight-node"));
+			logger_builder.with_custom_profiling(handler);
+			logger_builder.with_profiling(TracingReceiver::Log, "");
+			
+			log::info!("Substrate tracing bridge to Datadog enabled");
+			log::info!("Use --tracing-targets to enable specific trace targets (e.g., sync=debug,sc_client=debug)");
+		})?
+	} else {
+		cfg.create_runner(&run_cmd)?
+	};
+
+	#[cfg(not(feature = "datadog-tracing"))]
 	let runner = cfg.create_runner(&run_cmd)?;
 	let base_path = run_cmd
 		.shared_params()
@@ -185,49 +231,11 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		log::info!("CROSS_CHAIN pubkey: {}", &keypair.public())
 	}
 
-	// Initialize Datadog OpenTelemetry tracer when trace agent URL is set (sends to datadog-trace-gateway)
-	// This bridges Substrate's internal tracing (sync, network, runtime, DB) to Datadog
-	#[cfg(feature = "datadog-tracing")]
-	let _otel_tracer_provider = if let Some(url) = cfg
-		.midnight_cfg
-		.datadog_trace_agent_url
-		.clone()
-		.or_else(|| std::env::var("DD_TRACE_AGENT_URL").ok())
-	{
-		use datadog_opentelemetry::configuration::Config;
-		
-		let config = Config::builder()
-			.set_service("midnight-node".to_string())
-			.set_trace_agent_url(url.clone())
-			.build();
-		let tracer_provider = datadog_opentelemetry::tracing()
-			.with_config(config)
-			.init();
-		
-		log::info!("Datadog tracing enabled, sending to {}", url);
-		
-		// Note: Substrate sets up its own tracing subscriber via sc_cli.
-		// Our manual spans via opentelemetry::global::tracer() will still work.
-		// For deep Substrate internal tracing, enable via --tracing-targets flag.
-		Some(tracer_provider)
-	} else {
-		None
-	};
-
 	runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 
-		#[cfg(feature = "datadog-tracing")]
-		let tracer = opentelemetry::global::tracer("midnight-node");
-
-		// Manual instrumentation: Datadog Rust SDK has no auto-instrumentation (see docs)
-		#[cfg(feature = "datadog-tracing")]
-		let _startup_span = tracer.start("node.startup");
-
-		// TODO: Add metrics
+		// Data sources - tracing is now handled by Substrate's native tracing system
 		let data_sources = {
-			#[cfg(feature = "datadog-tracing")]
-			let _span = tracer.start("main_chain_follower.create_data_sources");
 			crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
 				cfg.midnight_cfg.clone(),
 				None,

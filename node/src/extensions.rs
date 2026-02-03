@@ -16,13 +16,11 @@ use midnight_primitives_ledger::{
 };
 use sc_client_api::execution_extensions::ExtensionsFactory as ExtensionsFactoryT;
 use sp_externalities::Extensions;
-use sp_runtime::traits::{Block as BlockT, NumberFor, SaturatedConversion};
+use sp_runtime::traits::{Block as BlockT, NumberFor};
 use std::{
 	marker::PhantomData,
 	sync::{Arc, Mutex},
 };
-#[cfg(feature = "datadog-tracing")]
-use opentelemetry::trace::{Tracer, Span};
 
 /// Extensions factory
 pub struct ExtensionsFactory<Block> {
@@ -47,29 +45,10 @@ where
 	fn extensions_for(
 		&self,
 		_block_hash: Block::Hash,
-		block_number: NumberFor<Block>,
+		_block_number: NumberFor<Block>,
 	) -> Extensions {
-		// Per-block span for sync diagnostics (Datadog has no auto-instrumentation)  
-		// Sample blocks based on DD_TRACE_SAMPLE_RATE to reduce data volume
-		#[cfg(feature = "datadog-tracing")]
-		let _ext_span = {
-			let sample_rate = std::env::var("DD_TRACE_SAMPLE_RATE")
-				.ok()
-				.and_then(|s| s.parse::<u64>().ok())
-				.unwrap_or(100); // Default: sample 1% (every 100th block)
-				
-			if block_number.saturated_into::<u64>() % sample_rate == 0 {
-				use opentelemetry::KeyValue;
-				let tracer = opentelemetry::global::tracer("midnight-node");
-				let mut s = tracer.start("sync.block_execution");
-				s.set_attribute(KeyValue::new("block_number", format!("{}", block_number)));
-				s.set_attribute(KeyValue::new("sampled", true));
-				Some(s)
-			} else {
-				None
-			}
-		};
-
+		// Block execution tracing is now handled by Substrate's native tracing system
+		// Enable via --tracing-targets=sp_state_machine=debug to capture block execution spans
 		let mut exts = Extensions::new();
 
 		exts.register(LedgerMetricsExt::new(self.ledger_metrics.clone()));

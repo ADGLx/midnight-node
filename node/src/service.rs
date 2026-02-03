@@ -196,13 +196,11 @@ type MidnightService = sc_service::PartialComponents<
 	sc_consensus::DefaultImportQueue<Block>,
 	sc_transaction_pool::TransactionPoolWrapper<Block, FullClient>,
 	(
-		crate::tracing_block_import::TracingBlockImport<
-			sc_consensus_grandpa::GrandpaBlockImport<
-				FullBackend,
-				Block,
-				FullClient,
-				FullSelectChain,
-			>,
+		sc_consensus_grandpa::GrandpaBlockImport<
+			FullBackend,
+			Block,
+			FullClient,
+			FullSelectChain,
 		>,
 		sc_consensus_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 		sc_consensus_beefy::BeefyVoterLinks<Block, BeefyId>,
@@ -340,8 +338,7 @@ pub fn new_partial(
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
-	let block_import =
-		crate::tracing_block_import::TracingBlockImport(grandpa_block_import);
+	let block_import = grandpa_block_import;
 
 	let (_, beefy_voter_links, beefy_rpc_links) = sc_consensus_beefy::beefy_block_import_and_links(
 		block_import.clone(),
