@@ -223,6 +223,7 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 		});
 
 		// Create the span builder with categorized name
+		let span_name = resource_name.clone();
 		let span_builder = SpanBuilder::from_name(resource_name)
 			.with_kind(SpanKind::Internal)
 			.with_start_time(start_time)
@@ -267,7 +268,7 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 			let filtered = self.spans_filtered.load(Ordering::Relaxed);
 			eprintln!(
 				"[otel-debug] Stats: received={}, filtered={}, exported={}, last={}",
-				received, filtered, exported, resource_name
+				received, filtered, exported, span_name
 			);
 		}
 	}
