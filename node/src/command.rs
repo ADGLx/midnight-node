@@ -186,23 +186,33 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	}
 
 	// Initialize Datadog OpenTelemetry tracer when trace agent URL is set (sends to datadog-trace-gateway)
+	// This bridges Substrate's internal tracing (sync, network, runtime, DB) to Datadog
 	#[cfg(feature = "datadog-tracing")]
-	if let Some(url) = cfg
+	let _otel_tracer_provider = if let Some(url) = cfg
 		.midnight_cfg
 		.datadog_trace_agent_url
 		.clone()
 		.or_else(|| std::env::var("DD_TRACE_AGENT_URL").ok())
 	{
 		use datadog_opentelemetry::configuration::Config;
+		
 		let config = Config::builder()
 			.set_service("midnight-node".to_string())
 			.set_trace_agent_url(url.clone())
 			.build();
-		let _tracer_provider = datadog_opentelemetry::tracing()
+		let tracer_provider = datadog_opentelemetry::tracing()
 			.with_config(config)
 			.init();
+		
 		log::info!("Datadog tracing enabled, sending to {}", url);
-	}
+		
+		// Note: Substrate sets up its own tracing subscriber via sc_cli.
+		// Our manual spans via opentelemetry::global::tracer() will still work.
+		// For deep Substrate internal tracing, enable via --tracing-targets flag.
+		Some(tracer_provider)
+	} else {
+		None
+	};
 
 	runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();

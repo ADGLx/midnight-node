@@ -26,6 +26,79 @@ use opentelemetry::{Context, trace::{Span, SpanBuilder, TraceContextExt, Tracer}
 use std::sync::atomic::{AtomicU64, Ordering};
 #[cfg(feature = "datadog-tracing")]
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
+#[cfg(feature = "datadog-tracing")]
+use std::sync::Mutex;
+
+/// Cached metrics from Prometheus endpoint (refreshed periodically)
+#[cfg(feature = "datadog-tracing")]
+struct CachedMetrics {
+    queued_blocks: i64,
+    import_queue_processed: i64,
+    network_bytes_in: i64,
+    last_refresh_ns: u64,
+}
+
+#[cfg(feature = "datadog-tracing")]
+impl Default for CachedMetrics {
+    fn default() -> Self {
+        Self {
+            queued_blocks: -1,
+            import_queue_processed: -1,
+            network_bytes_in: -1,
+            last_refresh_ns: 0,
+        }
+    }
+}
+
+#[cfg(feature = "datadog-tracing")]
+static CACHED_METRICS: Mutex<CachedMetrics> = Mutex::new(CachedMetrics {
+    queued_blocks: -1,
+    import_queue_processed: -1,
+    network_bytes_in: -1,
+    last_refresh_ns: 0,
+});
+
+#[cfg(feature = "datadog-tracing")]
+fn refresh_metrics_if_stale() -> CachedMetrics {
+    let now = now_ns();
+    let refresh_interval_ns = 2_000_000_000; // 2 seconds
+    
+    let mut cached = CACHED_METRICS.lock().unwrap_or_else(|e| e.into_inner());
+    
+    if now - cached.last_refresh_ns > refresh_interval_ns {
+        // Fetch metrics from local Prometheus endpoint (non-blocking best-effort)
+        if let Ok(body) = std::process::Command::new("curl")
+            .args(["-s", "--max-time", "1", "http://127.0.0.1:9615/metrics"])
+            .output()
+        {
+            if let Ok(text) = String::from_utf8(body.stdout) {
+                for line in text.lines() {
+                    if line.starts_with("substrate_sync_queued_blocks{") {
+                        if let Some(val) = line.split_whitespace().last() {
+                            cached.queued_blocks = val.parse().unwrap_or(-1);
+                        }
+                    } else if line.starts_with("substrate_import_queue_processed_total{result=\"success\"") {
+                        if let Some(val) = line.split_whitespace().last() {
+                            cached.import_queue_processed = val.parse().unwrap_or(-1);
+                        }
+                    } else if line.starts_with("substrate_sub_libp2p_network_bytes_total{direction=\"in\"") {
+                        if let Some(val) = line.split_whitespace().last() {
+                            cached.network_bytes_in = val.parse().unwrap_or(-1);
+                        }
+                    }
+                }
+            }
+        }
+        cached.last_refresh_ns = now;
+    }
+    
+    CachedMetrics {
+        queued_blocks: cached.queued_blocks,
+        import_queue_processed: cached.import_queue_processed,
+        network_bytes_in: cached.network_bytes_in,
+        last_refresh_ns: cached.last_refresh_ns,
+    }
+}
 
 /// Wraps a block importer and records a span around each `import_block` for sync diagnostics.
 #[derive(Clone)]
@@ -186,6 +259,12 @@ where
 				parent_span.set_attribute(KeyValue::new("sampled", true));
 				parent_span.set_attribute(KeyValue::new("operation", "full_block_import"));
 
+				// Option 1: Add live Prometheus metrics as span attributes
+				let metrics = refresh_metrics_if_stale();
+				parent_span.set_attribute(KeyValue::new("metrics.queued_blocks", metrics.queued_blocks));
+				parent_span.set_attribute(KeyValue::new("metrics.import_queue_processed", metrics.import_queue_processed));
+				parent_span.set_attribute(KeyValue::new("metrics.network_bytes_in", metrics.network_bytes_in));
+
 				let cx = Context::current_with_span(parent_span);
 
 				// Span: idle gap since previous import finished (approx queue/download wait)
@@ -234,12 +313,29 @@ where
 
 				let result = self.0.import_block(block).await;
 
+				let exec_duration = start_time.elapsed();
+				child_span.set_attribute(KeyValue::new("exec_duration_ms", exec_duration.as_millis() as i64));
 				child_span.end();
 
 				// Add timing breakdown attributes to the main span
 				let total_duration = start_time.elapsed();
 				let parent_span = cx.span();
 				parent_span.set_attribute(KeyValue::new("duration_ms", total_duration.as_millis() as i64));
+				
+				// Option 4: Detect potential DB stalls / slow operations
+				// If import took significantly longer than typical (~40ms), flag it
+				let is_slow = total_duration.as_millis() > 100;
+				let is_very_slow = total_duration.as_millis() > 500;
+				parent_span.set_attribute(KeyValue::new("is_slow", is_slow));
+				parent_span.set_attribute(KeyValue::new("is_very_slow", is_very_slow));
+				
+				// Track import result for correlation
+				let import_status = match &result {
+					Ok(res) => format!("{:?}", res),
+					Err(_) => "error".to_string(),
+				};
+				parent_span.set_attribute(KeyValue::new("import_result", import_status));
+				
 				parent_span.end();
 				LAST_IMPORT_END_NS.store(now_ns(), Ordering::Relaxed);
 				result
