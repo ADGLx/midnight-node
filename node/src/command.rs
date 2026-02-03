@@ -145,15 +145,17 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	// This bridges ALL Substrate native tracing to Datadog
 	#[cfg(feature = "datadog-tracing")]
 	let runner = if datadog_url.is_some() {
-		cfg.create_runner_with_logger_hook(&run_cmd, |logger_builder, _config| {
+		cfg.create_runner_with_logger_hook(&run_cmd, |logger_builder, config| {
 			use sc_tracing::TracingReceiver;
 			use crate::otel_trace_handler::OpenTelemetryTraceHandler;
 			
 			// Add OpenTelemetry as custom profiler - captures all Substrate spans
 			let handler = Box::new(OpenTelemetryTraceHandler::new("midnight-node"));
 			logger_builder.with_custom_profiling(handler);
-			// Use "info" so the profiling layer has a valid directive (empty string can cause DirectiveParseError)
-			logger_builder.with_profiling(TracingReceiver::Log, "info");
+			// Profiling layer uses --tracing-targets from CLI when set.
+			// When not set, default to "error" so we emit nothing unless you opt in with --tracing-targets.
+			let profiling_filter = config.tracing_targets.as_deref().unwrap_or("error");
+			logger_builder.with_profiling(TracingReceiver::Log, profiling_filter);
 			
 			log::info!("Substrate tracing bridge to Datadog enabled");
 			log::info!("Use --tracing-targets to enable specific trace targets (e.g., sync=debug,sc_client=debug)");
