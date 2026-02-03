@@ -155,17 +155,20 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			use crate::otel_trace_handler::OpenTelemetryTraceHandler;
 			use sc_tracing::TracingReceiver;
 
+			eprintln!("[midnight-node] DEBUG: Logger hook called");
+			eprintln!("[midnight-node] DEBUG: config.tracing_targets = {:?}", config.tracing_targets);
+
 			// Register the OpenTelemetry handler to receive spans
 			let handler = Box::new(OpenTelemetryTraceHandler::new("midnight-node"));
 			logger_builder.with_custom_profiling(handler);
+			eprintln!("[midnight-node] DEBUG: Called with_custom_profiling");
 
-			// Use --tracing-targets if specified, otherwise use a sensible default
-			const DEFAULT_TRACING_FILTER: &str = "sc_consensus=info,sc_client=info,midnight=info";
-			let filter = config.tracing_targets.as_deref().unwrap_or(DEFAULT_TRACING_FILTER);
-
-			// Activate the profiling layer
+			// Use a very broad filter to capture everything
+			let filter = config.tracing_targets.as_deref().unwrap_or("");
 			logger_builder.with_profiling(TracingReceiver::Log, filter);
-			eprintln!("[midnight-node] Substrate tracing bridge enabled (filter: {})", filter);
+			eprintln!("[midnight-node] DEBUG: Called with_profiling(Log, {:?})", filter);
+
+			eprintln!("[midnight-node] Substrate tracing bridge enabled (filter: {:?})", filter);
 		})?
 	} else {
 		cfg.create_runner(&run_cmd)?
