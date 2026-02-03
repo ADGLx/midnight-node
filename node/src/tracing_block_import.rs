@@ -14,11 +14,12 @@
 
 use async_trait::async_trait;
 use sc_consensus::block_import::{
-	BlockCheckParams, BlockImport, BlockImportParams, ImportResult, JustificationImport,
+	BlockCheckParams, BlockImport, BlockImportParams, ForkChoiceStrategy, ImportResult,
+	JustificationImport, StateAction,
 };
 use sp_runtime::{traits::{Block as BlockT, Header, SaturatedConversion}, Justification};
 #[cfg(feature = "datadog-tracing")]
-use opentelemetry::trace::{Tracer, Span};
+use opentelemetry::{Context, trace::{Span, TraceContextExt, Tracer}};
 
 /// Wraps a block importer and records a span around each `import_block` for sync diagnostics.
 #[derive(Clone)]
@@ -26,6 +27,16 @@ pub struct TracingBlockImport<I>(pub I);
 
 unsafe impl<I: Sync> Sync for TracingBlockImport<I> {}
 unsafe impl<I: Send> Send for TracingBlockImport<I> {}
+
+#[cfg(feature = "datadog-tracing")]
+fn state_action_label<Block: BlockT>(action: &StateAction<Block>) -> &'static str {
+	match action {
+		StateAction::ApplyChanges(_) => "apply_changes",
+		StateAction::Execute => "execute",
+		StateAction::ExecuteIfPossible => "execute_if_possible",
+		StateAction::Skip => "skip",
+	}
+}
 
 #[async_trait]
 impl<B, I> BlockImport<B> for TracingBlockImport<I>
@@ -62,6 +73,9 @@ where
 				span.set_attribute(KeyValue::new("block_number", format!("{}", number)));
 				span.set_attribute(KeyValue::new("block_hash", format!("{:?}", block.hash)));
 				span.set_attribute(KeyValue::new("parent_hash", format!("{:?}", block.parent_hash)));
+				span.set_attribute(KeyValue::new("allow_missing_state", block.allow_missing_state));
+				span.set_attribute(KeyValue::new("allow_missing_parent", block.allow_missing_parent));
+				span.set_attribute(KeyValue::new("import_existing", block.import_existing));
 				span.set_attribute(KeyValue::new("sampled", true));
 				span.set_attribute(KeyValue::new("operation", "block_validation"));
 				
@@ -101,21 +115,53 @@ where
 				
 				let tracer = opentelemetry::global::tracer("midnight-node");
 				
+				let body_len = block.body.as_ref().map(|body| body.len()).unwrap_or(0);
+				let indexed_body_len = block
+					.indexed_body
+					.as_ref()
+					.map(|body| body.len())
+					.unwrap_or(0);
+				let state_action = state_action_label(&block.state_action);
+
 				// Start timing the overall block import process
 				let start_time = std::time::Instant::now();
-				let mut span = tracer.start("sync.import_block");
-				span.set_attribute(KeyValue::new("block_number", format!("{}", number)));
-				span.set_attribute(KeyValue::new("block_hash", format!("{:?}", block.header.hash())));
-				span.set_attribute(KeyValue::new("parent_hash", format!("{:?}", block.header.parent_hash())));
-				span.set_attribute(KeyValue::new("sampled", true));
-				span.set_attribute(KeyValue::new("operation", "full_block_import"));
-				
+				let mut parent_span = tracer.start("sync.import_block");
+				parent_span.set_attribute(KeyValue::new("block_number", format!("{}", number)));
+				parent_span.set_attribute(KeyValue::new("block_hash", format!("{:?}", block.header.hash())));
+				parent_span.set_attribute(KeyValue::new("parent_hash", format!("{:?}", block.header.parent_hash())));
+				parent_span.set_attribute(KeyValue::new("origin", format!("{:?}", block.origin)));
+				parent_span.set_attribute(KeyValue::new("finalized", block.finalized));
+				parent_span.set_attribute(KeyValue::new("import_existing", block.import_existing));
+				parent_span.set_attribute(KeyValue::new("create_gap", block.create_gap));
+				parent_span.set_attribute(KeyValue::new("has_justifications", block.justifications.is_some()));
+				parent_span.set_attribute(KeyValue::new("post_digests_len", block.post_digests.len() as i64));
+				parent_span.set_attribute(KeyValue::new("auxiliary_len", block.auxiliary.len() as i64));
+				parent_span.set_attribute(KeyValue::new("intermediates_len", block.intermediates.len() as i64));
+				parent_span.set_attribute(KeyValue::new("body_len", body_len as i64));
+				parent_span.set_attribute(KeyValue::new("indexed_body_len", indexed_body_len as i64));
+				parent_span.set_attribute(KeyValue::new("state_action", state_action));
+				parent_span.set_attribute(KeyValue::new("fork_choice", match block.fork_choice {
+					Some(ForkChoiceStrategy::LongestChain) => "longest",
+					Some(ForkChoiceStrategy::Custom(true)) => "custom_true",
+					Some(ForkChoiceStrategy::Custom(false)) => "custom_false",
+					None => "none",
+				}));
+				parent_span.set_attribute(KeyValue::new("sampled", true));
+				parent_span.set_attribute(KeyValue::new("operation", "full_block_import"));
+
+				let cx = Context::current_with_span(parent_span);
+				let mut child_span = tracer.start_with_context("sync.import_block.exec", &cx);
+				child_span.set_attribute(KeyValue::new("phase", "block_processing"));
+
 				let result = self.0.import_block(block).await;
-				
+
+				child_span.end();
+
 				// Add timing breakdown attributes to the main span
 				let total_duration = start_time.elapsed();
-				span.set_attribute(KeyValue::new("duration_ms", total_duration.as_millis() as i64));
-				span.end();
+				let parent_span = cx.span();
+				parent_span.set_attribute(KeyValue::new("duration_ms", total_duration.as_millis() as i64));
+				parent_span.end();
 				result
 			} else {
 				self.0.import_block(block).await
