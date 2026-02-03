@@ -991,10 +991,10 @@ build-normal:
 
     RUN mkdir -p /artifacts-$NATIVEARCH/midnight-node-runtime/ \
         && mv /target/release/midnight-node /artifacts-$NATIVEARCH \
-        && mv /target/release/midnight-node-toolkit /artifacts-$NATIVEARCH \
-        && mv /target/release/upgrader /artifacts-$NATIVEARCH \
-        && mv /target/release/aiken-deployer /artifacts-$NATIVEARCH \
-        && cp /target/release/wbuild/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/midnight-node-runtime/
+        && cp /target/release/wbuild/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/midnight-node-runtime/ \
+        && if [ -f /target/release/midnight-node-toolkit ]; then mv /target/release/midnight-node-toolkit /artifacts-$NATIVEARCH; fi \
+        && if [ -f /target/release/upgrader ]; then mv /target/release/upgrader /artifacts-$NATIVEARCH; fi \
+        && if [ -f /target/release/aiken-deployer ]; then mv /target/release/aiken-deployer /artifacts-$NATIVEARCH; fi
 
     SAVE ARTIFACT /artifacts-$NATIVEARCH AS LOCAL artifacts
 
@@ -1064,7 +1064,7 @@ node-image:
     RUN mkdir -p node
 
     COPY +build-normal/artifacts-$NATIVEARCH/midnight-node /
-    COPY +build-normal/artifacts-$NATIVEARCH/aiken-deployer /
+    COPY --if-exists +build-normal/artifacts-$NATIVEARCH/aiken-deployer /
     COPY +build-normal/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
 
     # Extract version from Cargo.toml to preserve semver pre-release suffix (e.g., 0.19.0-rc.1)
@@ -1077,7 +1077,8 @@ node-image:
     ENV NODE_DEV_01_TAG="$(cat /version)-$EARTHLY_GIT_SHORT_HASH-node-dev-01"
 
     RUN echo image tag=midnight-node:$IMAGE_TAG | tee /artifacts-$NATIVEARCH/node_image_tag
-    RUN chown -R appuser:appuser /midnight-node /aiken-deployer /node ./bin ./res
+    RUN chown -R appuser:appuser /midnight-node /node ./bin ./res && \
+        if [ -f /aiken-deployer ]; then chown -R appuser:appuser /aiken-deployer; fi
     SAVE IMAGE --push \
         $GHCR_REGISTRY/midnight-node:latest-$NATIVEARCH \
         $GHCR_REGISTRY/midnight-node:$IMAGE_TAG \
