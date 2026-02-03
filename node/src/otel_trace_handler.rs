@@ -70,7 +70,6 @@ impl OpenTelemetryTraceHandler {
 	/// # Arguments
 	/// * `service_name` - The service name to use for spans (e.g., "midnight-node")
 	pub fn new(service_name: &str) -> Self {
-		eprintln!("[OTEL] OpenTelemetryTraceHandler created for service: {}", service_name);
 		Self { service_name: service_name.to_string(), span_contexts: Mutex::new(HashMap::new()) }
 	}
 
@@ -154,31 +153,11 @@ impl OpenTelemetryTraceHandler {
 	}
 }
 
-use std::sync::atomic::{AtomicU64, Ordering};
-
-static SPAN_COUNT: AtomicU64 = AtomicU64::new(0);
-static FILTERED_COUNT: AtomicU64 = AtomicU64::new(0);
-
 impl TraceHandler for OpenTelemetryTraceHandler {
 	fn handle_span(&self, span_datum: &SpanDatum) {
 		// Check if this span should be filtered out
 		if Self::should_filter_span(&span_datum.name, span_datum.overall_time) {
-			let filtered = FILTERED_COUNT.fetch_add(1, Ordering::Relaxed);
-			if filtered < 5 || filtered % 10000 == 0 {
-				eprintln!(
-					"[TRACE] Filtered span #{}: name={}, duration={:?}",
-					filtered, span_datum.name, span_datum.overall_time
-				);
-			}
 			return;
-		}
-
-		let count = SPAN_COUNT.fetch_add(1, Ordering::Relaxed);
-		if count < 20 || count % 100 == 0 {
-			eprintln!(
-				"[TRACE] handle_span #{}: name={}, target={}, duration={:?}",
-				count, span_datum.name, span_datum.target, span_datum.overall_time
-			);
 		}
 
 		let tracer = global::tracer(self.service_name.clone());
@@ -258,15 +237,6 @@ impl TraceHandler for OpenTelemetryTraceHandler {
 
 		if dominated_by_noise {
 			return;
-		}
-
-		static EVENT_COUNT: AtomicU64 = AtomicU64::new(0);
-		let count = EVENT_COUNT.fetch_add(1, Ordering::Relaxed);
-		if count < 20 || count % 100 == 0 {
-			eprintln!(
-				"[TRACE] handle_event #{}: name={}, target={}",
-				count, event.name, event.target
-			);
 		}
 
 		let tracer = global::tracer(self.service_name.clone());

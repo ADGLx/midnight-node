@@ -151,28 +151,24 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	// This bridges ALL Substrate native tracing to Datadog
 	#[cfg(feature = "datadog-tracing")]
 	let runner = if datadog_url.is_some() {
-		eprintln!("[midnight-node] Creating runner with logger hook for Datadog tracing");
 		cfg.create_runner_with_logger_hook(&run_cmd, |logger_builder, config| {
 			use crate::otel_trace_handler::OpenTelemetryTraceHandler;
 
-			eprintln!("[midnight-node] Logger hook called, creating OpenTelemetryTraceHandler");
-
-			// Add OpenTelemetry as custom profiler - captures all Substrate spans
-			// Note: with_profiling is already called by Substrate if --tracing-targets is passed,
-			// so we only need to add our custom handler here.
+			// Add OpenTelemetry as custom profiler - captures Substrate spans for Datadog
 			let handler = Box::new(OpenTelemetryTraceHandler::new("midnight-node"));
-			eprintln!("[midnight-node] Registering handler with logger builder");
 			logger_builder.with_custom_profiling(handler);
 
-			// If --tracing-targets wasn't passed, enable profiling with default "info" filter
-			// so that our handler receives spans
+			// If --tracing-targets wasn't passed, enable profiling with a sensible default
+			// NOTE: In production (devnet, etc.), --tracing-targets should be explicitly set
+			// via helm config to control what gets traced
 			if config.tracing_targets.is_none() {
 				use sc_tracing::TracingReceiver;
-				// Use a broad filter to capture spans from all targets at info level
-				logger_builder.with_profiling(TracingReceiver::Log, "sc=trace,sp=trace,frame=trace,pallet=trace,midnight=trace");
-				eprintln!("[midnight-node] Substrate tracing bridge enabled (no --tracing-targets, using broad filter)");
+				// Default to INFO level - captures meaningful operations without excessive noise
+				// For more detailed tracing, pass --tracing-targets explicitly
+				logger_builder.with_profiling(TracingReceiver::Log, "sc_service=info,sc_consensus=info,midnight=info");
+				eprintln!("[midnight-node] Substrate tracing bridge enabled (default filter: info level)");
 			} else {
-				eprintln!("[midnight-node] Substrate tracing bridge enabled (filter: {:?})", config.tracing_targets);
+				eprintln!("[midnight-node] Substrate tracing bridge enabled (filter from --tracing-targets)");
 			}
 		})?
 	} else {
