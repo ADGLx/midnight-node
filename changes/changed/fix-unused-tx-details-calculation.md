@@ -3,4 +3,5 @@
 
 Removes an unused calculation to calculate transaction details and gas cost.
 
-PR: 
+PR: https://github.com/midnightntwrk/midnight-node/pull/599
+Ticket: https://shielded.atlassian.net/browse/PM-21711
