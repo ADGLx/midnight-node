@@ -126,7 +126,8 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	#[cfg(feature = "datadog-tracing")]
 	let _otel_tracer_provider = if let Some(ref url) = datadog_url {
 		use datadog_opentelemetry::configuration::Config;
-		
+		use opentelemetry::global;
+
 		let config = Config::builder()
 			.set_service("midnight-node".to_string())
 			.set_trace_agent_url(url.clone())
@@ -134,7 +135,10 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		let tracer_provider = datadog_opentelemetry::tracing()
 			.with_config(config)
 			.init();
-		
+
+		// Set the global tracer provider so otel_trace_handler can use global::tracer()
+		global::set_tracer_provider(tracer_provider.clone());
+
 		log::info!("Datadog tracing initialized, will send to {}", url);
 		Some(tracer_provider)
 	} else {
