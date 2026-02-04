@@ -278,8 +278,9 @@ pub struct BenchmarkClaimMintTxBuilder {
 }
 
 pub enum TransactionValidationWasCached {
-	Yes,
 	No,
+	SoftCache,
+	StrictCache,
 }
 
 pub type SegmentId = u16;

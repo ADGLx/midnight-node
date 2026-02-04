@@ -369,16 +369,28 @@ where
 
 		let tx_details = Self::get_transaction_details(&tx, &ledger, tx_gas_cost)?;
 
-		// We only want to record the metric once
-		if let TransactionValidationWasCached::No = was_cached {
-			// Write Prometheus metrics
-			let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
-			if let Some(metrics) = maybe_metrics {
-				let tx_type = Self::get_tx_type(&tx);
-				let elapsed_time = start_tx_validation_time.elapsed().as_secs_f64();
-
-				metrics.observe_txs_validating_time(elapsed_time, tx_type);
+		// Write Prometheus metrics
+		if let Some(metrics) = externalities.extension::<LedgerMetricsExt>() {
+			// Record cache hit/miss metrics
+			match was_cached {
+				TransactionValidationWasCached::SoftCache => {
+					metrics.inc_tx_validation_cache_hit("soft");
+				},
+				TransactionValidationWasCached::StrictCache => {
+					metrics.inc_tx_validation_cache_hit("strict");
+				},
+				TransactionValidationWasCached::No => {
+					metrics.inc_tx_validation_cache_miss();
+					// Only record validation time on cache miss (when actual work was done)
+					let tx_type = Self::get_tx_type(&tx);
+					let elapsed_time = start_tx_validation_time.elapsed().as_secs_f64();
+					metrics.observe_txs_validating_time(elapsed_time, tx_type);
+				},
 			}
+
+			// Report current cache sizes
+			metrics.set_tx_validation_cache_size("strict", STRICT_TX_VALIDATION_CACHE.entry_count());
+			metrics.set_tx_validation_cache_size("soft", SOFT_TX_VALIDATION_CACHE.entry_count());
 		}
 
 		Ok((wrapped_cache_key.0, tx_details))
@@ -707,7 +719,7 @@ where
 		// For soft mode (mempool), check soft cache first (quick tx_hash-only lookup)
 		if !strict {
 			if let Some(cached) = SOFT_TX_VALIDATION_CACHE.get(&soft_key) {
-				return cached.map(|_| TransactionValidationWasCached::Yes);
+				return cached.map(|_| TransactionValidationWasCached::SoftCache);
 			}
 		}
 
@@ -717,7 +729,7 @@ where
 			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
 
 		if STRICT_TX_VALIDATION_CACHE.get(&strict_key).is_some() {
-			return Ok(TransactionValidationWasCached::Yes);
+			return Ok(TransactionValidationWasCached::StrictCache);
 		}
 
 		// Cache miss: transaction is entering the mempool or being re-validated
