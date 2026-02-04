@@ -13,7 +13,9 @@
 
 //! Service and ServiceFactory implementation. Specialized wrapper over substrate service.
 
+use crate::main_chain_follower::create_cached_main_chain_follower_data_sources;
 use crate::{
+	cfg::midnight_cfg::MidnightCfg,
 	extensions::ExtensionsFactory,
 	inherent_data::{CreateInherentDataConfig, ProposalCIDP, VerifierCIDP},
 	main_chain_follower::DataSources,
@@ -210,10 +212,16 @@ type MidnightService = sc_service::PartialComponents<
 pub fn new_partial(
 	config: &Configuration,
 	epoch_config: MainchainEpochConfig,
-	data_sources: DataSources,
+	midnight_cfg: MidnightCfg,
 	storage_config: StorageInit,
 ) -> Result<MidnightService, ServiceError> {
-	let _mc_follower_metrics = register_metrics_warn_errors(config.prometheus_registry());
+	let mc_follower_metrics = register_metrics_warn_errors(config.prometheus_registry());
+	let data_sources = tokio::task::block_in_place(|| {
+		config.tokio_handle.block_on(create_cached_main_chain_follower_data_sources(
+			midnight_cfg.clone(),
+			mc_follower_metrics.clone(),
+		))
+	})?;
 
 	// Init Ledger DB
 	let parity_db_path = config.base_path.path().join("ledger_storage");
@@ -402,14 +410,14 @@ pub fn new_partial(
 pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as BlockT>::Hash>>(
 	config: Configuration,
 	epoch_config: MainchainEpochConfig,
-	data_sources: DataSources,
+	midnight_cfg: MidnightCfg,
 	storage_monitor_params: sc_storage_monitor::StorageMonitorParams,
 	storage_config: StorageInit,
 	metrics_push_config: Option<MetricsPushConfig>,
 ) -> Result<TaskManager, ServiceError> {
 	let database_source = config.database.clone();
 	let new_partial_components =
-		new_partial(&config, epoch_config.clone(), data_sources.clone(), storage_config)?;
+		new_partial(&config, epoch_config.clone(), midnight_cfg, storage_config)?;
 
 	let sc_service::PartialComponents {
 		client,

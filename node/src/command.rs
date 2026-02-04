@@ -23,7 +23,6 @@ use clap::Parser;
 use midnight_node_res::networks::MidnightNetwork as _;
 use midnight_node_runtime::Block;
 use midnight_primitives_cnight_observation::CNightAddresses;
-use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
 use sc_cli::{CliConfiguration, LoggerBuilder, RunCmd, SubstrateCli};
 use sc_keystore::LocalKeystore;
 use sc_service::{BasePath, PartialComponents, config::KeystoreConfig};
@@ -186,15 +185,7 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 
 	runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
-
-		let mc_follower_metrics = register_metrics_warn_errors(config.prometheus_registry());
-
-		let data_sources =
-			crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-				cfg.midnight_cfg.clone(),
-				mc_follower_metrics,
-			)
-			.await?;
+		let midnight_cfg = cfg.midnight_cfg.clone();
 
 		// Build Prometheus push config if endpoint is configured
 		log::debug!(
@@ -223,7 +214,7 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		service::new_full::<sc_network::NetworkWorker<_, _>>(
 			config,
 			epoch_config,
-			data_sources,
+			midnight_cfg,
 			cfg.storage_monitor_params_cfg.into(),
 			storage_config,
 			metrics_push_config,
@@ -246,16 +237,9 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::PartnerChains(cmd) => {
 			let midnight_cfg = cfg.midnight_cfg.clone();
 			let make_dependencies = |config: sc_service::Configuration| {
-				let mc_follower_metrics =
-					register_metrics_warn_errors(config.prometheus_registry());
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						midnight_cfg,
-						mc_follower_metrics,
-					),
-				)?;
+				let midnight_cfg = midnight_cfg.clone();
 				let PartialComponents { client, task_manager, other, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(&config, epoch_config, midnight_cfg, storage_config)?;
 				Ok((client, task_manager, other.5.authority_selection))
 			};
 
@@ -272,64 +256,50 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::CheckBlock(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let mc_follower_metrics =
-					register_metrics_warn_errors(config.prometheus_registry());
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						mc_follower_metrics,
-					),
-				)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(
+						&config,
+						epoch_config,
+						cfg.midnight_cfg.clone(),
+						storage_config,
+					)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
 		Subcommand::ExportBlocks(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let mc_follower_metrics =
-					register_metrics_warn_errors(config.prometheus_registry());
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						mc_follower_metrics,
-					),
+				let PartialComponents { client, task_manager, .. } = service::new_partial(
+					&config,
+					epoch_config,
+					cfg.midnight_cfg.clone(),
+					storage_config,
 				)?;
-				let PartialComponents { client, task_manager, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		},
 		Subcommand::ExportState(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let mc_follower_metrics =
-					register_metrics_warn_errors(config.prometheus_registry());
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						mc_follower_metrics,
-					),
+				let PartialComponents { client, task_manager, .. } = service::new_partial(
+					&config,
+					epoch_config,
+					cfg.midnight_cfg.clone(),
+					storage_config,
 				)?;
-				let PartialComponents { client, task_manager, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		},
 		Subcommand::ImportBlocks(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let mc_follower_metrics =
-					register_metrics_warn_errors(config.prometheus_registry());
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						mc_follower_metrics,
-					),
-				)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(
+						&config,
+						epoch_config,
+						cfg.midnight_cfg.clone(),
+						storage_config,
+					)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
@@ -340,14 +310,12 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::Revert(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						None,
-					),
+				let PartialComponents { client, task_manager, backend, .. } = service::new_partial(
+					&config,
+					epoch_config,
+					cfg.midnight_cfg.clone(),
+					storage_config,
 				)?;
-				let PartialComponents { client, task_manager, backend, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
 				let aux_revert = Box::new(|client, _, blocks| {
 					sc_consensus_grandpa::revert(client, blocks)?;
 					Ok(())
@@ -378,19 +346,11 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						))
 					},
 					BenchmarkCmd::Block(cmd) => {
-						let mc_follower_metrics =
-							register_metrics_warn_errors(config.prometheus_registry());
-						let data_sources = config.tokio_handle.block_on(
-							crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-								cfg.midnight_cfg.clone(),
-								mc_follower_metrics,
-							),
-						)?;
 						// ensure that we keep the task manager alive
 						let partial = service::new_partial(
 							&config,
 							epoch_config,
-							data_sources,
+							cfg.midnight_cfg.clone(),
 							storage_config,
 						)?;
 
@@ -404,19 +364,11 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					#[cfg(feature = "runtime-benchmarks")]
 					BenchmarkCmd::Storage(cmd) => {
 						// ensure that we keep the task manager alive
-						let mc_follower_metrics =
-							register_metrics_warn_errors(config.prometheus_registry());
-						let data_sources = config.tokio_handle.block_on(
-							crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-								cfg.midnight_cfg.clone(),
-								mc_follower_metrics,
-							),
-						)?;
 						// ensure that we keep the task manager alive
 						let partial = service::new_partial(
 							&config,
 							epoch_config,
-							data_sources,
+							cfg.midnight_cfg.clone(),
 							storage_config,
 						)?;
 						let db = partial.backend.expose_db();
@@ -425,19 +377,11 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						cmd.run(config, partial.client, db, storage, None)
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						let mc_follower_metrics =
-							register_metrics_warn_errors(config.prometheus_registry());
-						let data_sources = config.tokio_handle.block_on(
-							crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-								cfg.midnight_cfg.clone(),
-								mc_follower_metrics,
-							),
-						)?;
 						// ensure that we keep the task manager alive
 						let partial = service::new_partial(
 							&config,
 							epoch_config,
-							data_sources,
+							cfg.midnight_cfg.clone(),
 							storage_config,
 						)?;
 						let ext_builder = RemarkBuilder::new(partial.client.clone());
@@ -453,18 +397,10 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {
 						// ensure that we keep the task manager alive
-						let mc_follower_metrics =
-							register_metrics_warn_errors(config.prometheus_registry());
-						let data_sources = config.tokio_handle.block_on(
-							crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-								cfg.midnight_cfg.clone(),
-								mc_follower_metrics,
-							),
-						)?;
 						let partial = service::new_partial(
 							&config,
 							epoch_config,
-							data_sources,
+							cfg.midnight_cfg.clone(),
 							storage_config,
 						)?;
 						// Register the *Remark* and *TKA* builders.
