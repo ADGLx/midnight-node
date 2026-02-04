@@ -112,16 +112,7 @@ generate-keys:
     SAVE ARTIFACT --if-exists secrets/keys-aws.json AS LOCAL secrets/$NETWORK-keys-aws.json
 
 subxt:
-    FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:13bffb7de7ef4836742a6be2b09642e819aaec50ceed1d7961424e19a95da0de
-
-    # Install curl for rust installation
-    RUN microdnf -y install curl-minimal ca-certificates gcc gcc-c++ make jq docker && \
-        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-
-    # Install rust with complete profile for profiler runtime support
-    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.93 --profile complete
-    ENV PATH="/root/.cargo/bin:${PATH}"
-
+    FROM rust:1.92-trixie
     RUN rustup component add rustfmt
     # Install cargo binstall:
     # RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
@@ -129,7 +120,6 @@ subxt:
     COPY Cargo.toml deps.toml
     LET SUBXT_VERSION = "$(cat deps.toml | grep -m 1 subxt | sed 's/subxt *= *"\([^\"]*\)".*/\1/')"
     RUN cargo install subxt-cli@${SUBXT_VERSION}
-    RUN cp /root/.cargo/bin/subxt /usr/local/bin/subxt
     ENTRYPOINT ["subxt"]
     SAVE IMAGE localhost/subxt
 
@@ -824,6 +814,7 @@ check-metadata:
     ARG NODE_IMAGE
     #=ghcr.io/midnight-ntwrk/midnight-node:latest
     FROM +subxt
+    DO github.com/EarthBuild/lib+INSTALL_DIND
     COPY local-environment/check-health.sh /usr/local/bin/check-health.sh
 
     WITH DOCKER --pull ${NODE_IMAGE}
