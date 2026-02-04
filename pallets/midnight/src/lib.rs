@@ -438,9 +438,10 @@ pub mod pallet {
 					runtime_version,
 				)
 				.map_err(|e| Self::invalid_transaction(e.into()))?;
+				Ok(())
+			} else {
+				Err(Self::invalid_transaction(Default::default()))
 			}
-
-			Ok(())
 		}
 	}
 
