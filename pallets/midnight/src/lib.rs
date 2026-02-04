@@ -422,14 +422,15 @@ pub mod pallet {
 				.saturating_add(slot_duration_secs)
 				.saturating_add(skipped_slots_margin);
 
-			Self::validate_unsigned(call, block_context)
+			// Mempool validation uses soft cache (tx_hash only)
+			Self::validate_unsigned(call, block_context, false)
 		}
 
 		fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
 			let block_context = Self::get_block_context();
 
-			// First, perform existing structural validation
-			Self::validate_unsigned(call, block_context.clone())?;
+			// Pre-dispatch validation uses strict cache (state_hash + tx_hash)
+			Self::validate_unsigned(call, block_context.clone(), true)?;
 
 			// Then, validate that the guaranteed part will succeed.
 			if let Call::send_mn_transaction { midnight_tx } = call {
@@ -502,6 +503,7 @@ pub mod pallet {
 		fn validate_unsigned(
 			call: &Call<T>,
 			block_context: LedgerTypes::BlockContext,
+			strict: bool,
 		) -> TransactionValidity {
 			if let Call::send_mn_transaction { midnight_tx } = call {
 				let state_key = StateKey::<T>::get().expect("Failed to get state key");
@@ -514,6 +516,7 @@ pub mod pallet {
 					block_context,
 					runtime_version,
 					max_weight,
+					strict,
 				)
 				.map_err(|e| Self::invalid_transaction(e.into()))?;
 

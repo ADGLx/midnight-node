@@ -21,6 +21,8 @@ use super::{
 #[cfg(feature = "std")]
 use midnight_serialize_local::Tagged;
 #[cfg(feature = "std")]
+use sha2::digest::{OutputSizeUser, generic_array::typenum::U32};
+#[cfg(feature = "std")]
 use transient_crypto_local::commitment::PureGeneratorPedersen;
 
 use alloc::vec::Vec;
@@ -76,9 +78,22 @@ use {lazy_static::lazy_static, moka::sync::Cache};
 pub const LOG_TARGET: &str = "midnight::ledger_v2";
 pub const MINT_COINS_DOMAIN_SEPARATOR: &[u8; 10] = b"mint_coins";
 
+#[derive(PartialEq, Eq, Hash)]
+pub struct StrictTxValidationKey {
+	state_hash: Hash,
+	tx_hash: Hash,
+}
+#[derive(PartialEq, Eq, Hash)]
+pub struct SoftTxValidationKey {
+	tx_hash: Hash,
+}
+
 #[cfg(feature = "std")]
 lazy_static! {
-	static ref TX_VALIDATION_CACHE: Cache<Hash, Result<(), LedgerApiError>> = Cache::new(1000);
+	static ref STRICT_TX_VALIDATION_CACHE: Cache<StrictTxValidationKey, Result<(), LedgerApiError>> =
+		Cache::new(1000);
+	static ref SOFT_TX_VALIDATION_CACHE: Cache<SoftTxValidationKey, Result<(), LedgerApiError>> =
+		Cache::new(1000);
 }
 
 #[cfg(feature = "std")]
@@ -90,6 +105,7 @@ pub struct Bridge<S: SignatureKind<D>, D: DB> {
 impl<S: SignatureKind<D> + std::fmt::Debug, D: DB> Bridge<S, D>
 where
 	mn_ledger_local::structure::Transaction<S, ProofMarker, PureGeneratorPedersen, D>: Tagged,
+	D::Hasher: OutputSizeUser<OutputSize = U32>,
 {
 	pub fn set_default_storage(mut externalities: &mut dyn Externalities) {
 		let maybe_storage = externalities.extension::<LedgerStorageExt>();
@@ -307,6 +323,7 @@ where
 		runtime_version: u32,
 		// The runtime's max weight as of now
 		max_weight: u64,
+		strict: bool,
 	) -> Result<(Hash, TransactionDetails), LedgerApiError> {
 		// Gather metrics for Prometheus
 		let start_tx_validation_time = Instant::now();
@@ -318,7 +335,7 @@ where
 		let wrapped_cache_key = Self::tx_validation_cache_key(runtime_version, tx_serialized);
 
 		let was_cached =
-			Self::do_validate_transaction(&ledger, &tx, &block_context, &wrapped_cache_key)?;
+			Self::do_validate_transaction(&ledger, &tx, &block_context, &wrapped_cache_key, strict)?;
 
 		let tx_gas_cost =
 			Self::get_transaction_cost(state_key, tx_serialized, &block_context, max_weight)?;
@@ -604,22 +621,58 @@ where
 		}
 	}
 
+	/// Validates a transaction with two-tier caching.
+	///
+	/// - `strict=true` (pre_dispatch): Uses `(state_hash, tx_hash)` key for state-dependent validation.
+	///   The strict cache ensures that ZK proofs are validated against the current ledger state.
+	/// - `strict=false` (mempool): Uses `tx_hash` only for revalidation of transactions already in the pool.
+	///   The soft cache prevents redundant ZK proof verification for mempool housekeeping.
 	fn do_validate_transaction(
 		ledger: &Ledger<D>,
 		tx: &Transaction<S, D>,
 		block_context: &BlockContext,
 		tx_hash: &WrappedHash,
+		strict: bool,
 	) -> Result<TransactionValidationWasCached, LedgerApiError> {
-		// We always revalidate the transaction, whether it's in the cache or not.
-		let validation = ledger.validate_transaction(tx, block_context);
+		let soft_key = SoftTxValidationKey { tx_hash: tx_hash.0 };
 
-		// Caching remains helpful as it prevent us from recording validation metrics multiple times
-		// Tx is cached: map `Ok` to `TransactionValidationWasCached::Yes`
-		if TX_VALIDATION_CACHE.get(&tx_hash.0).is_some() {
-			validation.map(|_| TransactionValidationWasCached::Yes)
-		// Tx is not cached: insert the validation and map `Ok` to `TransactionValidationWasCached::No` afterwards
+		if strict {
+			// STRICT MODE (pre_dispatch): Check state-dependent cache
+			let state_hash = ledger.state.state_hash();
+			let strict_key = StrictTxValidationKey {
+				state_hash: state_hash.0.into(),
+				tx_hash: tx_hash.0,
+			};
+
+			// Check strict cache first
+			if let Some(cached) = STRICT_TX_VALIDATION_CACHE.get(&strict_key) {
+				return cached.map(|_| TransactionValidationWasCached::Yes);
+			}
+
+			// Cache miss: run full validation
+			let validation = ledger.validate_transaction(tx, block_context);
+
+			// Cache in strict cache (state-dependent)
+			STRICT_TX_VALIDATION_CACHE.insert(strict_key, validation.clone());
+
+			// Also cache Ok(()) in soft cache if validation succeeded
+			if validation.is_ok() {
+				SOFT_TX_VALIDATION_CACHE.insert(soft_key, Ok(()));
+			}
+
+			validation.map(|_| TransactionValidationWasCached::No)
 		} else {
-			TX_VALIDATION_CACHE.insert(tx_hash.0, validation.clone());
+			// SOFT MODE (mempool): Check tx-only cache for revalidation
+			if let Some(cached) = SOFT_TX_VALIDATION_CACHE.get(&soft_key) {
+				return cached.map(|_| TransactionValidationWasCached::Yes);
+			}
+
+			// Cache miss: run validation
+			let validation = ledger.validate_transaction(tx, block_context);
+
+			// Cache result in soft cache
+			SOFT_TX_VALIDATION_CACHE.insert(soft_key, validation.clone());
+
 			validation.map(|_| TransactionValidationWasCached::No)
 		}
 	}
