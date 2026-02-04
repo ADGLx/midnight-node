@@ -168,7 +168,7 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 					0,
 				)
 				.await
-				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+				.map_err(Into::into)
 			},
 			async {
 				self.get_deregistration_utxos(
@@ -180,7 +180,7 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 					0,
 				)
 				.await
-				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+				.map_err(Into::into)
 			},
 			async {
 				self.get_asset_create_utxos(
@@ -193,7 +193,7 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 					0,
 				)
 				.await
-				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+				.map_err(Into::into)
 			},
 			async {
 				self.get_asset_spend_utxos(
@@ -206,7 +206,7 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 					0,
 				)
 				.await
-				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+				.map_err(Into::into)
 			},
 			self.get_redemption_create_utxos(
 				cardano_network,
