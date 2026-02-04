@@ -63,7 +63,7 @@ impl<D: DB + Clone> BuildContractAction<D> for MaintenanceUpdateInfo {
 					})
 				},
 				UpdateInfo::VerifierKeyRemove(k) => {
-					SingleUpdate::VerifierKeyRemove(k.clone(), ContractOperationVersion::V3)
+					SingleUpdate::VerifierKeyRemove(k.clone(), ContractOperationVersion::V2)
 				},
 				UpdateInfo::VerifierKeyInsert(k, new_key) => {
 					SingleUpdate::VerifierKeyInsert(k.clone(), new_key.clone())

@@ -29,6 +29,48 @@ use super::{
 	leaf_hash, partition_transcripts, stval, verifier_key,
 };
 
+trait FromRef<'a, T: ?Sized> {
+	fn from_ref(value: &'a T) -> Self;
+}
+
+impl<'a, T: Clone> FromRef<'a, T> for T {
+	fn from_ref(value: &'a T) -> Self {
+		value.clone()
+	}
+}
+
+impl<'a, T> FromRef<'a, T> for &'a T {
+	fn from_ref(value: &'a T) -> Self {
+		value
+	}
+}
+
+impl<'a, T: Clone> FromRef<'a, [T]> for Vec<T> {
+	fn from_ref(value: &'a [T]) -> Self {
+		value.to_vec()
+	}
+}
+
+impl<'a, T> FromRef<'a, [T]> for &'a [T] {
+	fn from_ref(value: &'a [T]) -> Self {
+		value
+	}
+}
+
+fn pre_context<'a, D: DB, C>(context: &'a QueryContext<D>) -> C
+where
+	C: FromRef<'a, QueryContext<D>>,
+{
+	C::from_ref(context)
+}
+
+fn pre_program<'a, D: DB, P>(program: &'a [Op<ResultModeVerify, D>]) -> P
+where
+	P: FromRef<'a, [Op<ResultModeVerify, D>]>,
+{
+	P::from_ref(program)
+}
+
 #[cfg(feature = "test-utils")]
 lazy_static! {
 	static ref RESOLVER: Resolver = super::super::test_resolver("simple-merkle-tree");
@@ -121,8 +163,11 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 				"store" => {
 					let context = QueryContext::new(contract_state.data, *address);
 					let program = HistoricMerkleTree_insert!([key!(0u8)], false, 10, u32, input);
-					let pre_transcript =
-						PreTranscript { context, program: program.to_vec(), comm_comm: None };
+					let pre_transcript = PreTranscript {
+						context: pre_context(&context),
+						program: pre_program(&program),
+						comm_comm: None,
+					};
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");
@@ -149,7 +194,11 @@ impl<D: DB + Clone> Contract<D> for MerkleTreeContract {
 						&HistoricMerkleTree_check_root!([key!(0u8)], false, 10, u32, path.root()),
 						&[true.into()],
 					);
-					let pre_transcript = PreTranscript { context, program, comm_comm: None };
+					let pre_transcript = PreTranscript {
+						context: pre_context(&context),
+						program: pre_program(&program),
+						comm_comm: None,
+					};
 					let transcripts =
 						partition_transcripts(&[pre_transcript], &ledger_state.parameters)
 							.expect("Transcript arguments should be valid");

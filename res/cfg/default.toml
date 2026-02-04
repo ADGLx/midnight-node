@@ -37,7 +37,7 @@ polling_period = 5
 # Will cause OOM errors if too much data is loaded.
 
 # Setting to a non-default value derived from the DEFAULT_CACHE_SIZE of the midnight-ledger crate:
-# https://github.com/midnightntwrk/midnight-ledger/blob/ledger-7.0.0-rc.2/storage/src/storage.rs#L54
+# https://github.com/midnightntwrk/midnight-ledger/blob/ledger-6.2.0-rc.3/storage/src/storage.rs#L54
 storage_cache_size = 1048576
 
 # Set to default: 1024 * 1024 * 1024
