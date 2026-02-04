@@ -147,47 +147,67 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 		// Call db methods to get UTXOs (offset + limit) until we reach our capacity
 		// TODO: (possibly) Replace this with grabbing from a queue that's filled async by an offchain thread
 		// ^ We may not have to do the above if the queries are fast enough
-		let mut utxos = [
-			self.get_registration_utxos(
-				cardano_network,
-				&mapping_validator_policy_id,
-				&config.mapping_validator_address,
-				&config.auth_token_asset_name,
-				start_position,
-				&end,
-				utxo_capacity,
-				0,
-			)
-			.await?,
-			self.get_deregistration_utxos(
-				cardano_network,
-				&config.mapping_validator_address,
-				start_position,
-				&end,
-				utxo_capacity,
-				0,
-			)
-			.await?,
-			self.get_asset_create_utxos(
-				cardano_network,
-				config.cnight_policy_id,
-				cnight_asset_name,
-				start_position,
-				&end,
-				utxo_capacity,
-				0,
-			)
-			.await?,
-			self.get_asset_spend_utxos(
-				cardano_network,
-				config.cnight_policy_id,
-				cnight_asset_name,
-				start_position,
-				&end,
-				utxo_capacity,
-				0,
-			)
-			.await?,
+
+		let (
+			registration_utxos,
+			deregistration_utxos,
+			asset_create_utxos,
+			asset_spend_utxos,
+			redemption_create_utxos,
+			redemption_spend_utxos,
+		) = tokio::try_join!(
+			async {
+				self.get_registration_utxos(
+					cardano_network,
+					&mapping_validator_policy_id,
+					&config.mapping_validator_address,
+					&config.auth_token_asset_name,
+					start_position,
+					&end,
+					utxo_capacity,
+					0,
+				)
+				.await
+				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+			},
+			async {
+				self.get_deregistration_utxos(
+					cardano_network,
+					&config.mapping_validator_address,
+					start_position,
+					&end,
+					utxo_capacity,
+					0,
+				)
+				.await
+				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+			},
+			async {
+				self.get_asset_create_utxos(
+					cardano_network,
+					config.cnight_policy_id,
+					cnight_asset_name,
+					start_position,
+					&end,
+					utxo_capacity,
+					0,
+				)
+				.await
+				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+			},
+			async {
+				self.get_asset_spend_utxos(
+					cardano_network,
+					config.cnight_policy_id,
+					cnight_asset_name,
+					start_position,
+					&end,
+					utxo_capacity,
+					0,
+				)
+				.await
+				.map_err(|e| -> Box<dyn std::error::Error + Send + Sync> { Box::new(e) })
+			},
 			self.get_redemption_create_utxos(
 				cardano_network,
 				&config.redemption_validator_address,
@@ -197,8 +217,7 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 				&end,
 				utxo_capacity,
 				0,
-			)
-			.await?,
+			),
 			self.get_redemption_spend_utxos(
 				cardano_network,
 				&config.redemption_validator_address,
@@ -208,10 +227,23 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 				&end,
 				utxo_capacity,
 				0,
-			)
-			.await?,
-		]
-		.concat();
+			),
+		)?;
+
+		let mut utxos = Vec::with_capacity(
+			registration_utxos.len()
+				+ deregistration_utxos.len()
+				+ asset_create_utxos.len()
+				+ asset_spend_utxos.len()
+				+ redemption_create_utxos.len()
+				+ redemption_spend_utxos.len(),
+		);
+		utxos.extend(registration_utxos);
+		utxos.extend(deregistration_utxos);
+		utxos.extend(asset_create_utxos);
+		utxos.extend(asset_spend_utxos);
+		utxos.extend(redemption_create_utxos);
+		utxos.extend(redemption_spend_utxos);
 
 		utxos.sort();
 
