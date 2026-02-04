@@ -210,11 +210,12 @@ where
 
 		let api = api::new();
 		let tx = api.tagged_deserialize::<Transaction<S, D>>(tx_serialized)?;
+		let tx_hash = tx.hash();
 		log::info!(
 			target: LOG_TARGET,
-			"⚙️  Processing Tx {tx:?}"
+			"📥 Applying transaction {}",
+			hex::encode(tx_hash)
 		);
-		let tx_hash = tx.hash();
 		let ledger = Self::get_ledger(&api, state_key)?;
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
 
@@ -719,10 +720,26 @@ where
 			return Ok(TransactionValidationWasCached::Yes);
 		}
 
-		// Cache miss: get verified transaction (this caches it in both caches)
-		let _ = Self::get_verified_transaction(ledger, tx, block_context, tx_hash)?;
-
-		Ok(TransactionValidationWasCached::No)
+		// Cache miss: transaction is entering the mempool or being re-validated
+		let tx_hash_hex = hex::encode(tx.hash());
+		match Self::get_verified_transaction(ledger, tx, block_context, tx_hash) {
+			Ok(_) => {
+				log::info!(
+					target: LOG_TARGET,
+					"📋 Validated transaction {} for mempool",
+					tx_hash_hex
+				);
+				Ok(TransactionValidationWasCached::No)
+			},
+			Err(e) => {
+				log::warn!(
+					target: LOG_TARGET,
+					"🚫 Rejected transaction {} from mempool: {e}",
+					tx_hash_hex
+				);
+				Err(e)
+			},
+		}
 	}
 
 	/// Validates transaction application, with caching.
@@ -750,7 +767,8 @@ where
 			mn_ledger_local::semantics::TransactionResult::Failure(reason) => {
 				log::warn!(
 					target: LOG_TARGET,
-					"Pre-dispatch validation failed: guaranteed part would fail: {reason:?}"
+					"🚫 Rejecting transaction {} at pre-dispatch: guaranteed execution would fail: {reason:?}",
+					hex::encode(tx.hash())
 				);
 				Err(LedgerApiError::Transaction(types::TransactionError::Invalid(reason.into())))
 			},
