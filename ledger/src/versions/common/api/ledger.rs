@@ -129,6 +129,7 @@ impl<D: DB> Ledger<D> {
 		self.state.index(contract_address)
 	}
 
+	#[allow(dead_code)] // Used by ignored tests
 	pub(crate) fn apply_transaction<S: SignatureKind<D>>(
 		sp: Sp<Self, D>,
 		api: &Api,
@@ -146,6 +147,44 @@ impl<D: DB> Ledger<D> {
 			)
 			.map_err(|e| LedgerApiError::Transaction(TransactionError::Malformed(e.into())))?;
 		let (next_state, result) = sp.state.apply(&valid_tx, ctx);
+		let next_block_fullness = tx_cost + sp.block_fullness.clone().into();
+		let new_sp = default_storage::<D>()
+			.arena
+			.alloc(Ledger { state: next_state, block_fullness: next_block_fullness.into() });
+
+		match result {
+			TransactionResult::Success(_) => Ok((new_sp, AppliedStage::AllApplied)),
+			TransactionResult::PartialSuccess(segments, _) => {
+				log::warn!(
+					target: LOG_TARGET,
+					"Non guaranteed part of the transaction failed tx_hash = {:?}, segments = {:?}",
+					tx.identifiers().map(|i| api.tagged_serialize(&i)).collect::<Vec<_>>(),
+					segments
+				);
+				Ok((new_sp, AppliedStage::PartialSuccess(segments)))
+			},
+			TransactionResult::Failure(reason) => {
+				log::warn!(target: LOG_TARGET, "Error applying Transaction: {reason:?}");
+				Err(LedgerApiError::Transaction(TransactionError::Invalid(reason.into())))
+			},
+		}
+	}
+
+	/// Applies a pre-verified transaction to the ledger.
+	///
+	/// This is used when a `VerifiedTransaction` has been cached from a prior
+	/// validation step, avoiding redundant ZK proof verification.
+	pub(crate) fn apply_verified_transaction<S: SignatureKind<D>>(
+		sp: Sp<Self, D>,
+		api: &Api,
+		tx: &Transaction<S, D>,
+		verified_tx: &mn_ledger_local::structure::VerifiedTransaction<D>,
+		ctx: &TransactionContext<D>,
+	) -> Result<(Sp<Self, D>, AppliedStage<D>), LedgerApiError> {
+		let tx_cost =
+			tx.0.cost(&sp.state.parameters, true)
+				.map_err(|_| LedgerApiError::FeeCalculationError)?;
+		let (next_state, result) = sp.state.apply(verified_tx, ctx);
 		let next_block_fullness = tx_cost + sp.block_fullness.clone().into();
 		let new_sp = default_storage::<D>()
 			.arena
@@ -192,6 +231,7 @@ impl<D: DB> Ledger<D> {
 		Ok(new_sp)
 	}
 
+	#[allow(dead_code)] // Kept for potential future use
 	pub(crate) fn validate_transaction<S: SignatureKind<D>>(
 		&self,
 		tx: &Transaction<S, D>,

@@ -219,6 +219,7 @@ impl UnshieldedUtxos {
 
 impl<S: SignatureKind<D>, D: DB> Transaction<S, D> {
 	// #[cfg(not(feature = "runtime-benchmarks"))]
+	#[allow(dead_code)] // Called by Ledger::validate_transaction (kept for potential future use)
 	pub(crate) fn validate(
 		&self,
 		ledger: &Ledger<D>,

@@ -44,9 +44,7 @@ use {
 		ContractAddress, ContractState, Ledger, LedgerParameters, SystemTransaction, Transaction,
 		TransactionAppliedStage, TransactionOperation,
 	},
-	base_crypto_local::{
-		cost_model::NormalizedCost as LedgerNormalizedCost, hash::HashOutput, time::Timestamp,
-	},
+	base_crypto_local::{cost_model::NormalizedCost as LedgerNormalizedCost, hash::HashOutput, time::Timestamp},
 	coin_structure_local::coin::Nonce,
 	ledger_storage_local::{
 		Storage,
@@ -201,7 +199,11 @@ where
 		tx_serialized: &[u8],
 		block_context: BlockContext,
 		should_skip_failed_segments: bool,
-	) -> Result<TransactionAppliedStateRoot, LedgerApiError> {
+		runtime_version: u32,
+	) -> Result<TransactionAppliedStateRoot, LedgerApiError>
+	where
+		VerifiedTransaction<D>: Send + Sync + 'static,
+	{
 		// Gather metrics for Prometheus
 		let start_tx_processing_time = Instant::now();
 		let tx_size = tx_serialized.len();
@@ -216,8 +218,15 @@ where
 		let ledger = Self::get_ledger(&api, state_key)?;
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
 
+		// Use cached VerifiedTransaction if available
+		let cache_key = Self::tx_validation_cache_key(runtime_version, tx_serialized);
+		let verified_tx =
+			Self::get_verified_transaction(&ledger, &tx, &block_context, &cache_key)?;
+
+		// Apply the verified transaction
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
-		let (mut ledger, applied_stage) = Ledger::apply_transaction(ledger, &api, &tx, &tx_ctx)?;
+		let (mut new_ledger, applied_stage) =
+			Ledger::apply_verified_transaction(ledger, &api, &tx, &verified_tx, &tx_ctx)?;
 
 		let all_applied = matches!(applied_stage, TransactionAppliedStage::AllApplied);
 
@@ -236,10 +245,10 @@ where
 			tx.calls_and_deploys(should_skip_failed_segments.then_some(failed_segments).flatten());
 
 		let (utxo_outputs, utxo_inputs) =
-			utxos.check_utxos_response_integrity(initial_utxos_size, &ledger)?;
+			utxos.check_utxos_response_integrity(initial_utxos_size, &new_ledger)?;
 
 		let mut event = TransactionAppliedStateRoot {
-			state_root: api.tagged_serialize(&ledger.as_typed_key())?,
+			state_root: api.tagged_serialize(&new_ledger.as_typed_key())?,
 			tx_hash,
 			all_applied,
 			call_addresses: vec![],
@@ -268,7 +277,7 @@ where
 		}
 
 		// Only update state after no errors
-		ledger.persist();
+		new_ledger.persist();
 
 		// Write Prometheus metrics
 		let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
@@ -383,7 +392,7 @@ where
 	/// (populated by `validate_unsigned(strict=true)`) to avoid redundant ZK
 	/// proof verification via `well_formed()`.
 	pub fn validate_guaranteed_execution(
-		mut externalities: &mut dyn Externalities,
+		_externalities: &mut dyn Externalities,
 		state_key: &[u8],
 		tx_serialized: &[u8],
 		block_context: BlockContext,
@@ -629,6 +638,53 @@ where
 		}
 	}
 
+	/// Gets a VerifiedTransaction, using the strict cache when possible.
+	///
+	/// - Checks the strict cache (keyed by state_hash + tx_hash)
+	/// - On hit: returns cached VerifiedTransaction
+	/// - On miss: calls well_formed(), caches result in both caches, returns it
+	fn get_verified_transaction(
+		ledger: &Ledger<D>,
+		tx: &Transaction<S, D>,
+		block_context: &BlockContext,
+		tx_hash: &WrappedHash,
+	) -> Result<VerifiedTransaction<D>, LedgerApiError>
+	where
+		VerifiedTransaction<D>: Send + Sync + 'static,
+	{
+		let state_hash = ledger.state.state_hash();
+		let strict_key =
+			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
+
+		// Check strict cache
+		if let Some(cached) = STRICT_TX_VALIDATION_CACHE.get(&strict_key) {
+			if let Some(vt) = cached.downcast_ref::<VerifiedTransaction<D>>() {
+				return Ok(vt.clone());
+			}
+			// Downcast failed - fall through to recompute
+			log::warn!(target: LOG_TARGET, "VerifiedTransaction cache downcast failed");
+		}
+
+		// Cache miss: compute VerifiedTransaction
+		let ctx = ledger.get_transaction_context(block_context.clone());
+		let verified_tx =
+			tx.0.well_formed(
+				&ctx.ref_state,
+				mn_ledger_local::verify::WellFormedStrictness::default(),
+				ctx.block_context.tblock,
+			)
+			.map_err(|e| {
+				LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()))
+			})?;
+
+		// Cache in both caches
+		STRICT_TX_VALIDATION_CACHE.insert(strict_key, Arc::new(verified_tx.clone()));
+		SOFT_TX_VALIDATION_CACHE
+			.insert(SoftTxValidationKey { tx_hash: tx_hash.0 }, Ok(()));
+
+		Ok(verified_tx)
+	}
+
 	/// Validates a transaction with two-tier caching.
 	///
 	/// - `strict=true` (pre_dispatch): Uses `(state_hash, tx_hash)` key for state-dependent validation.
@@ -646,59 +702,34 @@ where
 		VerifiedTransaction<D>: Send + Sync + 'static,
 	{
 		let soft_key = SoftTxValidationKey { tx_hash: tx_hash.0 };
+
+		// For soft mode (mempool), check soft cache first (quick tx_hash-only lookup)
+		if !strict {
+			if let Some(cached) = SOFT_TX_VALIDATION_CACHE.get(&soft_key) {
+				return cached.map(|_| TransactionValidationWasCached::Yes);
+			}
+		}
+
+		// Check strict cache - if hit, we already have a valid VerifiedTransaction
 		let state_hash = ledger.state.state_hash();
 		let strict_key =
 			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
 
-		if strict {
-			// STRICT MODE (pre_dispatch): Check state-dependent cache for VerifiedTransaction
-
-			// Check strict cache - if hit, the VerifiedTransaction exists (validation passed)
-			if STRICT_TX_VALIDATION_CACHE.get(&strict_key).is_some() {
-				return Ok(TransactionValidationWasCached::Yes);
-			}
-
-			// Cache miss: run well_formed() to get VerifiedTransaction
-			let ctx = ledger.get_transaction_context(block_context.clone());
-			let verified_tx =
-				tx.0.well_formed(
-					&ctx.ref_state,
-					mn_ledger_local::verify::WellFormedStrictness::default(),
-					ctx.block_context.tblock,
-				)
-				.map_err(|e| {
-					LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()))
-				})?;
-
-			// Cache the VerifiedTransaction (type-erased via Arc<dyn Any>)
-			STRICT_TX_VALIDATION_CACHE.insert(strict_key, Arc::new(verified_tx));
-
-			// Also cache Ok(()) in soft cache
-			SOFT_TX_VALIDATION_CACHE.insert(soft_key, Ok(()));
-
-			Ok(TransactionValidationWasCached::No)
-		} else {
-			// SOFT MODE (mempool): Check tx-only cache for revalidation
-			if let Some(cached) = SOFT_TX_VALIDATION_CACHE.get(&soft_key) {
-				return cached.map(|_| TransactionValidationWasCached::Yes);
-			}
-
-			// Cache miss: run validation
-			let validation = ledger.validate_transaction(tx, block_context);
-
-			// Cache result in soft cache
-			SOFT_TX_VALIDATION_CACHE.insert(soft_key, validation.clone());
-
-			validation.map(|_| TransactionValidationWasCached::No)
+		if STRICT_TX_VALIDATION_CACHE.get(&strict_key).is_some() {
+			return Ok(TransactionValidationWasCached::Yes);
 		}
+
+		// Cache miss: get verified transaction (this caches it in both caches)
+		let _ = Self::get_verified_transaction(ledger, tx, block_context, tx_hash)?;
+
+		Ok(TransactionValidationWasCached::No)
 	}
 
 	/// Validates transaction application, with caching.
 	///
-	/// Checks the strict cache for a cached `VerifiedTransaction` (populated by
-	/// `do_validate_transaction(strict=true)`) to avoid redundant ZK proof verification.
-	/// If found, uses it directly for the `apply()` dry-run. If not found, calls
-	/// `well_formed()` to get the `VerifiedTransaction` and caches it.
+	/// Uses `get_verified_transaction` to get a cached or freshly computed
+	/// `VerifiedTransaction`, then performs a dry-run `apply()` to validate
+	/// the guaranteed part will succeed.
 	fn do_validate_guaranteed_execution(
 		ledger: &Ledger<D>,
 		tx: &Transaction<S, D>,
@@ -708,57 +739,9 @@ where
 	where
 		VerifiedTransaction<D>: Send + Sync + 'static,
 	{
-		// Build strict cache key
-		let state_hash = ledger.state.state_hash();
-		let strict_key =
-			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
+		let verified_tx = Self::get_verified_transaction(ledger, tx, block_context, tx_hash)?;
 
 		let ctx = ledger.get_transaction_context(block_context.clone());
-
-		// Try to get cached VerifiedTransaction
-		let verified_tx: VerifiedTransaction<D> = if let Some(cached) =
-			STRICT_TX_VALIDATION_CACHE.get(&strict_key)
-		{
-			// Cache hit: downcast from Arc<dyn Any> to concrete type
-			match cached.downcast_ref::<VerifiedTransaction<D>>() {
-				Some(vt) => vt.clone(),
-				None => {
-					// Type mismatch - fall back to computing fresh
-					log::warn!(
-						target: LOG_TARGET,
-						"VerifiedTransaction cache downcast failed, recomputing"
-					);
-					tx.0.well_formed(
-						&ctx.ref_state,
-						mn_ledger_local::verify::WellFormedStrictness::default(),
-						ctx.block_context.tblock,
-					)
-					.map_err(|e| {
-						LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()))
-					})?
-				},
-			}
-		} else {
-			// Cache miss: run well_formed() to get VerifiedTransaction
-			let vt =
-				tx.0.well_formed(
-					&ctx.ref_state,
-					mn_ledger_local::verify::WellFormedStrictness::default(),
-					ctx.block_context.tblock,
-				)
-				.map_err(|e| {
-					LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()))
-				})?;
-
-			// Cache for future use
-			let soft_key = SoftTxValidationKey { tx_hash: tx_hash.0 };
-			STRICT_TX_VALIDATION_CACHE.insert(strict_key, Arc::new(vt.clone()));
-			SOFT_TX_VALIDATION_CACHE.insert(soft_key, Ok(()));
-
-			vt
-		};
-
-		// Always run apply() dry-run with the VerifiedTransaction
 		let (_next_state, result) = ledger.state.apply(&verified_tx, &ctx);
 
 		match result {
