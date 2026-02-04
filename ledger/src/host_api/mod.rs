@@ -81,7 +81,7 @@ pub trait LedgerBridge {
 		state_key: PassFatPointerAndRead<&[u8]>,
 		tx: PassFatPointerAndRead<&[u8]>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
-		_runtime_version: u32,
+		runtime_version: u32,
 	) -> AllocateAndReturnByCodec<Result<TransactionAppliedStateRoot, latest::types::LedgerApiError>>
 	{
 		latest::Bridge::<Signature, Database>::apply_transaction(
@@ -90,6 +90,7 @@ pub trait LedgerBridge {
 			tx,
 			block_context,
 			false,
+			runtime_version,
 		)
 	}
 
@@ -99,7 +100,7 @@ pub trait LedgerBridge {
 		state_key: PassFatPointerAndRead<&[u8]>,
 		tx: PassFatPointerAndRead<&[u8]>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
-		_runtime_version: u32,
+		runtime_version: u32,
 	) -> AllocateAndReturnByCodec<Result<TransactionAppliedStateRoot, latest::types::LedgerApiError>>
 	{
 		latest::Bridge::<Signature, Database>::apply_transaction(
@@ -108,6 +109,7 @@ pub trait LedgerBridge {
 			tx,
 			block_context,
 			true,
+			runtime_version,
 		)
 	}
 
@@ -131,7 +133,6 @@ pub trait LedgerBridge {
 	/*
 	 * validate_transaction()
 	 */
-	// Current Enabled Version
 	fn validate_transaction(
 		&mut self,
 		state_key: PassFatPointerAndRead<&[u8]>,
@@ -342,7 +343,7 @@ pub trait LedgerBridgeHf {
 		state_key: PassFatPointerAndRead<&[u8]>,
 		tx: PassFatPointerAndRead<&[u8]>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
-		_runtime_version: u32,
+		runtime_version: u32,
 	) -> AllocateAndReturnByCodec<
 		Result<TransactionAppliedStateRoot, hard_fork_test::types::LedgerApiError>,
 	> {
@@ -352,6 +353,7 @@ pub trait LedgerBridgeHf {
 			tx,
 			block_context,
 			true,
+			runtime_version,
 		)
 	}
 

@@ -426,13 +426,8 @@ pub mod pallet {
 		}
 
 		fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
-			let block_context = Self::get_block_context();
-
-			// First, perform existing structural validation
-			Self::validate_unsigned(call, block_context.clone())?;
-
-			// Then, validate that the guaranteed part will succeed.
 			if let Call::send_mn_transaction { midnight_tx } = call {
+				let block_context = Self::get_block_context();
 				let state_key = StateKey::<T>::get().expect("Failed to get state key");
 				let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 
@@ -443,9 +438,10 @@ pub mod pallet {
 					runtime_version,
 				)
 				.map_err(|e| Self::invalid_transaction(e.into()))?;
+				Ok(())
+			} else {
+				Err(Self::invalid_transaction(Default::default()))
 			}
-
-			Ok(())
 		}
 	}
 
