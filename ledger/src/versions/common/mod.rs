@@ -67,7 +67,7 @@ use {
 use crate::common::types::{
 	BlockContext, ContractCallsDetails, FallibleCoinsDetails, GasCost, GuaranteedCoinsDetails,
 	Hash, Op, SystemTransactionAppliedStateRoot, TransactionAppliedStateRoot, TransactionDetails,
-	TransactionValidationWasCached, Tx, WrappedHash,
+	Tx, WrappedHash,
 };
 
 #[cfg(feature = "std")]
@@ -345,7 +345,6 @@ where
 		runtime_version: u32,
 		// The runtime's max weight as of now
 		max_weight: u64,
-		strict: bool,
 	) -> Result<(Hash, TransactionDetails), LedgerApiError> {
 		// Gather metrics for Prometheus
 		let start_tx_validation_time = Instant::now();
@@ -356,13 +355,8 @@ where
 
 		let wrapped_cache_key = Self::tx_validation_cache_key(runtime_version, tx_serialized);
 
-		let was_cached = Self::do_validate_transaction(
-			&ledger,
-			&tx,
-			&block_context,
-			&wrapped_cache_key,
-			strict,
-		)?;
+		let was_cached =
+			Self::do_validate_transaction(&ledger, &tx, &block_context, &wrapped_cache_key)?;
 
 		let tx_gas_cost =
 			Self::get_transaction_cost(state_key, tx_serialized, &block_context, max_weight)?;
@@ -372,20 +366,14 @@ where
 		// Write Prometheus metrics
 		if let Some(metrics) = externalities.extension::<LedgerMetricsExt>() {
 			// Record cache hit/miss metrics
-			match was_cached {
-				TransactionValidationWasCached::SoftCache => {
-					metrics.inc_tx_validation_cache_hit("soft");
-				},
-				TransactionValidationWasCached::StrictCache => {
-					metrics.inc_tx_validation_cache_hit("strict");
-				},
-				TransactionValidationWasCached::No => {
-					metrics.inc_tx_validation_cache_miss();
-					// Only record validation time on cache miss (when actual work was done)
-					let tx_type = Self::get_tx_type(&tx);
-					let elapsed_time = start_tx_validation_time.elapsed().as_secs_f64();
-					metrics.observe_txs_validating_time(elapsed_time, tx_type);
-				},
+			if was_cached {
+				metrics.inc_tx_validation_cache_hit("soft");
+			} else {
+				metrics.inc_tx_validation_cache_miss();
+				// Only record validation time on cache miss (when actual work was done)
+				let tx_type = Self::get_tx_type(&tx);
+				let elapsed_time = start_tx_validation_time.elapsed().as_secs_f64();
+				metrics.observe_txs_validating_time(elapsed_time, tx_type);
 			}
 
 			// Report current cache sizes
@@ -405,7 +393,7 @@ where
 	/// (populated by `validate_unsigned(strict=true)`) to avoid redundant ZK
 	/// proof verification via `well_formed()`.
 	pub fn validate_guaranteed_execution(
-		_externalities: &mut dyn Externalities,
+		mut externalities: &mut dyn Externalities,
 		state_key: &[u8],
 		tx_serialized: &[u8],
 		block_context: BlockContext,
@@ -421,7 +409,23 @@ where
 		let tx_hash = Self::tx_validation_cache_key(runtime_version, tx_serialized);
 
 		// Perform dry-run validation with caching
-		Self::do_validate_guaranteed_execution(&ledger, &tx, &block_context, &tx_hash)
+		let was_cached =
+			Self::do_validate_guaranteed_execution(&ledger, &tx, &block_context, &tx_hash)?;
+
+		// Write Prometheus metrics
+		if let Some(metrics) = externalities.extension::<LedgerMetricsExt>() {
+			if was_cached {
+				metrics.inc_tx_validation_cache_hit("strict");
+			} else {
+				metrics.inc_tx_validation_cache_miss();
+			}
+
+			// Report current cache sizes
+			metrics.set_tx_validation_cache_size("strict", STRICT_TX_VALIDATION_CACHE.entry_count());
+			metrics.set_tx_validation_cache_size("soft", SOFT_TX_VALIDATION_CACHE.entry_count());
+		}
+
+		Ok(())
 	}
 
 	pub fn get_decoded_transaction(transaction_bytes: &[u8]) -> Result<Tx, LedgerApiError> {
@@ -698,38 +702,26 @@ where
 		Ok(verified_tx)
 	}
 
-	/// Validates a transaction with two-tier caching.
+	/// Validates a transaction for the mempool using the soft cache.
 	///
-	/// - `strict=true` (pre_dispatch): Uses `(state_hash, tx_hash)` key for state-dependent validation.
-	///   The strict cache stores `VerifiedTransaction` so `validate_guaranteed_execution` can reuse it.
-	/// - `strict=false` (mempool): Uses `tx_hash` only for revalidation of transactions already in the pool.
-	///   The soft cache prevents redundant ZK proof verification for mempool housekeeping.
+	/// Uses `tx_hash` only for quick revalidation of transactions already in the pool.
+	/// The soft cache prevents redundant ZK proof verification for mempool housekeeping.
+	///
+	/// Returns `true` if the validation was served from cache, `false` if validation was performed.
 	fn do_validate_transaction(
 		ledger: &Ledger<D>,
 		tx: &Transaction<S, D>,
 		block_context: &BlockContext,
 		tx_hash: &WrappedHash,
-		strict: bool,
-	) -> Result<TransactionValidationWasCached, LedgerApiError>
+	) -> Result<bool, LedgerApiError>
 	where
 		VerifiedTransaction<D>: Send + Sync + 'static,
 	{
 		let soft_key = SoftTxValidationKey { tx_hash: tx_hash.0 };
 
-		// For soft mode (mempool), check soft cache first (quick tx_hash-only lookup)
-		if !strict {
-			if let Some(cached) = SOFT_TX_VALIDATION_CACHE.get(&soft_key) {
-				return cached.map(|_| TransactionValidationWasCached::SoftCache);
-			}
-		}
-
-		// Check strict cache - if hit, we already have a valid VerifiedTransaction
-		let state_hash = ledger.state.state_hash();
-		let strict_key =
-			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
-
-		if STRICT_TX_VALIDATION_CACHE.get(&strict_key).is_some() {
-			return Ok(TransactionValidationWasCached::StrictCache);
+		// Check soft cache first (quick tx_hash-only lookup for mempool revalidation)
+		if let Some(cached) = SOFT_TX_VALIDATION_CACHE.get(&soft_key) {
+			return cached.map(|_| true);
 		}
 
 		// Cache miss: transaction is entering the mempool or being re-validated
@@ -741,7 +733,7 @@ where
 					"📋 Validated transaction {} for mempool",
 					tx_hash_hex
 				);
-				Ok(TransactionValidationWasCached::No)
+				Ok(false)
 			},
 			Err(e) => {
 				log::warn!(
@@ -759,15 +751,23 @@ where
 	/// Uses `get_verified_transaction` to get a cached or freshly computed
 	/// `VerifiedTransaction`, then performs a dry-run `apply()` to validate
 	/// the guaranteed part will succeed.
+	///
+	/// Returns `true` if validation was served from the strict cache, `false` otherwise.
 	fn do_validate_guaranteed_execution(
 		ledger: &Ledger<D>,
 		tx: &Transaction<S, D>,
 		block_context: &BlockContext,
 		tx_hash: &WrappedHash,
-	) -> Result<(), LedgerApiError>
+	) -> Result<bool, LedgerApiError>
 	where
 		VerifiedTransaction<D>: Send + Sync + 'static,
 	{
+		// Check strict cache to determine if this is a cache hit
+		let state_hash = ledger.state.state_hash();
+		let strict_key =
+			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
+		let was_cached = STRICT_TX_VALIDATION_CACHE.get(&strict_key).is_some();
+
 		let verified_tx = Self::get_verified_transaction(ledger, tx, block_context, tx_hash)?;
 
 		let ctx = ledger.get_transaction_context(block_context.clone());
@@ -775,7 +775,7 @@ where
 
 		match result {
 			mn_ledger_local::semantics::TransactionResult::Success(_)
-			| mn_ledger_local::semantics::TransactionResult::PartialSuccess(_, _) => Ok(()),
+			| mn_ledger_local::semantics::TransactionResult::PartialSuccess(_, _) => Ok(was_cached),
 			mn_ledger_local::semantics::TransactionResult::Failure(reason) => {
 				log::warn!(
 					target: LOG_TARGET,
