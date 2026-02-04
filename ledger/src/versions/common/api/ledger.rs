@@ -280,9 +280,8 @@ mod tests {
 		assert!(tx.is_ok(), "Can't deserialize transaction: {}", tx.unwrap_err());
 		let tx = tx.unwrap();
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
-		let verified_tx = tx
-			.0
-			.well_formed(
+		let verified_tx =
+			tx.0.well_formed(
 				&tx_ctx.ref_state,
 				mn_ledger_local::verify::WellFormedStrictness::default(),
 				tx_ctx.block_context.tblock,

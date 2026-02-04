@@ -395,8 +395,8 @@ mod tests {
 		api,
 	};
 	use super::*;
-	use base_crypto_local::signatures::Signature;
 	use crate::common::types::BlockContext;
+	use base_crypto_local::signatures::Signature;
 	use ledger_storage_local::DefaultDB;
 	use midnight_node_res::networks::{MidnightNetwork, UndeployedNetwork};
 	use midnight_serialize_local::tagged_deserialize;

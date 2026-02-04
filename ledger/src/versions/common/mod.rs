@@ -44,7 +44,9 @@ use {
 		ContractAddress, ContractState, Ledger, LedgerParameters, SystemTransaction, Transaction,
 		TransactionAppliedStage, TransactionOperation,
 	},
-	base_crypto_local::{cost_model::NormalizedCost as LedgerNormalizedCost, hash::HashOutput, time::Timestamp},
+	base_crypto_local::{
+		cost_model::NormalizedCost as LedgerNormalizedCost, hash::HashOutput, time::Timestamp,
+	},
 	coin_structure_local::coin::Nonce,
 	ledger_storage_local::{
 		Storage,
@@ -221,8 +223,7 @@ where
 
 		// Use cached VerifiedTransaction if available
 		let cache_key = Self::tx_validation_cache_key(runtime_version, tx_serialized);
-		let verified_tx =
-			Self::get_verified_transaction(&ledger, &tx, &block_context, &cache_key)?;
+		let verified_tx = Self::get_verified_transaction(&ledger, &tx, &block_context, &cache_key)?;
 
 		// Apply the verified transaction
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
@@ -377,7 +378,8 @@ where
 			}
 
 			// Report current cache sizes
-			metrics.set_tx_validation_cache_size("strict", STRICT_TX_VALIDATION_CACHE.entry_count());
+			metrics
+				.set_tx_validation_cache_size("strict", STRICT_TX_VALIDATION_CACHE.entry_count());
 			metrics.set_tx_validation_cache_size("soft", SOFT_TX_VALIDATION_CACHE.entry_count());
 		}
 
@@ -421,7 +423,8 @@ where
 			}
 
 			// Report current cache sizes
-			metrics.set_tx_validation_cache_size("strict", STRICT_TX_VALIDATION_CACHE.entry_count());
+			metrics
+				.set_tx_validation_cache_size("strict", STRICT_TX_VALIDATION_CACHE.entry_count());
 			metrics.set_tx_validation_cache_size("soft", SOFT_TX_VALIDATION_CACHE.entry_count());
 		}
 
@@ -696,8 +699,7 @@ where
 
 		// Cache in both caches
 		STRICT_TX_VALIDATION_CACHE.insert(strict_key, Arc::new(verified_tx.clone()));
-		SOFT_TX_VALIDATION_CACHE
-			.insert(SoftTxValidationKey { tx_hash: tx_hash.0 }, Ok(()));
+		SOFT_TX_VALIDATION_CACHE.insert(SoftTxValidationKey { tx_hash: tx_hash.0 }, Ok(()));
 
 		Ok(verified_tx)
 	}
