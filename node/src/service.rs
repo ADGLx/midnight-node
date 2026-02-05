@@ -48,11 +48,11 @@ use mmr_gadget::MmrGadget;
 use sc_rpc::SubscriptionTaskExecutor;
 use sp_core::storage::Storage;
 use sp_partner_chains_consensus_aura::block_proposal::PartnerChainsProposerFactory;
+use sp_runtime::Digest;
 use sp_runtime::{
 	BuildStorage,
 	traits::{Block as BlockT, Hash as HashT, HashingFor, Header as HeaderT, Zero},
 };
-use sp_runtime::{Digest, DigestItem};
 use std::{
 	marker::PhantomData,
 	sync::{Arc, Mutex},
@@ -142,12 +142,7 @@ pub fn construct_genesis_block<Block: BlockT>(
 			state_version,
 		);
 
-	let block_digest = Digest {
-		logs: vec![DigestItem::Consensus(
-			midnight_node_runtime::VERSION_ID,
-			midnight_node_runtime::VERSION.spec_version.encode(),
-		)],
-	};
+	let block_digest = Digest { logs: vec![] };
 
 	Block::new(
 		<<Block as BlockT>::Header as HeaderT>::new(
