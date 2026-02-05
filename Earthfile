@@ -443,10 +443,9 @@ rebuild-genesis-state:
 # rebuild-genesis-state-undeployed rebuilds the genesis ledger state for undeployed network - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-genesis-state-undeployed:
     ARG RNG_SEED=0000000000000000000000000000000000000000000000000000000000000037
-    ARG GENERATE_TEST_TXS=true
     BUILD +rebuild-genesis-state \
         --NETWORK=undeployed \
-        --GENERATE_TEST_TXS=${GENERATE_TEST_TXS} \
+        --GENERATE_TEST_TXS=true \
         --RNG_SEED=${RNG_SEED}
 
 # rebuild-genesis-state-devnet rebuilds the genesis ledger state for devnet network - this MUST be followed by updating the chainspecs for CI to pass!
@@ -493,8 +492,7 @@ rebuild-genesis-state-preprod:
 
 # rebuild-all-genesis-states rebuilds the genesis ledger state for all networks - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-all-genesis-states:
-    ARG GENERATE_TEST_TXS=true
-    BUILD +rebuild-genesis-state-undeployed --GENERATE_TEST_TXS=${GENERATE_TEST_TXS}
+    BUILD +rebuild-genesis-state-undeployed
     BUILD +rebuild-genesis-state-devnet
     BUILD +rebuild-genesis-state-govnet
     BUILD +rebuild-genesis-state-node-dev-01
@@ -532,10 +530,9 @@ rebuild-all-chainspecs:
 
 # rebuild-genesis Rebuild the initial ledger state genesis and chainspecs. Secrets required to rebuild prod/preprod geneses.
 rebuild-genesis:
-    ARG GENERATE_TEST_TXS=true
     LOCALLY
     WAIT
-        BUILD +rebuild-all-genesis-states --GENERATE_TEST_TXS=${GENERATE_TEST_TXS}
+        BUILD +rebuild-all-genesis-states
     END
     BUILD +rebuild-all-chainspecs
     RUN echo "Rebuilt genesis and chainspecs"
@@ -737,11 +734,11 @@ toolkit-js-prep:
     ENV COMPACTC_VERSION=$COMPACTC_VERSION
 
     WORKDIR /toolkit-js
-    # RUN --secret GITHUB_TOKEN export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && npm ci
-    # RUN npm run build
+    RUN --secret GITHUB_TOKEN export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && npm ci
+    RUN npm run build
     # Run npm compact script (includes fetch-compactc + compile steps)
     # fetch-compactc uses GITHUB_TOKEN to download compactc from artifacts
-    # RUN --secret GITHUB_TOKEN export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && npm run compact
+    RUN --secret GITHUB_TOKEN export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && npm run compact
     # Verify keys were generated
     RUN ls -la ./test/contract/managed/counter/keys/ && [ -s ./test/contract/managed/counter/keys/increment.verifier ]
 
