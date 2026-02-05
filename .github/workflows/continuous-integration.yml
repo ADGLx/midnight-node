@@ -331,10 +331,10 @@ jobs:
           done
 
           TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${TAG}" "${REGISTRY}/midnight-ntwrk/midnight-node:${TAG}"
-          docker push "${REGISTRY}/midnight-ntwrk/midnight-node:${TAG}"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${TAG}" "${REGISTRY}/midnight-ntwrk/midnight-node-toolkit:${TAG}"
-          docker push "${REGISTRY}/midnight-ntwrk/midnight-node-toolkit:${TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG}"
+          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
+          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
           rm -rf /tmp/images
 
       - name: Check Genesis Rebuild
@@ -684,8 +684,8 @@ jobs:
           done
 
           NODE_TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${NODE_TAG}" "${REGISTRY}/midnight-ntwrk/midnight-node:${NODE_TAG}"
-          docker push "${REGISTRY}/midnight-ntwrk/midnight-node:${NODE_TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${NODE_TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
+          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
           rm -rf /tmp/images
 
       - name: Run metadata check
