@@ -694,6 +694,18 @@ jobs:
         run: |
           REGISTRY=172.17.0.1:5000
           NODE_TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
+
+          echo "=== DEBUG: earthly config ==="
+          cat ~/.earthly/config.yml
+          echo "=== DEBUG: verify registry is up ==="
+          curl -s http://127.0.0.1:5000/v2/_catalog || echo "registry unreachable on 127.0.0.1"
+          curl -s http://${REGISTRY}/v2/_catalog || echo "registry unreachable on ${REGISTRY}"
+          echo "=== DEBUG: starting earthly to check buildkitd config ==="
+          . ./.envrc && earthly +pull-image --IMAGE=alpine:3.18 2>&1 | head -20 || true
+          echo "=== DEBUG: buildkitd toml ==="
+          docker exec earthly-buildkitd cat /etc/buildkitd.toml 2>&1 | grep -A5 registry || echo "NO REGISTRY CONFIG IN BUILDKITD"
+          echo "=== DEBUG: done, running actual check ==="
+
           . ./.envrc && earthly --strict -P --build-arg NODE_IMAGE=${REGISTRY}/midnight-ntwrk/midnight-node:${NODE_TAG} +check-metadata
 
   toolkit-contracts-e2e:
