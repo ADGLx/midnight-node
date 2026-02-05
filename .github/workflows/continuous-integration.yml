@@ -311,29 +311,30 @@ jobs:
       - name: Start local registry and load images
         run: |
           mkdir -p ~/.earthly
-          cat > ~/.earthly/config.yml <<'EOFCFG'
+          REGISTRY=172.17.0.1:5000
+
+          cat > ~/.earthly/config.yml <<EOFCFG
           global:
-            buildkit_additional_args: ["--network", "host"]
             buildkit_additional_config: |
-              [registry."127.0.0.1:5000"]
+              [registry."${REGISTRY}"]
                 http = true
                 insecure = true
           EOFCFG
 
-          # Restart buildkitd so it picks up --network=host and insecure-registry config
+          # Restart buildkitd so it picks up insecure-registry config
           earthly prune --reset
 
-          docker run -d --network host --name registry registry:2
+          docker run -d -p 5000:5000 --name registry registry:2
 
           for f in /tmp/images/*.tar.zst; do
             zstd -d "$f" --stdout | docker load
           done
 
           TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG}"
-          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG}"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
-          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${TAG}" "${REGISTRY}/midnight-ntwrk/midnight-node:${TAG}"
+          docker push "${REGISTRY}/midnight-ntwrk/midnight-node:${TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${TAG}" "${REGISTRY}/midnight-ntwrk/midnight-node-toolkit:${TAG}"
+          docker push "${REGISTRY}/midnight-ntwrk/midnight-node-toolkit:${TAG}"
           rm -rf /tmp/images
 
       - name: Check Genesis Rebuild
@@ -342,8 +343,9 @@ jobs:
           echo "[net]" >> $HOME/.cargo/config
           echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
 
+          REGISTRY=172.17.0.1:5000
           TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          . ./.envrc && earthly --build-arg NODE_IMAGE=127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG} --build-arg TOOLKIT_IMAGE=127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG} --secret GITHUB_TOKEN +rebuild-genesis
+          . ./.envrc && earthly --build-arg NODE_IMAGE=${REGISTRY}/midnight-ntwrk/midnight-node:${TAG} --build-arg TOOLKIT_IMAGE=${REGISTRY}/midnight-ntwrk/midnight-node-toolkit:${TAG} --secret GITHUB_TOKEN +rebuild-genesis
         env:
           GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
 
@@ -662,33 +664,35 @@ jobs:
       - name: Start local registry and load images
         run: |
           mkdir -p ~/.earthly
-          cat > ~/.earthly/config.yml <<'EOFCFG'
+          REGISTRY=172.17.0.1:5000
+
+          cat > ~/.earthly/config.yml <<EOFCFG
           global:
-            buildkit_additional_args: ["--network", "host"]
             buildkit_additional_config: |
-              [registry."127.0.0.1:5000"]
+              [registry."${REGISTRY}"]
                 http = true
                 insecure = true
           EOFCFG
 
-          # Restart buildkitd so it picks up --network=host and insecure-registry config
+          # Restart buildkitd so it picks up insecure-registry config
           earthly prune --reset
 
-          docker run -d --network host --name registry registry:2
+          docker run -d -p 5000:5000 --name registry registry:2
 
           for f in /tmp/images/*.tar.zst; do
             zstd -d "$f" --stdout | docker load
           done
 
           NODE_TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${NODE_TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
-          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${NODE_TAG}" "${REGISTRY}/midnight-ntwrk/midnight-node:${NODE_TAG}"
+          docker push "${REGISTRY}/midnight-ntwrk/midnight-node:${NODE_TAG}"
           rm -rf /tmp/images
 
       - name: Run metadata check
         run: |
+          REGISTRY=172.17.0.1:5000
           NODE_TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          . ./.envrc && earthly --strict -P --build-arg NODE_IMAGE=127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG} +check-metadata
+          . ./.envrc && earthly --strict -P --build-arg NODE_IMAGE=${REGISTRY}/midnight-ntwrk/midnight-node:${NODE_TAG} +check-metadata
 
   toolkit-contracts-e2e:
     name: Toolkit Contracts E2E
