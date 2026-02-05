@@ -408,11 +408,11 @@ where
 		let tx = api.tagged_deserialize::<Transaction<S, D>>(tx_serialized)?;
 		let ledger = Self::get_ledger(&api, state_key)?;
 
-		let tx_hash = Self::tx_validation_cache_key(runtime_version, tx_serialized);
+		let cache_key = Self::tx_validation_cache_key(runtime_version, tx_serialized);
 
 		// Perform dry-run validation with caching
 		let was_cached =
-			Self::do_validate_guaranteed_execution(&ledger, &tx, &block_context, &tx_hash)?;
+			Self::do_validate_guaranteed_execution(&ledger, &tx, &block_context, &cache_key)?;
 
 		// Write Prometheus metrics
 		if let Some(metrics) = externalities.extension::<LedgerMetricsExt>() {
