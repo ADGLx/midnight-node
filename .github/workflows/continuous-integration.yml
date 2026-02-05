@@ -320,6 +320,9 @@ jobs:
                 insecure = true
           EOFCFG
 
+          # Restart buildkitd so it picks up --network=host and insecure-registry config
+          earthly prune --reset
+
           docker run -d --network host --name registry registry:2
 
           for f in /tmp/images/*.tar.zst; do
@@ -667,6 +670,9 @@ jobs:
                 http = true
                 insecure = true
           EOFCFG
+
+          # Restart buildkitd so it picks up --network=host and insecure-registry config
+          earthly prune --reset
 
           docker run -d --network host --name registry registry:2
 
