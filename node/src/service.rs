@@ -48,11 +48,11 @@ use mmr_gadget::MmrGadget;
 use sc_rpc::SubscriptionTaskExecutor;
 use sp_core::storage::Storage;
 use sp_partner_chains_consensus_aura::block_proposal::PartnerChainsProposerFactory;
-use sp_runtime::Digest;
 use sp_runtime::{
 	BuildStorage,
 	traits::{Block as BlockT, Hash as HashT, HashingFor, Header as HeaderT, Zero},
 };
+use sp_runtime::{Digest, DigestItem};
 use std::{
 	marker::PhantomData,
 	sync::{Arc, Mutex},
@@ -142,7 +142,15 @@ pub fn construct_genesis_block<Block: BlockT>(
 			state_version,
 		);
 
-	let block_digest = Digest { logs: vec![] };
+	let block_digest = {
+		// This digest needs to stay there for backwards compatibility with existing networks.
+		// If node wants to connect to existing network before this changes, without this digest genesis hash of the genesis block will be different.
+		// For new networks, this has to be removed and replaced with empty digest:
+		// let block_digest = Digest { logs: vec![] };
+
+		const VERSION_ID: sp_runtime::ConsensusEngineId = *b"MNSV";
+		Digest { logs: vec![DigestItem::Consensus(VERSION_ID, 000_020_000.encode())] }
+	};
 
 	Block::new(
 		<<Block as BlockT>::Header as HeaderT>::new(
