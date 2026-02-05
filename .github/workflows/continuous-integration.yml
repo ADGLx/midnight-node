@@ -102,14 +102,6 @@ jobs:
           retention-days: 1
           compression-level: 0
 
-      - name: Export image tags
-        id: image_tags
-        run: |
-          short_hash=$(git rev-parse --short=8 HEAD)
-          version=$(grep -m 1 '^version =' node/Cargo.toml | cut -d '"' -f2)
-          echo "node_image_tag=${version}-dev-${short_hash}-amd64" >> $GITHUB_OUTPUT
-          echo "toolkit_image_tag=${version}-${short_hash}-amd64" >> $GITHUB_OUTPUT
-
       - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: success() || failure()
