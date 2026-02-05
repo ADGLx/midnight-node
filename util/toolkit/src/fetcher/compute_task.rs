@@ -15,11 +15,7 @@ use midnight_node_ledger_helpers::{
 	BlockContext, DB, HashOutput, ProofKind, SignatureKind, Tagged, Timestamp,
 	midnight_serialize::tagged_deserialize,
 };
-use subxt::{
-	blocks::ExtrinsicEvents,
-	config::substrate::{ConsensusEngineId, DigestItem},
-	utils::H256,
-};
+use subxt::{blocks::ExtrinsicEvents, utils::H256};
 
 use crate::fetcher::{
 	fetch_storage::{BlockData, FetchStorage, FetchedBlock, FetchedTransaction},
@@ -136,21 +132,11 @@ impl ComputeTask {
 	>(
 		block: &FetchedBlock,
 	) -> Result<BlockData<S, P, D>, ComputeError> {
-		let version_number = block
-			.block
-			.header()
-			.digest
-			.logs
-			.iter()
-			.find_map(|item| {
-				const VERSION_ID: ConsensusEngineId = *b"MNSV";
-				if let DigestItem::Consensus(VERSION_ID, data) = item {
-					Some(RuntimeVersion::try_from(data.as_slice()))
-				} else {
-					None
-				}
-			})
-			.expect("no runtime version found")?;
+		let call = midnight_node_metadata::midnight_metadata_latest::apis().core().version();
+		let spec_version = block.block.runtime_api().await?.call(call).await?.spec_version;
+
+		let version_number = RuntimeVersion::try_from(spec_version)?;
+
 		match version_number {
 			RuntimeVersion::V0_17_0 => {
 				Self::process_block_with_protocol::<MidnightMetadata0_17_0, S, P, D>(block).await
