@@ -102,6 +102,14 @@ jobs:
           retention-days: 1
           compression-level: 0
 
+      - name: Export image tags
+        id: image_tags
+        run: |
+          short_hash=$(git rev-parse --short=8 HEAD)
+          version=$(grep -m 1 '^version =' node/Cargo.toml | cut -d '"' -f2)
+          echo "node_image_tag=${version}-dev-${short_hash}-amd64" >> $GITHUB_OUTPUT
+          echo "toolkit_image_tag=${version}-${short_hash}-amd64" >> $GITHUB_OUTPUT
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: success() || failure()
@@ -115,6 +123,26 @@ jobs:
         with:
           name: Test artifacts (amd64)
           path: test-artifacts-amd64/
+
+  sbom-scan-node:
+    name: SBOM/Scan Node
+    needs: [run]
+    uses: ./.github/workflows/sbom-scan-image.yml
+    with:
+      image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.run.outputs.node_image_tag }}
+      sbom-artifact-name: sbom-midnight-node-ci
+      skip-attestation: ${{ github.event.pull_request.head.repo.fork || false }}
+    secrets: inherit
+
+  sbom-scan-toolkit:
+    name: SBOM/Scan Toolkit
+    needs: [run]
+    uses: ./.github/workflows/sbom-scan-image.yml
+    with:
+      image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ needs.run.outputs.toolkit_image_tag }}
+      sbom-artifact-name: sbom-midnight-node-toolkit-ci
+      skip-attestation: ${{ github.event.pull_request.head.repo.fork || false }}
+    secrets: inherit
 
   run-arm64:
     name: Build node and images (arm64)
