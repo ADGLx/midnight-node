@@ -321,8 +321,9 @@ jobs:
                 insecure = true
           EOFCFG
 
-          # Restart buildkitd so it picks up insecure-registry config
-          earthly prune --reset
+          # Remove buildkitd so earthly recreates it with the new config
+          # (earthly prune --reset only restarts without re-reading config)
+          docker rm -f earthly-buildkitd 2>/dev/null || true
 
           docker run -d -p 5000:5000 --name registry registry:2
 
@@ -674,8 +675,9 @@ jobs:
                 insecure = true
           EOFCFG
 
-          # Restart buildkitd so it picks up insecure-registry config
-          earthly prune --reset
+          # Remove buildkitd so earthly recreates it with the new config
+          # (earthly prune --reset only restarts without re-reading config)
+          docker rm -f earthly-buildkitd 2>/dev/null || true
 
           docker run -d -p 5000:5000 --name registry registry:2
 
