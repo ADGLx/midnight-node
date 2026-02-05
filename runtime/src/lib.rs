@@ -59,7 +59,6 @@ pub use pallet_midnight::{TransactionTypeV2, pallet::Call as MidnightCall};
 pub use pallet_midnight_system::Call as MidnightSystemCall;
 pub use pallet_session_validator_management::{self, Config};
 pub use pallet_timestamp::Call as TimestampCall;
-pub use pallet_version::VERSION_ID;
 use parity_scale_codec::Encode;
 use session_manager::ValidatorManagementSessionManager;
 use sidechain_domain::{
@@ -694,12 +693,6 @@ impl Get<BoundedVec<AuraId, MaxAuthorities>> for ValidatorSet {
 	}
 }
 
-/// Configure the pallet-upgrade in pallets/upgrade.
-impl pallet_version::Config for Runtime {
-	type WeightInfo = pallet_version::VersionWeight<Runtime>;
-	type RuntimeVersion = Version;
-}
-
 impl pallet_preimage::Config for Runtime {
 	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
@@ -918,9 +911,6 @@ mod runtime {
 	pub type Session = pallet_partner_chains_session::Pallet<Runtime>;
 	//#[cfg(feature = "experimental")]
 	//BlockRewards: pallet_block_rewards = 9,
-
-	#[runtime::pallet_index(11)]
-	pub type NodeVersion = pallet_version::Pallet<Runtime>;
 
 	#[runtime::pallet_index(13)]
 	pub type CNightObservation = pallet_cnight_observation::Pallet<Runtime>;

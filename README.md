@@ -99,10 +99,6 @@ Midnight Node includes six custom runtime pallets that implement core blockchain
 - Updates Council and Technical Committee memberships
 - Propagates governance changes across the network
 
-**[pallet-version](pallets/version)** - Runtime version tracking
-- Records runtime spec version in block digests
-- Enables version monitoring and upgrade tracking
-
 ### Node Services
 
 **RPC Server** - WebSocket endpoint (default port 9944) for client connections

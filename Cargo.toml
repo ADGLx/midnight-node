@@ -11,7 +11,6 @@ members = [
     "pallets/midnight-system",
     "pallets/system-parameters",
     "pallets/system-parameters/rpc",
-    "pallets/version",
     "primitives/beefy",
     "primitives/ics-observation",
     "primitives/midnight",
@@ -62,7 +61,9 @@ default_constructed_unit_structs = { level = "allow", priority = 2 } # stylistic
 [workspace.dependencies]
 # Midnight dependencies
 mn-ledger = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-ledger", tag = "ledger-7.0.0-rc.2" }
-ledger-storage = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-storage", tag = "ledger-7.0.0-rc.2", features = ["parity-db"] }
+ledger-storage = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-storage", tag = "ledger-7.0.0-rc.2", features = [
+    "parity-db",
+] }
 coin-structure = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-coin-structure", tag = "ledger-7.0.0-rc.2" }
 onchain-runtime = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-onchain-runtime", tag = "ledger-7.0.0-rc.2" }
 base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-base-crypto", tag = "ledger-7.0.0-rc.2" }
@@ -72,7 +73,9 @@ zkir = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "zk
 
 # Hard-fork test dependencies
 mn-ledger-hf = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-ledger", tag = "hard-fork-test-ledger-7.0.0-rc.2" }
-ledger-storage-hf = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-storage", tag = "hard-fork-test-ledger-7.0.0-rc.2", features = ["parity-db"] }
+ledger-storage-hf = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-storage", tag = "hard-fork-test-ledger-7.0.0-rc.2", features = [
+    "parity-db",
+] }
 coin-structure-hf = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-coin-structure", tag = "hard-fork-test-ledger-7.0.0-rc.2" }
 onchain-runtime-hf = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-onchain-runtime", tag = "hard-fork-test-ledger-7.0.0-rc.2" }
 base-crypto-hf = { git = "https://github.com/midnightntwrk/midnight-ledger", package = "midnight-base-crypto", tag = "hard-fork-test-ledger-7.0.0-rc.2" }
@@ -87,7 +90,9 @@ midnight-serialize-hf = { git = "https://github.com/midnightntwrk/midnight-ledge
 # Midnight local dependencies
 midnight-node-ledger = { path = "ledger", default-features = false }
 midnight-node-metadata = { path = "metadata", default-features = false }
-midnight-node-ledger-helpers = { path = "ledger/helpers", default-features = false, features = ["test-utils"] }
+midnight-node-ledger-helpers = { path = "ledger/helpers", default-features = false, features = [
+    "test-utils",
+] }
 midnight-node-res = { path = "res", default-features = false }
 midnight-node-toolkit = { path = "util/toolkit", default-features = true }
 pallet-midnight = { path = "pallets/midnight", default-features = false }
@@ -95,7 +100,6 @@ pallet-midnight-system = { path = "pallets/midnight-system", default-features = 
 pallet-midnight-rpc = { path = "pallets/midnight/rpc", default-features = false }
 pallet-cnight-observation = { path = "pallets/cnight-observation", default-features = false }
 pallet-cnight-observation-mock = { path = "pallets/cnight-observation/mock", default-features = false }
-pallet-version = { path = "pallets/version", default-features = false }
 pallet-system-parameters = { path = "pallets/system-parameters", default-features = false }
 pallet-system-parameters-rpc = { path = "pallets/system-parameters/rpc", default-features = true }
 pallet-federated-authority = { path = "pallets/federated-authority", default-features = false }
@@ -115,7 +119,10 @@ midnight-primitives-system-parameters = { path = "primitives/system-parameters",
 runtime-common = { path = "runtime/common", default-features = false }
 
 # Partnerchains dependencies
-partner-chains-db-sync-data-sources = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1", features = ["block-source", "candidate-source"] }
+partner-chains-db-sync-data-sources = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1", features = [
+    "block-source",
+    "candidate-source",
+] }
 partner-chains-mock-data-sources = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
 partner-chains-plutus-data = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
 db-sync-sqlx = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
@@ -141,7 +148,9 @@ plutus = { default-features = false, git = "https://github.com/input-output-hk/p
 sp-session-validator-management = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
 sp-session-validator-management-query = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
 time-source = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
-pallet-partner-chains-session = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1", features = ["pallet-session-compat"] }
+pallet-partner-chains-session = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1", features = [
+    "pallet-session-compat",
+] }
 sp-partner-chains-consensus-aura = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
 sc-partner-chains-consensus-aura = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
 # Substrate dependencies
@@ -238,14 +247,28 @@ scale-info = { version = "2.1.1", default-features = false }
 scale-info-derive = { version = "2.1.1", default-features = false }
 
 env_logger = "0.11.3"
-itertools = { default-features = false, version = "0.14.0", features = ["use_alloc"] }
+itertools = { default-features = false, version = "0.14.0", features = [
+    "use_alloc",
+] }
 
-jsonrpsee = { version = "0.24.7", features = ["client-core", "server", "macros"] }
+jsonrpsee = { version = "0.24.7", features = [
+    "client-core",
+    "server",
+    "macros",
+] }
 
 async-trait = { default-features = false, version = "0.1.87" }
 futures = { default-features = false, version = "0.3.29" }
 log = { default-features = false, version = "0.4.17" }
-tokio = { version = "1.47.0", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+tokio = { version = "1.47.0", features = [
+    "net",
+    "rt-multi-thread",
+    "macros",
+    "time",
+    "sync",
+    "fs",
+    "io-util",
+] }
 assert_matches = "1.5.0"
 hex = { default-features = false, version = "0.4.3" }
 hex-literal = { default-features = false, version = "0.4.1" }
@@ -269,8 +292,10 @@ tempfile = "3.22.0"
 impl-trait-for-tuples = "0.2.2"
 test-log = "0.2"
 sqlx = { version = "0.8.5", default-features = false }
-prost = { version = "0.13.5", default-features = false}
-reqwest = { version = "0.12.22", default-features = false, features = [ "rustls-tls" ] }
+prost = { version = "0.13.5", default-features = false }
+reqwest = { version = "0.12.22", default-features = false, features = [
+    "rustls-tls",
+] }
 
 [profile.release]
 panic = "unwind"
