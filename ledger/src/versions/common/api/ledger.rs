@@ -276,9 +276,9 @@ mod tests {
 		bytes: &[u8],
 		block_context: &BlockContext,
 	) {
-		let tx = api.tagged_deserialize::<Transaction<Signature, DefaultDB>>(bytes);
-		assert!(tx.is_ok(), "Can't deserialize transaction: {}", tx.unwrap_err());
-		let tx = tx.unwrap();
+		let tx = api
+			.tagged_deserialize::<Transaction<Signature, DefaultDB>>(bytes)
+			.expect("failed to deserialize tx");
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
 		let verified_tx =
 			tx.0.well_formed(
