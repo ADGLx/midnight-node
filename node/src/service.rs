@@ -366,7 +366,6 @@ pub fn new_partial(
 			data_sources.mc_hash.clone(),
 			data_sources.authority_selection.clone(),
 			data_sources.cnight_observation.clone(),
-			data_sources.governed_map.clone(),
 			data_sources.federated_authority_observation.clone(),
 			data_sources.bridge.clone(),
 		),
@@ -493,6 +492,9 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 			block_relay: None,
 			metrics,
 		})?;
+
+	// Capture peer_id before network is moved
+	let peer_id = network.local_peer_id().to_base58();
 
 	if config.offchain_worker.enabled {
 		task_manager.spawn_handle().spawn(
@@ -630,7 +632,6 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 				data_sources.mc_hash.clone(),
 				data_sources.authority_selection.clone(),
 				data_sources.cnight_observation.clone(),
-				data_sources.governed_map.clone(),
 				data_sources.federated_authority_observation.clone(),
 				data_sources.bridge.clone(),
 			),
@@ -708,7 +709,7 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 			// FIXME #1578 make this available through chainspec
 			gossip_duration: Duration::from_millis(333),
 			justification_generation_period: GRANDPA_JUSTIFICATION_PERIOD,
-			name: Some(name),
+			name: Some(name.clone()),
 			observer_enabled: false,
 			keystore,
 			local_role: role,
@@ -754,8 +755,12 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	}
 
 	// Spawn Prometheus metrics push task if configured
-	if let Some(push_config) = metrics_push_config {
+	if let Some(mut push_config) = metrics_push_config {
 		if let Some(registry) = prometheus_registry_for_push {
+			// Fill in node identity from the Configuration and network
+			push_config.peer_id = peer_id.clone();
+			push_config.node_name = name.clone();
+
 			task_manager.spawn_handle().spawn(
 				"prometheus-push",
 				None,

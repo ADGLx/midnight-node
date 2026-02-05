@@ -25,8 +25,8 @@ pub struct DustBalanceArgs {
 
 #[derive(Debug, serde::Serialize)]
 pub struct GenerationInfoPair {
-	dust_output: QualifiedDustOutputSer,
-	generation_info: Option<DustGenerationInfoSer>,
+	pub dust_output: QualifiedDustOutputSer,
+	pub generation_info: Option<DustGenerationInfoSer>,
 }
 
 #[derive(Debug, serde::Serialize)]
@@ -122,6 +122,7 @@ mod tests {
 				fetch_concurrency: 1,
 				src_files: Some(src_files),
 				dust_warp: true,
+				ignore_block_context: false,
 				fetch_cache: FetchCacheConfig::InMemory,
 			},
 			seed,
