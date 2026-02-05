@@ -227,7 +227,7 @@ jobs:
           echo "[net]" >> "$HOME"/.cargo/config
           echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
 
-          . ./.envrc && earthly -P --ci --output --build-arg TEST_ENV="$TEST_ENV" --build-arg WS_URL="$WS_URL" +node-e2e-test-remote
+          . ./.envrc && earth -P --ci --output --build-arg TEST_ENV="$TEST_ENV" --build-arg WS_URL="$WS_URL" +node-e2e-test-remote
 
       - name: Upload test artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -246,7 +246,7 @@ jobs:
           security-user: ${{ secrets.ALLURE_ADMIN_USER }}
           security-pass: ${{ secrets.ALLURE_ADMIN_PASSWORD }}
 
-      - name: Set proper exit code (earthly will return success in case of test failures)
+      - name: Set proper exit code (earth will return success in case of test failures)
         if: success() || failure()
         run: |
           find ./test-artifacts-amd64/e2e/ -name "*.xml" | sort -r | head -n 1 | xargs cat | grep 'failures="0"'

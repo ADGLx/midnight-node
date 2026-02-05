@@ -688,7 +688,7 @@ mn_shield-addr_undeployed1[..]
 cd ../..
 
 # Build the Docker image
-earthly +generator-image
+earth +generator-image
 ```
 
 ### Tips for running on Docker

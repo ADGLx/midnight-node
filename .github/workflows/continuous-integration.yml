@@ -60,7 +60,7 @@ jobs:
           echo "[net]" >> $HOME/.cargo/config
           echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
 
-          . ./.envrc && earthly --secret GITHUB_TOKEN=${{ secrets.MIDNIGHTCI_PACKAGES_READ }} -P --ci --push +images
+          . ./.envrc && earth --secret GITHUB_TOKEN=${{ secrets.MIDNIGHTCI_PACKAGES_READ }} -P --ci --push +images
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -120,7 +120,7 @@ jobs:
           echo "[net]" >> $HOME/.cargo/config
           echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
 
-          . ./.envrc && earthly --secret GITHUB_TOKEN=${{ secrets.MIDNIGHTCI_PACKAGES_READ }} -P --ci --push +images
+          . ./.envrc && earth --secret GITHUB_TOKEN=${{ secrets.MIDNIGHTCI_PACKAGES_READ }} -P --ci --push +images
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
@@ -177,7 +177,7 @@ jobs:
           echo "[net]" >> "$HOME/.cargo/config"
           echo "git-fetch-with-cli = true" >> "$HOME/.cargo/config"
 
-          . ./.envrc && earthly --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" -P --ci --push +hardfork-test-upgrader-image
+          . ./.envrc && earth --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" -P --ci --push +hardfork-test-upgrader-image
 
   check-unused-deps:
     name: Check Unused Dependencies
@@ -199,7 +199,7 @@ jobs:
           echo "[net]" >> $HOME/.cargo/config
           echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
 
-          . ./.envrc && earthly +check-deps
+          . ./.envrc && earth +check-deps
 
   rebuild-genesis:
     name: Check Genesis Rebuild
@@ -248,7 +248,7 @@ jobs:
           echo "[net]" >> $HOME/.cargo/config
           echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
 
-          . ./.envrc && earthly --build-arg NODE_IMAGE=ghcr.io/midnight-ntwrk/midnight-node:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64 --build-arg TOOLKIT_IMAGE=ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64 --secret GITHUB_TOKEN +rebuild-genesis
+          . ./.envrc && earth --build-arg NODE_IMAGE=ghcr.io/midnight-ntwrk/midnight-node:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64 --build-arg TOOLKIT_IMAGE=ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64 --secret GITHUB_TOKEN +rebuild-genesis
         env:
           GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
 
@@ -342,7 +342,7 @@ jobs:
 
       - name: Run pallet fixture tests
         run: |
-          . ./.envrc && earthly --strict +test-pallet-fixtures
+          . ./.envrc && earth --strict +test-pallet-fixtures
 
   # Gate job for toolkit E2E tests - if this fails, toolkit E2E tests are skipped
   test-toolkit:
@@ -366,7 +366,7 @@ jobs:
 
       - name: Run toolkit tests
         run: |
-          . ./.envrc && earthly -P --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" --strict +test-toolkit
+          . ./.envrc && earth -P --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" --strict +test-toolkit
 
   toolkit-e2e:
     name: Toolkit E2E
@@ -497,7 +497,7 @@ jobs:
 
       - name: Run metadata check
         run: |
-          . ./.envrc && earthly --ci -P --build-arg NODE_IMAGE=ghcr.io/midnight-ntwrk/midnight-node:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64 +check-metadata
+          . ./.envrc && earth --ci -P --build-arg NODE_IMAGE=ghcr.io/midnight-ntwrk/midnight-node:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64 +check-metadata
 
   toolkit-contracts-e2e:
     name: Toolkit Contracts E2E

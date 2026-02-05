@@ -78,7 +78,7 @@ runs:
         echo "WALLET_INDEXER_IMAGE: ${WALLET_INDEXER_IMAGE}"
 
         echo "🚀 Running Earthly command..."
-        earthly +start-local-env-with-indexer-ci \
+        earth +start-local-env-with-indexer-ci \
           --NODE_IMAGE="${NODE_IMAGE}" \
           --INDEXER_API_IMAGE="${INDEXER_API_IMAGE}" \
           --CHAIN_INDEXER_IMAGE="${CHAIN_INDEXER_IMAGE}" \
@@ -98,12 +98,12 @@ runs:
 
     - name: e2e tests
       id: e2e-tests
-      run: earthly +local-env-e2e
+      run: earth +local-env-e2e
       shell: bash
 
     - name: node-e2e-tests
       id: node-e2e-tests
-      run: earthly +node-e2e-test
+      run: earth +node-e2e-test
       shell: bash
 
     - name: toolkit-multi-dest-e2e

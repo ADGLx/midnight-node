@@ -4,7 +4,7 @@ These scripts are intended to be used with the `./partnerchains-dev` script in t
 
 These notes were created by following the [official partner-chains guide](https://github.com/input-output-hk/partner-chains/blob/master/docs/user-guides/chain-builder.md).
 
-These scripts work well in conjunctions with the `earthly +generate-<network>-keys` targets.
+These scripts work well in conjunctions with the `earth +generate-<network>-keys` targets.
 
 # If you're updating an existing network, use:
 

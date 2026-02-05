@@ -60,6 +60,6 @@ After completing the setup, verify everything works:
 # Check cargo commands work
 cargo check
 
-# Check earthly is available
-earthly --version
+# Check earth is available
+earth --version
 ```

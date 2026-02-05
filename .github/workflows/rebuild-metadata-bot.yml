@@ -91,7 +91,7 @@ jobs:
           mkdir -p $HOME/.cargo
           echo "[net]" >> $HOME/.cargo/config
           echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
-          . ./.envrc && earthly -P +rebuild-metadata
+          . ./.envrc && earth -P +rebuild-metadata
 
       - name: Commit and push changes
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0

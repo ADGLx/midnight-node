@@ -191,7 +191,7 @@ See [docs/development-workflow.md](docs/development-workflow.md) for complete wo
 - Chain specification workflow
 - AWS secrets workflow
 
-For quick earthly target reference, run `earthly doc` to list all available targets.
+For quick earth target reference, run `earth doc` to list all available targets.
 
 ## How-To Guides
 
@@ -204,7 +204,7 @@ For `preprod` and `prod` chains, node keys and wallet seeds used in genesis are 
 If you don't have AWS access, you can still rebuild chainspecs without rebuilding the genesis, since the public keys for the initial authority nodes are stored in `/res/$NETWORK_NAME/initial-authorities.json`:
 
 ```shell
-$ earthly +rebuild-chainspecs
+$ earth +rebuild-chainspecs
 ```
 
 For local development without secrets, use the `undeployed` network.
@@ -222,19 +222,19 @@ If you have AWS access, you can perform full genesis rebuilds:
 
 2. Regenerate the mock file:
    ```shell
-   $ earthly +generate-keys
+   $ earth +generate-keys
    # Output: /res/testnet/initial-authorities.json and /res/mock-bridge-data/testnet-mock.json
    ```
 
 3. Rebuild genesis for a preprod environment:
    ```shell
    # secrets copied from /secrets/testnet-02-genesis-seeds.json
-   $ earthly +rebuild-genesis-testnet-02
+   $ earth +rebuild-genesis-testnet-02
    ```
 
 4. (Optional) Regenerate the genesis seeds:
    ```shell
-   $ earthly +generate-testnet-02-genesis-seeds
+   $ earth +generate-testnet-02-genesis-seeds
    ```
 
 **Need genesis rebuilt but don't have AWS access?**
@@ -336,7 +336,7 @@ CFG_PRESET=dev AURA_SEED_FILE=/tmp/ferdie-seed GRANDPA_SEED_FILE=/tmp/ferdie-see
 ### How to build runtime in Docker
 
 ```shell
-earthly +build
+earth +build
 cp ./artifacts-amd64/midnight-node-runtime/target/wasm32-unknown-unknown/release/midnight_node_runtime.wasm  .
 ```
 

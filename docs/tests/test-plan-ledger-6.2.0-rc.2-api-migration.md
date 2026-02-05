@@ -36,7 +36,7 @@ Key changes validated:
 | [PR352-TC-13](../../ledger/src/versions/common/api/ledger.rs#L339)** | Verify contract state retrieval | 1. Create ledger with contract  <br>2. Query contract state  <br>3. Verify result | Contract state retrieved correctly | Unit |
 
 > [!NOTE] 
-> Tests marked with ** are temporarily ignored pending fixture regeneration. These will be re-enabled once midnight-js is updated and fixtures can be regenerated via `earthly +rebuild-genesis-state --NETWORK=undeployed`.
+> Tests marked with ** are temporarily ignored pending fixture regeneration. These will be re-enabled once midnight-js is updated and fixtures can be regenerated via `earth +rebuild-genesis-state --NETWORK=undeployed`.
 
 ---
 
@@ -76,8 +76,7 @@ cargo check -p midnight-node-runtime
 When midnight-js is updated, regenerate fixtures:
 
 ```bash
-earthly +rebuild-genesis-state --NETWORK=undeployed
+earth +rebuild-genesis-state --NETWORK=undeployed
 ```
 
 Then remove `#[ignore]` annotations from tests PR352-TC-09 through PR352-TC-13.
-

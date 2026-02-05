@@ -78,13 +78,13 @@ Starting the environment
 To start the environment via Earthly:
 
 ```bash
-earthly +start-local-env-latest
+earth +start-local-env-latest
 ```
 
 Or specify a released node image:
 
 ```bash
-earthly +start-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
+earth +start-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 ```
 
 You can also use npm scripts:
@@ -99,11 +99,11 @@ Stopping the environment
 When stopping, volumes must also be wiped (persistent state is not supported yet).
 
 ```bash
-earthly +stop-local-env-latest
+earth +stop-local-env-latest
 ```
 
 # or
 
 ```bash
-earthly +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
+earth +stop-local-env --NODE-IMAGE=ghcr.io/midnight-ntwrk/midnight-node:0.12.0
 ```

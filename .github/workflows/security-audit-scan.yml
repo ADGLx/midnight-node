@@ -30,7 +30,7 @@ jobs:
 
       - name: Run cargo deny and npm audit
         run: |
-          . ./.envrc && earthly --use-inline-cache --strict +audit
+          . ./.envrc && earth --use-inline-cache --strict +audit
 
       - name: Fix cargo-deny SARIF format
         if: hashFiles('scan_reports/cargo-deny.sarif') != ''

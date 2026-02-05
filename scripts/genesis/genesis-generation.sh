@@ -331,13 +331,13 @@ run_ledger_state_generation() {
     earthly_target=$(get_genesis_state_target "$network")
 
     echo -e "${BOLD}Command to execute:${NC}"
-    echo -e "  ${CYAN}earthly --secret GITHUB_TOKEN -P +$earthly_target --RNG_SEED=$rng_seed${NC}"
+    echo -e "  ${CYAN}earth --secret GITHUB_TOKEN -P +$earthly_target --RNG_SEED=$rng_seed${NC}"
     echo ""
 
     print_info "Running Earthly target..."
     echo ""
 
-    local earthly_cmd=(earthly --secret GITHUB_TOKEN -P "+$earthly_target" "--RNG_SEED=$rng_seed")
+    local earthly_cmd=(earth --secret GITHUB_TOKEN -P "+$earthly_target" "--RNG_SEED=$rng_seed")
 
     cd "$REPO_ROOT"
     if "${earthly_cmd[@]}"; then
@@ -476,7 +476,7 @@ run_chainspec_generation() {
     print_file "$REPO_ROOT/res/genesis/genesis_state_$network.mn"
     echo ""
 
-    local earthly_cmd=(earthly -P +rebuild-chainspec "--NETWORK=$network")
+    local earthly_cmd=(earth -P +rebuild-chainspec "--NETWORK=$network")
 
     echo -e "${BOLD}Command to execute:${NC}"
     echo -e "  ${CYAN}${earthly_cmd[*]}${NC}"

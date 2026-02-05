@@ -3,7 +3,7 @@ VERSION 0.8
 # ================ Local Targets START ================
 # If you add a new one here, prefix it with "local-"
 # Add the target name to the doc string so it shows up
-# in `$ earthly doc`
+# in `$ earth doc`
 
 # local-build-node-release Build the node binary
 local-build-node-release:
@@ -860,7 +860,7 @@ test:
     # RUN cargo llvm-cov report --html --release --output-dir /test-artifacts-$NATIVEARCH/html
     # RUN cargo llvm-cov report --lcov --release --fail-under-regions 14 --ignore-filename-regex res/src/subxt_metadata.rs --output-path /test-artifacts-$NATIVEARCH/tests.lcov
 
-    # AS /target is a temp cache, copy the results to /test-artifacts, otherwise earthly won't find them later
+    # AS /target is a temp cache, copy the results to /test-artifacts, otherwise earth won't find them later
     # SAVE ARTIFACT --if-exists ./test-artifacts-$NATIVEARCH AS LOCAL ./test-artifacts
 
 # Pallet fixture tests - runs pallet-midnight tests that depend on regenerated .mn fixtures
@@ -1347,7 +1347,7 @@ run-node-mocked:
 testnet-sync-e2e:
     LOCALLY
     ENV SYNC_UNTIL=7000
-    # Explicitly load +node-image here to let earthly know that it's a dependency
+    # Explicitly load +node-image here to let earth know that it's a dependency
     WITH DOCKER --load localhost/midnight-node:latest=+node-image
         RUN NODE_IMAGE=localhost/midnight-node:latest ./sync-with-testnet.sh
     END
@@ -1394,8 +1394,8 @@ addresses-check:
 start-local-env-latest:
     LOCALLY
     WITH DOCKER --load localhost/midnight-node:latest=+node-image
-        # Ugly nested earthly call, but earthly complains if we use BUILD here
-        RUN earthly +start-local-env --NODE_IMAGE=localhost/midnight-node:latest
+        # Ugly nested earth call, but earth complains if we use BUILD here
+        RUN earth +start-local-env --NODE_IMAGE=localhost/midnight-node:latest
     END
 
 start-local-env:
@@ -1444,7 +1444,7 @@ stop-local-env:
 # node-e2e-test runs the node E2E tests using Earthly's container management
 #
 # Usage:
-#   earthly +node-e2e-test
+#   earth +node-e2e-test
 #
 # This target:
 # 1. Runs the Playwright E2E tests against the local environment

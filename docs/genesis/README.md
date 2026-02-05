@@ -46,7 +46,7 @@ Genesis generation creates the initial chain state for a Midnight network. The p
 │ ledger-parameters-  │──┐                                                           │
 │ config.json         │  │                                                           │
 └─────────────────────┘  │     ┌──────────────────────┐     ┌─────────────────────┐  │
-                         ├────▶│ earthly +rebuild-    │────▶│ genesis_block_*.mn  │  │
+                         ├────▶│ earth +rebuild-    │────▶│ genesis_block_*.mn  │  │
 ┌─────────────────────┐  │     │ genesis-state-*      │     │ genesis_state_*.mn  │  │
 │ cnight-config.json  │──┤     └──────────────────────┘     └─────────────────────┘  │
 ├─────────────────────┤  │                                           │               │
@@ -67,7 +67,7 @@ Genesis generation creates the initial chain state for a Midnight network. The p
 │ config.json         │  │                                           │
 ├─────────────────────┤  │     ┌──────────────────────┐              │
 │ registered-         │──┤     │                      │              │
-│ candidates-         │  │     │ earthly +rebuild-    │◀─────────────┘
+│ candidates-         │  │     │ earth +rebuild-    │◀─────────────┘
 │ addresses.json      │  ├────▶│ chainspec            │
 ├─────────────────────┤  │     │ --NETWORK=<network>  │     ┌─────────────────────┐
 │ cnight-config.json  │──┤     │                      │────▶│ chain-spec.json     │
@@ -160,13 +160,13 @@ midnight-node generate-permissioned-candidates-genesis --cardano-tip <block_hash
 
 ```bash
 # Generate ledger state for a specific network
-earthly --secret GITHUB_TOKEN -P +rebuild-genesis-state-<network> --RNG_SEED=<seed>
+earth --secret GITHUB_TOKEN -P +rebuild-genesis-state-<network> --RNG_SEED=<seed>
 
 # Generate chain specification
-earthly -P +rebuild-chainspec --NETWORK=<network>
+earth -P +rebuild-chainspec --NETWORK=<network>
 
 # Rebuild all chain specs
-earthly -P +rebuild-all-chainspecs
+earth -P +rebuild-all-chainspecs
 ```
 
 ## Environment Variables
@@ -268,7 +268,7 @@ Before generating the ledger state, config files must exist:
 2. If missing or if you choose to regenerate, it runs:
    - `midnight-node generate-c-night-genesis`
    - `midnight-node generate-ics-genesis`
-3. Then runs: `earthly +rebuild-genesis-state-<network>`
+3. Then runs: `earth +rebuild-genesis-state-<network>`
 
 **Output files:**
 - `res/genesis/genesis_block_<network>.mn`
@@ -295,7 +295,7 @@ If configs were already generated in Step 3, the tool offers to keep them and on
 Creates the final chain specification:
 
 ```bash
-earthly -P +rebuild-chainspec --NETWORK=<network>
+earth -P +rebuild-chainspec --NETWORK=<network>
 ```
 
 **Output files:**

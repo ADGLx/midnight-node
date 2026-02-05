@@ -31,11 +31,11 @@ cargo build --release # Build release binary
 - Tasks requiring containerized environments
 
 ```bash
-earthly -P +rebuild-metadata   # Update runtime metadata
-earthly -P +rebuild-genesis    # Regenerate genesis state
-earthly +build                 # Build in containerized environment
-earthly +node-image            # Build node Docker image
-earthly doc                    # List all available targets
+earth -P +rebuild-metadata   # Update runtime metadata
+earth -P +rebuild-genesis    # Regenerate genesis state
+earth +build                 # Build in containerized environment
+earth +node-image            # Build node Docker image
+earth doc                    # List all available targets
 ```
 
 **Why Earthly?** Ensures reproducible builds in clean containerized environments, matches CI behavior exactly.
@@ -50,7 +50,7 @@ Choose one:
 
 ```bash
 # Option A: Manual installation
-# Install rustup and earthly following docs/rust-setup.md
+# Install rustup and earth following docs/rust-setup.md
 
 # Option B: Use Nix (provides everything automatically)
 nix develop
@@ -119,7 +119,7 @@ Common issues during ledger upgrades:
 ### Step 3: Rebuild Metadata
 
 ```bash
-earthly -P +rebuild-metadata
+earth -P +rebuild-metadata
 ```
 
 This regenerates the runtime metadata that clients use to interact with the node. This needs to be re-run when:
@@ -131,7 +131,7 @@ This regenerates the runtime metadata that clients use to interact with the node
 ### Step 4: Rebuild Genesis (if needed)
 
 ```bash
-earthly -P +rebuild-genesis
+earth -P +rebuild-genesis
 ```
 
 Required when:
@@ -145,7 +145,7 @@ The output of this will be a chain spec file which contains the hex of the genes
 
 ```bash
 cargo test                    # Unit and integration tests
-earthly +test                 # CI-equivalent tests (slow)
+earth +test                 # CI-equivalent tests (slow)
 ```
 
 ## Debugging Ledger Issues
@@ -218,7 +218,7 @@ If you don't have AWS access:
 
 When you need genesis rebuilt with secrets:
 1. Open a PR with your changes
-2. Ask the node team in Slack: "Could someone with AWS access run `earthly -P +rebuild-genesis` after downloading the secrets?"
+2. Ask the node team in Slack: "Could someone with AWS access run `earth -P +rebuild-genesis` after downloading the secrets?"
 3. A team member with AWS access will handle it
 
 ## Performance Testing
@@ -244,10 +244,10 @@ cargo build --release --features runtime-benchmarks
 | Task | Command |
 |------|---------|
 | Daily development | `cargo check`, `cargo test`, `cargo clippy` |
-| Update metadata | `earthly -P +rebuild-metadata` |
-| Rebuild genesis | `earthly -P +rebuild-genesis` |
-| Build Docker image | `earthly +node-image` |
-| List Earthly targets | `earthly doc` |
+| Update metadata | `earth -P +rebuild-metadata` |
+| Rebuild genesis | `earth -P +rebuild-genesis` |
+| Build Docker image | `earth +node-image` |
+| List Earthly targets | `earth doc` |
 | Start dev environment | `nix develop` or `source .envrc` |
 | Run local node | `CFG_PRESET=dev ./target/release/midnight-node` |
 

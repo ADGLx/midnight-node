@@ -18,4 +18,4 @@ export D_PARAMETER_REGISTERED_CANDIDATES_COUNT=2
 
 ## toolkit-js related
 export GITHUB_TOKEN="your github token"
-earthly --secret GITHUB_TOKEN +toolkit-js-prep-local
+earth --secret GITHUB_TOKEN +toolkit-js-prep-local

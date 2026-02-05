@@ -117,10 +117,10 @@ jobs:
 
           . ./.envrc
 
-          # Split networks and run earthly for each
+          # Split networks and run earth for each
           for network in $NETWORKS; do
             echo "Rebuilding chainspec for network: $network"
-            earthly -P +rebuild-chainspec --NETWORK=$network
+            earth -P +rebuild-chainspec --NETWORK=$network
           done
 
       - name: Commit and push changes

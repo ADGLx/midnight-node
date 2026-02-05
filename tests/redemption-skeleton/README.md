@@ -4,4 +4,4 @@ The contract has the same data structure as the real redemption contract and run
 
 It's imported by the localenv e2e tests for cNight Generates Dust integration testing.
 
-To re-build it, run `earthly +rebuild-redemption-skeleton` from the root of the repo.
+To re-build it, run `earth +rebuild-redemption-skeleton` from the root of the repo.

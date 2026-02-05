@@ -14,14 +14,14 @@ Midnight Node is a Substrate-based blockchain implementation for the Midnight ne
 
 **Earthly commands:**
 ```bash
-earthly -P +rebuild-metadata              # Update runtime metadata
-earthly -P +rebuild-chainspec --NETWORK=<network>  # Rebuild chainspec for network
-earthly -P +rebuild-all-chainspecs        # Rebuild all chainspecs
-earthly -P +rebuild-genesis-state-<NETWORK>  # Rebuild genesis for specific network
-earthly -P +rebuild-all-genesis-states    # Rebuild all network genesis states
-earthly +node-image                       # Build node Docker image
-earthly --secret GITHUB_TOKEN +toolkit-image  # Build toolkit image
-earthly doc                               # List all available targets
+earth -P +rebuild-metadata              # Update runtime metadata
+earth -P +rebuild-chainspec --NETWORK=<network>  # Rebuild chainspec for network
+earth -P +rebuild-all-chainspecs        # Rebuild all chainspecs
+earth -P +rebuild-genesis-state-<NETWORK>  # Rebuild genesis for specific network
+earth -P +rebuild-all-genesis-states    # Rebuild all network genesis states
+earth +node-image                       # Build node Docker image
+earth --secret GITHUB_TOKEN +toolkit-image  # Build toolkit image
+earth doc                               # List all available targets
 ```
 
 **GitHub PR bots:** Comment on a PR to trigger rebuilds:
@@ -92,12 +92,12 @@ Ports: P2P 30333, RPC 9944
 
 ## When to Rebuild
 
-**Metadata** (use `/bot rebuild-metadata` on PR, or `earthly -P +rebuild-metadata`):
+**Metadata** (use `/bot rebuild-metadata` on PR, or `earth -P +rebuild-metadata`):
 - Pallet storage items change
 - Extrinsic signatures change
 - Runtime APIs are added/modified
 
-**Genesis** (`earthly -P +rebuild-genesis-state-<NETWORK>`):
+**Genesis** (`earth -P +rebuild-genesis-state-<NETWORK>`):
 - Genesis code changes in toolkit
 - Genesis seeds change
 - New ledger version

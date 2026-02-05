@@ -199,10 +199,10 @@ pub async fn execute(
 
 /// Make sure to build toolkit-js before running these tests - this can be done with the earthly
 /// target:
-/// $ earthly --secret GITHUB_TOKEN=<github-token-here> +toolkit-js-prep-local
+/// $ earth --secret GITHUB_TOKEN=<github-token-here> +toolkit-js-prep-local
 ///
 /// Test data is checked-in - to re-generate it, run:
-/// $ earthly -P +rebuild-genesis-state-undeployed
+/// $ earth -P +rebuild-genesis-state-undeployed
 #[cfg(test)]
 mod test {
 	use midnight_node_ledger_helpers::{Serializable, SigningKey};

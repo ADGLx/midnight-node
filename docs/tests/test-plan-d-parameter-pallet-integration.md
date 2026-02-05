@@ -66,7 +66,7 @@ E2E tests require the local environment to be running:
 
 ```bash
 # Start local environment (if not already running)
-earthly +start-local-env-latest
+earth +start-local-env-latest
 
 # Run all Aiken permissioned candidates E2E tests
 cargo test -p midnight-node-e2e --test lib get_ariadne_parameters

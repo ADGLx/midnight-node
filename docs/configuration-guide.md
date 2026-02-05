@@ -119,8 +119,8 @@ chainspec_ics_config = "res/qanet/ics-config.json"
 The process for building chainspecs is automated via Earthly build commands:
 
 ```sh
-$ earthly +rebuild-chainspec --NETWORK=<network>
-$ earthly +rebuild-all-chainspecs
+$ earth +rebuild-chainspec --NETWORK=<network>
+$ earth +rebuild-all-chainspecs
 ```
 
 For a complete guide on genesis generation workflow, including the dependency sequence between config files, ledger state, and chainspec generation, see the [Genesis Generation Guide](genesis/README.md).
@@ -151,14 +151,14 @@ $ docker run --rm midnightntwrk/midnight-node-toolkit:latest-main generate-genes
 This process is automated via Earthly build commands:
 
 ```sh
-$ earthly +rebuild-genesis-state-<network>
-$ earthly +rebuild-all-genesis-states
+$ earth +rebuild-genesis-state-<network>
+$ earth +rebuild-all-genesis-states
 ```
 
 New seeds can be generated via Earthly too - the generated file is written to `./secrets/`:
 
 ```sh
-$ earthly +generate-seeds --NETWORK=<network> --OUTPUT_FILE=<network>-genesis-seeds.json
+$ earth +generate-seeds --NETWORK=<network> --OUTPUT_FILE=<network>-genesis-seeds.json
 ```
 
 ## `pc-chain-config.json`: PartnerChains Configuration
