@@ -315,7 +315,7 @@ jobs:
           global:
             buildkit_additional_args: ["--network", "host"]
             buildkit_additional_config: |
-              [registry."localhost:5000"]
+              [registry."127.0.0.1:5000"]
                 http = true
                 insecure = true
           EOFCFG
@@ -327,10 +327,10 @@ jobs:
           done
 
           TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${TAG}" "localhost:5000/midnight-ntwrk/midnight-node:${TAG}"
-          docker push "localhost:5000/midnight-ntwrk/midnight-node:${TAG}"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${TAG}" "localhost:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
-          docker push "localhost:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG}"
+          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
+          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG}"
           rm -rf /tmp/images
 
       - name: Check Genesis Rebuild
@@ -340,7 +340,7 @@ jobs:
           echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
 
           TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          . ./.envrc && earthly --strict --build-arg NODE_IMAGE=localhost:5000/midnight-ntwrk/midnight-node:${TAG} --build-arg TOOLKIT_IMAGE=localhost:5000/midnight-ntwrk/midnight-node-toolkit:${TAG} --secret GITHUB_TOKEN +rebuild-genesis
+          . ./.envrc && earthly --build-arg NODE_IMAGE=127.0.0.1:5000/midnight-ntwrk/midnight-node:${TAG} --build-arg TOOLKIT_IMAGE=127.0.0.1:5000/midnight-ntwrk/midnight-node-toolkit:${TAG} --secret GITHUB_TOKEN +rebuild-genesis
         env:
           GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
 
@@ -663,7 +663,7 @@ jobs:
           global:
             buildkit_additional_args: ["--network", "host"]
             buildkit_additional_config: |
-              [registry."localhost:5000"]
+              [registry."127.0.0.1:5000"]
                 http = true
                 insecure = true
           EOFCFG
@@ -675,14 +675,14 @@ jobs:
           done
 
           NODE_TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${NODE_TAG}" "localhost:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
-          docker push "localhost:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node:${NODE_TAG}" "127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
+          docker push "127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG}"
           rm -rf /tmp/images
 
       - name: Run metadata check
         run: |
           NODE_TAG="${{ needs.run.outputs.version }}-${{ needs.run.outputs.short_hash }}-amd64"
-          . ./.envrc && earthly --strict -P --build-arg NODE_IMAGE=localhost:5000/midnight-ntwrk/midnight-node:${NODE_TAG} +check-metadata
+          . ./.envrc && earthly --strict -P --build-arg NODE_IMAGE=127.0.0.1:5000/midnight-ntwrk/midnight-node:${NODE_TAG} +check-metadata
 
   toolkit-contracts-e2e:
     name: Toolkit Contracts E2E
