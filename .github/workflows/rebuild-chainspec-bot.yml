@@ -93,7 +93,7 @@ jobs:
           fetch-depth: 0
 
       - name: Setup Earthly
-        uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+        uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true

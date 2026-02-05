@@ -33,7 +33,7 @@ jobs:
     outputs:
       sha: ${{ steps.get_sha.outputs.sha }}
     steps:
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
@@ -97,7 +97,7 @@ jobs:
           image: tonistiigi/binfmt@sha256:1b804311fe87047a4c96d38b4b3ef6f62fca8cd125265917a9e3dc3c996c39e6 # latest
           platforms: "amd64"
 
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
@@ -147,7 +147,7 @@ jobs:
     outputs:
       sha: ${{ steps.get_sha.outputs.sha }}
     steps:
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
@@ -183,7 +183,7 @@ jobs:
     name: Check Unused Dependencies
     runs-on: ubuntu-latest
     steps:
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
@@ -214,7 +214,7 @@ jobs:
     outputs:
       sha: ${{ steps.get_sha.outputs.sha }}
     steps:
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
@@ -327,7 +327,7 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
@@ -351,7 +351,7 @@ jobs:
     env:
       FORCE_COLOR: 1
     steps:
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
@@ -473,7 +473,7 @@ jobs:
     needs: run
     runs-on: ubuntu-latest
     steps:
-      - uses: EarthBuild/actions-setup@8da49a810dbfb79c710aa3e723ebd106628836b8
+      - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
         with:
           version: v0.8.17-rc-3
           prerelease: true
