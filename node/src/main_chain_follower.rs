@@ -63,7 +63,7 @@ pub(crate) async fn create_cached_main_chain_follower_data_sources(
 	cfg: MidnightCfg,
 	metrics_opt: Option<McFollowerMetrics>,
 ) -> std::result::Result<DataSources, ServiceError> {
-	if cfg.use_main_chain_follower_mock {
+	if !cfg.use_main_chain_follower_mock {
 		let mock = create_mock_data_sources(cfg.clone()).await.map_err(|err| {
 			ServiceError::Application(
 				format!("Failed to create main chain follower mock: {err}. Check configuration.")

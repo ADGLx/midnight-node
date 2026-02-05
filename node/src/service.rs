@@ -27,7 +27,6 @@ use midnight_node_runtime::storage::child::StateVersion;
 use midnight_node_runtime::{self, RuntimeApi, opaque::Block};
 use midnight_primitives_ledger::{LedgerMetrics, LedgerStorage};
 use parity_scale_codec::{Decode, Encode};
-use partner_chains_db_sync_data_sources::McFollowerMetrics;
 use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
 use sc_client_api::{Backend, BlockImportOperation, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
@@ -204,7 +203,6 @@ type MidnightService = sc_service::PartialComponents<
 		sc_consensus_beefy::BeefyRPCLinks<Block, BeefyId>,
 		Option<Telemetry>,
 		DataSources,
-		Option<McFollowerMetrics>,
 	),
 >;
 
@@ -351,8 +349,6 @@ pub fn new_partial(
 	let sc_slot_config = sidechain_slots::runtime_api_client::slot_config(&*client)
 		.map_err(sp_blockchain::Error::from)?;
 
-	let mc_follower_metrics = register_metrics_warn_errors(config.prometheus_registry());
-
 	let time_source = Arc::new(SystemTimeSource);
 	let inherent_config = CreateInherentDataConfig::new(epoch_config, sc_slot_config, time_source);
 
@@ -399,7 +395,6 @@ pub fn new_partial(
 			beefy_rpc_links,
 			telemetry,
 			data_sources,
-			mc_follower_metrics,
 		),
 	};
 
@@ -435,7 +430,6 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 				beefy_rpc_links,
 				mut telemetry,
 				data_sources,
-				_mc_follower_metrics_opt,
 			),
 	} = new_partial_components;
 
