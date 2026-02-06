@@ -36,7 +36,7 @@ use std::borrow::Borrow;
 
 use super::{
 	ContractAddress, DeserializableError, LOG_TARGET, Ledger, LedgerParameters, SerializableError,
-	TransactionIdentifier, TransactionInvalid,
+	TransactionIdentifier,
 	types::{DeserializationError, LedgerApiError, SerializationError, TransactionError},
 };
 use crate::{
@@ -128,17 +128,11 @@ pub struct UnshieldedUtxos {
 }
 
 impl UnshieldedUtxos {
-	pub fn remove_failed_segments<D: DB>(
-		&mut self,
-		segments: &HashMap<SegmentId, Result<(), TransactionInvalid<D>>>,
-	) {
-		segments.iter().for_each(|(segment_id, maybe_tx_invalid)| {
-			// Remove the failing segments from `outputs` and `inputs`
-			if maybe_tx_invalid.is_err() {
-				self.outputs.remove(segment_id);
-				self.inputs.remove(segment_id);
-			}
-		});
+	pub fn remove_failed_segments(&mut self, segment_ids: &[SegmentId]) {
+		for &id in segment_ids {
+			self.outputs.remove(&id);
+			self.inputs.remove(&id);
+		}
 	}
 
 	pub fn inputs(&self) -> Vec<UtxoInfo> {
