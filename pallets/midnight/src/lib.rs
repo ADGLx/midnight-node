@@ -426,25 +426,21 @@ pub mod pallet {
 		}
 
 		fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
+			let Call::send_mn_transaction { midnight_tx } = call else {
+				return Err(Self::invalid_transaction(Default::default()));
+			};
+
 			let block_context = Self::get_block_context();
+			let state_key = StateKey::<T>::get().expect("Failed to get state key");
+			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 
-			// First, perform existing structural validation
-			Self::validate_unsigned(call, block_context.clone())?;
-
-			// Then, validate that the guaranteed part will succeed.
-			if let Call::send_mn_transaction { midnight_tx } = call {
-				let state_key = StateKey::<T>::get().expect("Failed to get state key");
-				let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
-
-				LedgerApi::validate_guaranteed_execution(
-					&state_key,
-					midnight_tx,
-					block_context,
-					runtime_version,
-				)
-				.map_err(|e| Self::invalid_transaction(e.into()))?;
-			}
-
+			LedgerApi::validate_guaranteed_execution(
+				&state_key,
+				midnight_tx,
+				block_context,
+				runtime_version,
+			)
+			.map_err(|e| Self::invalid_transaction(e.into()))?;
 			Ok(())
 		}
 	}
@@ -508,7 +504,7 @@ pub mod pallet {
 				let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 				let max_weight = T::BlockWeights::get().max_block.ref_time();
 
-				let (tx_hash, _) = LedgerApi::validate_transaction(
+				let tx_hash = LedgerApi::validate_transaction(
 					&state_key,
 					midnight_tx,
 					block_context,
