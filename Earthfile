@@ -496,9 +496,9 @@ rebuild-all-genesis-states:
     BUILD +rebuild-genesis-state-undeployed
     BUILD +rebuild-genesis-state-devnet
     BUILD +rebuild-genesis-state-govnet
-    BUILD +rebuild-genesis-state-node-dev-01
     BUILD +rebuild-genesis-state-qanet
-    BUILD +rebuild-genesis-state-preview
+    # Preview is not meant to be reset
+    #BUILD +rebuild-genesis-state-preview
     # Preprod is not meant to be reset
     #BUILD +rebuild-genesis-state-preprod
 
@@ -521,11 +521,11 @@ rebuild-chainspec:
 
 # rebuild-all-chainspecs Rebuild all chainspecs. No secrets required.
 rebuild-all-chainspecs:
-    BUILD +rebuild-chainspec --NETWORK=node-dev-01
     BUILD +rebuild-chainspec --NETWORK=devnet
     BUILD +rebuild-chainspec --NETWORK=govnet
     BUILD +rebuild-chainspec --NETWORK=qanet
-    BUILD +rebuild-chainspec --NETWORK=preview
+    # Preview is not meant to be reset
+    #BUILD +rebuild-chainspec --NETWORK=preview
     # Preprod is not meant to be reset
     #BUILD +rebuild-chainspec --NETWORK=preprod
 
