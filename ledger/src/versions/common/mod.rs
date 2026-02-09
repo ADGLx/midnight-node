@@ -225,7 +225,7 @@ where
 		let ledger = Self::get_ledger(&api, state_key)?;
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
 
-		let (mut new_ledger, failed_segment_indices, _was_cached) =
+		let (mut new_ledger, failed_segment_indices, was_cached) =
 			Self::get_next_ledger_state(&api, ledger, &tx, &block_context, runtime_version)?;
 
 		let all_applied = failed_segment_indices.is_empty();
@@ -280,6 +280,17 @@ where
 
 			metrics.observe_txs_processing_time(elapsed_time, tx_type);
 			metrics.observe_txs_size(tx_size as f64, tx_type);
+
+			if was_cached {
+				metrics.inc_tx_validation_cache_hit("next_state_root");
+			} else {
+				metrics.inc_tx_validation_cache_miss("next_state_root");
+			}
+			metrics.set_tx_validation_cache_size(
+				"next_state_root",
+				NEXT_STATE_ROOT_CACHE.entry_count(),
+			);
+			metrics.set_tx_validation_cache_size("mempool", MEMPOOL_VALIDATION_CACHE.entry_count());
 		}
 
 		Ok(event)
@@ -371,7 +382,7 @@ where
 			if was_cached {
 				metrics.inc_tx_validation_cache_hit("mempool");
 			} else {
-				metrics.inc_tx_validation_cache_miss();
+				metrics.inc_tx_validation_cache_miss("mempool");
 				// Only record validation time on cache miss (when actual work was done)
 				let tx_type = Self::get_tx_type(&tx);
 				let elapsed_time = start_tx_validation_time.elapsed().as_secs_f64();
@@ -424,7 +435,7 @@ where
 			if was_cached {
 				metrics.inc_tx_validation_cache_hit("next_state_root");
 			} else {
-				metrics.inc_tx_validation_cache_miss();
+				metrics.inc_tx_validation_cache_miss("next_state_root");
 			}
 
 			// Report current cache sizes

@@ -36,11 +36,11 @@ pub struct LedgerMetrics {
 	pub storage_fetch_time: HistogramVec,
 	/// Storage flush time
 	pub storage_flush_time: HistogramVec,
-	/// Transaction validation cache hits (labeled by cache_type: "strict" or "soft")
+	/// Transaction validation cache hits (labeled by cache_type: "next_state_root" or "mempool")
 	pub tx_validation_cache_hits: CounterVec<U64>,
 	/// Transaction validation cache misses
 	pub tx_validation_cache_misses: CounterVec<U64>,
-	/// Current cache entry count (labeled by cache_type: "strict" or "soft")
+	/// Current cache entry count (labeled by cache_type: "next_state_root" or "mempool")
 	pub tx_validation_cache_size: GaugeVec<U64>,
 }
 
@@ -172,7 +172,7 @@ impl LedgerMetrics {
 						"ledger_tx_validation_cache_misses_total",
 						"Transaction validation cache misses",
 					),
-					&[],
+					&["cache_type"],
 				)?,
 				registry,
 			)?,
@@ -259,9 +259,9 @@ impl LedgerMetricsExt {
 		});
 	}
 
-	pub fn inc_tx_validation_cache_miss(&mut self) {
+	pub fn inc_tx_validation_cache_miss(&mut self, cache_type: &str) {
 		self.observe(|m| {
-			m.tx_validation_cache_misses.with_label_values(&[]).inc();
+			m.tx_validation_cache_misses.with_label_values(&[cache_type]).inc();
 		});
 	}
 
