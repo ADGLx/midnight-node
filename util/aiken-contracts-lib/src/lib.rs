@@ -168,7 +168,7 @@ pub fn build_federated_ops_datum(candidates: &[FederatedOpsCandidate]) -> serde_
 		"list": [
 			{"list": []},           // data: empty
 			{"list": appendix},     // appendix: list of candidates
-			{"int": 1}              // logic_round: 1 (SDK parses as version=1 for V1 appendix format)
+			{"int": 2}              // logic_round: 1 (SDK parses as version=1 for V1 appendix format)
 		]
 	})
 }
