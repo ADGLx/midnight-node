@@ -13,7 +13,7 @@ test-artifacts-toolkit/
 .local
 
 # direnv files
-.direnv
+.direnv*
 .envrc.local
 
 .devcontainer/
