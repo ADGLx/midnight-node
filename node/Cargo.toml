@@ -100,9 +100,9 @@ pallet-cnight-observation-mock = { workspace = true, default-features = true}
 
 thiserror = "1.0.50"
 
-# Optional cloud secret manager dependencies
-aws-config = { version = "1.8", optional = true }
-aws-sdk-secretsmanager = { version = "1.97", optional = true }
+# Optional cloud secret manager dependencies (pinned to match Cargo.lock from feat/secret_provider; Rust 1.90)
+aws-config = { version = "=1.8.12", optional = true }
+aws-sdk-secretsmanager = { version = "=1.97.0", optional = true }
 google-cloud-secretmanager-v1 = { version = "1.2", optional = true }
 vaultrs = { version = "0.7", optional = true }
 log.workspace = true

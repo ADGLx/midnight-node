@@ -151,7 +151,8 @@ std = [
     "sp-storage/std",
     "sp-genesis-builder/std",
     "substrate-wasm-builder",
-    "frame-storage-access-test-runtime",
+    # Only needed for storage access tests; omit from default to avoid wasm32v1 build (install target if you need it)
+    # "frame-storage-access-test-runtime",
     #"pallet-block-rewards/std",
     "pallet-sidechain/std",
     "pallet-session/std",
@@ -166,6 +167,9 @@ std = [
     "midnight-primitives-cnight-observation/std",
     "runtime-common/std"
 ]
+# Enable when running storage access tests (requires wasm32v1-none target)
+storage-access-test = ["frame-storage-access-test-runtime"]
+
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
