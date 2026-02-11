@@ -294,11 +294,7 @@ fn extract_proposal_index(
 
 	for event in events.iter() {
 		let event = event?;
-		log::debug!(
-			"Event: {}::{}",
-			event.pallet_name(),
-			event.variant_name()
-		);
+		log::debug!("Event: {}::{}", event.pallet_name(), event.variant_name());
 		if event.pallet_name() == pallet && event.variant_name() == "Proposed" {
 			// Get the raw field bytes
 			let field_bytes = event.field_bytes();
@@ -309,10 +305,7 @@ fn extract_proposal_index(
 
 			// Skip account_id (32 bytes)
 			if cursor.len() < 36 {
-				log::warn!(
-					"Proposed event field_bytes too short: {} bytes",
-					cursor.len()
-				);
+				log::warn!("Proposed event field_bytes too short: {} bytes", cursor.len());
 				continue;
 			}
 			cursor = &cursor[32..];
