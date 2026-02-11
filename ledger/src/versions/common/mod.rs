@@ -79,8 +79,10 @@ pub const LOG_TARGET: &str = "midnight::ledger_v2";
 pub const MINT_COINS_DOMAIN_SEPARATOR: &[u8; 10] = b"mint_coins";
 
 /// Maximum number of entries in each transaction validation cache.
+/// Each VerifiedTransaction entry holds ZK proof data (50-200 KiB). Capped at 200 entries
+/// to keep worst-case memory under ~40 MiB — sufficient for low-traffic validator networks.
 #[cfg(feature = "std")]
-const TX_VALIDATION_CACHE_MAX_CAPACITY: u64 = 1000;
+const TX_VALIDATION_CACHE_MAX_CAPACITY: u64 = 200;
 
 /// Time-to-idle for transaction validation cache entries.
 /// Entries not accessed within this duration are evicted, preventing stale VerifiedTransaction
