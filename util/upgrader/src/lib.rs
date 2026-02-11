@@ -62,9 +62,12 @@ pub async fn execute_upgrade(
 	log::info!("Code hash: 0x{}", hex::encode(code_hash));
 
 	// Step 2: Create the authorize_upgrade call
-	let authorize_upgrade_call =
-		dynamic::tx("System", "authorize_upgrade_without_checks", vec![Value::from_bytes(&code_hash)])
-			.into_value();
+	let authorize_upgrade_call = dynamic::tx(
+		"System",
+		"authorize_upgrade_without_checks",
+		vec![Value::from_bytes(&code_hash)],
+	)
+	.into_value();
 
 	// Step 3: Wrap it in FederatedAuthority::motion_approve
 	let fed_auth_call =
@@ -173,8 +176,11 @@ pub async fn execute_upgrade(
 
 	// Step 10: Compute the motion hash for the authorize_upgrade call
 	// The motion hash is computed by hashing the call data
-	let authorize_upgrade_call_for_hash =
-		dynamic::tx("System", "authorize_upgrade_without_checks", vec![Value::from_bytes(&code_hash)]);
+	let authorize_upgrade_call_for_hash = dynamic::tx(
+		"System",
+		"authorize_upgrade_without_checks",
+		vec![Value::from_bytes(&code_hash)],
+	);
 
 	let call_data = authorize_upgrade_call_for_hash
 		.encode_call_data(&api.metadata())
