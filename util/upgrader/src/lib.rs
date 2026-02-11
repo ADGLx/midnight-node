@@ -294,27 +294,44 @@ fn extract_proposal_index(
 
 	for event in events.iter() {
 		let event = event?;
+		log::debug!(
+			"Event: {}::{}",
+			event.pallet_name(),
+			event.variant_name()
+		);
 		if event.pallet_name() == pallet && event.variant_name() == "Proposed" {
 			// Get the raw field bytes
 			let field_bytes = event.field_bytes();
 
 			// Parse the raw bytes manually
-			// The Proposed event has: (account_id: 32 bytes, proposal_index: compact u32, ...)
+			// The Proposed event has: (account_id: 32 bytes, proposal_index: u32, ...)
 			let mut cursor = field_bytes;
 
 			// Skip account_id (32 bytes)
-			if cursor.len() < 32 {
+			if cursor.len() < 36 {
+				log::warn!(
+					"Proposed event field_bytes too short: {} bytes",
+					cursor.len()
+				);
 				continue;
 			}
 			cursor = &cursor[32..];
 
-			// Read proposal_index (compact encoded u32)
-			if let Ok(parity_scale_codec::Compact(index)) =
-				parity_scale_codec::Compact::<u32>::decode(&mut cursor)
-			{
+			// Read proposal_index (u32 LE, not compact-encoded)
+			if let Ok(index) = u32::decode(&mut cursor) {
+				log::info!("Extracted proposal index: {}", index);
 				return Ok(index);
 			}
 		}
 	}
+	log::error!(
+		"No Proposed event found for pallet '{}'. Events seen: {:?}",
+		pallet,
+		events
+			.iter()
+			.filter_map(|e| e.ok())
+			.map(|e| format!("{}::{}", e.pallet_name(), e.variant_name()))
+			.collect::<Vec<_>>()
+	);
 	Err(UpgraderError::ProposalIndexNotFound)
 }
