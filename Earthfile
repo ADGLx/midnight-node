@@ -737,11 +737,10 @@ toolkit-js-prep:
     ENV COMPACTC_VERSION=$COMPACTC_VERSION
 
     WORKDIR /toolkit-js
-    RUN --secret GITHUB_TOKEN export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && npm ci
+    RUN npm ci
     RUN npm run build
     # Run npm compact script (includes fetch-compactc + compile steps)
-    # fetch-compactc uses GITHUB_TOKEN to download compactc from artifacts
-    RUN --secret GITHUB_TOKEN export GITHUB_TOKEN=$(cat /run/secrets/GITHUB_TOKEN) && npm run compact
+    RUN npm run compact
     # Verify keys were generated
     RUN ls -la ./test/contract/managed/counter/keys/ && [ -s ./test/contract/managed/counter/keys/increment.verifier ]
 
@@ -892,7 +891,6 @@ test-pallet-fixtures:
 # NOTE: This target builds for native platform, but copies toolkit-js from amd64 build (compactc is amd64-only)
 build-test-toolkit:
     ARG NATIVEARCH
-    ARG GITHUB_TOKEN
     FROM +prep
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
