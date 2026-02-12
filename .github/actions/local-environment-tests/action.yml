@@ -40,7 +40,7 @@ runs:
     - name: Install jq
       uses: dcarbone/install-jq-action@b7ef57d46ece78760b4019dbc4080a1ba2a40b45 # v3.2.0
 
-    - uses: EarthBuild/actions-setup@18dfcfe4187dfa60677115966921217d8619be9b
+    - uses: EarthBuild/actions-setup@43717e616f59946ba2856de0874952ac02c50b11
       with:
         version: v0.8.17-rc-3
         prerelease: true
