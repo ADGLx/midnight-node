@@ -32,6 +32,8 @@ jobs:
       FORCE_COLOR: 1
     outputs:
       sha: ${{ steps.get_sha.outputs.sha }}
+      node_image_tag: ${{ steps.image_tags.outputs.node_image_tag }}
+      toolkit_image_tag: ${{ steps.image_tags.outputs.toolkit_image_tag }}
     steps:
       - uses: EarthBuild/actions-setup@43717e616f59946ba2856de0874952ac02c50b11
         with:
@@ -62,6 +64,14 @@ jobs:
 
           . ./.envrc && earth --secret GITHUB_TOKEN=${{ secrets.MIDNIGHTCI_PACKAGES_READ }} -P --ci --push +images
 
+      - name: Export image tags
+        id: image_tags
+        run: |
+          short_hash=$(git rev-parse --short=8 HEAD)
+          version=$(grep -m 1 '^version =' node/Cargo.toml | cut -d '"' -f2)
+          echo "node_image_tag=${version}-dev-${short_hash}-amd64" >> $GITHUB_OUTPUT
+          echo "toolkit_image_tag=${version}-${short_hash}-amd64" >> $GITHUB_OUTPUT
+
       - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         if: success() || failure()
@@ -75,6 +85,26 @@ jobs:
         with:
           name: Test artifacts (amd64)
           path: test-artifacts-amd64/
+
+  sbom-scan-node:
+    name: SBOM/Scan Node
+    needs: [run]
+    uses: ./.github/workflows/sbom-scan-image.yml
+    with:
+      image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.run.outputs.node_image_tag }}
+      sbom-artifact-name: sbom-midnight-node-ci
+      skip-attestation: ${{ github.event.pull_request.head.repo.fork || false }}
+    secrets: inherit
+
+  sbom-scan-toolkit:
+    name: SBOM/Scan Toolkit
+    needs: [run]
+    uses: ./.github/workflows/sbom-scan-image.yml
+    with:
+      image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ needs.run.outputs.toolkit_image_tag }}
+      sbom-artifact-name: sbom-midnight-node-toolkit-ci
+      skip-attestation: ${{ github.event.pull_request.head.repo.fork || false }}
+    secrets: inherit
 
   run-arm64:
     name: Build node and images (arm64)
@@ -203,7 +233,7 @@ jobs:
 
   rebuild-genesis:
     name: Check Genesis Rebuild
-    needs: [run]
+    needs: [ run ]
     permissions:
       id-token: write
       contents: read
@@ -448,9 +478,9 @@ jobs:
           toolkit-image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64
           ghcr-password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
-  toolkit-ut-e2e:
+  toolkit-tokens-minter-e2e:
     name: Toolkit Unshielded Token E2E
-    needs: [run]
+    needs: [ run ]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -463,7 +493,7 @@ jobs:
           echo "version=$version" >> $GITHUB_OUTPUT
       - uses: ./.github/actions/reusable-e2e-tests
         with:
-          just-command: toolkit-ut-e2e
+          just-command: toolkit-tokens-minter-e2e
           node-image: ghcr.io/midnight-ntwrk/midnight-node:${{ steps.meta.outputs.version }}-dev-${{ steps.meta.outputs.short_hash }}-amd64
           toolkit-image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-amd64
           ghcr-password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
@@ -579,7 +609,7 @@ jobs:
         run: scripts/free-disk-space.sh
 
       - name: Install just
-        uses: taiki-e/install-action@650c5ca14212efbbf3e580844b04bdccf68dac31 #v2.67.18
+        uses: taiki-e/install-action@1e67dedb5e3c590e1c9d9272ace46ef689da250d #v2.67.27
         with:
           tool: just
 
