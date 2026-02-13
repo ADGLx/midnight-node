@@ -13,7 +13,7 @@
 
 use crate::{
 	cli_parsers as cli,
-	fetcher::{fetch_all, fetch_storage, try_new_client},
+	fetcher::{fetch_all, fetch_storage, fetch_storage::FetchStorage, try_new_client},
 };
 use async_trait::async_trait;
 use clap::Args;
