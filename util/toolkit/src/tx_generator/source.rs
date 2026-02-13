@@ -13,7 +13,7 @@
 
 use crate::{
 	cli_parsers as cli,
-	fetcher::{fetch_all, fetch_storage},
+	fetcher::{fetch_all, fetch_storage, try_new_client},
 };
 use async_trait::async_trait;
 use clap::Args;
@@ -37,6 +37,7 @@ use crate::{
 pub enum FetchCacheConfig {
 	InMemory,
 	Redb { filename: String },
+	RedbNoFetch { filename: String },
 	Postgres { database_url: String },
 }
 
@@ -70,6 +71,10 @@ impl FromStr for FetchCacheConfig {
 			"redb" => {
 				let filename = opts;
 				Ok(Self::Redb { filename })
+			},
+			"nofetch" => {
+				let filename = if opts.is_empty() { "toolkit.db".to_string() } else { opts };
+				Ok(Self::RedbNoFetch { filename })
 			},
 			"inmemory" => Ok(Self::InMemory),
 			"postgres" => Ok(Self::Postgres { database_url: s.to_string() }),
@@ -115,6 +120,7 @@ pub struct Source {
 	/// Available options:
 	/// - "inmemory" (RAM-only, no persistence),
 	/// - "redb:<filename>" (file-cache, single-writer)
+	/// - "nofetch[:<filename>]" (read-only from existing redb, skips fetching; defaults to toolkit.db)
 	/// - "postgres://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]" (external db, multi-writer)
 	///
 	/// When using redb or postgres backends, wallet state is also cached to speed up subsequent runs.
@@ -300,6 +306,28 @@ where
 					fetch_storage::redb_backend::RedbBackend::new(filename),
 				)
 				.await?
+			},
+			FetchCacheConfig::RedbNoFetch { filename } => {
+				let storage: fetch_storage::redb_backend::RedbBackend<S, P, DefaultDB> =
+					fetch_storage::redb_backend::RedbBackend::new(filename);
+				let client = try_new_client(&self.rpc_url).await?;
+				let chain_id = client.get_block_one_hash().await?;
+				let max_height = storage
+					.get_highest_verified_block(chain_id)
+					.await
+					.expect("no cached data found in db — run a fetch first");
+				let mut blocks: Vec<_> = storage
+					.get_block_data_range(chain_id, (0..max_height).into_iter())
+					.await
+					.into_iter()
+					.enumerate()
+					.map(|(i, b)| b.unwrap_or_else(|| panic!("missing block {i}")))
+					.collect();
+				for i in 1..blocks.len() {
+					blocks[i].context.last_block_time = blocks[i - 1].context.tblock;
+				}
+				log::info!("loaded {} blocks from cache (nofetch mode)", blocks.len());
+				blocks
 			},
 			FetchCacheConfig::Postgres { database_url } => {
 				fetch_all(
