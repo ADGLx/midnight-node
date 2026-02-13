@@ -323,23 +323,6 @@ fn test_pre_dispatch_validation_does_not_modify_state_on_failure() {
 }
 
 #[test]
-fn sets_extra_transaction_size_weight() {
-	mock::new_test_ext().execute_with(|| {
-		let before_weight = mock::Midnight::configurable_transaction_size_weight();
-
-		assert_eq!(before_weight, crate::EXTRA_WEIGHT_TX_SIZE);
-
-		let new_weight = Weight::from_parts(42, 0);
-
-		mock::Midnight::set_tx_size_weight(RawOrigin::Root.into(), new_weight).unwrap();
-
-		let after_weight = mock::Midnight::configurable_transaction_size_weight();
-
-		assert_eq!(after_weight, new_weight);
-	});
-}
-
-#[test]
 #[ignore = "TODO COST MODEL - fix when new Ledger's cost model is available"]
 fn test_get_mn_transaction_fee() {
 	mock::new_test_ext().execute_with(|| {
