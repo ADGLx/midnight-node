@@ -317,7 +317,7 @@ where
 					.await
 					.expect("no cached data found in db — run a fetch first");
 				let mut blocks: Vec<_> = storage
-					.get_block_data_range(chain_id, (0..max_height).into_iter())
+					.get_block_data_range(chain_id, (0..max_height + 1).into_iter())
 					.await
 					.into_iter()
 					.enumerate()
