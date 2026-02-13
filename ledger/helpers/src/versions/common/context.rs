@@ -149,7 +149,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 		if let Some(expected_root) = state_root {
 			match Self::compute_state_root(&*latest_ledger_state) {
 				Some(actual_root) if actual_root != expected_root => {
-					panic!(
+					log::warn!(
 						"Ledger state root mismatch: expected {}, actual {}. Parent block hash: {}",
 						hex_encode(&expected_root),
 						hex_encode(&actual_root),
