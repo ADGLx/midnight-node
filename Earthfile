@@ -1098,9 +1098,9 @@ srtool-build:
 
     # Copy source code as root - include all workspace members referenced in Cargo.toml
     USER root
-    COPY --keep-ts Cargo.lock Cargo.toml ./
+    COPY Cargo.lock Cargo.toml ./
     # Include .sqlx for offline query validation (sqlx macros need this)
-    COPY --keep-ts --dir .cargo .sqlx ledger node pallets primitives metadata res runtime util tests relay docs ./
+    COPY --dir .cargo .sqlx ledger node pallets primitives metadata res runtime util tests relay docs ./
     # Remove rust-toolchain.toml to use srtool's pinned Rust version
     RUN rm -f rust-toolchain.toml
     # Fix ownership for builder user
@@ -1109,8 +1109,6 @@ srtool-build:
     # Set srtool environment variables
     ENV PACKAGE=midnight-node-runtime
     ENV RUNTIME_DIR=runtime
-    ENV PROFILE=release
-    ENV BUILD_OPTS=""
 
     # Build the runtime deterministically as builder user
     USER builder
@@ -1128,8 +1126,8 @@ srtool-info:
     FROM paritytech/srtool:1.88.0-${SRTOOL_VERSION}
     WORKDIR /build
     USER root
-    COPY --keep-ts Cargo.lock Cargo.toml ./
-    COPY --keep-ts --dir .cargo .sqlx ledger node pallets primitives metadata res runtime util tests relay docs ./
+    COPY Cargo.lock Cargo.toml ./
+    COPY --dir .cargo .sqlx ledger node pallets primitives metadata res runtime util tests relay docs ./
     RUN rm -f rust-toolchain.toml
     RUN chown -R builder:builder /build
     ENV PACKAGE=midnight-node-runtime
