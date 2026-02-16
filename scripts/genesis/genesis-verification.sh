@@ -448,6 +448,7 @@ run_ledger_state_verification() {
         --chain-spec "$chain_spec" \
         --cnight-config "$res_dir/cnight-config.json" \
         --ledger-parameters-config "$res_dir/ledger-parameters-config.json" \
+        --cardano-tip-config "$res_dir/cardano-tip.json" \
         --network "$network" \
         2>&1); then
         print_error "Failed to verify genesis state"

@@ -164,7 +164,7 @@ fn load_ledger_parameters(
 	Ok(params)
 }
 
-/// Genesis timestamp used by the toolkit: August, 2025 (Glacier Drop start)
+/// Default genesis timestamp used by the toolkit: Aug 5, 2025 (Glacier Drop start)
 ///
 /// Note: This timestamp is used for consistency with the toolkit's genesis generation,
 /// but it doesn't actually affect the DustState hash. The `tblock` parameter in
@@ -184,6 +184,7 @@ fn verify_dust_state(
 	state: &LedgerState<DefaultDB>,
 	cnight_config_path: Option<&Path>,
 	network: Option<&str>,
+	genesis_timestamp_arg: Option<u64>,
 ) -> (bool, String) {
 	let Some(path) = cnight_config_path else {
 		return (false, "No cnight-config.json provided".to_string());
@@ -197,8 +198,9 @@ fn verify_dust_state(
 			// with the genesis state's DustState.
 			let fresh_state = LedgerState::<DefaultDB>::new(&state.network_id);
 
-			// Use the same genesis timestamp as the toolkit (Glacier Drop start: Dec 5, 2025)
-			let genesis_timestamp = Timestamp::from_secs(GENESIS_TIMESTAMP_SECS);
+			// Use the provided genesis timestamp, or fall back to the default (Aug 5, 2025)
+			let genesis_timestamp =
+				Timestamp::from_secs(genesis_timestamp_arg.unwrap_or(GENESIS_TIMESTAMP_SECS));
 
 			match fresh_state.apply_system_tx(&system_tx, genesis_timestamp) {
 				Ok((expected_state, _events)) => {
@@ -540,6 +542,7 @@ pub fn verify_ledger_state_genesis(
 	cnight_config_path: Option<&Path>,
 	ledger_params_path: Option<&Path>,
 	network: Option<&str>,
+	genesis_timestamp: Option<u64>,
 ) -> Result<VerificationResult, VerifyLedgerStateGenesisError> {
 	log::info!("Loading LedgerState from {}", chain_spec_path.display());
 	let state = load_ledger_state(chain_spec_path)?;
@@ -548,7 +551,7 @@ pub fn verify_ledger_state_genesis(
 
 	// Run all verifications
 	let (dust_state_ok, dust_state_message) =
-		verify_dust_state(&state, cnight_config_path, network);
+		verify_dust_state(&state, cnight_config_path, network, genesis_timestamp);
 	let (empty_state_ok, empty_state_message) = verify_empty_state(&state, network);
 	let (supply_invariant_ok, supply_invariant_message) = verify_supply_invariant(&state);
 	let (ledger_parameters_ok, ledger_parameters_message) =
