@@ -211,12 +211,18 @@ where
 		let operations =
 			tx.calls_and_deploys(should_skip_failed_segments.then_some(failed_segments).flatten());
 
+		// Capture segment counts before flattening — the HashMap→BTreeMap fix
+		// only changes ordering between segments, not within a single segment.
+		let output_segments = utxos.outputs.len();
+		let input_segments = utxos.inputs.len();
+
 		let (mut utxo_outputs, mut utxo_inputs) =
 			utxos.check_utxos_response_integrity(initial_utxos_size, &ledger)?;
 
-		// Apply ordering override for old blocks produced with HashMap ordering
+		// Apply ordering override for old blocks produced with HashMap ordering.
+		// Only reorder lists that span multiple segments.
 		if let Some(ordering) = utxo_ordering_override::get_override(&tx_hash) {
-			ordering.apply(&mut utxo_outputs, &mut utxo_inputs);
+			ordering.apply(&mut utxo_outputs, output_segments, &mut utxo_inputs, input_segments);
 		}
 
 		let mut event = TransactionAppliedStateRoot {

@@ -24,30 +24,6 @@
     ]
   },
   {
-    "tx_hash": "4f20bc7627bf04f2edef3dbf2e4d580763a5b03c6532d8f76eae0bbeb976d864",
-    "block_height": 111776,
-    "created": [
-      {
-        "intent_hash": "58872fa2208e38f02c19b96cd889b4ca8aa563da9d34d313899a23c3f0fa6eeb",
-        "output_index": 0
-      },
-      {
-        "intent_hash": "58872fa2208e38f02c19b96cd889b4ca8aa563da9d34d313899a23c3f0fa6eeb",
-        "output_index": 1
-      }
-    ],
-    "spent": [
-      {
-        "intent_hash": "d4d328f52b2446ae544bed7b499e8232b929f0bbd5da41a7b76325acb21e4854",
-        "output_index": 0
-      },
-      {
-        "intent_hash": "6efa1e26ce9096a1d4648727cf9fb90945bc1a5b2ac20f463bbf470b9bd67bbb",
-        "output_index": 0
-      }
-    ]
-  },
-  {
     "tx_hash": "2fd9cfe195e4a4f1eba90fdf0b647d3c5af743324e0c58c5e53e50807101a82f",
     "block_height": 168756,
     "created": [
@@ -147,26 +123,6 @@
       },
       {
         "intent_hash": "a27efa605f5d17c16f2f7cc4e4616c27db3bd2ae02d77832441ff8102746ace8",
-        "output_index": 0
-      }
-    ]
-  },
-  {
-    "tx_hash": "b8634e74224d85de2fd0f4cae5e14f005ba2183c0aff276f3bf70aa0768b7cd7",
-    "block_height": 169028,
-    "created": [
-      {
-        "intent_hash": "f9997a28fc2279448a0bdafcd6baf35fd732881f5118778ff64cbbd868ebfd09",
-        "output_index": 0
-      }
-    ],
-    "spent": [
-      {
-        "intent_hash": "2e227bd47dfb23c964d9a86c2f74f7e36185330b29d3b9ef8ef54ee01a963d35",
-        "output_index": 0
-      },
-      {
-        "intent_hash": "2973e280e30cd1555af3d283280aad290004290fd46374d2a039a8606d63c184",
         "output_index": 0
       }
     ]
@@ -311,26 +267,6 @@
       },
       {
         "intent_hash": "6eb53907e1cf06c0ce65e9e5210726023ce5319944dbea7321e0bf76d4ab5ed1",
-        "output_index": 0
-      }
-    ]
-  },
-  {
-    "tx_hash": "2429301380167c046bec15e1e41735af8f3a935b24939f15245353fc1d688852",
-    "block_height": 648,
-    "created": [
-      {
-        "intent_hash": "89ed265e064a61e61b5b8adf4c3afeaef5c51bbc81f6a69c0b0a70837070cb67",
-        "output_index": 0
-      }
-    ],
-    "spent": [
-      {
-        "intent_hash": "f79dbaf7a7271fe5b5171b212b854726cc5f54f01a728a29eeed8c02a019e598",
-        "output_index": 0
-      },
-      {
-        "intent_hash": "582da7c08fb671635f25b3eebe88f12896f0d770c0ea47f3f20c273067b3d311",
         "output_index": 0
       }
     ]

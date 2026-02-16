@@ -24,12 +24,9 @@ use crate::common::types::{Hash, UtxoInfo};
 
 use super::LOG_TARGET;
 
-const PREVIEW_JSON: &str =
-	include_str!("../../../res/utxo-ordering-override-preview.json");
-const PREPROD_JSON: &str =
-	include_str!("../../../res/utxo-ordering-override-preprod.json");
-const QANET_JSON: &str =
-	include_str!("../../../res/utxo-ordering-override-qanet.json");
+const PREVIEW_JSON: &str = include_str!("../../../res/utxo-ordering-override-preview.json");
+const PREPROD_JSON: &str = include_str!("../../../res/utxo-ordering-override-preprod.json");
+const QANET_JSON: &str = include_str!("../../../res/utxo-ordering-override-qanet.json");
 
 static NETWORK_ID: OnceLock<String> = OnceLock::new();
 static OVERRIDES: OnceLock<HashMap<Hash, UtxoOrdering>> = OnceLock::new();
@@ -101,7 +98,7 @@ fn load_overrides() -> HashMap<Hash, UtxoOrdering> {
 		};
 		map.insert(tx_hash, ordering);
 	}
-	log::info!(
+	log::warn!(
 		target: LOG_TARGET,
 		"Loaded {} UTXO ordering overrides for {network_id}",
 		map.len()
@@ -114,9 +111,27 @@ pub fn get_override(tx_hash: &Hash) -> Option<&'static UtxoOrdering> {
 }
 
 impl UtxoOrdering {
-	pub fn apply(&self, outputs: &mut Vec<UtxoInfo>, inputs: &mut Vec<UtxoInfo>) {
-		reorder(outputs, &self.created);
-		reorder(inputs, &self.spent);
+	pub fn apply(
+		&self,
+		outputs: &mut Vec<UtxoInfo>,
+		output_segments: usize,
+		inputs: &mut Vec<UtxoInfo>,
+		input_segments: usize,
+	) {
+		log::warn!(
+			target: LOG_TARGET,
+			"UTXO ordering override: created={} (segments={}), spent={} (segments={})",
+			self.created.len(),
+			output_segments,
+			self.spent.len(),
+			input_segments,
+		);
+		if output_segments > 1 {
+			reorder(outputs, &self.created);
+		}
+		if input_segments > 1 {
+			reorder(inputs, &self.spent);
+		}
 	}
 }
 
@@ -127,9 +142,10 @@ fn reorder(utxos: &mut Vec<UtxoInfo>, expected: &[(Hash, u32)]) {
 
 	let mut reordered = Vec::with_capacity(utxos.len());
 	for (intent_hash, output_no) in expected {
-		if let Some(pos) = utxos.iter().position(|u| {
-			u.intent_hash == *intent_hash && u.output_no == *output_no
-		}) {
+		if let Some(pos) = utxos
+			.iter()
+			.position(|u| u.intent_hash == *intent_hash && u.output_no == *output_no)
+		{
 			reordered.push(utxos.swap_remove(pos));
 		} else {
 			// Entry not found — override data may be stale, skip reordering
@@ -163,9 +179,30 @@ mod tests {
 
 		let mut utxos = vec![make(1, 0), make(2, 0), make(3, 0)];
 		let expected = vec![
-			({ let mut h = [0u8; 32]; h[0] = 3; h }, 0),
-			({ let mut h = [0u8; 32]; h[0] = 1; h }, 0),
-			({ let mut h = [0u8; 32]; h[0] = 2; h }, 0),
+			(
+				{
+					let mut h = [0u8; 32];
+					h[0] = 3;
+					h
+				},
+				0,
+			),
+			(
+				{
+					let mut h = [0u8; 32];
+					h[0] = 1;
+					h
+				},
+				0,
+			),
+			(
+				{
+					let mut h = [0u8; 32];
+					h[0] = 2;
+					h
+				},
+				0,
+			),
 		];
 
 		reorder(&mut utxos, &expected);
@@ -187,12 +224,23 @@ mod tests {
 		let make = |ih: u8| UtxoInfo {
 			address: [0u8; 32],
 			token_type: [0u8; 32],
-			intent_hash: { let mut h = [0u8; 32]; h[0] = ih; h },
+			intent_hash: {
+				let mut h = [0u8; 32];
+				h[0] = ih;
+				h
+			},
 			value: 100,
 			output_no: 0,
 		};
 		let mut utxos = vec![make(1), make(2)];
-		let expected = vec![({ let mut h = [0u8; 32]; h[0] = 1; h }, 0)];
+		let expected = vec![(
+			{
+				let mut h = [0u8; 32];
+				h[0] = 1;
+				h
+			},
+			0,
+		)];
 		reorder(&mut utxos, &expected);
 		// Should be unchanged
 		assert_eq!(utxos[0].intent_hash[0], 1);

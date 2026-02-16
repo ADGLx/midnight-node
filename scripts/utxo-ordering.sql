@@ -1,23 +1,12 @@
--- Returns transactions where created or spent UTXOs span multiple distinct intent_hashes.
--- Only these transactions are affected by HashMap vs BTreeMap ordering differences.
+-- Returns transactions where created UTXOs span multiple distinct intent_hashes,
+-- meaning the transaction has multiple segments. Only between-segment ordering is
+-- affected by the HashMap→BTreeMap fix; within-segment order is deterministic.
 -- Output includes tx_hash and block_height for use as override data.
-WITH multi_intent_created AS (
+WITH interesting_txs AS (
   SELECT creating_transaction_id AS tx_id
   FROM unshielded_utxos
   GROUP BY creating_transaction_id
   HAVING COUNT(DISTINCT intent_hash) > 1
-),
-multi_intent_spent AS (
-  SELECT spending_transaction_id AS tx_id
-  FROM unshielded_utxos
-  WHERE spending_transaction_id IS NOT NULL
-  GROUP BY spending_transaction_id
-  HAVING COUNT(DISTINCT intent_hash) > 1
-),
-interesting_txs AS (
-  SELECT tx_id FROM multi_intent_created
-  UNION
-  SELECT tx_id FROM multi_intent_spent
 ),
 created_utxos AS (
   SELECT
