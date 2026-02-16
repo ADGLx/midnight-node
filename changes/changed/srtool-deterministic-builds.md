@@ -24,5 +24,5 @@ The srtool digest (containing WASM hash and build info) is saved alongside the c
 
 The genesis generation script (`scripts/genesis/genesis-generation.sh`) now prompts the user during Step 3 (Chain Spec Generation) whether to use a deterministic srtool build. When selected, it passes `--DETERMINISTIC=true` to the `+rebuild-chainspec` Earthly target. After generation, the script also creates a `chain-spec-hash.json` file containing the SHA-256 hash of `chain-spec-raw.json`.
 
-PR:
-JIRA:
+PR: https://github.com/midnightntwrk/midnight-node/pull/681
+JIRA: https://shielded.atlassian.net/browse/PM-21907
