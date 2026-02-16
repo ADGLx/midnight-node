@@ -164,7 +164,7 @@ fn load_ledger_parameters(
 	Ok(params)
 }
 
-/// Genesis timestamp used by the toolkit: December 5, 2025 (Glacier Drop start)
+/// Genesis timestamp used by the toolkit: August, 2025 (Glacier Drop start)
 ///
 /// Note: This timestamp is used for consistency with the toolkit's genesis generation,
 /// but it doesn't actually affect the DustState hash. The `tblock` parameter in
