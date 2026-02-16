@@ -37,6 +37,9 @@ pub mod api;
 pub mod conversions;
 
 #[cfg(feature = "std")]
+pub mod utxo_ordering_override;
+
+#[cfg(feature = "std")]
 use {
 	api::{
 		ContractAddress, ContractState, Ledger, LedgerParameters, SystemTransaction, Transaction,
@@ -186,6 +189,7 @@ where
 		);
 		let tx_hash = tx.hash();
 		let ledger = Self::get_ledger(&api, state_key)?;
+		utxo_ordering_override::set_network_id(&ledger.state.network_id);
 		let initial_utxos_size = ledger.state.utxo.utxos.size();
 
 		let tx_ctx = ledger.get_transaction_context(block_context.clone());
@@ -207,8 +211,13 @@ where
 		let operations =
 			tx.calls_and_deploys(should_skip_failed_segments.then_some(failed_segments).flatten());
 
-		let (utxo_outputs, utxo_inputs) =
+		let (mut utxo_outputs, mut utxo_inputs) =
 			utxos.check_utxos_response_integrity(initial_utxos_size, &ledger)?;
+
+		// Apply ordering override for old blocks produced with HashMap ordering
+		if let Some(ordering) = utxo_ordering_override::get_override(&tx_hash) {
+			ordering.apply(&mut utxo_outputs, &mut utxo_inputs);
+		}
 
 		let mut event = TransactionAppliedStateRoot {
 			state_root: api.tagged_serialize(&ledger.as_typed_key())?,
