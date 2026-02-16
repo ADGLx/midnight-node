@@ -429,8 +429,8 @@ run_ledger_state_generation() {
     fi
 }
 
-# Function to run smart contract genesis config generation
-run_genesis_config_generation() {
+# Function to run federated authority genesis generation
+run_federated_authority_genesis_generation() {
     local network="$1"
     local db_connection="$2"
     local cardano_tip="$3"
@@ -442,52 +442,8 @@ run_genesis_config_generation() {
     echo -e "  ${CYAN}CARDANO_SECURITY_PARAMETER=$security_param \\\\${NC}"
     echo -e "  ${CYAN}ALLOW_NON_SSL=true \\\\${NC}"
     echo -e "  ${CYAN}DB_SYNC_POSTGRES_CONNECTION_STRING=\"...\" \\\\${NC}"
-    echo -e "  ${CYAN}$node_binary generate-genesis-config \\\\${NC}"
+    echo -e "  ${CYAN}$node_binary generate-federated-authority-genesis \\\\${NC}"
     echo -e "  ${CYAN}--cardano-tip $cardano_tip${NC}"
-    echo ""
-
-    print_info "Running genesis config generation..."
-    echo ""
-
-    cd "$REPO_ROOT"
-    export CFG_PRESET="$network"
-    export CARDANO_SECURITY_PARAMETER="$security_param"
-    export ALLOW_NON_SSL=true
-    export DB_SYNC_POSTGRES_CONNECTION_STRING="$db_connection"
-
-    if "$node_binary" generate-genesis-config --cardano-tip "$cardano_tip"; then
-        echo ""
-        print_success "Genesis config generation completed!"
-        echo ""
-        echo "Files created/updated:"
-        print_file "$REPO_ROOT/res/$network/cnight-config.json"
-        print_file "$REPO_ROOT/res/$network/federated-authority-config.json"
-        print_file "$REPO_ROOT/res/$network/permissioned-candidates-config.json"
-
-        print_step_summary "Step 1: Genesis Config Generation" \
-            "Network: $network" \
-            "Security Parameter: $security_param" \
-            "Cardano Tip: $cardano_tip"
-
-        return 0
-    else
-        print_error "Genesis config generation failed!"
-        return 1
-    fi
-}
-
-# Function to run partial genesis config generation (federated-authority and permissioned-candidates only)
-# Used when cnight-config.json was already generated in Step 1a
-run_partial_genesis_config_generation() {
-    local network="$1"
-    local db_connection="$2"
-    local cardano_tip="$3"
-    local security_param="$4"
-    local node_binary="$5"
-
-    echo -e "${BOLD}Commands to execute:${NC}"
-    echo -e "  ${CYAN}1. $node_binary generate-federated-authority-genesis --cardano-tip $cardano_tip${NC}"
-    echo -e "  ${CYAN}2. $node_binary generate-permissioned-candidates-genesis --cardano-tip $cardano_tip${NC}"
     echo ""
 
     print_info "Running federated authority genesis generation..."
@@ -499,35 +455,58 @@ run_partial_genesis_config_generation() {
     export ALLOW_NON_SSL=true
     export DB_SYNC_POSTGRES_CONNECTION_STRING="$db_connection"
 
-    if ! "$node_binary" generate-federated-authority-genesis --cardano-tip "$cardano_tip"; then
+    if "$node_binary" generate-federated-authority-genesis --cardano-tip "$cardano_tip"; then
+        echo ""
+        print_success "Federated authority genesis generation completed!"
+        echo ""
+        echo "File created/updated:"
+        print_file "$REPO_ROOT/res/$network/federated-authority-config.json"
+
+        return 0
+    else
         print_error "Federated authority genesis generation failed!"
         return 1
     fi
-    print_success "Federated authority genesis generation completed!"
+}
+
+# Function to run permissioned candidates genesis generation
+run_permissioned_candidates_genesis_generation() {
+    local network="$1"
+    local db_connection="$2"
+    local cardano_tip="$3"
+    local security_param="$4"
+    local node_binary="$5"
+
+    echo -e "${BOLD}Command to execute:${NC}"
+    echo -e "  ${CYAN}CFG_PRESET=$network \\\\${NC}"
+    echo -e "  ${CYAN}CARDANO_SECURITY_PARAMETER=$security_param \\\\${NC}"
+    echo -e "  ${CYAN}ALLOW_NON_SSL=true \\\\${NC}"
+    echo -e "  ${CYAN}DB_SYNC_POSTGRES_CONNECTION_STRING=\"...\" \\\\${NC}"
+    echo -e "  ${CYAN}$node_binary generate-permissioned-candidates-genesis \\\\${NC}"
+    echo -e "  ${CYAN}--cardano-tip $cardano_tip${NC}"
     echo ""
 
     print_info "Running permissioned candidates genesis generation..."
     echo ""
 
-    if ! "$node_binary" generate-permissioned-candidates-genesis --cardano-tip "$cardano_tip"; then
+    cd "$REPO_ROOT"
+    export CFG_PRESET="$network"
+    export CARDANO_SECURITY_PARAMETER="$security_param"
+    export ALLOW_NON_SSL=true
+    export DB_SYNC_POSTGRES_CONNECTION_STRING="$db_connection"
+
+    if "$node_binary" generate-permissioned-candidates-genesis --cardano-tip "$cardano_tip"; then
+        echo ""
+        print_success "Permissioned candidates genesis generation completed!"
+        echo ""
+        echo "File created/updated:"
+        print_file "$REPO_ROOT/res/$network/permissioned-candidates-config.json"
+
+        return 0
+    else
         print_error "Permissioned candidates genesis generation failed!"
         return 1
     fi
-
-    echo ""
-    print_success "Partial genesis config generation completed!"
-    echo ""
-    echo "Files created/updated:"
-    print_file "$REPO_ROOT/res/$network/federated-authority-config.json"
-    print_file "$REPO_ROOT/res/$network/permissioned-candidates-config.json"
-
-    print_step_summary "Step 1: Genesis Config Generation (partial)" \
-        "Network: $network" \
-        "Security Parameter: $security_param" \
-        "Cardano Tip: $cardano_tip" \
-        "Note: ics-config.json was preserved from a previous run"
-
-    return 0
 }
 
 # Function to run chainspec generation
@@ -721,40 +700,81 @@ main() {
     print_step "Step 1: Smart Contract Genesis Configuration Generation"
 
     echo -e "${BOLD}This step generates genesis config files from smart contract addresses.${NC}"
-    echo ""
-    echo "Input files:"
-    print_file "$REPO_ROOT/res/$network/federated-authority-addresses.json -> federated-authority-config.json"
-    print_file "$REPO_ROOT/res/$network/permissioned-candidates-addresses.json -> permissioned-candidates-config.json"
-    print_file "$REPO_ROOT/res/$network/cnight-addresses.json -> cnight-config.json"
-    print_file "$REPO_ROOT/res/$network/ics-addresses.json -> ics-config.json (for treasury funding)"
-    print_file "$REPO_ROOT/res/$network/reserve-addresses.json -> reserve-config.json"
+    echo -e "Each config file can be generated or skipped individually."
     echo ""
 
-    if confirm "Run Step 1 (Genesis Config Generation)?" "y"; then
+    # 1a. cNIGHT config
+    echo -e "${BOLD}1a. cNIGHT config${NC} (cnight-addresses.json -> cnight-config.json)"
+    if confirm "  Generate cnight-config.json?" "y"; then
         echo ""
-
-        run_genesis_config_generation "$network" "$db_connection" "$cardano_tip" "$security_param" "$node_binary"
-        local result=$?
-        if [[ $result -eq 0 ]]; then
-            step1_completed=true
+        run_cnight_genesis_generation "$network" "$db_connection" "$cardano_tip" "$node_binary"
+        if [[ $? -eq 0 ]]; then
             cnight_config_generated=true
-            ics_config_generated=true
-        elif [[ $result -eq 1 ]]; then
-            print_error "Step 1 failed. Exiting."
-            exit 1
-        fi
-
-        # Generate reserve config if the network uses it
-        if uses_reserve_config "$network"; then
-            echo ""
-            run_reserve_genesis_generation "$network" "$db_connection" "$cardano_tip" "$node_binary"
-            local reserve_result=$?
-            if [[ $reserve_result -ne 0 ]]; then
-                print_error "Reserve genesis generation failed."
-            fi
+        else
+            print_error "cNIGHT genesis generation failed."
         fi
     else
-        print_info "Skipping Step 1."
+        print_info "Skipping cnight-config.json generation."
+    fi
+    echo ""
+
+    # 1b. ICS config
+    echo -e "${BOLD}1b. ICS config${NC} (ics-addresses.json -> ics-config.json)"
+    if confirm "  Generate ics-config.json?" "y"; then
+        echo ""
+        run_ics_genesis_generation "$network" "$db_connection" "$cardano_tip" "$node_binary"
+        if [[ $? -eq 0 ]]; then
+            ics_config_generated=true
+        else
+            print_error "ICS genesis generation failed."
+        fi
+    else
+        print_info "Skipping ics-config.json generation."
+    fi
+    echo ""
+
+    # 1c. Reserve config
+    echo -e "${BOLD}1c. Reserve config${NC} (reserve-addresses.json -> reserve-config.json)"
+    if confirm "  Generate reserve-config.json?" "y"; then
+        echo ""
+        run_reserve_genesis_generation "$network" "$db_connection" "$cardano_tip" "$node_binary"
+        if [[ $? -ne 0 ]]; then
+            print_error "Reserve genesis generation failed."
+        fi
+    else
+        print_info "Skipping reserve-config.json generation."
+    fi
+    echo ""
+
+    # 1d. Federated authority config
+    echo -e "${BOLD}1d. Federated authority config${NC} (federated-authority-addresses.json -> federated-authority-config.json)"
+    if confirm "  Generate federated-authority-config.json?" "y"; then
+        echo ""
+        run_federated_authority_genesis_generation "$network" "$db_connection" "$cardano_tip" "$security_param" "$node_binary"
+        if [[ $? -ne 0 ]]; then
+            print_error "Federated authority genesis generation failed."
+        fi
+    else
+        print_info "Skipping federated-authority-config.json generation."
+    fi
+    echo ""
+
+    # 1e. Permissioned candidates config
+    echo -e "${BOLD}1e. Permissioned candidates config${NC} (permissioned-candidates-addresses.json -> permissioned-candidates-config.json)"
+    if confirm "  Generate permissioned-candidates-config.json?" "y"; then
+        echo ""
+        run_permissioned_candidates_genesis_generation "$network" "$db_connection" "$cardano_tip" "$security_param" "$node_binary"
+        if [[ $? -ne 0 ]]; then
+            print_error "Permissioned candidates genesis generation failed."
+        fi
+    else
+        print_info "Skipping permissioned-candidates-config.json generation."
+    fi
+    echo ""
+
+    # Mark step 1 as completed if any config was generated
+    if [[ "$cnight_config_generated" == "true" ]] || [[ "$ics_config_generated" == "true" ]]; then
+        step1_completed=true
     fi
 
     # =========================================================================
