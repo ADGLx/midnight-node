@@ -73,3 +73,5 @@ For finalized blocks (blocks far from the tip), `check_inherents` is redundant b
 | **Parallelized inherent data queries** | `node/src/inherent_data.rs` | 4-5 independent Postgres queries in `ProposalCIDP` and `VerifierCIDP` run concurrently via `futures::join!` instead of sequentially |
 | **Increased Postgres pool sizes** | `node/src/main_chain_follower.rs` | All connection pools increased from 5 to 20 to support parallel queries without contention |
 | **Batched ledger flush** | `pallets/midnight/src/lib.rs` | `flush_storage()` runs every 1000 blocks instead of every block, reducing ParityDB I/O during sync |
+
+PR: https://github.com/midnightntwrk/midnight-node/pull/696
