@@ -166,45 +166,37 @@ jobs:
 
   hardfork:
     name: Build hardfork images
-    permissions:
-      id-token: write
-      contents: read
     runs-on: ubuntu-latest
-    env:
-      FORCE_COLOR: 1
     outputs:
       sha: ${{ steps.get_sha.outputs.sha }}
     steps:
-      - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
-        with:
-          version: v0.8.16
-          github-token: ${{ github.token }}
-          use-cache: false
-
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
-
       - name: Get current commit SHA
         id: get_sha
         run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
-
-      - name: Login to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
-        with:
-          registry: ghcr.io
-          username: MidnightCI
-          password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
-
-      - name: Free disk space
-        run: scripts/free-disk-space.sh
-
-      - name: Run build
-        run: |
-          mkdir -p "$HOME/.cargo"
-          echo "[net]" >> "$HOME/.cargo/config"
-          echo "git-fetch-with-cli = true" >> "$HOME/.cargo/config"
-
-          . ./.envrc && earthly --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" -P --ci --push +hardfork-test-upgrader-image
+      # TODO: Hardfork infrastructure removed for ledger-8-only branch
+      # - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
+      #   with:
+      #     version: v0.8.16
+      #     github-token: ${{ github.token }}
+      #     use-cache: false
+      # - name: Login to GHCR
+      #   uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
+      #   with:
+      #     registry: ghcr.io
+      #     username: MidnightCI
+      #     password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
+      # - name: Free disk space
+      #   run: scripts/free-disk-space.sh
+      # - name: Run build
+      #   run: |
+      #     mkdir -p "$HOME/.cargo"
+      #     echo "[net]" >> "$HOME/.cargo/config"
+      #     echo "git-fetch-with-cli = true" >> "$HOME/.cargo/config"
+      #     . ./.envrc && earthly --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" -P --ci --push +hardfork-test-upgrader-image
+      - name: Skipping — hardfork infrastructure removed
+        run: echo "Skipping hardfork build — ledger-8-only branch"
 
   check-unused-deps:
     name: Check Unused Dependencies
@@ -294,18 +286,21 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
-      - name: Get Version and git commit
-        id: meta
-        run: |
-          echo "short_hash=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
-          version=$(grep -m 1 '^version =' node/Cargo.toml | cut -d '"' -f2)
-          echo "version=$version" >> $GITHUB_OUTPUT
-      - uses: ./.github/actions/reusable-e2e-tests
-        with:
-          just-command: hardfork-e2e
-          node-image: ghcr.io/midnight-ntwrk/midnight-node:${{ steps.meta.outputs.version }}-dev-${{ steps.meta.outputs.short_hash }}-amd64
-          upgrader-image: ghcr.io/midnight-ntwrk/midnight-hardfork-test-upgrader:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-
-          ghcr-password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
+      # TODO: Hardfork infrastructure removed for ledger-8-only branch
+      # - name: Get Version and git commit
+      #   id: meta
+      #   run: |
+      #     echo "short_hash=$(git rev-parse --short=8 HEAD)" >> $GITHUB_OUTPUT
+      #     version=$(grep -m 1 '^version =' node/Cargo.toml | cut -d '"' -f2)
+      #     echo "version=$version" >> $GITHUB_OUTPUT
+      # - uses: ./.github/actions/reusable-e2e-tests
+      #   with:
+      #     just-command: hardfork-e2e
+      #     node-image: ghcr.io/midnight-ntwrk/midnight-node:${{ steps.meta.outputs.version }}-dev-${{ steps.meta.outputs.short_hash }}-amd64
+      #     upgrader-image: ghcr.io/midnight-ntwrk/midnight-hardfork-test-upgrader:${{ steps.meta.outputs.version }}-${{ steps.meta.outputs.short_hash }}-
+      #     ghcr-password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
+      - name: Skipping — hardfork infrastructure removed
+        run: echo "Skipping hardfork E2E — ledger-8-only branch"
 
   ledger-rollback-e2e:
     name: Ledger Rollback E2E
