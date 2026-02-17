@@ -1,7 +1,7 @@
 #performance #sync
 # Adaptive sync verifier to accelerate block sync
 
-Replace the partner-chains `AuraVerifier` import queue with an `AdaptiveVerifier` that skips the expensive Postgres-backed `check_inherents` for blocks far from the chain tip (>1000 slots behind). Full inherent verification resumes automatically when near the tip. Additional optimizations: parallelized inherent data queries via `futures::join!`, increased DB pool sizes (5 to 20), and batched `flush_storage()` every 1000 blocks.
+Replace the partner-chains `AuraVerifier` import queue with an `AdaptiveVerifier` that skips the expensive Postgres-backed `check_inherents` for blocks far from the chain tip (>1000 slots behind). Full inherent verification resumes automatically when near the tip. Additional optimizations: parallelized inherent data queries via `futures::join!` and increased DB pool sizes (5 to 20).
 
 ## What `check_inherents` validates (the expensive part we skip)
 
@@ -72,6 +72,5 @@ For finalized blocks (blocks far from the tip), `check_inherents` is redundant b
 | **AdaptiveVerifier** | `node/src/service.rs` | Skips `check_inherents` during sync, full verification near tip |
 | **Parallelized inherent data queries** | `node/src/inherent_data.rs` | 4-5 independent Postgres queries in `ProposalCIDP` and `VerifierCIDP` run concurrently via `futures::join!` instead of sequentially |
 | **Increased Postgres pool sizes** | `node/src/main_chain_follower.rs` | All connection pools increased from 5 to 20 to support parallel queries without contention |
-| **Batched ledger flush** | `pallets/midnight/src/lib.rs` | `flush_storage()` runs every 1000 blocks instead of every block, reducing ParityDB I/O during sync |
 
 PR: https://github.com/midnightntwrk/midnight-node/pull/696
