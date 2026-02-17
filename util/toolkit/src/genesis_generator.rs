@@ -221,6 +221,16 @@ impl GenesisGenerator {
 			println!("cNight System Tx applied: {:?}", system_tx);
 		}
 
+		// Ensure the genesis block always contains at least one transaction so that the
+		// block context (which carries the genesis timestamp) is included in the output.
+		// Without this, the chain spec builder cannot derive the Timestamp extrinsic.
+		if self.txs.is_empty() {
+			println!(
+				"No genesis transactions - emitting SetLedgerParameters to carry block context"
+			);
+			self.set_parameters((*self.state.parameters).clone(), &genesis_block_context)?;
+		}
+
 		let block_limits = self.state.parameters.limits.block_limits;
 		let normalized_fullness =
 			clamp_and_normalize(&self.fullness, &block_limits, "genesis_generator");

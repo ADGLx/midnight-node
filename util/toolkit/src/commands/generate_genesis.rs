@@ -13,8 +13,23 @@ use midnight_node_ledger_helpers::{
 
 #[derive(Deserialize)]
 pub struct CNightGeneratesDustConfig {
-	#[serde(with = "hex")]
-	system_tx: Vec<u8>,
+	#[serde(default, with = "hex_option")]
+	system_tx: Option<Vec<u8>>,
+}
+
+mod hex_option {
+	use serde::Deserializer;
+
+	pub fn deserialize<'de, D>(deserializer: D) -> Result<Option<Vec<u8>>, D::Error>
+	where
+		D: Deserializer<'de>,
+	{
+		let opt: Option<String> = serde::Deserialize::deserialize(deserializer)?;
+		match opt {
+			None => Ok(None),
+			Some(s) => hex::decode(&s).map(Some).map_err(serde::de::Error::custom),
+		}
+	}
 }
 
 #[derive(Deserialize)]
@@ -104,7 +119,13 @@ pub async fn execute(
 	let cnight_system_tx: Option<SystemTransaction> = {
 		let json_str = std::fs::read_to_string(&args.cnight_generates_dust_config)?;
 		let config: CNightGeneratesDustConfig = serde_json::from_str(&json_str)?;
-		Some(tagged_deserialize(&mut &config.system_tx[..])?)
+		match config.system_tx {
+			Some(bytes) => Some(tagged_deserialize(&mut &bytes[..])?),
+			None => {
+				println!("No cNight system_tx in config - skipping");
+				None
+			},
+		}
 	};
 
 	// Parse and validate the ICS config
