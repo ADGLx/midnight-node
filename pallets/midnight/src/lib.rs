@@ -310,8 +310,12 @@ pub mod pallet {
 				state_root.to_vec().try_into().expect("State key size out of boundaries");
 			StateKey::<T>::put(new_state_key);
 
-			// Flush ledger storage changes to disk
-			LedgerApi::flush_storage();
+			// Batch flush: only flush every 1000 blocks to reduce I/O during sync.
+			// On crash, at most 1000 blocks of ledger state need re-sync.
+			let block_num: u32 = _block.unique_saturated_into();
+			if block_num % 1000 == 0 {
+				LedgerApi::flush_storage();
+			}
 		}
 
 		#[cfg(hardfork_test)]

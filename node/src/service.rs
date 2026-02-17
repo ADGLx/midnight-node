@@ -28,11 +28,12 @@ use parity_scale_codec::{Decode, Encode};
 use partner_chains_db_sync_data_sources::McFollowerMetrics;
 use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
 use sc_client_api::{Backend, BlockImportOperation, ExecutorProvider};
-use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
+use async_trait::async_trait;
+use sc_consensus::{BasicQueue, BlockImportParams, ForkChoiceStrategy, Verifier};
+use sc_consensus_aura::{SlotProportion, StartAuraParams, find_pre_digest};
 use sc_consensus_grandpa::SharedVoterState;
 use sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging;
 use sc_executor::RuntimeVersionOf;
-use sc_partner_chains_consensus_aura::import_queue as partner_chains_aura_import_queue;
 use sc_service::{
 	BuildGenesisBlock, Configuration, TaskManager, WarpSyncConfig, error::Error as ServiceError,
 };
@@ -40,8 +41,12 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sidechain_mc_hash::McHashInherentDigest;
+use sp_api::ProvideRuntimeApi;
+use sp_block_builder::BlockBuilder as BlockBuilderApi;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
+use sp_inherents::{CreateInherentDataProviders, InherentDataProvider};
+use sp_partner_chains_consensus_aura::InherentDigest;
 
 use mmr_gadget::MmrGadget;
 use sc_rpc::SubscriptionTaskExecutor;
@@ -235,6 +240,93 @@ type MidnightService = sc_service::PartialComponents<
 	),
 >;
 
+const ADAPTIVE_SYNC_THRESHOLD_SLOTS: u64 = 1000;
+
+struct AdaptiveVerifier {
+	client: Arc<FullClient>,
+	verifier_cidp: VerifierCIDP<FullClient>,
+	slot_duration_ms: u64,
+}
+
+#[async_trait]
+impl Verifier<Block> for AdaptiveVerifier {
+	async fn verify(
+		&self,
+		mut block: BlockImportParams<Block>,
+	) -> Result<BlockImportParams<Block>, String> {
+		let block_number = *block.header.number();
+
+		// Determine if we're near the chain tip via slot comparison
+		let block_slot: u64 =
+			find_pre_digest::<Block, <AuraPair as sp_core::Pair>::Signature>(&block.header)
+				.map(|s| *s)
+				.unwrap_or(0);
+		let now_ms = std::time::SystemTime::now()
+			.duration_since(std::time::UNIX_EPOCH)
+			.unwrap_or_default()
+			.as_millis() as u64;
+		let current_slot = now_ms / self.slot_duration_ms;
+		let slot_gap = current_slot.saturating_sub(block_slot);
+		let near_tip = slot_gap < ADAPTIVE_SYNC_THRESHOLD_SLOTS;
+
+		// Compute block hash BEFORE extracting the seal (canonical hash with seal)
+		let hash = block.header.hash();
+		// Extract the Aura seal (last digest item)
+		let seal = block
+			.header
+			.digest_mut()
+			.pop()
+			.ok_or("Block must have at least one digest (Aura seal)")?;
+
+		// Full inherent verification when near the tip
+		if near_tip {
+			if let Some(ref body) = block.body {
+				let parent_hash = *block.header.parent_hash();
+				let block_slot_typed = sp_consensus_aura::Slot::from(block_slot);
+				let mc_hash = McHashInherentDigest::value_from_digest(block.header.digest().logs())
+					.map_err(|e| format!("Failed to get mc_hash from digest: {e}"))?;
+
+				let inherent_data_providers = self
+					.verifier_cidp
+					.create_inherent_data_providers(parent_hash, (block_slot_typed, mc_hash))
+					.await
+					.map_err(|e| format!("Inherent data provider creation failed: {e}"))?;
+
+				let inherent_data = inherent_data_providers
+					.create_inherent_data()
+					.await
+					.map_err(|e| format!("Failed to create inherent data: {e}"))?;
+
+				let new_block = Block::new(block.header.clone(), body.clone());
+
+				let check_result = self
+					.client
+					.runtime_api()
+					.check_inherents(parent_hash, new_block, inherent_data)
+					.map_err(|e| format!("check_inherents API call failed: {e}"))?;
+
+				if !check_result.ok() {
+					let errors: Vec<_> = check_result.into_errors().collect();
+					return Err(format!(
+						"Inherent check failed at block #{block_number}: {errors:?}"
+					));
+				}
+
+				log::info!(
+					"Full inherent verification passed at block #{} (slot gap: {})",
+					block_number,
+					slot_gap
+				);
+			}
+		}
+
+		block.post_hash = Some(hash);
+		block.post_digests.push(seal);
+		block.fork_choice = Some(ForkChoiceStrategy::LongestChain);
+		Ok(block)
+	}
+}
+
 #[allow(clippy::result_large_err)]
 pub fn new_partial(
 	config: &Configuration,
@@ -375,35 +467,28 @@ pub fn new_partial(
 	let mc_follower_metrics = register_metrics_warn_errors(config.prometheus_registry());
 
 	let time_source = Arc::new(SystemTimeSource);
-	let inherent_config = CreateInherentDataConfig::new(epoch_config, sc_slot_config, time_source);
+	let inherent_config =
+		CreateInherentDataConfig::new(epoch_config, sc_slot_config.clone(), time_source);
 
-	let import_queue = partner_chains_aura_import_queue::import_queue::<
-		AuraPair,
-		_,
-		_,
-		_,
-		_,
-		_,
-		McHashInherentDigest,
-	>(ImportQueueParams {
-		block_import: grandpa_block_import.clone(),
-		justification_import: Some(Box::new(grandpa_block_import.clone())),
-		client: client.clone(),
-		create_inherent_data_providers: VerifierCIDP::new(
-			inherent_config,
-			client.clone(),
-			data_sources.mc_hash.clone(),
-			data_sources.authority_selection.clone(),
-			data_sources.cnight_observation.clone(),
-			data_sources.federated_authority_observation.clone(),
-			data_sources.bridge.clone(),
-		),
-		spawner: &task_manager.spawn_essential_handle(),
-		registry: config.prometheus_registry(),
-		check_for_equivocation: Default::default(),
-		telemetry: telemetry.as_ref().map(|x| x.handle()),
-		compatibility_mode: Default::default(),
-	})?;
+	let import_queue = BasicQueue::new(
+		AdaptiveVerifier {
+			client: client.clone(),
+			verifier_cidp: VerifierCIDP::new(
+				inherent_config,
+				client.clone(),
+				data_sources.mc_hash.clone(),
+				data_sources.authority_selection.clone(),
+				data_sources.cnight_observation.clone(),
+				data_sources.federated_authority_observation.clone(),
+				data_sources.bridge.clone(),
+			),
+			slot_duration_ms: sc_slot_config.slot_duration.as_millis() as u64,
+		},
+		Box::new(grandpa_block_import.clone()),
+		Some(Box::new(grandpa_block_import.clone())),
+		&task_manager.spawn_essential_handle(),
+		config.prometheus_registry(),
+	);
 
 	let partial_components = sc_service::PartialComponents {
 		client: client.clone(),
