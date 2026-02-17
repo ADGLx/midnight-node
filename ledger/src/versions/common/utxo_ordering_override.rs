@@ -24,10 +24,6 @@ use crate::common::types::{Hash, UtxoInfo};
 
 use super::LOG_TARGET;
 
-const PREVIEW_JSON: &str = include_str!("../../../res/utxo-ordering-override-preview.json");
-const PREPROD_JSON: &str = include_str!("../../../res/utxo-ordering-override-preprod.json");
-const QANET_JSON: &str = include_str!("../../../res/utxo-ordering-override-qanet.json");
-
 static NETWORK_ID: OnceLock<String> = OnceLock::new();
 static OVERRIDES: OnceLock<HashMap<Hash, UtxoOrdering>> = OnceLock::new();
 
@@ -71,14 +67,23 @@ fn parse_entry(entry: &UtxoEntry) -> (Hash, u32) {
 
 fn load_overrides() -> HashMap<Hash, UtxoOrdering> {
 	let network_id = NETWORK_ID.get().map(|s| s.as_str()).unwrap_or("");
-	let json = match network_id {
-		"preview" => PREVIEW_JSON,
-		"preprod" => PREPROD_JSON,
-		"qanet" => QANET_JSON,
+	let filename = match network_id {
+		"preview" | "preprod" | "qanet" => format!("res/utxo-ordering-override-{network_id}.json"),
 		_ => return HashMap::new(),
 	};
 
-	let entries: Vec<TxOverride> = match serde_json::from_str(json) {
+	let json = match std::fs::read_to_string(&filename) {
+		Ok(json) => json,
+		Err(e) => {
+			log::warn!(
+				target: LOG_TARGET,
+				"No UTXO ordering overrides for {network_id} (tried {filename}): {e}"
+			);
+			return HashMap::new();
+		},
+	};
+
+	let entries: Vec<TxOverride> = match serde_json::from_str(&json) {
 		Ok(entries) => entries,
 		Err(e) => {
 			log::error!(
