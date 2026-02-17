@@ -203,7 +203,7 @@ pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error 
 		Commands::Version => {
 			let node_version = utils::find_crate_version!("../../../node/Cargo.toml");
 			let ledger_version =
-				find_dependency_version("mn-ledger").expect("missing ledger version");
+				find_dependency_version("mn-ledger-8").expect("missing ledger version");
 			let compactc_version = include_str!("../../../COMPACTC_VERSION").trim();
 
 			println!(

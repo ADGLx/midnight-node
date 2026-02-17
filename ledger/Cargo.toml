@@ -5,32 +5,14 @@ edition = "2024"
 license-file.workspace = true
 
 [dependencies]
-mn-ledger = { workspace = true, features = ["proving"], optional = true }
-base-crypto = { workspace = true, optional = true }
-coin-structure = { workspace = true, optional = true }
-onchain-runtime = { workspace = true, optional = true }
-midnight-serialize = { workspace = true, optional = true }
-ledger-storage = { workspace = true, optional = true }
-transient-crypto = { workspace = true, optional = true }
-zswap = { workspace = true, optional = true }
-
 mn-ledger-8 = { workspace = true, features = ["proving"], optional = true }
-# base-crypto-ledger-8 // same as base-crypto
+base-crypto = { workspace = true, optional = true }
 coin-structure-ledger-8 = { workspace = true, optional = true }
 onchain-runtime-ledger-8 = { workspace = true, optional = true }
-# midnight-serialize-ledger-8 // same as midnight-serialize
+midnight-serialize = { workspace = true, optional = true }
 ledger-storage-ledger-8 = { workspace = true, optional = true }
 transient-crypto-ledger-8 = { workspace = true, optional = true }
 zswap-ledger-8 = { workspace = true, optional = true }
-
-mn-ledger-hf = { workspace = true, features = ["proving"], optional = true }
-# base-crypto-hf = { workspace = true, optional = true }
-coin-structure-hf = { workspace = true, optional = true }
-onchain-runtime-hf = { workspace = true, optional = true }
-# midnight-serialize-hf = { workspace = true, optional = true }
-ledger-storage-hf = { workspace = true, optional = true }
-transient-crypto-hf = { workspace = true, optional = true }
-zswap-hf = { workspace = true, optional = true }
 
 sp-runtime-interface.workspace = true
 sp-runtime.workspace = true
@@ -75,27 +57,11 @@ std = [
     "log",
     "lazy_static",
     "moka",
-    "mn-ledger",
-    "base-crypto",
-    "coin-structure",
-    "onchain-runtime",
-    "midnight-serialize",
-    "ledger-storage",
-    "transient-crypto",
-    "zswap",
-    "mn-ledger-hf",
-    # "base-crypto-hf",
-    "coin-structure-hf",
-    "onchain-runtime-hf",
-    # "midnight-serialize-hf",
-    "ledger-storage-hf",
-    "transient-crypto-hf",
-    "zswap-hf",
     "mn-ledger-8",
-    # "base-crypto-ledger-8",
+    "base-crypto",
     "coin-structure-ledger-8",
     "onchain-runtime-ledger-8",
-    # "midnight-serialize-ledger-8",
+    "midnight-serialize",
     "ledger-storage-ledger-8",
     "transient-crypto-ledger-8",
     "zswap-ledger-8",

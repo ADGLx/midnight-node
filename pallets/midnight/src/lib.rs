@@ -97,11 +97,7 @@ pub mod pallet {
 		}
 	}
 
-	#[cfg(not(hardfork_test))]
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
-
-	#[cfg(hardfork_test)]
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(100);
 
 	// Manually add ~1% of block weight
 	pub const EXTRA_WEIGHT_TX_SIZE: Weight = Weight::from_parts(20_000_000_000, 0);
@@ -342,18 +338,6 @@ pub mod pallet {
 
 			// Flush ledger storage changes to disk
 			LedgerApi::flush_storage();
-		}
-
-		#[cfg(hardfork_test)]
-		fn on_runtime_upgrade() -> Weight {
-			// Ensure ledger storage is initialized for current runtime version.
-			// Storage initialization is also handled in on_initialize for rollback-safety.
-			let reinitialized = LedgerApi::ensure_storage_initialized();
-			if reinitialized {
-				log::info!("Ledger storage (re)initialized");
-			}
-
-			ConfigurableOnRuntimeUpgradeWeight::<T>::get()
 		}
 	}
 

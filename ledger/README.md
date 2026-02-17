@@ -1,6 +1,9 @@
-# Ledger - Conditional compilation
+# Ledger
 
-Compiling the ledger using the `HARDFORK_TEST` environment variable will change public exports to use the `hardfork_test` version of the ledger. The exports that are affected are:
+The ledger crate provides host functions for the Node runtime using module-parameterization
+to support different versions of the ledger crate.
+
+The public exports are:
 
 ```
 midnight_node_ledger::types::active_version

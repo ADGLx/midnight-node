@@ -62,26 +62,17 @@ pub struct StorageInit {
 	pub cache_size: usize,
 }
 
-/// Initialize Ledger Storage based on the RuntimeVersion
+/// Initialize Ledger Storage
 fn init_ledger_storage<P: AsRef<Path>>(
 	parity_db_path: P,
 	storage_config: &StorageInit,
-	runtime_version: sp_version::RuntimeVersion,
+	_runtime_version: sp_version::RuntimeVersion,
 ) {
-	#[allow(clippy::zero_prefixed_literal)]
-	if runtime_version.spec_version < 000_022_000 {
-		midnight_node_ledger::ledger_7::storage::init_storage_paritydb(
-			parity_db_path.as_ref(),
-			&storage_config.genesis_state,
-			storage_config.cache_size,
-		);
-	} else {
-		midnight_node_ledger::ledger_8::storage::init_storage_paritydb(
-			&parity_db_path,
-			&storage_config.genesis_state,
-			storage_config.cache_size,
-		);
-	}
+	midnight_node_ledger::ledger_8::storage::init_storage_paritydb(
+		&parity_db_path,
+		&storage_config.genesis_state,
+		storage_config.cache_size,
+	);
 }
 
 /// Based on `sc_chain_spec::resolve_state_version_from_wasm`, but returns the full
@@ -213,17 +204,13 @@ pub fn construct_genesis_block<Block: BlockT>(
 pub type HostFunctions = (
 	sp_io::SubstrateHostFunctions,
 	frame_benchmarking::benchmarking::HostFunctions,
-	midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
 	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
-	midnight_node_ledger::host_api::ledger_hf::ledger_bridge_hf::HostFunctions,
 );
 /// Otherwise we only use the default Substrate host functions.
 #[cfg(not(feature = "runtime-benchmarks"))]
 pub type HostFunctions = (
 	sp_io::SubstrateHostFunctions,
-	midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
 	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
-	midnight_node_ledger::host_api::ledger_hf::ledger_bridge_hf::HostFunctions,
 );
 
 /// A specialized `WasmExecutor` intended to use across the substrate node. It provides all the

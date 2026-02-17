@@ -11,8 +11,6 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-hardfork-test = []
-hardfork-test-rollback = []
 erase-proof = ["midnight-node-ledger-helpers/erase-proof"]
 
 [dependencies]
