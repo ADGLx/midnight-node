@@ -1,7 +1,21 @@
 #performance #sync
 # Adaptive sync verifier to accelerate block sync
 
-Replace the partner-chains `AuraVerifier` import queue with an `AdaptiveVerifier` that skips the expensive Postgres-backed `check_inherents` for blocks far from the chain tip (>1000 slots behind). Full inherent verification resumes automatically when near the tip. Additional optimizations: parallelized inherent data queries via `futures::join!` and increased DB pool sizes (5 to 20).
+Replace the partner-chains `AuraVerifier` import queue with an `AdaptiveVerifier` that, when enabled via `BUCKEL_UP=true`, skips the expensive Postgres-backed `check_inherents` while the node is catching up. Full inherent verification resumes automatically once the node is synced. Disabled by default -- operators must opt in. Additional optimizations: parallelized inherent data queries via `futures::join!` and increased DB pool sizes (5 to 20).
+
+## How "catching up" is determined
+
+The chain produces blocks in fixed 6-second time slots. Every slot corresponds to a specific moment in real time, so your machine's system clock (`SystemTime::now()`) can calculate what slot number the chain *should* be on right now:
+
+```
+current_slot = milliseconds_since_unix_epoch / 6000
+```
+
+The verifier compares the **best block's slot** (the most recent block your node has imported) against the **current slot** (derived from the system clock). If your best block is more than 1000 slots (~100 minutes) behind, the node is considered "catching up" and inherent checks are skipped for speed.
+
+Once your best block is within 1000 slots of the current time, the node is considered synced and **every** imported block gets full verification -- including old blocks from forks or reorgs.
+
+This is a node-level check ("is my node behind?"), not a per-block check. This means an attacker cannot bypass verification by sending blocks with old slot numbers once the node is caught up.
 
 ## What `check_inherents` validates (the expensive part we skip)
 
@@ -47,12 +61,14 @@ For finalized blocks (blocks far from the tip), `check_inherents` is redundant b
 
 ## What could theoretically go wrong
 
-- **Long-range fork attack**: A malicious peer sends us blocks on a fake fork that was never finalized. We would import them without inherent checks. However:
+- **Long-range fork attack**: A malicious peer sends us blocks on a fake fork that was never finalized. We would import them without inherent checks only while the node is catching up. Once the best block is near wall clock, all blocks (including old forks/reorgs in the unfinalized region) get full verification. Additionally:
   - GRANDPA will not finalize them (no justifications from 2/3+ validators)
   - `execute_block` still validates internal consistency
   - `ForkChoiceStrategy::LongestChain` means we will switch to the real chain when we see it
 
 - **Corrupted db-sync**: If our Postgres has wrong data, we will only discover it when we get close to the tip and `check_inherents` starts running. This is acceptable since the blocks we synced are already finalized by the network.
+
+- **Disabled by default**: The adaptive sync is behind the `BUCKEL_UP=true` environment variable. Without it, every block gets full inherent verification.
 
 ## Protection summary
 
@@ -63,13 +79,13 @@ For finalized blocks (blocks far from the tip), `check_inherents` is redundant b
 | State root verification | Yes | -- |
 | Mandatory inherent presence | Yes | -- |
 | GRANDPA finalization | Yes | -- |
-| `check_inherents` (Postgres comparison) | -- | Yes (resumes within 1000 slots of tip) |
+| `check_inherents` (Postgres comparison) | -- | Yes, when `BUCKEL_UP=true` (resumes once best block is within 1000 slots of wall clock) |
 
 ## All optimizations
 
 | Optimization | File | Description |
 |---|---|---|
-| **AdaptiveVerifier** | `node/src/service.rs` | Skips `check_inherents` during sync, full verification near tip |
+| **AdaptiveVerifier** | `node/src/service.rs` | Behind `BUCKEL_UP=true`. Checks if the node is syncing (best block vs wall clock). Skips `check_inherents` while catching up, full verification once synced |
 | **Parallelized inherent data queries** | `node/src/inherent_data.rs` | 4-5 independent Postgres queries in `ProposalCIDP` and `VerifierCIDP` run concurrently via `futures::join!` instead of sequentially |
 | **Increased Postgres pool sizes** | `node/src/main_chain_follower.rs` | All connection pools increased from 5 to 20 to support parallel queries without contention |
 
