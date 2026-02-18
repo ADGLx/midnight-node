@@ -312,11 +312,11 @@ impl Verifier<Block> for AdaptiveVerifier {
 					));
 				}
 
-				log::info!(
-					"Full inherent verification passed at block #{} (slot gap: {})",
-					block_number,
-					slot_gap
-				);
+				if slot_gap > 10 && block_number % 20 == 0 {
+					log::info!(
+						"Inherent verification OK at block #{block_number} (slot gap: {slot_gap})"
+					);
+				}
 			}
 		}
 
