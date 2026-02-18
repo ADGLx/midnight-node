@@ -218,6 +218,8 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			});
 
 		//For litep2p use `sc_network::Litep2pNetworkBackend<_, _>``
+		let buckel_up = cfg.midnight_cfg.buckel_up;
+
 		service::new_full::<sc_network::NetworkWorker<_, _>>(
 			config,
 			epoch_config,
@@ -225,6 +227,7 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			cfg.storage_monitor_params_cfg.into(),
 			storage_config,
 			metrics_push_config,
+			buckel_up,
 		)
 		.await
 		.map_err(sc_cli::Error::Service)
@@ -251,7 +254,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 				)?;
 				let PartialComponents { client, task_manager, other, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(&config, epoch_config, data_sources, storage_config, false)?;
 				Ok((client, task_manager, other.5.authority_selection))
 			};
 
@@ -275,7 +278,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 				)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(&config, epoch_config, data_sources, storage_config, false)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
@@ -289,7 +292,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 				)?;
 				let PartialComponents { client, task_manager, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(&config, epoch_config, data_sources, storage_config, false)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
 		},
@@ -303,7 +306,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 				)?;
 				let PartialComponents { client, task_manager, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(&config, epoch_config, data_sources, storage_config, false)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
 		},
@@ -317,7 +320,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 				)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(&config, epoch_config, data_sources, storage_config, false)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
 		},
@@ -335,7 +338,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 				)?;
 				let PartialComponents { client, task_manager, backend, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
+					service::new_partial(&config, epoch_config, data_sources, storage_config, false)?;
 				let aux_revert = Box::new(|client, _, blocks| {
 					sc_consensus_grandpa::revert(client, blocks)?;
 					Ok(())
@@ -376,6 +379,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
                             epoch_config,
                             data_sources,
                             storage_config,
+                            false,
                         )?;
 
 						cmd.run(partial.client)
@@ -400,6 +404,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
                             epoch_config,
                             data_sources,
                             storage_config,
+                            false,
                         )?;
 						let db = partial.backend.expose_db();
 						let storage = partial.backend.expose_storage();
@@ -419,6 +424,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
                             epoch_config,
                             data_sources,
                             storage_config,
+                            false,
                         )?;
 						let ext_builder = RemarkBuilder::new(partial.client.clone());
 
@@ -444,6 +450,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
                             epoch_config,
                             data_sources,
                             storage_config,
+                            false,
                         )?;
 						// Register the *Remark* and *TKA* builders.
 						let ext_factory = ExtrinsicFactory(vec![

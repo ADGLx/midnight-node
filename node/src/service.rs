@@ -246,6 +246,8 @@ struct AdaptiveVerifier {
 	client: Arc<FullClient>,
 	verifier_cidp: VerifierCIDP<FullClient>,
 	slot_duration_ms: u64,
+	adaptive_sync_threshold: u64,
+	buckel_up: bool,
 }
 
 #[async_trait]
@@ -256,9 +258,23 @@ impl Verifier<Block> for AdaptiveVerifier {
 	) -> Result<BlockImportParams<Block>, String> {
 		let block_number = *block.header.number();
 
-		// Determine if we're near the chain tip via slot comparison
+		// Extract the block's slot (needed for inherent data providers)
 		let block_slot: u64 =
 			find_pre_digest::<Block, <AuraPair as sp_core::Pair>::Signature>(&block.header)
+				.map(|s| *s)
+				.unwrap_or(0);
+
+		// Determine if we're syncing by comparing best block's slot to wall clock.
+		// This avoids the per-block check which could skip verification for old blocks
+		// on forks even when the node is caught up.
+		let best_hash = self.client.chain_info().best_hash;
+		let best_header = self
+			.client
+			.header(best_hash)
+			.map_err(|e| format!("Failed to get best block header: {e}"))?
+			.ok_or("Best block header not found")?;
+		let best_slot: u64 =
+			find_pre_digest::<Block, <AuraPair as sp_core::Pair>::Signature>(&best_header)
 				.map(|s| *s)
 				.unwrap_or(0);
 		let now_ms = std::time::SystemTime::now()
@@ -266,8 +282,8 @@ impl Verifier<Block> for AdaptiveVerifier {
 			.unwrap_or_default()
 			.as_millis() as u64;
 		let current_slot = now_ms / self.slot_duration_ms;
-		let slot_gap = current_slot.saturating_sub(block_slot);
-		let near_tip = slot_gap < ADAPTIVE_SYNC_THRESHOLD_SLOTS;
+		let sync_gap = current_slot.saturating_sub(best_slot);
+		let syncing = sync_gap > self.adaptive_sync_threshold;
 
 		// Compute block hash BEFORE extracting the seal (canonical hash with seal)
 		let hash = block.header.hash();
@@ -278,8 +294,9 @@ impl Verifier<Block> for AdaptiveVerifier {
 			.pop()
 			.ok_or("Block must have at least one digest (Aura seal)")?;
 
-		// Full inherent verification when near the tip
-		if near_tip {
+		// Skip inherent verification only while the node is catching up.
+		// Once the best block is near wall clock, verify everything.
+		if !syncing {
 			if let Some(ref body) = block.body {
 				let parent_hash = *block.header.parent_hash();
 				let block_slot_typed = sp_consensus_aura::Slot::from(block_slot);
@@ -312,10 +329,13 @@ impl Verifier<Block> for AdaptiveVerifier {
 					));
 				}
 
-				if slot_gap > 10 && block_number % 20 == 0 {
-					log::info!(
-						"Inherent verification OK at block #{block_number} (slot gap: {slot_gap})"
-					);
+				if self.buckel_up {
+					let block_slot_gap = current_slot.saturating_sub(block_slot);
+					if block_slot_gap > 10 && block_number % 20 == 0 {
+						log::info!(
+							"Inherent verification OK at block #{block_number} (slot gap: {block_slot_gap})"
+						);
+					}
 				}
 			}
 		}
@@ -333,6 +353,7 @@ pub fn new_partial(
 	epoch_config: MainchainEpochConfig,
 	data_sources: DataSources,
 	storage_config: StorageInit,
+	buckel_up: bool,
 ) -> Result<MidnightService, ServiceError> {
 	let _mc_follower_metrics = register_metrics_warn_errors(config.prometheus_registry());
 
@@ -470,6 +491,18 @@ pub fn new_partial(
 	let inherent_config =
 		CreateInherentDataConfig::new(epoch_config, sc_slot_config.clone(), time_source);
 
+	let adaptive_sync_threshold = if buckel_up {
+		log::info!(
+			"Adaptive sync activated. Inherent checks will be skipped while the node is catching \
+			 up (best block more than {} slots behind wall clock). Once caught up, all blocks are \
+			 fully verified.",
+			ADAPTIVE_SYNC_THRESHOLD_SLOTS
+		);
+		ADAPTIVE_SYNC_THRESHOLD_SLOTS
+	} else {
+		u64::MAX
+	};
+
 	let import_queue = BasicQueue::new(
 		AdaptiveVerifier {
 			client: client.clone(),
@@ -483,6 +516,8 @@ pub fn new_partial(
 				data_sources.bridge.clone(),
 			),
 			slot_duration_ms: sc_slot_config.slot_duration.as_millis() as u64,
+			adaptive_sync_threshold,
+			buckel_up,
 		},
 		Box::new(grandpa_block_import.clone()),
 		Some(Box::new(grandpa_block_import.clone())),
@@ -520,10 +555,11 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	storage_monitor_params: sc_storage_monitor::StorageMonitorParams,
 	storage_config: StorageInit,
 	metrics_push_config: Option<MetricsPushConfig>,
+	buckel_up: bool,
 ) -> Result<TaskManager, ServiceError> {
 	let database_source = config.database.clone();
 	let new_partial_components =
-		new_partial(&config, epoch_config.clone(), data_sources.clone(), storage_config)?;
+		new_partial(&config, epoch_config.clone(), data_sources.clone(), storage_config, buckel_up)?;
 
 	let sc_service::PartialComponents {
 		client,
