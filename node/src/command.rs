@@ -36,6 +36,8 @@ use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sp_core::{ByteArray, Pair, offchain::KeyTypeId};
 use sp_keystore::KeystorePtr;
 
+use crate::cfg::midnight_cfg::MidnightCfg;
+
 #[cfg(feature = "runtime-benchmarks")]
 use {
 	crate::benchmarking::{RemarkBuilder, inherent_benchmark_data},
@@ -111,6 +113,75 @@ fn get_cfg(validate: bool) -> sc_cli::Result<Cfg> {
 	Ok(cfg)
 }
 
+/// Validated seed data ready for keystore insert. Each optional field is present only when the
+/// corresponding config URI was set and resolved to a valid keypair.
+struct ValidatedSeeds {
+	aura: Option<(String, sp_core::sr25519::Pair)>,
+	grandpa: Option<(String, sp_core::ed25519::Pair)>,
+	cross_chain: Option<(String, sp_core::ecdsa::Pair)>,
+}
+
+impl std::fmt::Debug for ValidatedSeeds {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.debug_struct("ValidatedSeeds")
+			.field("aura", &self.aura.is_some())
+			.field("grandpa", &self.grandpa.is_some())
+			.field("cross_chain", &self.cross_chain.is_some())
+			.finish()
+	}
+}
+
+/// Validates all configured seed URIs (aura, grandpa, cross_chain). Resolves each URI to a seed,
+/// parses it as the appropriate key type, and returns validated data or a combined error listing
+/// every invalid seed by name. Config values may come from config file or environment variables.
+fn validate_and_prepare_seeds(midnight_cfg: &MidnightCfg) -> sc_cli::Result<ValidatedSeeds> {
+	let mut errors: Vec<(String, String)> = Vec::new();
+	let mut aura = None;
+	let mut grandpa = None;
+	let mut cross_chain = None;
+
+	if let Some(uri) = &midnight_cfg.aura_seed_file {
+		match crate::secret_provider::fetch_secret_blocking(uri) {
+			Ok(seed) => match sp_core::sr25519::Pair::from_string_with_seed(seed.trim(), None) {
+				Ok((keypair, _)) => aura = Some((seed.trim().to_string(), keypair)),
+				Err(e) => errors.push(("AURA".into(), format!("invalid seed (not a valid sr25519 phrase/hex): {e}"))),
+			},
+			Err(e) => errors.push(("AURA".into(), format!("failed to load secret: {e}"))),
+		}
+	}
+	if let Some(uri) = &midnight_cfg.grandpa_seed_file {
+		match crate::secret_provider::fetch_secret_blocking(uri) {
+			Ok(seed) => match sp_core::ed25519::Pair::from_string_with_seed(seed.trim(), None) {
+				Ok((keypair, _)) => grandpa = Some((seed.trim().to_string(), keypair)),
+				Err(e) => errors.push(("GRANDPA".into(), format!("invalid seed (not a valid ed25519 phrase/hex): {e}"))),
+			},
+			Err(e) => errors.push(("GRANDPA".into(), format!("failed to load secret: {e}"))),
+		}
+	}
+	if let Some(uri) = &midnight_cfg.cross_chain_seed_file {
+		match crate::secret_provider::fetch_secret_blocking(uri) {
+			Ok(seed) => match sp_core::ecdsa::Pair::from_string_with_seed(seed.trim(), None) {
+				Ok((keypair, _)) => cross_chain = Some((seed.trim().to_string(), keypair)),
+				Err(e) => errors.push(("CROSS_CHAIN".into(), format!("invalid seed (not a valid ecdsa phrase/hex): {e}"))),
+			},
+			Err(e) => errors.push(("CROSS_CHAIN".into(), format!("failed to load secret: {e}"))),
+		}
+	}
+
+	if errors.is_empty() {
+		Ok(ValidatedSeeds { aura, grandpa, cross_chain })
+	} else {
+		let msg = errors
+			.iter()
+			.map(|(name, err)| format!("  - {name}: {err}"))
+			.collect::<Vec<_>>()
+			.join("\n");
+		Err(sc_cli::Error::Input(format!(
+			"Invalid seed configuration. The following seed(s) are invalid or could not be loaded:\n{msg}"
+		)))
+	}
+}
+
 fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	let run_cmd: RunCmd = cfg.substrate_cfg.clone().try_into()?;
 	if cfg.midnight_cfg.wipe_chain_state
@@ -144,46 +215,24 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		}
 	};
 
-	if let Some(seed_uri) = &cfg.midnight_cfg.aura_seed_file {
-		let seed = crate::secret_provider::fetch_secret_blocking(seed_uri).map_err(|e| {
-			sc_cli::Error::Input(format!(
-				"error when reading AURA seed from {seed_uri}. Error: {e}"
-			))
-		})?;
-		let (keypair, _) = sp_core::sr25519::Pair::from_string_with_seed(&seed, None)
-			.map_err(|e| sc_cli::Error::Input(format!("Invalid AURA seed: {e}")))?;
+	let validated = validate_and_prepare_seeds(&cfg.midnight_cfg)?;
+	if let Some((seed, keypair)) = validated.aura {
+		log::info!("AURA pubkey: {}", keypair.public());
 		keystore
 			.insert(KeyTypeId(*b"aura"), &seed, &keypair.public().to_raw_vec())
 			.unwrap();
-		log::info!("AURA pubkey: {}", &keypair.public())
 	}
-
-	if let Some(seed_uri) = &cfg.midnight_cfg.grandpa_seed_file {
-		let seed = crate::secret_provider::fetch_secret_blocking(seed_uri).map_err(|e| {
-			sc_cli::Error::Input(format!(
-				"error when reading GRANDPA seed from {seed_uri}. Error: {e}"
-			))
-		})?;
-		let (keypair, _) = sp_core::ed25519::Pair::from_string_with_seed(&seed, None)
-			.map_err(|e| sc_cli::Error::Input(format!("Invalid GRANDPA seed: {e}")))?;
+	if let Some((seed, keypair)) = validated.grandpa {
+		log::info!("GRANDPA pubkey: {}", keypair.public());
 		keystore
 			.insert(KeyTypeId(*b"gran"), &seed, &keypair.public().to_raw_vec())
 			.unwrap();
-		log::info!("GRANDPA pubkey: {}", &keypair.public())
 	}
-
-	if let Some(seed_uri) = &cfg.midnight_cfg.cross_chain_seed_file {
-		let seed = crate::secret_provider::fetch_secret_blocking(seed_uri).map_err(|e| {
-			sc_cli::Error::Input(format!(
-				"error when reading CROSS_CHAIN seed from {seed_uri}. Error: {e}"
-			))
-		})?;
-		let (keypair, _) = sp_core::ecdsa::Pair::from_string_with_seed(&seed, None)
-			.map_err(|e| sc_cli::Error::Input(format!("Invalid CROSS_CHAIN seed: {e}")))?;
+	if let Some((seed, keypair)) = validated.cross_chain {
+		log::info!("CROSS_CHAIN pubkey: {}", keypair.public());
 		keystore
 			.insert(KeyTypeId(*b"crch"), &seed, &keypair.public().to_raw_vec())
 			.unwrap();
-		log::info!("CROSS_CHAIN pubkey: {}", &keypair.public())
 	}
 
 	runner.run_node_until_exit(|config| async move {
@@ -860,5 +909,128 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				Ok(())
 			})
 		},
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::{validate_and_prepare_seeds, MidnightCfg};
+	use sp_core::{ByteArray, Pair};
+
+	/// Valid sr25519/ed25519/ecdsa phrase used in Substrate tests
+	const VALID_PHRASE: &str = "bottom drive obey lake curtain smoke basket hold race lonely fit walk";
+
+	fn midnight_cfg_with_aura(path: Option<String>) -> MidnightCfg {
+		let mut c = MidnightCfg::default();
+		c.aura_seed_file = path;
+		c
+	}
+
+	fn midnight_cfg_with_all_seeds(aura: Option<String>, grandpa: Option<String>, cross_chain: Option<String>) -> MidnightCfg {
+		let mut c = MidnightCfg::default();
+		c.aura_seed_file = aura;
+		c.grandpa_seed_file = grandpa;
+		c.cross_chain_seed_file = cross_chain;
+		c
+	}
+
+	#[test]
+	fn validate_seeds_valid_aura_succeeds_and_returns_pubkey() {
+		let dir = tempfile::tempdir().unwrap();
+		let path = dir.path().join("aura.seed");
+		std::fs::write(&path, VALID_PHRASE).unwrap();
+		let cfg = midnight_cfg_with_aura(Some(path.to_string_lossy().into_owned()));
+
+		let result = validate_and_prepare_seeds(&cfg);
+		assert!(result.is_ok(), "expected Ok, got {:?}", result.err());
+		let validated = result.unwrap();
+		assert!(validated.aura.is_some());
+		assert!(validated.grandpa.is_none());
+		assert!(validated.cross_chain.is_none());
+		// Pubkey is logged by run_node; we just check we got a keypair
+		let (_, pair) = validated.aura.unwrap();
+		assert!(!pair.public().to_raw_vec().is_empty());
+	}
+
+	#[test]
+	fn validate_seeds_invalid_aura_fails_with_aura_named() {
+		let dir = tempfile::tempdir().unwrap();
+		let path = dir.path().join("aura.seed");
+		std::fs::write(&path, "not a valid seed phrase or hex").unwrap();
+		let cfg = midnight_cfg_with_aura(Some(path.to_string_lossy().into_owned()));
+
+		let result = validate_and_prepare_seeds(&cfg);
+		assert!(result.is_err());
+		let err = result.unwrap_err();
+		let msg = format!("{:?}", err);
+		assert!(msg.contains("AURA"), "error should name AURA: {}", msg);
+		assert!(msg.contains("invalid") || msg.contains("Invalid"), "error should indicate invalid: {}", msg);
+	}
+
+	#[test]
+	fn validate_seeds_multiple_invalid_fails_listing_all() {
+		let dir = tempfile::tempdir().unwrap();
+		let aura_path = dir.path().join("aura.seed");
+		let grandpa_path = dir.path().join("grandpa.seed");
+		std::fs::write(&aura_path, "bad aura").unwrap();
+		std::fs::write(&grandpa_path, "bad grandpa").unwrap();
+		let cfg = midnight_cfg_with_all_seeds(
+			Some(aura_path.to_string_lossy().into_owned()),
+			Some(grandpa_path.to_string_lossy().into_owned()),
+			None,
+		);
+
+		let result = validate_and_prepare_seeds(&cfg);
+		assert!(result.is_err());
+		let err = result.unwrap_err();
+		let msg = format!("{:?}", err);
+		assert!(msg.contains("AURA"), "error should name AURA: {}", msg);
+		assert!(msg.contains("GRANDPA"), "error should name GRANDPA: {}", msg);
+	}
+
+	#[test]
+	fn validate_seeds_valid_all_three_succeeds() {
+		let dir = tempfile::tempdir().unwrap();
+		let aura_path = dir.path().join("aura.seed");
+		let grandpa_path = dir.path().join("grandpa.seed");
+		let cross_path = dir.path().join("cross.seed");
+		std::fs::write(&aura_path, VALID_PHRASE).unwrap();
+		std::fs::write(&grandpa_path, VALID_PHRASE).unwrap();
+		std::fs::write(&cross_path, VALID_PHRASE).unwrap();
+		let cfg = midnight_cfg_with_all_seeds(
+			Some(aura_path.to_string_lossy().into_owned()),
+			Some(grandpa_path.to_string_lossy().into_owned()),
+			Some(cross_path.to_string_lossy().into_owned()),
+		);
+
+		let result = validate_and_prepare_seeds(&cfg);
+		assert!(result.is_ok(), "expected Ok, got {:?}", result.err());
+		let validated = result.unwrap();
+		assert!(validated.aura.is_some());
+		assert!(validated.grandpa.is_some());
+		assert!(validated.cross_chain.is_some());
+	}
+
+	#[test]
+	fn validate_seeds_missing_file_fails_with_named_error() {
+		let cfg = midnight_cfg_with_aura(Some("/nonexistent/path/aura.seed".into()));
+
+		let result = validate_and_prepare_seeds(&cfg);
+		assert!(result.is_err());
+		let err = result.unwrap_err();
+		let msg = format!("{:?}", err);
+		assert!(msg.contains("AURA"), "error should name AURA: {}", msg);
+		assert!(msg.contains("load") || msg.contains("failed") || msg.contains("No such"), "error should mention load/failed: {}", msg);
+	}
+
+	#[test]
+	fn validate_seeds_none_configured_succeeds_empty() {
+		let cfg = MidnightCfg::default();
+		let result = validate_and_prepare_seeds(&cfg);
+		assert!(result.is_ok());
+		let validated = result.unwrap();
+		assert!(validated.aura.is_none());
+		assert!(validated.grandpa.is_none());
+		assert!(validated.cross_chain.is_none());
 	}
 }
