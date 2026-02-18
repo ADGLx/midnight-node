@@ -466,6 +466,11 @@ rebuild-genesis-state-node-dev-01:
     BUILD +rebuild-genesis-state \
         --NETWORK=node-dev-01
 
+# rebuild-genesis-state-perfnet rebuilds the genesis ledger state for perfnet network - this MUST be followed by updating the chainspecs for CI to pass!
+rebuild-genesis-state-perfnet:
+    BUILD +rebuild-genesis-state \
+        --NETWORK=perfnet
+
 # rebuild-genesis-state-qanet rebuilds the genesis ledger state for qanet network - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-genesis-state-qanet:
     BUILD +rebuild-genesis-state \
