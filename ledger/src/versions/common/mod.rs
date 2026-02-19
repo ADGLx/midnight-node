@@ -190,10 +190,17 @@ where
 	}
 
 	pub fn flush_storage(mut externalities: &mut dyn Externalities) {
+		use std::sync::atomic::{AtomicU64, Ordering};
+		static FLUSH_COUNT: AtomicU64 = AtomicU64::new(0);
+
+		let count = FLUSH_COUNT.fetch_add(1, Ordering::Relaxed);
+
 		let now = std::time::Instant::now();
 		default_storage::<D>().with_backend(|backend| {
 			backend.flush_all_changes_to_db();
-			backend.gc();
+			if count % 10_000 == 0 {
+				backend.gc();
+			}
 		});
 		let elapsed = now.elapsed().as_secs_f64();
 
