@@ -201,21 +201,29 @@ where
 			if let TransactionAppliedStage::PartialSuccess(segments) = applied_stage {
 				// Remove from `utxos` the `segments` that failed
 				utxos.remove_failed_segments(&segments);
-				Some(segments.keys().copied().collect())
+				let ids = segments.keys().copied().collect();
+				Some((ids, segments))
 			} else {
 				None
 			};
 
-		let operations =
-			tx.calls_and_deploys(should_skip_failed_segments.then_some(failed_segments).flatten());
+		let operations = tx.calls_and_deploys(
+			should_skip_failed_segments
+				.then_some(failed_segments.as_ref().map(|(ids, _)| ids).cloned())
+				.flatten(),
+		);
 
 		let (utxo_outputs, utxo_inputs) =
 			utxos.check_utxos_response_integrity(initial_utxos_size, &ledger)?;
 
-		// During sync, shuffle segment ordering to probabilistically match historical
-		// blocks produced with non-deterministic HashMap iteration order
+		// During sync, use HashMap iteration order to match historical blocks
+		// produced before the non-determinism fix (BTreeMap migration)
 		let (utxo_outputs, utxo_inputs) = if is_syncing {
-			(utxos.outputs_shuffled(), utxos.inputs_shuffled())
+			let mut legacy_utxos = tx.unshielded_utxos_legacy();
+			if let Some((_, ref segments)) = failed_segments {
+				legacy_utxos.remove_failed_segments(segments);
+			}
+			(legacy_utxos.outputs(), legacy_utxos.inputs())
 		} else {
 			(utxo_outputs, utxo_inputs)
 		};

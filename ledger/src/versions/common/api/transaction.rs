@@ -149,20 +149,6 @@ impl UnshieldedUtxos {
 		self.outputs.values().flat_map(|utxos| utxos.iter()).cloned().collect()
 	}
 
-	pub fn outputs_shuffled(&self) -> Vec<UtxoInfo> {
-		use rand::seq::SliceRandom;
-		let mut segments: Vec<_> = self.outputs.values().collect();
-		segments.shuffle(&mut rand::thread_rng());
-		segments.into_iter().flat_map(|utxos| utxos.iter()).cloned().collect()
-	}
-
-	pub fn inputs_shuffled(&self) -> Vec<UtxoInfo> {
-		use rand::seq::SliceRandom;
-		let mut segments: Vec<_> = self.inputs.values().collect();
-		segments.shuffle(&mut rand::thread_rng());
-		segments.into_iter().flat_map(|utxos| utxos.iter()).cloned().collect()
-	}
-
 	/// Checks the integrity of UTXO events against the final Ledger state.
 	///
 	/// This function verifies that:
@@ -228,6 +214,36 @@ impl UnshieldedUtxos {
 		}
 
 		Ok((utxo_outputs, utxo_inputs))
+	}
+}
+
+/// HashMap-based version of UnshieldedUtxos that replicates the iteration order
+/// from before the BTreeMap determinism fix, used during sync to match historical blocks.
+#[derive(Default, Debug)]
+pub struct UnshieldedUtxosLegacy {
+	pub outputs: HashMap<SegmentId, Vec<UtxoInfo>>,
+	pub inputs: HashMap<SegmentId, Vec<UtxoInfo>>,
+}
+
+impl UnshieldedUtxosLegacy {
+	pub fn remove_failed_segments<D: DB>(
+		&mut self,
+		segments: &HashMap<SegmentId, Result<(), TransactionInvalid<D>>>,
+	) {
+		segments.iter().for_each(|(segment_id, maybe_tx_invalid)| {
+			if maybe_tx_invalid.is_err() {
+				self.outputs.remove(segment_id);
+				self.inputs.remove(segment_id);
+			}
+		});
+	}
+
+	pub fn inputs(&self) -> Vec<UtxoInfo> {
+		self.inputs.values().flat_map(|utxos| utxos.iter()).cloned().collect()
+	}
+
+	pub fn outputs(&self) -> Vec<UtxoInfo> {
+		self.outputs.values().flat_map(|utxos| utxos.iter()).cloned().collect()
 	}
 }
 
@@ -392,6 +408,64 @@ impl<S: SignatureKind<D>, D: DB> Transaction<S, D> {
 					}
 				}
 				Some(UnshieldedUtxos { outputs, inputs })
+			},
+			_ => None,
+		};
+
+		utxos.unwrap_or_default()
+	}
+
+	/// Returns unshielded UTXOs using HashMap (pre-determinism-fix behavior).
+	/// The HashMap iteration order matches the original code before the BTreeMap migration.
+	pub(crate) fn unshielded_utxos_legacy(&self) -> UnshieldedUtxosLegacy {
+		let mut outputs: HashMap<u16, Vec<UtxoInfo>> = HashMap::new();
+		let mut inputs: HashMap<u16, Vec<UtxoInfo>> = HashMap::new();
+
+		let mut update_outputs = |segment_id: SegmentId, outputs_info: Vec<UtxoInfo>| {
+			if !outputs_info.is_empty() {
+				outputs.entry(segment_id).or_default().extend(outputs_info);
+			}
+		};
+
+		let mut update_inputs = |segment_id: SegmentId, inputs_info: Vec<UtxoInfo>| {
+			if !inputs_info.is_empty() {
+				inputs.entry(segment_id).or_default().extend(inputs_info);
+			}
+		};
+
+		let utxos = match &self.0 {
+			Tx::Standard(tx) => {
+				for segment_id in tx.segments() {
+					if segment_id == 0 {
+						for intent in tx.intents.values() {
+							let parent = intent.erase_proofs().erase_signatures();
+							let intent_hash = parent.intent_hash(segment_id).0.0;
+
+							let utxo_outputs = intent.guaranteed_outputs();
+							let outputs_info =
+								Self::utxos_info_from_output(utxo_outputs, intent_hash);
+
+							let utxo_inputs = intent.guaranteed_inputs();
+							let inputs_info = Self::utxos_info_from_inputs(utxo_inputs);
+
+							update_outputs(segment_id, outputs_info);
+							update_inputs(segment_id, inputs_info);
+						}
+					} else if let Some(intent) = tx.intents.get(&segment_id) {
+						let parent = intent.erase_proofs().erase_signatures();
+						let intent_hash = parent.intent_hash(segment_id).0.0;
+
+						let utxo_outputs = intent.fallible_outputs();
+						let outputs_info = Self::utxos_info_from_output(utxo_outputs, intent_hash);
+
+						let utxo_inputs = intent.fallible_inputs();
+						let inputs_info = Self::utxos_info_from_inputs(utxo_inputs);
+
+						update_outputs(segment_id, outputs_info);
+						update_inputs(segment_id, inputs_info);
+					}
+				}
+				Some(UnshieldedUtxosLegacy { outputs, inputs })
 			},
 			_ => None,
 		};
