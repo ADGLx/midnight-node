@@ -46,7 +46,7 @@ Genesis generation creates the initial chain state for a Midnight network. The p
 │ ledger-parameters-  │──┐                                                           │
 │ config.json         │  │                                                           │
 └─────────────────────┘  │     ┌──────────────────────┐     ┌─────────────────────┐  │
-                         ├────▶│ earthly +rebuild-    │────▶│ genesis_block_*.mn  │  │
+                         ├────▶│ earth +rebuild-      │────▶│ genesis_block_*.mn  │  │
 ┌─────────────────────┐  │     │ genesis-state-*      │     │ genesis_state_*.mn  │  │
 │ cnight-config.json  │──┤     └──────────────────────┘     └─────────────────────┘  │
 ├─────────────────────┤  │                                           │               │
@@ -67,7 +67,7 @@ Genesis generation creates the initial chain state for a Midnight network. The p
 │ config.json         │  │                                           │
 ├─────────────────────┤  │     ┌──────────────────────┐              │
 │ registered-         │──┤     │                      │              │
-│ candidates-         │  │     │ earthly +rebuild-    │◀─────────────┘
+│ candidates-         │  │     │ earth +rebuild-      │◀─────────────┘
 │ addresses.json      │  ├────▶│ chainspec            │
 ├─────────────────────┤  │     │ --NETWORK=<network>  │     ┌─────────────────────┐
 │ cnight-config.json  │──┤     │                      │────▶│ chain-spec.json     │
@@ -173,17 +173,17 @@ midnight-node generate-federated-authority-genesis --cardano-tip <block_hash>
 midnight-node generate-permissioned-candidates-genesis --cardano-tip <block_hash>
 ```
 
-### Earthly Targets
+### EarthBuild Targets
 
 ```bash
 # Generate ledger state for a specific network
-earthly -P +rebuild-genesis-state-<network> --RNG_SEED=<seed>
+earth -P +rebuild-genesis-state-<network> --RNG_SEED=<seed>
 
 # Generate chain specification
-earthly -P +rebuild-chainspec --NETWORK=<network>
+earth -P +rebuild-chainspec --NETWORK=<network>
 
 # Rebuild all chain specs
-earthly -P +rebuild-all-chainspecs
+earth -P +rebuild-all-chainspecs
 ```
 
 ## Environment Variables
@@ -295,7 +295,7 @@ Generates the initial ledger state. Config files (`cnight-config.json`, `ics-con
 
 1. The tool checks if `cnight-config.json` and `ics-config.json` exist
 2. If missing, it runs the individual generation commands as a fallback
-3. Then runs: `earthly +rebuild-genesis-state-<network>`
+3. Then runs: `earth +rebuild-genesis-state-<network>`
 
 **Output files:**
 - `res/genesis/genesis_block_<network>.mn`
@@ -306,7 +306,7 @@ Generates the initial ledger state. Config files (`cnight-config.json`, `ics-con
 Creates the final chain specification:
 
 ```bash
-earthly -P +rebuild-chainspec --NETWORK=<network>
+earth -P +rebuild-chainspec --NETWORK=<network>
 ```
 
 **Output files:**

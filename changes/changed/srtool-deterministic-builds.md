@@ -11,18 +11,18 @@ Added support for deterministic runtime WASM builds using [srtool](https://githu
 Usage:
 ```bash
 # Build deterministic runtime WASM only
-earthly +srtool-build
+earth +srtool-build
 
 # Build chainspec with deterministic WASM
-earthly +rebuild-chainspec --NETWORK=mainnet --DETERMINISTIC=true
+earth +rebuild-chainspec --NETWORK=mainnet --DETERMINISTIC=true
 
 # Or use the convenience target
-earthly +rebuild-chainspec-deterministic --NETWORK=mainnet
+earth +rebuild-chainspec-deterministic --NETWORK=mainnet
 ```
 
 The srtool digest (containing WASM hash and build info) is saved alongside the chain-spec for verification.
 
-The genesis generation script (`scripts/genesis/genesis-generation.sh`) now prompts the user during Step 3 (Chain Spec Generation) whether to use a deterministic srtool build. When selected, it passes `--DETERMINISTIC=true` to the `+rebuild-chainspec` Earthly target. After generation, the script also creates a `chain-spec-hash.json` file containing the SHA-256 hash of `chain-spec-raw.json`.
+The genesis generation script (`scripts/genesis/genesis-generation.sh`) now prompts the user during Step 3 (Chain Spec Generation) whether to use a deterministic srtool build. When selected, it passes `--DETERMINISTIC=true` to the `+rebuild-chainspec` EarthBuild target. After generation, the script also creates a `chain-spec-hash.json` file containing the SHA-256 hash of `chain-spec-raw.json`.
 
 PR: https://github.com/midnightntwrk/midnight-node/pull/681
 JIRA: https://shielded.atlassian.net/browse/PM-21907

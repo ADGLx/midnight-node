@@ -6,7 +6,7 @@ CLI tool for interacting with the Midnight blockchain. Supports transaction gene
 
 ## 🚀 **Quick Start: See Usage Examples**
 
-**👉 Check out the `toolkit-*.sh` test scripts for real usage patterns:**  
+**👉 Check out the `toolkit-*.sh` test scripts for real usage patterns:**
 **https://github.com/midnightntwrk/midnight-node/tree/main/scripts/tests**
 
 ### 📦 Version Selection

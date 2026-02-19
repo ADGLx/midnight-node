@@ -550,7 +550,7 @@ rebuild-all-chainspecs:
     BUILD +rebuild-chainspec --NETWORK=govnet
     BUILD +rebuild-chainspec --NETWORK=qanet
     # Preview is not meant to be reset
-    #BUILD +rebuild-chainspec --NETWORK=preview 
+    #BUILD +rebuild-chainspec --NETWORK=preview
     # Preprod is not meant to be reset
     #BUILD +rebuild-chainspec --NETWORK=preprod
     # Mainnet is not meant to be reset
