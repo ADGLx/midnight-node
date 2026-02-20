@@ -295,6 +295,7 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_block: BlockNumberFor<T>) -> Weight {
+			LedgerApi::on_block_initialize();
 			ConfigurableOnInitializeWeight::<T>::get()
 		}
 

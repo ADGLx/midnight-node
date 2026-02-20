@@ -12,3 +12,23 @@
 // limitations under the License.
 
 pub mod types;
+
+#[cfg(feature = "std")]
+use std::sync::atomic::{AtomicU64, Ordering};
+
+/// Tracks the highest block number we've processed.
+/// When replaying old blocks (block_number <= highest_seen), we shuffle UTXO
+/// segment order to probabilistically match the old HashMap iteration order.
+/// For new blocks (block_number > highest_seen), we use deterministic BTreeMap order.
+#[cfg(feature = "std")]
+static HIGHEST_BLOCK_SEEN: AtomicU64 = AtomicU64::new(0);
+
+#[cfg(feature = "std")]
+pub fn set_highest_block_seen(n: u64) {
+	HIGHEST_BLOCK_SEEN.store(n, Ordering::Relaxed);
+}
+
+#[cfg(feature = "std")]
+pub fn highest_block_seen() -> u64 {
+	HIGHEST_BLOCK_SEEN.load(Ordering::Relaxed)
+}

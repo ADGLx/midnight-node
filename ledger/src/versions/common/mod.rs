@@ -171,7 +171,7 @@ where
 	}
 
 	pub fn post_block_update(
-		mut _externalities: &mut dyn Externalities,
+		externalities: &mut dyn Externalities,
 		state_key: &[u8],
 		block_context: BlockContext,
 	) -> Result<Vec<u8>, LedgerApiError> {
@@ -190,6 +190,9 @@ where
 
 		// Only update state after no errors
 		ledger.persist();
+
+		// Track highest processed block for hybrid UTXO ordering
+		crate::common::set_highest_block_seen(read_block_number(externalities));
 
 		Ok(state_root)
 	}
@@ -256,6 +259,22 @@ where
 
 		let (mut utxo_outputs, mut utxo_inputs) =
 			utxos.check_utxos_response_integrity(initial_utxos_size, &new_ledger)?;
+
+		// For blocks we've seen before, shuffle to match historical HashMap ordering.
+		// on_block_initialize resets HIGHEST_BLOCK_SEEN on reorg (fork switch).
+		// We store here (not only in post_block_update) so that if block import
+		// panics, retrying the same block falls back to shuffle ordering.
+		let block_number = read_block_number(externalities);
+		let highest_seen = crate::common::highest_block_seen();
+		if block_number <= highest_seen {
+			if output_segments > 1 {
+				utxo_outputs = utxos.outputs_shuffled();
+			}
+			if input_segments > 1 {
+				utxo_inputs = utxos.inputs_shuffled();
+			}
+		}
+		crate::common::set_highest_block_seen(block_number);
 
 		// Apply ordering override for old blocks produced with HashMap ordering.
 		// Only reorder lists that span multiple segments.
@@ -863,6 +882,17 @@ where
 		let system_tx = SystemTransaction::CNightGeneratesDustUpdate { events: events? };
 		api.tagged_serialize(&system_tx)
 	}
+}
+
+/// Read the current block number from Substrate storage via externalities.
+#[cfg(feature = "std")]
+fn read_block_number(externalities: &mut dyn Externalities) -> u64 {
+	use parity_scale_codec::Decode;
+	let key = [Twox128::hash(b"System"), Twox128::hash(b"Number")].concat();
+	externalities
+		.storage(&key)
+		.and_then(|bytes| u32::decode(&mut &bytes[..]).ok())
+		.unwrap_or(0) as u64
 }
 
 /// Creates a Nonce using BlakeTwo256; similar Hashing type set in the Runtime.

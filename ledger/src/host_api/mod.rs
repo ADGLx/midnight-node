@@ -39,6 +39,25 @@ type SignatureHF = base_crypto_hf::signatures::Signature;
 
 #[runtime_interface]
 pub trait LedgerBridge {
+	fn on_block_initialize(&mut self) {
+		use frame_support::{StorageHasher, Twox128};
+		use parity_scale_codec::Decode;
+
+		let key = [Twox128::hash(b"System"), Twox128::hash(b"Number")].concat();
+		let block_number = (*self)
+			.storage(&key)
+			.and_then(|bytes| u32::decode(&mut &bytes[..]).ok())
+			.unwrap_or(0) as u64;
+
+		let highest = crate::common::highest_block_seen();
+		if block_number < highest - 1 {
+			// Reorg detected (jumped back 2+ blocks) — reset so apply_transaction uses BTreeMap.
+			// We use `<` not `<=`: when block_number == highest it's a retry of a
+			// failed block, and we want the shuffle fallback to kick in.
+			crate::common::set_highest_block_seen(block_number.saturating_sub(1));
+		}
+	}
+
 	fn set_default_storage(&mut self) {
 		latest::Bridge::<Signature, Database>::set_default_storage(*self)
 	}
@@ -313,6 +332,25 @@ pub trait LedgerBridge {
 
 #[runtime_interface]
 pub trait LedgerBridgeHf {
+	fn on_block_initialize(&mut self) {
+		use frame_support::{StorageHasher, Twox128};
+		use parity_scale_codec::Decode;
+
+		let key = [Twox128::hash(b"System"), Twox128::hash(b"Number")].concat();
+		let block_number = (*self)
+			.storage(&key)
+			.and_then(|bytes| u32::decode(&mut &bytes[..]).ok())
+			.unwrap_or(0) as u64;
+
+		let highest = crate::common::highest_block_seen();
+		if block_number < highest - 1 {
+			// Reorg detected (jumped back 2+ blocks) — reset so apply_transaction uses BTreeMap.
+			// We use `<` not `<=`: when block_number == highest it's a retry of a
+			// failed block, and we want the shuffle fallback to kick in.
+			crate::common::set_highest_block_seen(block_number.saturating_sub(1));
+		}
+	}
+
 	fn set_default_storage(&mut self) {
 		hard_fork_test::Bridge::<SignatureHF, DatabaseHF>::set_default_storage(*self)
 	}

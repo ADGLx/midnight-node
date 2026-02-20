@@ -149,6 +149,22 @@ impl UnshieldedUtxos {
 		self.outputs.values().flat_map(|utxos| utxos.iter()).cloned().collect()
 	}
 
+	/// Flatten outputs with segments in random order (matches old HashMap iteration).
+	pub fn outputs_shuffled(&self) -> Vec<UtxoInfo> {
+		use rand::seq::SliceRandom;
+		let mut segments: Vec<_> = self.outputs.values().collect();
+		segments.shuffle(&mut rand::thread_rng());
+		segments.into_iter().flat_map(|utxos| utxos.iter()).cloned().collect()
+	}
+
+	/// Flatten inputs with segments in random order (matches old HashMap iteration).
+	pub fn inputs_shuffled(&self) -> Vec<UtxoInfo> {
+		use rand::seq::SliceRandom;
+		let mut segments: Vec<_> = self.inputs.values().collect();
+		segments.shuffle(&mut rand::thread_rng());
+		segments.into_iter().flat_map(|utxos| utxos.iter()).cloned().collect()
+	}
+
 	/// Checks the integrity of UTXO events against the final Ledger state.
 	///
 	/// This function verifies that:
