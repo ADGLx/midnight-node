@@ -156,6 +156,22 @@ fn test_validation_works() {
 }
 
 #[test]
+fn test_validation_sets_priority() {
+	let (tx, block_context) =
+		midnight_node_ledger_helpers::extract_info_from_tx_with_context(DEPLOY_TX);
+	let call = MidnightCall::send_mn_transaction { midnight_tx: tx };
+	mock::new_test_ext().execute_with(|| {
+		init_ledger_state(block_context.into());
+		let result = <mock::Midnight as ValidateUnsigned>::validate_unsigned(
+			TransactionSource::External,
+			&call,
+		)
+		.unwrap();
+		assert!(result.priority > 0, "valid transaction should have non-zero priority");
+	})
+}
+
+#[test]
 fn test_validation_fails() {
 	let call = MidnightCall::send_mn_transaction { midnight_tx: vec![1, 2, 3] };
 

@@ -547,9 +547,19 @@ pub mod pallet {
 				)
 				.map_err(|e| Self::invalid_transaction(e.into()))?;
 
+				// Use gas cost as pool priority so higher-fee txs are preferred
+				let priority = LedgerApi::get_transaction_cost(
+					&state_key,
+					midnight_tx,
+					Self::get_block_context(),
+					max_weight,
+				)
+				.unwrap_or(0);
+
 				ValidTransaction::with_tag_prefix("Midnight")
 					// Transactions can live in the pool for max 600 blocks before they must be revalidated
 					.longevity(600)
+					.priority(priority)
 					.and_provides(tx_hash)
 					.build()
 			} else {
