@@ -238,7 +238,7 @@ The `genesis-generation.sh` script provides an interactive wizard for genesis ge
    ```
 
 2. **Access to Cardano db-sync database**:
-   - Local: `postgres://cardano@localhost:54322/cexplorer`
+   - Local: `postgres://postgres:postgres@localhost:5432/cexplorer`
    - Or a remote db-sync instance
 
 3. **Cardano block hash** (tip) for querying smart contract state
@@ -263,7 +263,7 @@ The tool presents available networks:
 Enter the following when prompted:
 
 1. **DB Sync PostgreSQL connection string**
-   - Default: `postgres://cardano@localhost:54322/cexplorer`
+   - Default: `postgres://postgres:postgres@localhost:5432/cexplorer`
    - Edit or press Enter to accept default
 
 2. **Cardano block hash (tip)**
@@ -343,7 +343,7 @@ Select network (1-5): 1
 
 ▶ Configuration
 
-DB Sync PostgreSQL connection string [postgres://cardano@localhost:54322/cexplorer]:
+DB Sync PostgreSQL connection string [postgres://postgres:postgres@localhost:5432/cexplorer]:
 ℹ Found cardano tip in res/qanet/cardano-tip.json
 Cardano block hash (tip) [0x6b0eda47...]:
 RNG seed for ledger state [0000000000000000000000000000000000000000000000000000000000000037]:

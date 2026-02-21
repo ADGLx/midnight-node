@@ -143,7 +143,7 @@ The `cardano-tip.json` file in each network's `res/<network>/` directory stores 
    ```
 
 2. **Cardano db-sync access**:
-   - Local: `postgres://cardano@localhost:54322/cexplorer`
+   - Local: `postgres://postgres:postgres@localhost:5432/cexplorer`
    - Set `DB_SYNC_POSTGRES_CONNECTION_STRING` environment variable
 
 3. **For verification**: Generated chain specification files

@@ -210,7 +210,7 @@ For a guided verification experience, use the interactive shell script:
    ```
 
 2. **Access to Cardano db-sync database**:
-   - Local: `postgres://cardano@localhost:54322/cexplorer`
+   - Local: `postgres://postgres:postgres@localhost:5432/cexplorer`
    - Or a remote db-sync instance
 
 3. **Generated chain specification** and config files for the network
@@ -239,7 +239,7 @@ Choose from available networks:
 Enter when prompted:
 
 1. **DB Sync PostgreSQL connection string**
-   - Default: `postgres://cardano@localhost:54322/cexplorer`
+   - Default: `postgres://postgres:postgres@localhost:5432/cexplorer`
 
 2. **Cardano block hash (tip)**
    - If `cardano-tip.json` exists, the value is prefilled

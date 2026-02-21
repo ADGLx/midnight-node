@@ -646,7 +646,7 @@ main() {
     echo ""
 
     local db_connection
-    db_connection=$(prompt_input "DB Sync PostgreSQL connection string" "postgres://cardano@localhost:54322/cexplorer")
+    db_connection=$(prompt_input "DB Sync PostgreSQL connection string" "postgres://postgres:postgres@localhost:5432/cexplorer")
     echo ""
 
     # Get default cardano tip from cardano-tip.json if available
