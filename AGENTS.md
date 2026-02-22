@@ -20,7 +20,7 @@ earth -P +rebuild-all-chainspecs        # Rebuild all chainspecs
 earth -P +rebuild-genesis-state-<NETWORK>  # Rebuild genesis for specific network
 earth -P +rebuild-all-genesis-states    # Rebuild all network genesis states
 earth +node-image                       # Build node Docker image
-earth --secret GITHUB_TOKEN +toolkit-image  # Build toolkit image
+earth +toolkit-image                    # Build toolkit image
 earth doc                               # List all available targets
 ```
 
@@ -78,7 +78,7 @@ See [Genesis Verification Guide](docs/genesis/verification.md) for complete docu
 ## Development Setup
 
 ```bash
-source .envrc  # Load environment with direnv (sets GITHUB_TOKEN, etc.)
+source .envrc  # Load environment with direnv
 cargo check
 ```
 

@@ -204,7 +204,7 @@ pub async fn execute(
 
 /// Make sure to build toolkit-js before running these tests - this can be done with the earthly
 /// target:
-/// $ earth --secret GITHUB_TOKEN=<github-token-here> +toolkit-js-prep-local
+/// $ earth +toolkit-js-prep-local
 ///
 /// Test data is checked-in - to re-generate it, run:
 /// $ earth -P +rebuild-genesis-state-undeployed
