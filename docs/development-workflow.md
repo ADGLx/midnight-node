@@ -44,23 +44,23 @@ earthly doc                    # List all available targets
 
 ### Starting Development
 
-**Option A: Nix devshell (recommended)** — provides all tools automatically:
+**Option A: Manual setup (default)**:
 
 ```bash
 cd /path/to/midnight-node
-direnv allow   # Loads the Nix devshell and environment variables automatically
-```
-
-See [rust-setup.md](rust-setup.md) for Nix and direnv installation.
-
-**Option B: Manual setup** — if you'd rather not use Nix, set `SKIP_FLAKE=1`:
-
-```bash
-echo 'export SKIP_FLAKE=1' >> .envrc.local
 direnv allow   # or: source .envrc
 ```
 
 You'll need to install Rust, earthly, and other tools yourself. See [rust-setup.md](rust-setup.md).
+
+**Option B: Nix devshell** — provides all tools automatically, set `USE_FLAKE=1`:
+
+```bash
+echo 'export USE_FLAKE=1' >> .envrc.local
+direnv allow   # Loads the Nix devshell and environment variables automatically
+```
+
+See [rust-setup.md](rust-setup.md) for Nix and direnv installation.
 
 ### Running Tests
 
@@ -240,7 +240,7 @@ cargo build --release --features runtime-benchmarks
 | Rebuild genesis | `earthly -P +rebuild-genesis` |
 | Build Docker image | `earthly +node-image` |
 | List Earthly targets | `earthly doc` |
-| Start dev environment | `direnv allow` or `nix develop` (skip Nix: `SKIP_FLAKE=1 source .envrc`) |
+| Start dev environment | `direnv allow` or `source .envrc` (Nix: `USE_FLAKE=1` in `.envrc.local`) |
 | Run local node | `CFG_PRESET=dev ./target/release/midnight-node` |
 
 ## Best Practices
@@ -248,6 +248,6 @@ cargo build --release --features runtime-benchmarks
 1. **Use incremental builds:** Always prefer cargo over Earthly during development
 2. **Keep ledger source handy:** Clone midnight-ledger locally for debugging
 3. **Test before committing:** Run `cargo check && cargo test && cargo clippy && cargo fmt`
-4. **Use Nix devshell:** Provides a reproducible environment with all tools. If you'd rather not, set `SKIP_FLAKE=1` in `.envrc.local`
+4. **Consider Nix devshell:** Provides a reproducible environment with all tools. Set `USE_FLAKE=1` in `.envrc.local` to enable it
 5. **Let CI handle complex builds:** Don't run full Earthly builds locally unless necessary
 6. **Ask for help with secrets:** Don't try to work around AWS secret requirements

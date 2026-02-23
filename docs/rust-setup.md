@@ -2,47 +2,9 @@
 title: Installation
 ---
 
-## Option A: Nix Devshell (Recommended)
+## Option A: Manual Installation (Default)
 
-The repository includes a `flake.nix` that provides a complete, reproducible development environment with all required tools (Rust toolchain, earthly, clang, nodejs, cosign, etc.).
-
-### Prerequisites
-
-- [Nix](https://docs.determinate.systems/ds-nix/how-to/install/) (the Determinate Nix Installer is recommended — it enables flakes by default)
-- [direnv](https://direnv.net/) with [nix-direnv](https://github.com/nix-community/nix-direnv) (recommended)
-
-### Setup
-
-```bash
-cd /path/to/midnight-node
-direnv allow   # Loads the Nix devshell automatically via .envrc
-```
-
-On first entry, Nix will download and build all dependencies. Subsequent entries are instant (cached). Run `devshell-info` at any time to see what's included.
-
-Two devshells are available:
-
-| Devshell | Command | Use case |
-|----------|---------|----------|
-| `default` | `nix develop` or `direnv allow` in root | Rust development |
-| `local-environment` | `direnv allow` in `local-environment/` | Docker/compose local testing (includes npm deps) |
-
-### Manual alternative (without direnv)
-
-```bash
-nix develop                      # Enter default devshell
-nix develop .#local-environment  # Enter local-environment devshell
-```
-
-## Option B: Manual Installation (SKIP_FLAKE)
-
-If you'd rather not use Nix, set `SKIP_FLAKE=1` in your `.envrc.local` to skip the Nix devshell:
-
-```bash
-echo 'export SKIP_FLAKE=1' >> /path/to/midnight-node/.envrc.local
-```
-
-You'll then need to install dependencies manually.
+By default, the `.envrc` does **not** activate a Nix devshell. You'll need to install dependencies manually.
 
 ### Prerequisites
 
@@ -90,6 +52,38 @@ direnv allow
 source .envrc
 cargo check
 cargo test
+```
+
+## Option B: Nix Devshell (USE_FLAKE)
+
+The repository includes a `flake.nix` that provides a complete, reproducible development environment with all required tools (Rust toolchain, earthly, clang, nodejs, cosign, etc.).
+
+To enable the Nix devshell, set `USE_FLAKE=1` in your `.envrc.local`:
+
+```bash
+echo 'export USE_FLAKE=1' >> /path/to/midnight-node/.envrc.local
+direnv allow
+```
+
+### Prerequisites
+
+- [Nix](https://docs.determinate.systems/ds-nix/how-to/install/) (the Determinate Nix Installer is recommended — it enables flakes by default)
+- [direnv](https://direnv.net/) with [nix-direnv](https://github.com/nix-community/nix-direnv) (recommended)
+
+On first entry, Nix will download and build all dependencies. Subsequent entries are instant (cached). Run `devshell-info` at any time to see what's included.
+
+Two devshells are available:
+
+| Devshell | Command | Use case |
+|----------|---------|----------|
+| `default` | `nix develop` or `direnv allow` in root | Rust development |
+| `local-environment` | `direnv allow` in `local-environment/` | Docker/compose local testing (includes npm deps) |
+
+### Manual alternative (without direnv)
+
+```bash
+nix develop                      # Enter default devshell
+nix develop .#local-environment  # Enter local-environment devshell
 ```
 
 ## Verify Setup
