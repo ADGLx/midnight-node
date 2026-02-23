@@ -149,7 +149,7 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 		let now = self.context.latest_block_context().tblock;
 		// (10 min) max_ttl/6 - enough to produce 6 txs for a chain that starts
 		// with the `Timestamp` of the first tx to be sent
-		let delay = Duration::from_secs(600);
+		let delay = Duration::from_secs(3600);
 
 		let ttl = now + delay;
 
@@ -386,7 +386,7 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 		fs::create_dir_all(parent_dir).expect("failed to create directory");
 
 		let now = self.context.latest_block_context().tblock;
-		let ttl = now + Duration::from_secs(600);
+		let ttl = now + Duration::from_secs(3600);
 
 		for (segment_id, intent_info) in self.intents.iter_mut() {
 			let intent =
