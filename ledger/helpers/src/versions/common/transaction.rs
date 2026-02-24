@@ -308,14 +308,16 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 			.dust_registrations
 			.iter()
 			.map(|registration| registration.build(&intent, &mut rng, segment_id))
-			.collect::<Vec<_>>()
-			.into();
+			.collect::<Vec<_>>();
 
-		intent.dust_actions = Some(Sp::new(DustActions {
-			spends: spends.to_vec().into(),
-			registrations,
-			ctime: now,
-		}));
+		// Only set dust_actions if there's actual content (normalization requirement)
+		if !spends.is_empty() || !registrations.is_empty() {
+			intent.dust_actions = Some(Sp::new(DustActions {
+				spends: spends.to_vec().into(),
+				registrations: registrations.into(),
+				ctime: now,
+			}));
+		}
 		stx.intents = stx.intents.insert(segment_id, intent);
 
 		// Re-compute the binding randomness
