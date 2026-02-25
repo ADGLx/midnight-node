@@ -213,7 +213,9 @@ where
 	T::Api: TokenBridgeIDPRuntimeApi<Block>,
 {
 	type InherentDataProviders = (
+		sp_consensus_aura::inherents::InherentDataProvider,
 		sp_timestamp::InherentDataProvider,
+		McHashIDP,
 		AriadneIDP,
 		MidnightCNightObservationInherentDataProvider,
 		FederatedAuthorityInherentDataProvider,
@@ -240,6 +242,7 @@ where
 		let timestamp = sp_timestamp::InherentDataProvider::new(Timestamp::new(
 			time_source.get_current_time_millis(),
 		));
+		let slot = sp_consensus_aura::inherents::InherentDataProvider::new(verified_block_slot);
 		let parent_header = client.expect_header(parent_hash)?;
 		let parent_slot = slot_from_predigest(&parent_header)?;
 		let mc_state_reference = McHashIDP::new_verification(
@@ -259,7 +262,7 @@ where
 			parent_hash,
 			verified_block_slot,
 			authority_selection_data_source.as_ref(),
-			mc_state_reference.epoch,
+			mc_state_reference.mc_epoch(),
 		)
 		.await?;
 
@@ -287,7 +290,15 @@ where
 		)
 		.await?;
 
-		Ok((timestamp, ariadne_data_provider, cnight_observation, federated_authority, bridge))
+		Ok((
+			slot,
+			timestamp,
+			mc_state_reference,
+			ariadne_data_provider,
+			cnight_observation,
+			federated_authority,
+			bridge,
+		))
 	}
 }
 
