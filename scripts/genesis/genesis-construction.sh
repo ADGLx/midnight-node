@@ -509,6 +509,57 @@ run_permissioned_candidates_genesis_generation() {
     fi
 }
 
+# Function to inject bootnodes into chain-spec files and regenerate raw/abridged
+inject_bootnodes() {
+    local network="$1"
+    shift
+    local bootnodes=("$@")
+
+    if ! command -v jq &>/dev/null; then
+        print_error "'jq' is required to inject bootnodes but is not installed."
+        print_info "Install it with: brew install jq (macOS) or sudo apt install jq (Linux)"
+        return 1
+    fi
+
+    local spec_file="$REPO_ROOT/res/$network/chain-spec.json"
+    local abridged_file="$REPO_ROOT/res/$network/chain-spec-abridged.json"
+    local raw_file="$REPO_ROOT/res/$network/chain-spec-raw.json"
+
+    # Build jq array from bootnode args
+    local jq_array="[]"
+    for bn in "${bootnodes[@]}"; do
+        jq_array=$(echo "$jq_array" | jq --arg b "$bn" '. + [$b]')
+    done
+
+    print_info "Injecting ${#bootnodes[@]} bootnode(s) into chain-spec.json..."
+    jq --argjson bootnodes "$jq_array" '.bootNodes = $bootnodes' "$spec_file" > "${spec_file}.tmp" && mv "${spec_file}.tmp" "$spec_file"
+
+    print_info "Regenerating chain-spec-abridged.json..."
+    cat "$spec_file" | \
+      jq '.genesis.runtimeGenesis.code = "<snipped>" | .properties.genesis_extrinsics = "<snipped>" | .properties.genesis_state = "<snipped>" | .genesis.runtimeGenesis.config.cNightObservation.config.observed_utxos = "<snipped>" | .genesis.runtimeGenesis.config.cNightObservation.config.mappings = "<snipped>" | .genesis.runtimeGenesis.config.cNightObservation.config.utxo_owners = "<snipped>"' > "$abridged_file"
+
+    print_info "Regenerating chain-spec-raw.json..."
+    local node_binary
+    node_binary=$(ensure_node_binary) || return 1
+    "$node_binary" build-spec --chain="$spec_file" --raw --disable-default-bootnode > "$raw_file"
+
+    # Recompute hash of the updated chain-spec-raw.json
+    local hash_file="$REPO_ROOT/res/$network/chain-spec-hash.json"
+    print_info "Recomputing hash of chain-spec-raw.json..."
+    local spec_hash
+    if command -v sha256sum &>/dev/null; then
+        spec_hash=$(sha256sum "$raw_file" | awk '{print $1}')
+    elif command -v shasum &>/dev/null; then
+        spec_hash=$(shasum -a 256 "$raw_file" | awk '{print $1}')
+    fi
+    if [[ -n "${spec_hash:-}" ]]; then
+        echo "{\"hash\": \"$spec_hash\"}" > "$hash_file"
+        print_success "Updated hash: $spec_hash"
+    fi
+
+    print_success "Bootnodes injected into all chain-spec files."
+}
+
 # Function to run chainspec generation
 run_chainspec_generation() {
     local network="$1"
@@ -905,9 +956,52 @@ main() {
             use_deterministic="true"
         fi
         echo ""
+
+        # Collect bootnodes
+        local bootnodes=()
+        echo -e "${BOLD}Bootnodes are the initial peers that new nodes connect to when joining the network.${NC}"
+        echo -e "Format: ${CYAN}/dns/hostname/tcp/30333/p2p/<peer-id>${NC}"
+        echo -e "        ${CYAN}/ip4/1.2.3.4/tcp/30333/p2p/<peer-id>${NC}"
+        echo ""
+        if confirm "Add bootnodes to the chain specification?" "n"; then
+            echo ""
+            print_info "Enter bootnode multiaddresses one per line. Press Enter on an empty line to finish."
+            echo ""
+            while true; do
+                local bootnode
+                echo -en "${BOLD}Bootnode: ${NC}"
+                read -r bootnode
+                if [[ -z "$bootnode" ]]; then
+                    break
+                fi
+                # Basic validation: must start with /
+                if [[ "$bootnode" != /* ]]; then
+                    print_warning "Invalid multiaddress (must start with /). Skipping: $bootnode"
+                    continue
+                fi
+                bootnodes+=("$bootnode")
+                print_success "Added: $bootnode"
+            done
+            if [[ ${#bootnodes[@]} -gt 0 ]]; then
+                print_info "${#bootnodes[@]} bootnode(s) will be added after chain-spec generation."
+            else
+                print_info "No bootnodes added."
+            fi
+        fi
+        echo ""
+
         run_chainspec_generation "$network" "$use_deterministic"
         local result=$?
         if [[ $result -eq 0 ]]; then
+            # Inject bootnodes if any were provided
+            if [[ ${#bootnodes[@]} -gt 0 ]]; then
+                echo ""
+                inject_bootnodes "$network" "${bootnodes[@]}"
+                if [[ $? -ne 0 ]]; then
+                    print_error "Failed to inject bootnodes."
+                    exit 1
+                fi
+            fi
             step3_completed=true
         elif [[ $result -eq 1 ]]; then
             print_error "Step 3 failed. Exiting."
