@@ -24,7 +24,8 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write  # Required for keyless signing with Cosign
+      id-token: write
+      attestations: write  # Required for GitHub native attestations
     steps:
       - uses: EarthBuild/actions-setup@cae2d9ab68894d8402751fe42e07c7cca0272f7f
         with:
@@ -49,9 +50,6 @@ jobs:
           registry: ghcr.io
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Checkout Season action repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -98,13 +96,27 @@ jobs:
           export IMAGE_TAG="$(cat node/Cargo.toml | grep "version =" | head -1 | awk '{print $3}' | tr -d '"')-$(git rev-parse --short=8 HEAD)"
           printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> $GITHUB_OUTPUT
 
-      - name: Sign container images
+      - name: Get image digests
+        id: digests
         env:
           IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
         run: |
-          source .github/scripts/sign-image.sh
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64"
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64"
+          NODE_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64" --format '{{.Manifest.Digest}}')
+          echo "node=${NODE_DIGEST}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64" --format '{{.Manifest.Digest}}')
+          echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest node image (amd64)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node
+          subject-digest: ${{ steps.digests.outputs.node }}
+
+      - name: Attest toolkit image (amd64)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.digests.outputs.toolkit }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  #v6.0.0
@@ -174,7 +186,8 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write  # Required for keyless signing with Cosign
+      id-token: write
+      attestations: write  # Required for GitHub native attestations
     steps:
       # QEMU is currently required as compactc doesn't have a linux arm64 build of compactc.
       - name: Set up QEMU
@@ -201,9 +214,6 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
-
       - name: Run Node and toolkit builds
         run: |
           mkdir -p $HOME/.cargo
@@ -214,15 +224,28 @@ jobs:
           . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
           . ./.envrc && earthly --secret GITHUB_TOKEN=${{ secrets.MIDNIGHTCI_PACKAGES_READ }} -P --ci --push +toolkit-image
 
-      - name: Sign container images
+      - name: Get image digests
+        id: digests
         run: |
-          source .github/scripts/sign-image.sh
-
           # Calculate IMAGE_TAG (must match definition in Earthfile)
           IMAGE_TAG="$(cat node/Cargo.toml | grep "version =" | head -1 | awk '{print $3}' | tr -d '"')-$(git rev-parse --short=8 HEAD)"
 
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64"
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64"
+          NODE_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64" --format '{{.Manifest.Digest}}')
+          echo "node=${NODE_DIGEST}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64" --format '{{.Manifest.Digest}}')
+          echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest node image (arm64)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node
+          subject-digest: ${{ steps.digests.outputs.node }}
+
+      - name: Attest toolkit image (arm64)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.digests.outputs.toolkit }}
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f  #v6.0.0
@@ -353,11 +376,11 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-amd64
       sbom-artifact-name: sbom-midnight-node-amd64
-      skip-attestation: true
     secrets: inherit
 
   sbom-scan-node-arm64:
@@ -367,11 +390,11 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-arm64
       sbom-artifact-name: sbom-midnight-node-arm64
-      skip-attestation: true
     secrets: inherit
 
   sbom-scan-toolkit-amd64:
@@ -381,11 +404,11 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-amd64
       sbom-artifact-name: sbom-midnight-node-toolkit-amd64
-      skip-attestation: true
     secrets: inherit
 
   sbom-scan-toolkit-arm64:
@@ -395,11 +418,11 @@ jobs:
       contents: read
       packages: write
       id-token: write
+      attestations: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-arm64
       sbom-artifact-name: sbom-midnight-node-toolkit-arm64
-      skip-attestation: true
     secrets: inherit
 
   sbom-scan-indexer-images:
@@ -429,11 +452,9 @@ jobs:
     permissions:
       contents: write
       packages: write
-      id-token: write  # Required for keyless signing with Cosign
+      id-token: write
+      attestations: write  # Required for GitHub native attestations
     steps:
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
-
       - name: Login to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
         with:
@@ -473,13 +494,27 @@ jobs:
           docker manifest push ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}
           docker manifest push ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}
 
-      - name: Sign multi-arch manifests (GHCR)
+      - name: Get multi-arch manifest digests (GHCR)
+        id: ghcr-digests
         env:
           IMAGE_TAG: ${{ needs.publish-amd64.outputs.IMAGE_TAG }}
         run: |
-          source .github/scripts/sign-image.sh
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}"
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}"
+          NODE_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}" --format '{{.Manifest.Digest}}')
+          echo "node=${NODE_DIGEST}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}" --format '{{.Manifest.Digest}}')
+          echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
+
+      - name: Attest node multi-arch manifest (GHCR)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node
+          subject-digest: ${{ steps.ghcr-digests.outputs.node }}
+
+      - name: Attest toolkit multi-arch manifest (GHCR)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.ghcr-digests.outputs.toolkit }}
 
       - name: Create and push `latest-main` images (GHCR)
         if: (github.event.inputs.branch || github.ref_name) == 'main'
@@ -533,20 +568,67 @@ jobs:
           docker manifest push midnightntwrk/midnight-node:latest-main
           docker manifest push midnightntwrk/midnight-node-toolkit:latest-main
 
-      - name: Sign Docker Hub images (latest-main)
+      - name: Get Docker Hub image digests (latest-main)
         if: (github.event.inputs.branch || github.ref_name) == 'main'
+        id: dockerhub-digests
         run: |
-          source .github/scripts/sign-image.sh
+          # Arch-specific digests
+          NODE_AMD64=$(docker buildx imagetools inspect "midnightntwrk/midnight-node:latest-main-amd64" --format '{{.Manifest.Digest}}')
+          echo "node-amd64=${NODE_AMD64}" >> "$GITHUB_OUTPUT"
+          NODE_ARM64=$(docker buildx imagetools inspect "midnightntwrk/midnight-node:latest-main-arm64" --format '{{.Manifest.Digest}}')
+          echo "node-arm64=${NODE_ARM64}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_AMD64=$(docker buildx imagetools inspect "midnightntwrk/midnight-node-toolkit:latest-main-amd64" --format '{{.Manifest.Digest}}')
+          echo "toolkit-amd64=${TOOLKIT_AMD64}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_ARM64=$(docker buildx imagetools inspect "midnightntwrk/midnight-node-toolkit:latest-main-arm64" --format '{{.Manifest.Digest}}')
+          echo "toolkit-arm64=${TOOLKIT_ARM64}" >> "$GITHUB_OUTPUT"
 
-          # Sign arch-specific images
-          sign_with_retry "midnightntwrk/midnight-node:latest-main-amd64"
-          sign_with_retry "midnightntwrk/midnight-node:latest-main-arm64"
-          sign_with_retry "midnightntwrk/midnight-node-toolkit:latest-main-amd64"
-          sign_with_retry "midnightntwrk/midnight-node-toolkit:latest-main-arm64"
+          # Multi-arch manifest digests
+          NODE_MULTI=$(docker buildx imagetools inspect "midnightntwrk/midnight-node:latest-main" --format '{{.Manifest.Digest}}')
+          echo "node-multi=${NODE_MULTI}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_MULTI=$(docker buildx imagetools inspect "midnightntwrk/midnight-node-toolkit:latest-main" --format '{{.Manifest.Digest}}')
+          echo "toolkit-multi=${TOOLKIT_MULTI}" >> "$GITHUB_OUTPUT"
 
-          # Sign multi-arch manifests
-          sign_with_retry "midnightntwrk/midnight-node:latest-main"
-          sign_with_retry "midnightntwrk/midnight-node-toolkit:latest-main"
+      - name: Attest Docker Hub node image (amd64)
+        if: (github.event.inputs.branch || github.ref_name) == 'main'
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node
+          subject-digest: ${{ steps.dockerhub-digests.outputs.node-amd64 }}
+
+      - name: Attest Docker Hub node image (arm64)
+        if: (github.event.inputs.branch || github.ref_name) == 'main'
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node
+          subject-digest: ${{ steps.dockerhub-digests.outputs.node-arm64 }}
+
+      - name: Attest Docker Hub toolkit image (amd64)
+        if: (github.event.inputs.branch || github.ref_name) == 'main'
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.dockerhub-digests.outputs.toolkit-amd64 }}
+
+      - name: Attest Docker Hub toolkit image (arm64)
+        if: (github.event.inputs.branch || github.ref_name) == 'main'
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.dockerhub-digests.outputs.toolkit-arm64 }}
+
+      - name: Attest Docker Hub node multi-arch manifest
+        if: (github.event.inputs.branch || github.ref_name) == 'main'
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node
+          subject-digest: ${{ steps.dockerhub-digests.outputs.node-multi }}
+
+      - name: Attest Docker Hub toolkit multi-arch manifest
+        if: (github.event.inputs.branch || github.ref_name) == 'main'
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.dockerhub-digests.outputs.toolkit-multi }}
 
       - name: Check if indexer is on main
         id: indexer-check

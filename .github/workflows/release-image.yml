@@ -4,7 +4,8 @@ permissions:
   contents: write
   pull-requests: write
   packages: write
-  id-token: write  # Required for keyless signing with Cosign
+  id-token: write
+  attestations: write  # Required for GitHub native attestations
 
 on:
   workflow_dispatch:
@@ -57,9 +58,6 @@ jobs:
           username: ${{ secrets.DOCKERHUB_MIDNIGHTNTWRK_USER }}
           password: ${{ secrets.DOCKERHUB_MIDNIGHTNTWRK_TOKEN }}
 
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
-
       - name: Checkout Season action repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
@@ -97,25 +95,30 @@ jobs:
           season-retag
           SEASON_IMAGE_NAME=midnight-node-toolkit season-retag
 
-      - name: Checkout node repository (for signing script)
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
-        with:
-          ref: ${{ inputs.ref }}
-          path: ./.tmp-node-scripts
-          sparse-checkout: .github/scripts
-
-      - name: Sign release images (GHCR)
+      - name: Get GHCR release image digests
+        id: ghcr-digests
         run: |
           if [ -z "${SEASON_IMAGE_TAG_RELEASE:-}" ]; then
             echo "::error::SEASON_IMAGE_TAG_RELEASE is not set"
             exit 1
           fi
 
-          source ./.tmp-node-scripts/.github/scripts/sign-image.sh
+          NODE_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node:${SEASON_IMAGE_TAG_RELEASE}" --format '{{.Manifest.Digest}}')
+          echo "node=${NODE_DIGEST}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${SEASON_IMAGE_TAG_RELEASE}" --format '{{.Manifest.Digest}}')
+          echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
 
-          # Sign multi-arch manifests (signs all platform digests)
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node:${SEASON_IMAGE_TAG_RELEASE}"
-          sign_with_retry "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${SEASON_IMAGE_TAG_RELEASE}"
+      - name: Attest node release image (GHCR)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node
+          subject-digest: ${{ steps.ghcr-digests.outputs.node }}
+
+      - name: Attest toolkit release image (GHCR)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: ghcr.io/midnight-ntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.ghcr-digests.outputs.toolkit }}
 
       - name: Retag and push release images (Docker Hub)
         run: |
@@ -153,18 +156,30 @@ jobs:
           docker manifest push midnightntwrk/midnight-node:${SEASON_IMAGE_TAG_RELEASE}
           docker manifest push midnightntwrk/midnight-node-toolkit:${SEASON_IMAGE_TAG_RELEASE}
 
-      - name: Sign release images (Docker Hub)
+      - name: Get Docker Hub release image digests
+        id: dockerhub-digests
         run: |
           if [ -z "${SEASON_IMAGE_TAG_RELEASE:-}" ]; then
             echo "::error::SEASON_IMAGE_TAG_RELEASE is not set"
             exit 1
           fi
 
-          source ./.tmp-node-scripts/.github/scripts/sign-image.sh
+          NODE_DIGEST=$(docker buildx imagetools inspect "midnightntwrk/midnight-node:${SEASON_IMAGE_TAG_RELEASE}" --format '{{.Manifest.Digest}}')
+          echo "node=${NODE_DIGEST}" >> "$GITHUB_OUTPUT"
+          TOOLKIT_DIGEST=$(docker buildx imagetools inspect "midnightntwrk/midnight-node-toolkit:${SEASON_IMAGE_TAG_RELEASE}" --format '{{.Manifest.Digest}}')
+          echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
 
-          # Sign multi-arch manifests (signs all platform digests)
-          sign_with_retry "midnightntwrk/midnight-node:${SEASON_IMAGE_TAG_RELEASE}"
-          sign_with_retry "midnightntwrk/midnight-node-toolkit:${SEASON_IMAGE_TAG_RELEASE}"
+      - name: Attest node release image (Docker Hub)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node
+          subject-digest: ${{ steps.dockerhub-digests.outputs.node }}
+
+      - name: Attest toolkit release image (Docker Hub)
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-name: index.docker.io/midnightntwrk/midnight-node-toolkit
+          subject-digest: ${{ steps.dockerhub-digests.outputs.toolkit }}
 
       - name: Export release tag
         id: export_tag
@@ -292,6 +307,11 @@ jobs:
 
           echo "RELEASE_FILE=$RELEASE_NAME" >> "$GITHUB_ENV"
 
+      - name: Attest release binary
+        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        with:
+          subject-path: ${{ env.RELEASE_FILE }}
+
       - name: Upload release asset
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -310,7 +330,6 @@ jobs:
       # GHCR only has arch-specific tags with commit tag (season-retag creates multi-arch release tag only)
       image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.prepare-release.outputs.commit_tag }}-${{ matrix.arch }}
       sbom-artifact-name: sbom-midnight-node-ghcr-${{ matrix.arch }}-release
-      skip-attestation: true
     secrets: inherit
 
   sbom-scan-ghcr-toolkit:
@@ -324,7 +343,6 @@ jobs:
       # GHCR only has arch-specific tags with commit tag (season-retag creates multi-arch release tag only)
       image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ needs.prepare-release.outputs.commit_tag }}-${{ matrix.arch }}
       sbom-artifact-name: sbom-midnight-node-toolkit-ghcr-${{ matrix.arch }}-release
-      skip-attestation: true
     secrets: inherit
 
   sbom-scan-dockerhub-node:
@@ -337,7 +355,6 @@ jobs:
     with:
       image: midnightntwrk/midnight-node:${{ needs.prepare-release.outputs.release_tag }}-${{ matrix.arch }}
       sbom-artifact-name: sbom-midnight-node-dockerhub-${{ matrix.arch }}-release
-      skip-attestation: true
     secrets: inherit
 
   sbom-scan-dockerhub-toolkit:
@@ -350,5 +367,4 @@ jobs:
     with:
       image: midnightntwrk/midnight-node-toolkit:${{ needs.prepare-release.outputs.release_tag }}-${{ matrix.arch }}
       sbom-artifact-name: sbom-midnight-node-toolkit-dockerhub-${{ matrix.arch }}-release
-      skip-attestation: true
     secrets: inherit
