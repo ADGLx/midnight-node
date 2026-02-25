@@ -123,7 +123,6 @@
         OPENSSL_DIR = "${pkgs.openssl.dev}";
         OPENSSL_INCLUDE_DIR = "${pkgs.openssl.dev}/include";
         OPENSSL_LIB_DIR = "${pkgs.openssl.out}/lib";
-        ROCKSDB_LIB_DIR = "${pkgs.rocksdb}/lib";
         packages = devshellPackages ++ [rustToolchain devshellInfoScript];
         buildInputs = with pkgs; [
           pkg-config
