@@ -102,6 +102,7 @@ pub struct MidnightCfg {
 	pub prometheus_push_job_name: Option<String>,
 
 	/// Enable adaptive sync (skip inherent checks for old blocks while the node is catching up)
+	#[serde(default)]
 	pub buckel_up: bool,
 }
 
