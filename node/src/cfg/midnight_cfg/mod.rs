@@ -21,6 +21,7 @@ use super::{CfgHelp, HelpField, cfg_help, error::CfgError, util::get_keys};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, Validate, Documented)]
 #[validate(custom = main_chain_follower_vars)]
+#[validate(custom = validate_mc_epoch_params)]
 /// Parameters specific to Midnight
 pub struct MidnightCfg {
 	/// On start-up, wipe the chain
@@ -133,6 +134,31 @@ fn main_chain_follower_vars(cfg: &MidnightCfg) -> Result<(), validation::Error> 
 	Ok(())
 }
 
+fn validate_mc_epoch_params(cfg: &MidnightCfg) -> Result<(), validation::Error> {
+	if cfg.mc_epoch_duration_millis == 0 {
+		return Err(validation::Error::Custom(
+			"mc_epoch_duration_millis must be non-zero".to_string(),
+		));
+	}
+	if cfg.mc_slot_duration_millis == 0 {
+		return Err(validation::Error::Custom(
+			"mc_slot_duration_millis must be non-zero".to_string(),
+		));
+	}
+	if cfg.mc_first_epoch_timestamp_millis == 0 {
+		return Err(validation::Error::Custom(
+			"mc_first_epoch_timestamp_millis must be non-zero".to_string(),
+		));
+	}
+	if cfg.mc_epoch_duration_millis % cfg.mc_slot_duration_millis != 0 {
+		return Err(validation::Error::Custom(format!(
+			"mc_epoch_duration_millis ({}ms) must be divisible by mc_slot_duration_millis ({}ms)",
+			cfg.mc_epoch_duration_millis, cfg.mc_slot_duration_millis
+		)));
+	}
+	Ok(())
+}
+
 impl CfgHelp for MidnightCfg {
 	fn help(cur_cfg: Option<&config::Config>) -> Result<Vec<HelpField>, CfgError> {
 		cfg_help!(cur_cfg, Self)
@@ -154,5 +180,81 @@ impl From<MidnightCfg> for MainchainEpochConfig {
 				value.mc_slot_duration_millis,
 			),
 		}
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use serde_valid::Validate;
+
+	fn valid_mc_cfg() -> MidnightCfg {
+		MidnightCfg {
+			mc_epoch_duration_millis: 432_000_000,
+			mc_slot_duration_millis: 1_000,
+			mc_first_epoch_timestamp_millis: 1_596_399_616_000,
+			mc_first_epoch_number: 75,
+			mc_first_slot_number: 0,
+			use_main_chain_follower_mock: true,
+			mock_registrations_file: Some("/dev/null".to_string()),
+			..Default::default()
+		}
+	}
+
+	#[test]
+	fn valid_mc_params_pass_validation() {
+		let cfg = valid_mc_cfg();
+		assert!(cfg.validate().is_ok());
+	}
+
+	#[test]
+	fn zero_mc_epoch_duration_fails_validation() {
+		let mut cfg = valid_mc_cfg();
+		cfg.mc_epoch_duration_millis = 0;
+		let err = cfg.validate().unwrap_err();
+		let msg = err.to_string();
+		assert!(msg.contains("mc_epoch_duration_millis must be non-zero"), "got: {msg}");
+	}
+
+	#[test]
+	fn zero_mc_slot_duration_fails_validation() {
+		let mut cfg = valid_mc_cfg();
+		cfg.mc_slot_duration_millis = 0;
+		let err = cfg.validate().unwrap_err();
+		let msg = err.to_string();
+		assert!(msg.contains("mc_slot_duration_millis must be non-zero"), "got: {msg}");
+	}
+
+	#[test]
+	fn zero_mc_first_epoch_timestamp_fails_validation() {
+		let mut cfg = valid_mc_cfg();
+		cfg.mc_first_epoch_timestamp_millis = 0;
+		let err = cfg.validate().unwrap_err();
+		let msg = err.to_string();
+		assert!(msg.contains("mc_first_epoch_timestamp_millis must be non-zero"), "got: {msg}");
+	}
+
+	#[test]
+	fn mc_epoch_not_divisible_by_slot_fails_validation() {
+		let mut cfg = valid_mc_cfg();
+		cfg.mc_epoch_duration_millis = 1_000_000;
+		cfg.mc_slot_duration_millis = 3_000;
+		let err = cfg.validate().unwrap_err();
+		let msg = err.to_string();
+		assert!(msg.contains("must be divisible by"), "got: {msg}");
+	}
+
+	#[test]
+	fn zero_first_epoch_number_passes_validation() {
+		let mut cfg = valid_mc_cfg();
+		cfg.mc_first_epoch_number = 0;
+		assert!(cfg.validate().is_ok());
+	}
+
+	#[test]
+	fn zero_first_slot_number_passes_validation() {
+		let mut cfg = valid_mc_cfg();
+		cfg.mc_first_slot_number = 0;
+		assert!(cfg.validate().is_ok());
 	}
 }
