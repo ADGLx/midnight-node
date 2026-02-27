@@ -17,9 +17,11 @@
 
 set -euo pipefail
 
-echo "=== Governance Contract Compiler and Deployer ==="
+step_start() { STEP_START=$(date +%s); echo "[$(date -u +%H:%M:%S)] $1"; }
+step_end() { echo "[$(date -u +%H:%M:%S)] Done ($(( $(date +%s) - STEP_START ))s)"; }
 
-RUNTIME_VALUES="/runtime-values"
+step_start "=== Governance Contract Compiler and Deployer ==="
+
 CONTRACTS_SRC="/contracts"
 CONTRACTS_DIR="/tmp/contracts"
 OUTPUT_DIR="/runtime-values"
@@ -49,15 +51,18 @@ fi
 # Navigate to contracts directory
 cd "${CONTRACTS_DIR}"
 
-echo "Installing node dependencies"
+step_start "Installing node dependencies"
 bun install
+step_end
 
 
 # Prepare one shot hash
-echo "=== One Shot Hash Preparation ==="
+step_start "=== One Shot Hash Preparation ==="
 
 bun cli simple-tx -p kupmios
+step_start "Submitting simple-tx"
 bun cli sign-and-submit -p kupmios deployments/local/simple-tx.json
+step_end
 one_shot_hash=$(jq -r '.txHash' deployments/local/simple-tx.json)
 
 echo "✓ One shot hash: $one_shot_hash generated successfully"
@@ -66,7 +71,7 @@ echo ""
 
 
 # Update aiken config
-echo "=== Aiken Config Update ==="
+step_start "=== Aiken Config Update ==="
 # Info: will use `toml set` but keeeping sed commands, just in case.
 # sed -i '/\[config\.default\..*_one_shot_hash\]/,/^bytes = / s/^bytes = ".*"/bytes = "'"$one_shot_hash"'"/' aiken.toml
 # sed -i '/\[config\.default\.collateral_utxo_hash\]/,/^bytes = / s/^bytes = ".*"/bytes = "'"$one_shot_hash"'"/' aiken.toml
@@ -111,12 +116,12 @@ toml get aiken.toml config.default | jq -r
 echo ""
 
 echo "✓ Aiken config updated successfully"
-echo "==================================="
+step_end
 echo ""
 
 
 # Compile contracts with modified default config
-echo "=== Aiken Contracts Compilation ==="
+step_start "=== Aiken Contracts Compilation ==="
 echo "Aiken version:"
 aiken --version
 
@@ -130,16 +135,20 @@ if [[ ! -f "${PLUTUS_JSON}" ]]; then
 fi
 
 echo "✓ Contracts compiled successfully"
-echo "=== Contracts Compilation Complete ==="
+step_end
 echo ""
 
 # Deploy contracts
-echo "=== Contracts Deployment ==="
+step_start "=== Contracts Deployment ==="
 bun cli deploy -p kupmios
+step_start "Submitting deployment-transactions"
 bun cli sign-and-submit -p kupmios deployments/local/deployment-transactions.json
+step_end
 
 bun cli register-gov-auth -p kupmios
+step_start "Submitting register-gov-auth-tx"
 bun cli sign-and-submit -p kupmios deployments/local/register-gov-auth-tx.json
+step_end
 
 echo "✓ Contracts deployed successfully"
 echo "=== Contracts Deployment Complete ==="
