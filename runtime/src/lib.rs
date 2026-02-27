@@ -700,21 +700,7 @@ impl pallet_version::Config for Runtime {
 	type RuntimeVersion = Version;
 }
 
-parameter_types! {
-	pub const McEpochDurationMillisConst: u64 = midnight_primitives::cardano_mainnet::MC_EPOCH_DURATION_MILLIS;
-	pub const McSlotDurationMillisConst: u64 = midnight_primitives::cardano_mainnet::MC_SLOT_DURATION_MILLIS;
-	pub const McFirstEpochTimestampMillisConst: u64 = midnight_primitives::cardano_mainnet::MC_FIRST_EPOCH_TIMESTAMP_MILLIS;
-	pub const McFirstEpochNumberConst: u32 = midnight_primitives::cardano_mainnet::MC_FIRST_EPOCH_NUMBER;
-	pub const McFirstSlotNumberConst: u64 = midnight_primitives::cardano_mainnet::MC_FIRST_SLOT_NUMBER;
-}
-
-impl pallet_consensus_config::Config for Runtime {
-	type McEpochDurationMillisConst = McEpochDurationMillisConst;
-	type McSlotDurationMillisConst = McSlotDurationMillisConst;
-	type McFirstEpochTimestampMillisConst = McFirstEpochTimestampMillisConst;
-	type McFirstEpochNumberConst = McFirstEpochNumberConst;
-	type McFirstSlotNumberConst = McFirstSlotNumberConst;
-}
+impl pallet_consensus_config::Config for Runtime {}
 
 impl pallet_preimage::Config for Runtime {
 	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;

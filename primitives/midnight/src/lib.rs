@@ -166,22 +166,22 @@ pub mod bridge {
 	}
 }
 
-/// Canonical Cardano mainnet epoch parameters.
+/// Canonical Cardano mainnet Shelley-era epoch parameters.
 ///
-/// These values are invariant for all Midnight networks connecting to
-/// Cardano mainnet and serve as the single source of truth for runtime
-/// constants, chain spec genesis config, and test fixtures.
+/// Sourced from `res/cfg/mainnet.toml`. These values are specific to the
+/// Cardano mainnet; other networks (preprod, preview, dev) use different
+/// values loaded from their respective TOML configs at runtime.
 pub mod cardano_mainnet {
 	/// Cardano mainnet epoch duration: 5 days (432,000,000 ms).
 	pub const MC_EPOCH_DURATION_MILLIS: u64 = 432_000_000;
 	/// Cardano mainnet slot duration: 1 second (1,000 ms).
 	pub const MC_SLOT_DURATION_MILLIS: u64 = 1_000;
-	/// Shelley era start timestamp (2020-08-03 21:44:51 UTC).
-	pub const MC_FIRST_EPOCH_TIMESTAMP_MILLIS: u64 = 1_596_399_616_000;
-	/// Shelley era starts at Cardano epoch 75.
-	pub const MC_FIRST_EPOCH_NUMBER: u32 = 75;
-	/// First slot number of the Shelley era.
-	pub const MC_FIRST_SLOT_NUMBER: u64 = 0;
+	/// Shelley era start timestamp on Cardano mainnet (2020-07-29 21:44:51 UTC).
+	pub const MC_FIRST_EPOCH_TIMESTAMP_MILLIS: u64 = 1_596_059_091_000;
+	/// Shelley era starts at Cardano mainnet epoch 208.
+	pub const MC_FIRST_EPOCH_NUMBER: u32 = 208;
+	/// First slot number of the Shelley era on Cardano mainnet.
+	pub const MC_FIRST_SLOT_NUMBER: u64 = 4_492_800;
 }
 
 pub mod well_known_keys {

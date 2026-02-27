@@ -189,7 +189,23 @@ pub fn block_from_hash(block_hash: &str) -> H256 {
 	H256::from_slice(&hex::decode(block_hash.replace("0x", "")).unwrap()[..])
 }
 
-pub fn chain_config<T: MidnightNetwork>(genesis: T) -> Result<ChainSpec, ChainSpecInitError> {
+/// Parameters for `pallet-consensus-config` genesis initialization.
+///
+/// Sourced from `MidnightCfg` (operator TOML config) at chain spec build time.
+/// Values vary by network (mainnet, preprod, dev).
+#[derive(Default)]
+pub struct McEpochGenesisParams {
+	pub mc_epoch_duration_millis: u64,
+	pub mc_slot_duration_millis: u64,
+	pub mc_first_epoch_timestamp_millis: u64,
+	pub mc_first_epoch_number: u32,
+	pub mc_first_slot_number: u64,
+}
+
+pub fn chain_config<T: MidnightNetwork>(
+	genesis: T,
+	mc_params: McEpochGenesisParams,
+) -> Result<ChainSpec, ChainSpecInitError> {
 	let chain_spec_builder = ChainSpec::builder(runtime_wasm(), Default::default())
 		.with_name(genesis.name())
 		.with_id(genesis.id())
@@ -199,12 +215,15 @@ pub fn chain_config<T: MidnightNetwork>(genesis: T) -> Result<ChainSpec, ChainSp
 			genesis.genesis_state(),
 			&genesis.cnight_genesis().observed_utxos,
 		))
-		.with_genesis_config(genesis_config(genesis)?);
+		.with_genesis_config(genesis_config(genesis, mc_params)?);
 
 	Ok(chain_spec_builder.build())
 }
 
-fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, ChainSpecInitError> {
+fn genesis_config<T: MidnightNetwork>(
+	genesis: T,
+	mc_params: McEpochGenesisParams,
+) -> Result<serde_json::Value, ChainSpecInitError> {
 	let authority_keys = genesis
 		.initial_authorities()
 		.into_iter()
@@ -345,13 +364,11 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 			}
 		},
 		consensus_config: pallet_consensus_config::GenesisConfig {
-			mc_epoch_duration_millis:
-				midnight_primitives::cardano_mainnet::MC_EPOCH_DURATION_MILLIS,
-			mc_slot_duration_millis: midnight_primitives::cardano_mainnet::MC_SLOT_DURATION_MILLIS,
-			mc_first_epoch_timestamp_millis:
-				midnight_primitives::cardano_mainnet::MC_FIRST_EPOCH_TIMESTAMP_MILLIS,
-			mc_first_epoch_number: midnight_primitives::cardano_mainnet::MC_FIRST_EPOCH_NUMBER,
-			mc_first_slot_number: midnight_primitives::cardano_mainnet::MC_FIRST_SLOT_NUMBER,
+			mc_epoch_duration_millis: mc_params.mc_epoch_duration_millis,
+			mc_slot_duration_millis: mc_params.mc_slot_duration_millis,
+			mc_first_epoch_timestamp_millis: mc_params.mc_first_epoch_timestamp_millis,
+			mc_first_epoch_number: mc_params.mc_first_epoch_number,
+			mc_first_slot_number: mc_params.mc_first_slot_number,
 			..Default::default()
 		},
 		system_parameters: {
