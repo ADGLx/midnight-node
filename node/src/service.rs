@@ -45,6 +45,7 @@ use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 
 use mmr_gadget::MmrGadget;
+use pallet_consensus_config::ConsensusConfigApi;
 use sc_rpc::SubscriptionTaskExecutor;
 use sp_core::storage::Storage;
 use sp_partner_chains_consensus_aura::block_proposal::PartnerChainsProposerFactory;
@@ -59,7 +60,6 @@ use std::{
 	},
 	time::Duration,
 };
-use pallet_consensus_config::ConsensusConfigApi;
 use time_source::SystemTimeSource;
 
 pub struct StorageInit {
@@ -264,6 +264,7 @@ type MidnightService = sc_service::PartialComponents<
 /// `pallet-consensus-config`. If on-chain values are all zero (pallet not yet
 /// migrated), logs a warning and skips the check. If non-zero, aborts on any
 /// field mismatch.
+#[allow(clippy::result_large_err)]
 fn check_consensus_config_consistency<C>(
 	client: &C,
 	epoch_config: &MainchainEpochConfig,
@@ -275,9 +276,9 @@ where
 	let best_hash = client.info().best_hash;
 	let api = client.runtime_api();
 
-	let on_chain_epoch_dur = api
-		.mc_epoch_duration_millis(best_hash)
-		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_epoch_duration_millis: {e}")))?;
+	let on_chain_epoch_dur = api.mc_epoch_duration_millis(best_hash).map_err(|e| {
+		ServiceError::Other(format!("Failed to read on-chain mc_epoch_duration_millis: {e}"))
+	})?;
 
 	if on_chain_epoch_dur == 0 {
 		log::warn!(
@@ -288,18 +289,18 @@ where
 		return Ok(());
 	}
 
-	let on_chain_slot_dur = api
-		.mc_slot_duration_millis(best_hash)
-		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_slot_duration_millis: {e}")))?;
-	let on_chain_first_ts = api
-		.mc_first_epoch_timestamp_millis(best_hash)
-		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_first_epoch_timestamp_millis: {e}")))?;
-	let on_chain_first_epoch = api
-		.mc_first_epoch_number(best_hash)
-		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_first_epoch_number: {e}")))?;
-	let on_chain_first_slot = api
-		.mc_first_slot_number(best_hash)
-		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_first_slot_number: {e}")))?;
+	let on_chain_slot_dur = api.mc_slot_duration_millis(best_hash).map_err(|e| {
+		ServiceError::Other(format!("Failed to read on-chain mc_slot_duration_millis: {e}"))
+	})?;
+	let on_chain_first_ts = api.mc_first_epoch_timestamp_millis(best_hash).map_err(|e| {
+		ServiceError::Other(format!("Failed to read on-chain mc_first_epoch_timestamp_millis: {e}"))
+	})?;
+	let on_chain_first_epoch = api.mc_first_epoch_number(best_hash).map_err(|e| {
+		ServiceError::Other(format!("Failed to read on-chain mc_first_epoch_number: {e}"))
+	})?;
+	let on_chain_first_slot = api.mc_first_slot_number(best_hash).map_err(|e| {
+		ServiceError::Other(format!("Failed to read on-chain mc_first_slot_number: {e}"))
+	})?;
 
 	let local_epoch_dur = epoch_config.epoch_duration_millis.millis();
 	let local_slot_dur = epoch_config.slot_duration_millis.millis();

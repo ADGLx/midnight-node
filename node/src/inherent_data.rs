@@ -343,7 +343,7 @@ impl CreateInherentDataConfig {
 		if mc_slot_dur == 0 {
 			return Err(ConfigError::ZeroMcSlotDuration);
 		}
-		if mc_epoch_dur % mc_slot_dur != 0 {
+		if !mc_epoch_dur.is_multiple_of(mc_slot_dur) {
 			return Err(ConfigError::MainchainEpochNotDivisible {
 				epoch_duration_millis: mc_epoch_dur,
 				slot_duration_millis: mc_slot_dur,
@@ -403,8 +403,11 @@ mod tests {
 
 	#[test]
 	fn new_succeeds_with_valid_config() {
-		let result =
-			CreateInherentDataConfig::new(valid_mc_epoch_config(), valid_sc_slot_config(), time_source());
+		let result = CreateInherentDataConfig::new(
+			valid_mc_epoch_config(),
+			valid_sc_slot_config(),
+			time_source(),
+		);
 		assert!(result.is_ok());
 		let config = result.unwrap();
 		assert_eq!(config.mc_epoch_config, valid_mc_epoch_config());
@@ -413,10 +416,8 @@ mod tests {
 
 	#[test]
 	fn new_rejects_zero_slot_duration() {
-		let sc = ScSlotConfig {
-			slot_duration: SlotDuration::from_millis(0),
-			..valid_sc_slot_config()
-		};
+		let sc =
+			ScSlotConfig { slot_duration: SlotDuration::from_millis(0), ..valid_sc_slot_config() };
 		let result = CreateInherentDataConfig::new(valid_mc_epoch_config(), sc, time_source());
 		assert!(matches!(result, Err(ConfigError::ZeroSlotDuration)));
 	}

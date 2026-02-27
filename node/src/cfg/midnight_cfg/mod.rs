@@ -150,7 +150,7 @@ fn validate_mc_epoch_params(cfg: &MidnightCfg) -> Result<(), validation::Error> 
 			"mc_first_epoch_timestamp_millis must be non-zero".to_string(),
 		));
 	}
-	if cfg.mc_epoch_duration_millis % cfg.mc_slot_duration_millis != 0 {
+	if !cfg.mc_epoch_duration_millis.is_multiple_of(cfg.mc_slot_duration_millis) {
 		return Err(validation::Error::Custom(format!(
 			"mc_epoch_duration_millis ({}ms) must be divisible by mc_slot_duration_millis ({}ms)",
 			cfg.mc_epoch_duration_millis, cfg.mc_slot_duration_millis

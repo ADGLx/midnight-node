@@ -306,8 +306,7 @@ mod tests {
 		empty_test_ext().execute_with(|| {
 			assert!(!pallet::Pallet::<Test>::is_initialized());
 
-			let weight =
-				<pallet::Pallet<Test> as Hooks<u64>>::on_runtime_upgrade();
+			let weight = <pallet::Pallet<Test> as Hooks<u64>>::on_runtime_upgrade();
 
 			assert!(pallet::Pallet::<Test>::is_initialized());
 			assert_eq!(pallet::Pallet::<Test>::mc_epoch_duration_millis(), 432_000_000);
@@ -348,9 +347,7 @@ mod tests {
 			<pallet::Pallet<Test> as Hooks<u64>>::on_initialize(1);
 			let header: Header = System::finalize();
 
-			let result = header
-				.digest()
-				.convert_first(pallet::Pallet::<Test>::decode_config_hash);
+			let result = header.digest().convert_first(pallet::Pallet::<Test>::decode_config_hash);
 
 			assert!(result.is_none(), "No MNCC digest when uninitialized");
 		});
@@ -400,8 +397,7 @@ mod tests {
 		new_test_ext(genesis).execute_with(|| {
 			assert!(pallet::Pallet::<Test>::is_initialized());
 
-			let skip_weight =
-				<pallet::Pallet<Test> as Hooks<u64>>::on_runtime_upgrade();
+			let skip_weight = <pallet::Pallet<Test> as Hooks<u64>>::on_runtime_upgrade();
 
 			// Values should be unchanged — migration skipped
 			assert_eq!(pallet::Pallet::<Test>::mc_epoch_duration_millis(), 999_999);
