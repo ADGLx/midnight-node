@@ -700,7 +700,21 @@ impl pallet_version::Config for Runtime {
 	type RuntimeVersion = Version;
 }
 
-impl pallet_consensus_config::Config for Runtime {}
+parameter_types! {
+	pub const McEpochDurationMillisConst: u64 = 432_000_000;
+	pub const McSlotDurationMillisConst: u64 = 1_000;
+	pub const McFirstEpochTimestampMillisConst: u64 = 1_596_399_616_000;
+	pub const McFirstEpochNumberConst: u32 = 75;
+	pub const McFirstSlotNumberConst: u64 = 0;
+}
+
+impl pallet_consensus_config::Config for Runtime {
+	type McEpochDurationMillisConst = McEpochDurationMillisConst;
+	type McSlotDurationMillisConst = McSlotDurationMillisConst;
+	type McFirstEpochTimestampMillisConst = McFirstEpochTimestampMillisConst;
+	type McFirstEpochNumberConst = McFirstEpochNumberConst;
+	type McFirstSlotNumberConst = McFirstSlotNumberConst;
+}
 
 impl pallet_preimage::Config for Runtime {
 	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;

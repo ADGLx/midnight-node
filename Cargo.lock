@@ -7871,6 +7871,7 @@ dependencies = [
  "pallet-beefy-mmr",
  "pallet-cnight-observation",
  "pallet-collective",
+ "pallet-consensus-config",
  "pallet-federated-authority",
  "pallet-federated-authority-observation",
  "pallet-grandpa",
@@ -10217,6 +10218,20 @@ source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable
 dependencies = [
  "docify",
  "frame-benchmarking",
+ "frame-support",
+ "frame-system",
+ "log",
+ "parity-scale-codec",
+ "scale-info",
+ "sp-core",
+ "sp-io",
+ "sp-runtime",
+]
+
+[[package]]
+name = "pallet-consensus-config"
+version = "0.1.0"
+dependencies = [
  "frame-support",
  "frame-system",
  "log",
