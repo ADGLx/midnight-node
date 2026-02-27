@@ -137,6 +137,17 @@ pub mod pallet {
 	}
 }
 
+sp_api::decl_runtime_apis! {
+	/// Runtime API for reading consensus configuration from on-chain storage.
+	pub trait ConsensusConfigApi {
+		fn mc_epoch_duration_millis() -> u64;
+		fn mc_slot_duration_millis() -> u64;
+		fn mc_first_epoch_timestamp_millis() -> u64;
+		fn mc_first_epoch_number() -> u32;
+		fn mc_first_slot_number() -> u64;
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;

@@ -14,6 +14,7 @@ frame-support.workspace = true
 frame-system.workspace = true
 scale-info.workspace = true
 sp-runtime.workspace = true
+sp-api.workspace = true
 log.workspace = true
 
 [dev-dependencies]
@@ -29,6 +30,7 @@ std = [
     "frame-system/std",
     "scale-info/std",
     "sp-runtime/std",
+    "sp-api/std",
     "log/std",
 ]
 

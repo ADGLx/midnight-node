@@ -59,6 +59,7 @@ use std::{
 	},
 	time::Duration,
 };
+use pallet_consensus_config::ConsensusConfigApi;
 use time_source::SystemTimeSource;
 
 pub struct StorageInit {
@@ -259,6 +260,95 @@ type MidnightService = sc_service::PartialComponents<
 	),
 >;
 
+/// Compares local `MainchainEpochConfig` against on-chain values stored in
+/// `pallet-consensus-config`. If on-chain values are all zero (pallet not yet
+/// migrated), logs a warning and skips the check. If non-zero, aborts on any
+/// field mismatch.
+fn check_consensus_config_consistency<C>(
+	client: &C,
+	epoch_config: &MainchainEpochConfig,
+) -> Result<(), ServiceError>
+where
+	C: sp_api::ProvideRuntimeApi<Block> + sp_blockchain::HeaderBackend<Block>,
+	C::Api: ConsensusConfigApi<Block>,
+{
+	let best_hash = client.info().best_hash;
+	let api = client.runtime_api();
+
+	let on_chain_epoch_dur = api
+		.mc_epoch_duration_millis(best_hash)
+		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_epoch_duration_millis: {e}")))?;
+
+	if on_chain_epoch_dur == 0 {
+		log::warn!(
+			target: "midnight",
+			"On-chain consensus config not yet initialized (pallet migration pending). \
+			 Skipping startup consistency check."
+		);
+		return Ok(());
+	}
+
+	let on_chain_slot_dur = api
+		.mc_slot_duration_millis(best_hash)
+		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_slot_duration_millis: {e}")))?;
+	let on_chain_first_ts = api
+		.mc_first_epoch_timestamp_millis(best_hash)
+		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_first_epoch_timestamp_millis: {e}")))?;
+	let on_chain_first_epoch = api
+		.mc_first_epoch_number(best_hash)
+		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_first_epoch_number: {e}")))?;
+	let on_chain_first_slot = api
+		.mc_first_slot_number(best_hash)
+		.map_err(|e| ServiceError::Other(format!("Failed to read on-chain mc_first_slot_number: {e}")))?;
+
+	let local_epoch_dur = epoch_config.epoch_duration_millis.millis();
+	let local_slot_dur = epoch_config.slot_duration_millis.millis();
+	let local_first_ts = epoch_config.first_epoch_timestamp_millis.unix_millis();
+	let local_first_epoch = epoch_config.first_epoch_number;
+	let local_first_slot = epoch_config.first_slot_number;
+
+	let mut mismatches = Vec::new();
+
+	if local_epoch_dur != on_chain_epoch_dur {
+		mismatches.push(format!(
+			"mc_epoch_duration_millis: local={local_epoch_dur} on-chain={on_chain_epoch_dur}"
+		));
+	}
+	if local_slot_dur != on_chain_slot_dur {
+		mismatches.push(format!(
+			"mc_slot_duration_millis: local={local_slot_dur} on-chain={on_chain_slot_dur}"
+		));
+	}
+	if local_first_ts != on_chain_first_ts {
+		mismatches.push(format!(
+			"mc_first_epoch_timestamp_millis: local={local_first_ts} on-chain={on_chain_first_ts}"
+		));
+	}
+	if local_first_epoch != on_chain_first_epoch {
+		mismatches.push(format!(
+			"mc_first_epoch_number: local={local_first_epoch} on-chain={on_chain_first_epoch}"
+		));
+	}
+	if local_first_slot != on_chain_first_slot {
+		mismatches.push(format!(
+			"mc_first_slot_number: local={local_first_slot} on-chain={on_chain_first_slot}"
+		));
+	}
+
+	if mismatches.is_empty() {
+		log::info!(
+			target: "midnight",
+			"Consensus config consistency check passed — local config matches on-chain values"
+		);
+		Ok(())
+	} else {
+		Err(ServiceError::Other(format!(
+			"Consensus config mismatch between local config and on-chain values: {}",
+			mismatches.join("; ")
+		)))
+	}
+}
+
 #[allow(clippy::result_large_err)]
 pub fn new_partial(
 	config: &Configuration,
@@ -400,6 +490,8 @@ pub fn new_partial(
 
 	let sc_slot_config = sidechain_slots::runtime_api_client::slot_config(&*client)
 		.map_err(sp_blockchain::Error::from)?;
+
+	check_consensus_config_consistency(&*client, &epoch_config)?;
 
 	let mc_follower_metrics = register_metrics_warn_errors(config.prometheus_registry());
 

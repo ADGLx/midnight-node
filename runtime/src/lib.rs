@@ -1464,6 +1464,24 @@ impl_runtime_apis! {
 		}
 	}
 
+	impl pallet_consensus_config::ConsensusConfigApi<Block> for Runtime {
+		fn mc_epoch_duration_millis() -> u64 {
+			ConsensusConfig::mc_epoch_duration_millis()
+		}
+		fn mc_slot_duration_millis() -> u64 {
+			ConsensusConfig::mc_slot_duration_millis()
+		}
+		fn mc_first_epoch_timestamp_millis() -> u64 {
+			ConsensusConfig::mc_first_epoch_timestamp_millis()
+		}
+		fn mc_first_epoch_number() -> u32 {
+			ConsensusConfig::mc_first_epoch_number()
+		}
+		fn mc_first_slot_number() -> u64 {
+			ConsensusConfig::mc_first_slot_number()
+		}
+	}
+
 	impl sp_session_validator_management::SessionValidatorManagementApi<
 		Block,
 		<Runtime as pallet_session_validator_management::Config>::CommitteeMember,
