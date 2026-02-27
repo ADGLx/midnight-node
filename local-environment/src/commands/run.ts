@@ -29,6 +29,7 @@ import { runDockerCompose } from "../lib/docker";
 import { restoreSnapshotFromS3 } from "../lib/snapshotRestore";
 import { ensureSnapshotCredentials } from "../lib/snapshotEnv";
 import { setupPreviewProxies } from "../lib/previewProxy";
+import { setupSdmProxies } from "../lib/sdmProxy";
 import { loadNetworkConfig } from "../lib/networkConfig";
 
 /**
@@ -57,19 +58,27 @@ async function runEphemeralEnvironment(
   const networkConfig = loadNetworkConfig(namespace);
   const dbsyncMode = networkConfig.dbsync.mode;
 
-  switch(dbsyncMode) {
-  case "public":
-    console.log("Skipping port-forward: DB marked as publicly reachable");
-    break;
-  case "rds-proxy":
-    console.log("Skipping pod port-forward: DB will be proxied via RDS helper");
-    break;
-  default:
-    await connectToPostgres(namespace);
+  switch (dbsyncMode) {
+    case "public":
+      console.log("Skipping port-forward: DB marked as publicly reachable");
+      break;
+    case "rds-proxy":
+      console.log("Skipping pod port-forward: DB will be proxied via RDS helper");
+      break;
+    case "sdm":
+      console.log("Skipping pod port-forward: DB connections via StrongDM");
+      break;
+    default:
+      await connectToPostgres(namespace);
   }
 
   console.log(`🔐 Extracting secrets for namespace: ${namespace}`);
   const envObject = getSecrets(namespace);
+  const composeProfiles = resolveComposeProfiles(
+    namespace,
+    runOptions.profiles,
+    envObject,
+  );
 
   let env: Record<string, string> = { ...cleanEnv(process.env), ...envObject };
 
@@ -85,6 +94,11 @@ async function runEphemeralEnvironment(
   if (dbsyncMode === "rds-proxy") {
     const proxyOverrides = await setupPreviewProxies(env, namespace);
     env = { ...env, ...proxyOverrides };
+  }
+
+  if (dbsyncMode === "sdm") {
+    const sdmOverrides = await setupSdmProxies(env, namespace);
+    env = { ...env, ...sdmOverrides };
   }
 
   const composeFile = resolveComposeFile(namespace);
@@ -108,7 +122,7 @@ async function runEphemeralEnvironment(
   runDockerCompose({
     composeFile,
     env,
-    profiles: runOptions.profiles,
+    profiles: composeProfiles,
     detach: true,
   });
 }
@@ -198,6 +212,32 @@ function resolveComposeFile(namespace: string): string {
   }
 
   return composeFile;
+}
+
+function resolveComposeProfiles(
+  namespace: string,
+  requestedProfiles: string[] | undefined,
+  envObject: Record<string, string>,
+): string[] | undefined {
+  const merged = new Set<string>(requestedProfiles ?? []);
+
+  // QANet supports running a reduced validator set when only the first seed group
+  // is available from AWS. Nodes 7-12 are attached to profile `qanet-extra`.
+  if (namespace === "qanet") {
+    const hasExtraNodeSeeds =
+      Boolean(envObject["MIDNIGHT_NODE_07_0_AURA_SEED"]) ||
+      Boolean(envObject["MIDNIGHT_NODE_07_0_SEED"]);
+
+    if (hasExtraNodeSeeds) {
+      merged.add("qanet-extra");
+    }
+  }
+
+  if (merged.size === 0) {
+    return undefined;
+  }
+
+  return Array.from(merged);
 }
 
 // Helper to ensure no undefined values in env vars

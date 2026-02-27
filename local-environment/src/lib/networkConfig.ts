@@ -14,8 +14,8 @@
 import fs from "fs";
 import path from "path";
 
-export type DbsyncMode = "k8s" | "public" | "rds-proxy";
-export type SecretsMode = "pods-by-labels" | "preview-style";
+export type DbsyncMode = "k8s" | "public" | "rds-proxy" | "sdm";
+export type SecretsMode = "pods-by-labels" | "preview-style" | "aws-qanet";
 
 export interface NetworkConfig {
   dbsync?: {

@@ -1,9 +1,9 @@
 {
   "dbsync": {
-    "mode": "k8s"
+    "mode": "sdm"
   },
   "secrets": {
-    "mode": "pods-by-labels"
+    "mode": "aws-qanet"
   },
   "boot": {
     "podNames": [

@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import { execSync } from "child_process";
+import { execFileSync, execSync } from "child_process";
 import { readFileSync } from "fs";
 import { loadNetworkConfig } from "./networkConfig";
 
@@ -69,9 +69,59 @@ const SEED_ENV_KEYS = [
   ["crossChainSeed", "CROSS_CHAIN_SEED"],
 ] as const;
 
+const AWS_QANET_EXPECTED_NODE_COUNT = 12;
+
+interface AwsCliContext {
+  profile: string;
+  region: string;
+}
+
+interface QanetSeedSet {
+  seed?: string;
+  auraSeed?: string;
+  grandpaSeed?: string;
+  crossChainSeed?: string;
+}
+
+interface AwsSecretsListResponse {
+  SecretList?: Array<{
+    Name?: string;
+  }>;
+}
+
+interface AwsSecretValueResponse {
+  SecretString?: string;
+}
+
+interface AwsDescribeDbClustersResponse {
+  DBClusters?: Array<{
+    DBClusterIdentifier?: string;
+    Endpoint?: string;
+    Port?: number;
+    MasterUsername?: string;
+    DatabaseName?: string;
+    Status?: string;
+  }>;
+}
+
+interface AwsDescribeInstancesResponse {
+  Reservations?: Array<{
+    Instances?: Array<{
+      Tags?: Array<{
+        Key?: string;
+        Value?: string;
+      }>;
+    }>;
+  }>;
+}
+
 // TODO: Change this to use AWS SSM
 export function getSecrets(namespace: string): Record<string, string> {
   const networkConfig = loadNetworkConfig(namespace);
+
+  if (networkConfig.secrets.mode === "aws-qanet") {
+    return getAwsQanetSecrets();
+  }
 
   if (networkConfig.secrets.mode === "preview-style") {
     return getPreviewSecrets(namespace);
@@ -85,6 +135,478 @@ export function getSecrets(namespace: string): Record<string, string> {
 
   const envObject = convertSecretsToEnvObject(secrets);
   return envObject;
+}
+
+function getAwsQanetSecrets(): Record<string, string> {
+  const aws = resolveQanetAwsContext();
+  console.log(
+    `loading qanet secrets from AWS (profile='${aws.profile}', region='${aws.region}')`,
+  );
+
+  const seedSecretCandidates = compactStrings([
+    process.env.MN_AWS_QANET_SEED_SECRET,
+    process.env.MN_AWS_QANET_SEED_SECRET_FALLBACK,
+  ]);
+
+  if (seedSecretCandidates.length === 0) {
+    throw new Error(
+      "no AWS seed secret configured. set MN_AWS_QANET_SEED_SECRET or MN_AWS_QANET_SEED_SECRET_FALLBACK.",
+    );
+  }
+
+  const { secretId: seedSecretId, value: seedPayload } =
+    loadFirstExistingJsonSecret(seedSecretCandidates, aws);
+  console.log(`using AWS seed secret '${seedSecretId}'`);
+
+  const seedsByNode = parseQanetSeedPayload(seedPayload);
+  const nodeIndexes = Array.from(seedsByNode.keys()).sort((a, b) => a - b);
+  if (nodeIndexes.length === 0) {
+    throw new Error(
+      `seed secret '${seedSecretId}' did not contain any node seed entries`,
+    );
+  }
+
+  if (nodeIndexes.length < AWS_QANET_EXPECTED_NODE_COUNT) {
+    console.warn(
+      `qanet AWS seed set has ${nodeIndexes.length} node(s); compose expects ${AWS_QANET_EXPECTED_NODE_COUNT}. proceeding with available nodes.`,
+    );
+  }
+
+  const connectionString = buildQanetConnectionString(aws);
+
+  const env: Record<string, string> = {};
+
+  for (const nodeIndex of nodeIndexes) {
+    const seedSet = seedsByNode.get(nodeIndex);
+    if (!seedSet) {
+      continue;
+    }
+
+    const prefix = `MIDNIGHT_NODE_${padNodeIndex(nodeIndex)}_0`;
+    if (seedSet.seed) {
+      env[`${prefix}_SEED`] = seedSet.seed;
+    }
+    if (seedSet.auraSeed) {
+      env[`${prefix}_AURA_SEED`] = seedSet.auraSeed;
+    }
+    if (seedSet.grandpaSeed) {
+      env[`${prefix}_GRANDPA_SEED`] = seedSet.grandpaSeed;
+    }
+    if (seedSet.crossChainSeed) {
+      env[`${prefix}_CROSS_CHAIN_SEED`] = seedSet.crossChainSeed;
+    }
+  }
+
+  const maxNodeIndex = Math.max(
+    AWS_QANET_EXPECTED_NODE_COUNT,
+    nodeIndexes[nodeIndexes.length - 1] ?? AWS_QANET_EXPECTED_NODE_COUNT,
+  );
+
+  for (let index = 1; index <= maxNodeIndex; index += 1) {
+    env[
+      `DB_SYNC_POSTGRES_CONNECTION_STRING_NODE_MIDNIGHT_NODE_${padNodeIndex(index)}_0`
+    ] = connectionString;
+  }
+
+  return env;
+}
+
+function resolveQanetAwsContext(): AwsCliContext {
+  const profile = firstNonEmpty([
+    process.env.MN_AWS_QANET_PROFILE,
+    process.env.MN_AWS_PROFILE_QANET,
+    process.env.AWS_PROFILE,
+  ]);
+
+  if (!profile) {
+    throw new Error(
+      "no AWS profile configured. set MN_AWS_QANET_PROFILE, MN_AWS_PROFILE_QANET, or AWS_PROFILE.",
+    );
+  }
+
+  const region = firstNonEmpty([
+    process.env.MN_AWS_QANET_REGION,
+    process.env.MN_AWS_REGION_QANET,
+    process.env.MN_AWS_REGION,
+    process.env.AWS_REGION,
+    process.env.AWS_DEFAULT_REGION,
+  ]);
+
+  if (!region) {
+    throw new Error(
+      "no AWS region configured. set MN_AWS_QANET_REGION, AWS_REGION, or AWS_DEFAULT_REGION.",
+    );
+  }
+
+  return { profile, region };
+}
+
+function buildQanetConnectionString(aws: AwsCliContext): string {
+  const overrideConnectionString = process.env.MN_AWS_QANET_DB_CONNECTION_STRING;
+  if (overrideConnectionString?.trim()) {
+    console.log("using override DB connection string for qanet");
+    return overrideConnectionString.trim();
+  }
+
+  const groupHint =
+    firstNonEmpty([process.env.MN_AWS_QANET_GROUP_PET]) ??
+    resolveQanetGroupPetFromEc2(aws);
+  if (groupHint) {
+    console.log(`resolved qanet resource group '${groupHint}'`);
+  }
+
+  const auroraSecretId =
+    firstNonEmpty([process.env.MN_AWS_QANET_AURORA_SECRET]) ??
+    resolveQanetAuroraSecretName(aws, groupHint);
+
+  const auroraSecret = loadJsonSecret(auroraSecretId, aws);
+  const cluster = resolveQanetCluster(aws, groupHint);
+
+  const host =
+    firstNonEmpty([process.env.MN_AWS_QANET_DB_HOST, cluster.Endpoint]) ?? "";
+  if (!host) {
+    throw new Error("unable to resolve AWS qanet DB host");
+  }
+
+  const username =
+    firstNonEmpty([
+      process.env.MN_AWS_QANET_DB_USER,
+      auroraSecret.username,
+      cluster.MasterUsername,
+    ]) ?? "cardano";
+
+  const database =
+    firstNonEmpty([
+      process.env.MN_AWS_QANET_DB_NAME,
+      cluster.DatabaseName,
+      "cexplorer",
+    ]) ?? "cexplorer";
+
+  const password = firstNonEmpty([
+    process.env.MN_AWS_QANET_DB_PASSWORD,
+    auroraSecret.password,
+  ]);
+  if (!password) {
+    throw new Error(
+      `unable to resolve DB password (checked secret '${auroraSecretId}' and MN_AWS_QANET_DB_PASSWORD)`,
+    );
+  }
+
+  const portRaw =
+    firstNonEmpty([
+      process.env.MN_AWS_QANET_DB_PORT,
+      cluster.Port ? String(cluster.Port) : undefined,
+    ]) ?? "5432";
+  const port = Number.parseInt(portRaw, 10);
+  if (!Number.isFinite(port) || port <= 0) {
+    throw new Error(`invalid AWS qanet DB port '${portRaw}'`);
+  }
+
+  const encodedUser = encodeURIComponent(username);
+  const encodedPassword = encodeURIComponent(password);
+  const encodedDb = encodeURIComponent(database);
+
+  return `psql://${encodedUser}:${encodedPassword}@${host}:${port}/${encodedDb}?sslmode=require`;
+}
+
+function resolveQanetAuroraSecretName(
+  aws: AwsCliContext,
+  groupHint?: string,
+): string {
+  const response = awsCliJson<AwsSecretsListResponse>(
+    ["secretsmanager", "list-secrets"],
+    aws,
+  );
+
+  const names = (response.SecretList ?? [])
+    .map((secret) => secret.Name?.trim())
+    .filter((name): name is string => Boolean(name))
+    .filter((name) => name.includes("qanet") && name.includes("aurora-master"));
+
+  if (names.length === 0) {
+    throw new Error(
+      "could not find a qanet aurora master secret in AWS Secrets Manager",
+    );
+  }
+
+  if (groupHint) {
+    const exactPath = `qanet/midnight/${groupHint}/aurora-master`;
+    const exactMatch = names.find((name) => name === exactPath);
+    if (exactMatch) {
+      return exactMatch;
+    }
+
+    const groupMatches = names.filter((name) =>
+      name.includes(`-${groupHint}-aurora-master`),
+    );
+    if (groupMatches.length === 1) {
+      return groupMatches[0];
+    }
+    if (groupMatches.length > 1) {
+      throw new Error(
+        `multiple aurora secrets matched group '${groupHint}': ${groupMatches.join(", ")}`,
+      );
+    }
+  }
+
+  const sorted = names.sort((a, b) => a.localeCompare(b));
+  const preferred =
+    sorted.find((name) => name.startsWith("qanet/midnight/")) ?? sorted[0];
+
+  return preferred;
+}
+
+function resolveQanetCluster(
+  aws: AwsCliContext,
+  groupHint?: string,
+): NonNullable<AwsDescribeDbClustersResponse["DBClusters"]>[number] {
+  const response = awsCliJson<AwsDescribeDbClustersResponse>(
+    ["rds", "describe-db-clusters"],
+    aws,
+  );
+
+  const clusters = (response.DBClusters ?? []).filter((cluster) =>
+    cluster.DBClusterIdentifier?.includes("midnight-qanet"),
+  );
+
+  if (clusters.length === 0) {
+    throw new Error("could not find an RDS cluster matching 'midnight-qanet'");
+  }
+
+  if (groupHint) {
+    const exactId = `midnight-qanet-${groupHint}`;
+    const exact = clusters.find(
+      (cluster) => cluster.DBClusterIdentifier === exactId,
+    );
+    if (exact) {
+      return exact;
+    }
+  }
+
+  const available =
+    clusters.find(
+      (cluster) => cluster.Status === "available" && Boolean(cluster.Endpoint),
+    ) ??
+    clusters.find((cluster) => Boolean(cluster.Endpoint)) ??
+    clusters[0];
+
+  return available;
+}
+
+function resolveQanetGroupPetFromEc2(
+  aws: AwsCliContext,
+): string | undefined {
+  const response = awsCliJson<AwsDescribeInstancesResponse>(
+    [
+      "ec2",
+      "describe-instances",
+      "--filters",
+      "Name=instance-state-name,Values=running",
+      "Name=tag:chain_name,Values=qanet",
+    ],
+    aws,
+  );
+
+  const instanceNameTags = (response.Reservations ?? [])
+    .flatMap((reservation) => reservation.Instances ?? [])
+    .map((instance) => tagValue(instance.Tags, "Name"))
+    .filter((name): name is string => Boolean(name));
+
+  const validatorGroups = new Set<string>();
+  const fallbackGroups = new Set<string>();
+
+  for (const name of instanceNameTags) {
+    const validatorMatch = name.match(/^qanet-vali-([^-]+)-/i);
+    if (validatorMatch) {
+      validatorGroups.add(validatorMatch[1]);
+      continue;
+    }
+
+    const cardanoMatch = name.match(/^cardano-qanet-([^-]+)$/i);
+    if (cardanoMatch) {
+      fallbackGroups.add(cardanoMatch[1]);
+    }
+  }
+
+  if (validatorGroups.size === 1) {
+    return Array.from(validatorGroups)[0];
+  }
+  if (validatorGroups.size > 1) {
+    throw new Error(
+      `multiple running validator groups detected for qanet: ${Array.from(validatorGroups).join(", ")}. set MN_AWS_QANET_GROUP_PET.`,
+    );
+  }
+
+  if (fallbackGroups.size === 1) {
+    return Array.from(fallbackGroups)[0];
+  }
+  if (fallbackGroups.size > 1) {
+    throw new Error(
+      `multiple running fallback groups detected for qanet: ${Array.from(fallbackGroups).join(", ")}. set MN_AWS_QANET_GROUP_PET.`,
+    );
+  }
+
+  return undefined;
+}
+
+function loadFirstExistingJsonSecret(
+  secretIds: string[],
+  aws: AwsCliContext,
+): { secretId: string; value: Record<string, string> } {
+  const errors: string[] = [];
+
+  for (const secretId of secretIds) {
+    try {
+      return {
+        secretId,
+        value: loadJsonSecret(secretId, aws),
+      };
+    } catch (error) {
+      errors.push(`${secretId}: ${(error as Error).message}`);
+    }
+  }
+
+  throw new Error(
+    `failed to load any candidate secret. attempts:\n${errors.join("\n")}`,
+  );
+}
+
+function loadJsonSecret(
+  secretId: string,
+  aws: AwsCliContext,
+): Record<string, string> {
+  const response = awsCliJson<AwsSecretValueResponse>(
+    ["secretsmanager", "get-secret-value", "--secret-id", secretId],
+    aws,
+  );
+
+  const raw = response.SecretString?.trim();
+  if (!raw || raw === "None") {
+    throw new Error(`secret '${secretId}' is empty or missing SecretString`);
+  }
+
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch (error) {
+    throw new Error(
+      `secret '${secretId}' does not contain JSON payload: ${(error as Error).message}`,
+    );
+  }
+
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error(`secret '${secretId}' did not parse to an object`);
+  }
+
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
+    if (typeof value === "string") {
+      out[key] = value.trim();
+      continue;
+    }
+    if (value === null || value === undefined) {
+      continue;
+    }
+    out[key] = String(value);
+  }
+
+  return out;
+}
+
+function parseQanetSeedPayload(seedPayload: Record<string, string>) {
+  const seedsByNode = new Map<number, QanetSeedSet>();
+
+  const ensureSeedSet = (index: number) => {
+    let current = seedsByNode.get(index);
+    if (!current) {
+      current = {};
+      seedsByNode.set(index, current);
+    }
+    return current;
+  };
+
+  for (const [key, value] of Object.entries(seedPayload)) {
+    const trimmed = value?.trim();
+    if (!trimmed) {
+      continue;
+    }
+
+    const categoryMatch = key.match(/^node-(\d+)-(aura|grandpa|cross-chain)$/i);
+    if (categoryMatch) {
+      const index = Number.parseInt(categoryMatch[1], 10);
+      if (!Number.isFinite(index)) {
+        continue;
+      }
+
+      const entry = ensureSeedSet(index);
+      const category = categoryMatch[2].toLowerCase();
+      if (category === "aura") {
+        entry.auraSeed = trimmed;
+      } else if (category === "grandpa") {
+        entry.grandpaSeed = trimmed;
+      } else if (category === "cross-chain") {
+        entry.crossChainSeed = trimmed;
+      }
+      continue;
+    }
+
+    const legacyMatch = key.match(/^node-(\d+)$/i);
+    if (!legacyMatch) {
+      continue;
+    }
+
+    const index = Number.parseInt(legacyMatch[1], 10);
+    if (!Number.isFinite(index)) {
+      continue;
+    }
+
+    const entry = ensureSeedSet(index);
+    entry.seed = trimmed;
+  }
+
+  return seedsByNode;
+}
+
+function awsCliJson<T>(args: string[], aws: AwsCliContext): T {
+  const raw = execFileSync(
+    "aws",
+    [...args, "--region", aws.region, "--profile", aws.profile, "--output", "json"],
+    {
+      encoding: "utf-8",
+    },
+  ).trim();
+
+  if (!raw) {
+    throw new Error(`aws ${args.join(" ")} returned empty output`);
+  }
+
+  return JSON.parse(raw) as T;
+}
+
+function padNodeIndex(index: number): string {
+  return index.toString().padStart(2, "0");
+}
+
+function compactStrings(values: Array<string | undefined>): string[] {
+  return values
+    .map((value) => value?.trim())
+    .filter((value): value is string => Boolean(value));
+}
+
+function firstNonEmpty(values: Array<string | undefined>): string | undefined {
+  for (const value of values) {
+    if (value?.trim()) {
+      return value.trim();
+    }
+  }
+  return undefined;
+}
+
+function tagValue(
+  tags: Array<{ Key?: string; Value?: string }> | undefined,
+  key: string,
+): string | undefined {
+  return tags?.find((tag) => tag.Key === key)?.Value;
 }
 
 function loadPortMapping(): PortMapping {

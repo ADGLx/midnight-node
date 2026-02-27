@@ -281,6 +281,8 @@ services:
     <<: *node-common
     hostname: node7
     container_name: node7
+    profiles:
+      - qanet-extra
     depends_on:
       boot-node:
         condition: service_healthy
@@ -319,6 +321,8 @@ services:
     <<: *node-common
     hostname: node8
     container_name: node8
+    profiles:
+      - qanet-extra
     depends_on:
       boot-node:
         condition: service_healthy
@@ -357,6 +361,8 @@ services:
     <<: *node-common
     hostname: node9
     container_name: node9
+    profiles:
+      - qanet-extra
     depends_on:
       boot-node:
         condition: service_healthy
@@ -395,6 +401,8 @@ services:
     <<: *node-common
     hostname: node10
     container_name: node10
+    profiles:
+      - qanet-extra
     depends_on:
       boot-node:
         condition: service_healthy
@@ -426,6 +434,8 @@ services:
     <<: *node-common
     hostname: node11
     container_name: node11
+    profiles:
+      - qanet-extra
     depends_on:
       boot-node:
         condition: service_healthy
@@ -457,6 +467,8 @@ services:
     <<: *node-common
     hostname: node12
     container_name: node12
+    profiles:
+      - qanet-extra
     depends_on:
       boot-node:
         condition: service_healthy
