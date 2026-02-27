@@ -174,6 +174,9 @@ that we are still in the process of being release. As such:
 
 ## Prerequisites
 
+**Recommended:** Install [Nix](https://docs.determinate.systems/ds-nix/how-to/install/) and [direnv](https://direnv.net/docs/installation.html) — the `.envrc` auto-detects Nix and provides all build tools (Rust, earthly, clang, etc.) via the Nix devshell. See [Rust Installation](docs/rust-setup.md) for details.
+
+**Without Nix**, install these manually:
 - rustup installed
 - For any docker steps: [Docker](https://docs.docker.com/get-docker/)
   and [Docker Compose](https://docs.docker.com/compose/install/) (or podman).

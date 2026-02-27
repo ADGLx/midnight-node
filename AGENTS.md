@@ -77,11 +77,11 @@ See [Genesis Verification Guide](docs/genesis/verification.md) for complete docu
 ## Development Setup
 
 ```bash
-source .envrc  # Load environment with direnv
+direnv allow   # or: source .envrc
 cargo check
 ```
 
-See `docs/rust-setup.md` for Rust toolchain installation.
+If Nix is installed, the `.envrc` auto-detects it and activates the Nix devshell (all tools provided). To opt out, set `export SKIP_FLAKE=1` in `.envrc.local`. See `docs/rust-setup.md` for details.
 
 **Running a local node** (always use release mode):
 ```bash
