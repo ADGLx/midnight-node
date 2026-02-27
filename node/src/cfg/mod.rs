@@ -30,7 +30,7 @@ use pallet_cnight_observation::config::CNightGenesis;
 use sc_cli::SubstrateCli;
 use serde_valid::Validate as _;
 
-use crate::chain_spec::{ChainSpecInitError, McEpochGenesisParams, chain_config};
+use crate::chain_spec::{ChainSpecInitError, chain_config};
 
 use self::{
 	chain_spec_cfg::ChainSpecCfg, error::CfgError, meta_cfg::MetaCfg, midnight_cfg::MidnightCfg,
@@ -255,8 +255,6 @@ impl SubstrateCli for Cfg {
 					system_parameters_config,
 					ics_config,
 					reserve_config,
-				};
-				let mc_params = McEpochGenesisParams {
 					mc_epoch_duration_millis: self.midnight_cfg.mc_epoch_duration_millis,
 					mc_slot_duration_millis: self.midnight_cfg.mc_slot_duration_millis,
 					mc_first_epoch_timestamp_millis: self
@@ -265,9 +263,9 @@ impl SubstrateCli for Cfg {
 					mc_first_epoch_number: self.midnight_cfg.mc_first_epoch_number,
 					mc_first_slot_number: self.midnight_cfg.mc_first_slot_number,
 				};
-				chain_config(network, mc_params)
+				chain_config(network)
 			},
-			"local" | "dev" => chain_config(UndeployedNetwork, McEpochGenesisParams::default()),
+			"local" | "dev" => chain_config(UndeployedNetwork),
 			path => crate::chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))
 				.map_err(|err| ChainSpecInitError::ParseError(err.to_string())),
 		};

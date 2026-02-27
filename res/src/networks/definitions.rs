@@ -111,6 +111,11 @@ pub struct CustomNetwork {
 	pub system_parameters_config: SystemParametersConfig,
 	pub ics_config: IcsConfig,
 	pub reserve_config: ReserveConfig,
+	pub mc_epoch_duration_millis: u64,
+	pub mc_slot_duration_millis: u64,
+	pub mc_first_epoch_timestamp_millis: u64,
+	pub mc_first_epoch_number: u32,
+	pub mc_first_slot_number: u64,
 }
 impl MidnightNetwork for CustomNetwork {
 	fn name(&self) -> &str {
@@ -163,5 +168,21 @@ impl MidnightNetwork for CustomNetwork {
 
 	fn genesis_utxo(&self) -> &str {
 		&self.genesis_utxo
+	}
+
+	fn mc_epoch_duration_millis(&self) -> u64 {
+		self.mc_epoch_duration_millis
+	}
+	fn mc_slot_duration_millis(&self) -> u64 {
+		self.mc_slot_duration_millis
+	}
+	fn mc_first_epoch_timestamp_millis(&self) -> u64 {
+		self.mc_first_epoch_timestamp_millis
+	}
+	fn mc_first_epoch_number(&self) -> u32 {
+		self.mc_first_epoch_number
+	}
+	fn mc_first_slot_number(&self) -> u64 {
+		self.mc_first_slot_number
 	}
 }

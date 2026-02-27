@@ -181,6 +181,22 @@ pub trait MidnightNetwork {
 	fn ics_config(&self) -> IcsConfig;
 	fn reserve_config(&self) -> ReserveConfig;
 
+	fn mc_epoch_duration_millis(&self) -> u64 {
+		0
+	}
+	fn mc_slot_duration_millis(&self) -> u64 {
+		0
+	}
+	fn mc_first_epoch_timestamp_millis(&self) -> u64 {
+		0
+	}
+	fn mc_first_epoch_number(&self) -> u32 {
+		0
+	}
+	fn mc_first_slot_number(&self) -> u64 {
+		0
+	}
+
 	fn root_key(&self) -> Option<sp_core::sr25519::Public> {
 		Some(self.initial_authorities()[0].aura_pubkey)
 	}

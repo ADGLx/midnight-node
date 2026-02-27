@@ -365,15 +365,12 @@ mod tests {
 	use time_source::SystemTimeSource;
 
 	fn valid_mc_epoch_config() -> MainchainEpochConfig {
-		use midnight_primitives::cardano_mainnet::*;
 		MainchainEpochConfig {
-			epoch_duration_millis: Duration::from_millis(MC_EPOCH_DURATION_MILLIS),
-			slot_duration_millis: Duration::from_millis(MC_SLOT_DURATION_MILLIS),
-			first_epoch_timestamp_millis: Timestamp::from_unix_millis(
-				MC_FIRST_EPOCH_TIMESTAMP_MILLIS,
-			),
-			first_epoch_number: MC_FIRST_EPOCH_NUMBER,
-			first_slot_number: MC_FIRST_SLOT_NUMBER,
+			epoch_duration_millis: Duration::from_millis(432_000_000),
+			slot_duration_millis: Duration::from_millis(1_000),
+			first_epoch_timestamp_millis: Timestamp::from_unix_millis(1_596_059_091_000),
+			first_epoch_number: 208,
+			first_slot_number: 4_492_800,
 		}
 	}
 
