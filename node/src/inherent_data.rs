@@ -302,15 +302,57 @@ pub fn slot_from_predigest(
 	}
 }
 
-#[derive(new, Clone)]
+#[derive(Debug, thiserror::Error)]
+pub enum ConfigError {
+	#[error("Sidechain slot duration must be non-zero")]
+	ZeroSlotDuration,
+	#[error("Mainchain epoch duration must be non-zero")]
+	ZeroMcEpochDuration,
+	#[error("Mainchain slot duration must be non-zero")]
+	ZeroMcSlotDuration,
+	#[error(
+		"Mainchain epoch duration ({epoch_duration_millis}ms) must be divisible \
+		 by mainchain slot duration ({slot_duration_millis}ms)"
+	)]
+	MainchainEpochNotDivisible { epoch_duration_millis: u64, slot_duration_millis: u64 },
+}
+
+#[derive(Clone)]
 pub(crate) struct CreateInherentDataConfig {
 	pub mc_epoch_config: MainchainEpochConfig,
-	// TODO ETCM-4079 make sure that this struct can be instantiated only if sidechain epoch duration is divisible by slot_duration
 	pub sc_slot_config: ScSlotConfig,
 	pub time_source: Arc<dyn TimeSource + Send + Sync + 'static>,
 }
 
 impl CreateInherentDataConfig {
+	pub fn new(
+		mc_epoch_config: MainchainEpochConfig,
+		sc_slot_config: ScSlotConfig,
+		time_source: Arc<dyn TimeSource + Send + Sync + 'static>,
+	) -> Result<Self, ConfigError> {
+		if sc_slot_config.slot_duration.as_millis() == 0 {
+			return Err(ConfigError::ZeroSlotDuration);
+		}
+
+		let mc_epoch_dur = mc_epoch_config.epoch_duration_millis.millis();
+		let mc_slot_dur = mc_epoch_config.slot_duration_millis.millis();
+
+		if mc_epoch_dur == 0 {
+			return Err(ConfigError::ZeroMcEpochDuration);
+		}
+		if mc_slot_dur == 0 {
+			return Err(ConfigError::ZeroMcSlotDuration);
+		}
+		if mc_epoch_dur % mc_slot_dur != 0 {
+			return Err(ConfigError::MainchainEpochNotDivisible {
+				epoch_duration_millis: mc_epoch_dur,
+				slot_duration_millis: mc_slot_dur,
+			});
+		}
+
+		Ok(Self { mc_epoch_config, sc_slot_config, time_source })
+	}
+
 	pub fn slot_duration(&self) -> SlotDuration {
 		self.sc_slot_config.slot_duration
 	}
@@ -328,4 +370,85 @@ fn timestamp_and_slot_cidp(
 		slot_duration,
 	);
 	(slot, timestamp)
+}
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use sc_consensus_aura::SlotDuration;
+	use sidechain_domain::mainchain_epoch::{Duration, MainchainEpochConfig, Timestamp};
+	use sidechain_slots::{ScSlotConfig, SlotsPerEpoch};
+	use time_source::SystemTimeSource;
+
+	fn valid_mc_epoch_config() -> MainchainEpochConfig {
+		MainchainEpochConfig {
+			epoch_duration_millis: Duration::from_millis(432_000_000),
+			slot_duration_millis: Duration::from_millis(1_000),
+			first_epoch_timestamp_millis: Timestamp::from_unix_millis(1_596_399_616_000),
+			first_epoch_number: 75,
+			first_slot_number: 0,
+		}
+	}
+
+	fn valid_sc_slot_config() -> ScSlotConfig {
+		ScSlotConfig {
+			slots_per_epoch: SlotsPerEpoch(300),
+			slot_duration: SlotDuration::from_millis(6_000),
+		}
+	}
+
+	fn time_source() -> Arc<dyn TimeSource + Send + Sync + 'static> {
+		Arc::new(SystemTimeSource)
+	}
+
+	#[test]
+	fn new_succeeds_with_valid_config() {
+		let result =
+			CreateInherentDataConfig::new(valid_mc_epoch_config(), valid_sc_slot_config(), time_source());
+		assert!(result.is_ok());
+		let config = result.unwrap();
+		assert_eq!(config.mc_epoch_config, valid_mc_epoch_config());
+		assert_eq!(config.slot_duration().as_millis(), 6_000);
+	}
+
+	#[test]
+	fn new_rejects_zero_slot_duration() {
+		let sc = ScSlotConfig {
+			slot_duration: SlotDuration::from_millis(0),
+			..valid_sc_slot_config()
+		};
+		let result = CreateInherentDataConfig::new(valid_mc_epoch_config(), sc, time_source());
+		assert!(matches!(result, Err(ConfigError::ZeroSlotDuration)));
+	}
+
+	#[test]
+	fn new_rejects_zero_mc_epoch_duration() {
+		let mut mc = valid_mc_epoch_config();
+		mc.epoch_duration_millis = Duration::from_millis(0);
+		let result = CreateInherentDataConfig::new(mc, valid_sc_slot_config(), time_source());
+		assert!(matches!(result, Err(ConfigError::ZeroMcEpochDuration)));
+	}
+
+	#[test]
+	fn new_rejects_zero_mc_slot_duration() {
+		let mut mc = valid_mc_epoch_config();
+		mc.slot_duration_millis = Duration::from_millis(0);
+		let result = CreateInherentDataConfig::new(mc, valid_sc_slot_config(), time_source());
+		assert!(matches!(result, Err(ConfigError::ZeroMcSlotDuration)));
+	}
+
+	#[test]
+	fn new_rejects_mc_epoch_not_divisible_by_mc_slot() {
+		let mut mc = valid_mc_epoch_config();
+		mc.epoch_duration_millis = Duration::from_millis(1_000_000);
+		mc.slot_duration_millis = Duration::from_millis(3_000);
+		let result = CreateInherentDataConfig::new(mc, valid_sc_slot_config(), time_source());
+		assert!(matches!(
+			result,
+			Err(ConfigError::MainchainEpochNotDivisible {
+				epoch_duration_millis: 1_000_000,
+				slot_duration_millis: 3_000,
+			})
+		));
+	}
 }
