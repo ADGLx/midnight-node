@@ -700,6 +700,8 @@ impl pallet_version::Config for Runtime {
 	type RuntimeVersion = Version;
 }
 
+impl pallet_consensus_config::Config for Runtime {}
+
 impl pallet_preimage::Config for Runtime {
 	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
@@ -921,6 +923,9 @@ mod runtime {
 
 	#[runtime::pallet_index(11)]
 	pub type NodeVersion = pallet_version::Pallet<Runtime>;
+
+	#[runtime::pallet_index(12)]
+	pub type ConsensusConfig = pallet_consensus_config::Pallet<Runtime>;
 
 	#[runtime::pallet_index(13)]
 	pub type CNightObservation = pallet_cnight_observation::Pallet<Runtime>;

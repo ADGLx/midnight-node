@@ -79,6 +79,7 @@ midnight-node-ledger.workspace = true
 pallet-midnight.workspace = true
 pallet-midnight-system.workspace = true
 pallet-system-parameters.workspace = true
+pallet-consensus-config.workspace = true
 pallet-version.workspace = true
 midnight-primitives-beefy.workspace = true
 midnight-primitives-federated-authority-observation.workspace = true
@@ -120,6 +121,7 @@ std = [
     "pallet-system-parameters/std",
     "pallet-mmr/std",
     "pallet-partner-chains-bridge/std",
+    "pallet-consensus-config/std",
     "pallet-version/std",
     "pallet-cnight-observation/std",
     "pallet-federated-authority-observation/std",

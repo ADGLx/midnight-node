@@ -11,6 +11,7 @@ members = [
     "pallets/midnight-system",
     "pallets/system-parameters",
     "pallets/system-parameters/rpc",
+    "pallets/consensus-config",
     "pallets/version",
     "primitives/beefy",
     "primitives/ics-observation",
@@ -105,6 +106,7 @@ pallet-midnight-system = { path = "pallets/midnight-system", default-features = 
 pallet-midnight-rpc = { path = "pallets/midnight/rpc", default-features = false }
 pallet-cnight-observation = { path = "pallets/cnight-observation", default-features = false }
 pallet-cnight-observation-mock = { path = "pallets/cnight-observation/mock", default-features = false }
+pallet-consensus-config = { path = "pallets/consensus-config", default-features = false }
 pallet-version = { path = "pallets/version", default-features = false }
 pallet-system-parameters = { path = "pallets/system-parameters", default-features = false }
 pallet-system-parameters-rpc = { path = "pallets/system-parameters/rpc", default-features = true }
