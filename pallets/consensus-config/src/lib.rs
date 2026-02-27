@@ -109,6 +109,11 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		/// Deposits a `DigestItem::Consensus(MNCC, config_hash)` each block.
+		///
+		/// Weight is estimated inline rather than via a `WeightInfo` benchmarking
+		/// module because the hook has constant, deterministic cost: a fixed number
+		/// of storage reads and one digest write with no input-dependent variation.
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
 			if !Self::is_initialized() {
 				return T::DbWeight::get().reads(1);
@@ -118,7 +123,6 @@ pub mod pallet {
 			let log = DigestItem::Consensus(CONSENSUS_CONFIG_ENGINE_ID, hash.to_vec());
 			<frame_system::Pallet<T>>::deposit_log(log);
 
-			// 5 reads (storage values) + 1 write (deposit_log)
 			T::DbWeight::get().reads_writes(5, 1)
 		}
 
@@ -374,6 +378,17 @@ mod tests {
 			let hash_after = pallet::Pallet::<Test>::compute_config_hash();
 
 			assert_ne!(hash_before, hash_after);
+		});
+	}
+
+	#[test]
+	fn decode_config_hash_roundtrips_known_hash() {
+		let genesis = test_genesis();
+		new_test_ext(genesis).execute_with(|| {
+			let hash = pallet::Pallet::<Test>::compute_config_hash();
+			let item = DigestItem::Consensus(super::CONSENSUS_CONFIG_ENGINE_ID, hash.to_vec());
+			let decoded = pallet::Pallet::<Test>::decode_config_hash(&item);
+			assert_eq!(decoded, Some(hash));
 		});
 	}
 

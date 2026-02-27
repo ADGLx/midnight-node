@@ -701,11 +701,11 @@ impl pallet_version::Config for Runtime {
 }
 
 parameter_types! {
-	pub const McEpochDurationMillisConst: u64 = 432_000_000;
-	pub const McSlotDurationMillisConst: u64 = 1_000;
-	pub const McFirstEpochTimestampMillisConst: u64 = 1_596_399_616_000;
-	pub const McFirstEpochNumberConst: u32 = 75;
-	pub const McFirstSlotNumberConst: u64 = 0;
+	pub const McEpochDurationMillisConst: u64 = midnight_primitives::cardano_mainnet::MC_EPOCH_DURATION_MILLIS;
+	pub const McSlotDurationMillisConst: u64 = midnight_primitives::cardano_mainnet::MC_SLOT_DURATION_MILLIS;
+	pub const McFirstEpochTimestampMillisConst: u64 = midnight_primitives::cardano_mainnet::MC_FIRST_EPOCH_TIMESTAMP_MILLIS;
+	pub const McFirstEpochNumberConst: u32 = midnight_primitives::cardano_mainnet::MC_FIRST_EPOCH_NUMBER;
+	pub const McFirstSlotNumberConst: u64 = midnight_primitives::cardano_mainnet::MC_FIRST_SLOT_NUMBER;
 }
 
 impl pallet_consensus_config::Config for Runtime {

@@ -189,12 +189,13 @@ mod tests {
 	use serde_valid::Validate;
 
 	fn valid_mc_cfg() -> MidnightCfg {
+		use midnight_primitives::cardano_mainnet::*;
 		MidnightCfg {
-			mc_epoch_duration_millis: 432_000_000,
-			mc_slot_duration_millis: 1_000,
-			mc_first_epoch_timestamp_millis: 1_596_399_616_000,
-			mc_first_epoch_number: 75,
-			mc_first_slot_number: 0,
+			mc_epoch_duration_millis: MC_EPOCH_DURATION_MILLIS,
+			mc_slot_duration_millis: MC_SLOT_DURATION_MILLIS,
+			mc_first_epoch_timestamp_millis: MC_FIRST_EPOCH_TIMESTAMP_MILLIS,
+			mc_first_epoch_number: MC_FIRST_EPOCH_NUMBER,
+			mc_first_slot_number: MC_FIRST_SLOT_NUMBER,
 			use_main_chain_follower_mock: true,
 			mock_registrations_file: Some("/dev/null".to_string()),
 			..Default::default()

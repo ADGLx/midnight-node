@@ -303,13 +303,7 @@ pub fn slot_from_predigest(
 }
 
 #[derive(Debug, thiserror::Error)]
-pub enum ConfigError {
-	#[error("Sidechain slot duration must be non-zero")]
-	ZeroSlotDuration,
-	#[error("Mainchain epoch duration must be non-zero")]
-	ZeroMcEpochDuration,
-	#[error("Mainchain slot duration must be non-zero")]
-	ZeroMcSlotDuration,
+pub enum InherentDataConfigError {
 	#[error(
 		"Mainchain epoch duration ({epoch_duration_millis}ms) must be divisible \
 		 by mainchain slot duration ({slot_duration_millis}ms)"
@@ -329,22 +323,12 @@ impl CreateInherentDataConfig {
 		mc_epoch_config: MainchainEpochConfig,
 		sc_slot_config: ScSlotConfig,
 		time_source: Arc<dyn TimeSource + Send + Sync + 'static>,
-	) -> Result<Self, ConfigError> {
-		if sc_slot_config.slot_duration.as_millis() == 0 {
-			return Err(ConfigError::ZeroSlotDuration);
-		}
-
+	) -> Result<Self, InherentDataConfigError> {
 		let mc_epoch_dur = mc_epoch_config.epoch_duration_millis.millis();
 		let mc_slot_dur = mc_epoch_config.slot_duration_millis.millis();
 
-		if mc_epoch_dur == 0 {
-			return Err(ConfigError::ZeroMcEpochDuration);
-		}
-		if mc_slot_dur == 0 {
-			return Err(ConfigError::ZeroMcSlotDuration);
-		}
-		if !mc_epoch_dur.is_multiple_of(mc_slot_dur) {
-			return Err(ConfigError::MainchainEpochNotDivisible {
+		if mc_slot_dur > 0 && !mc_epoch_dur.is_multiple_of(mc_slot_dur) {
+			return Err(InherentDataConfigError::MainchainEpochNotDivisible {
 				epoch_duration_millis: mc_epoch_dur,
 				slot_duration_millis: mc_slot_dur,
 			});
@@ -381,12 +365,15 @@ mod tests {
 	use time_source::SystemTimeSource;
 
 	fn valid_mc_epoch_config() -> MainchainEpochConfig {
+		use midnight_primitives::cardano_mainnet::*;
 		MainchainEpochConfig {
-			epoch_duration_millis: Duration::from_millis(432_000_000),
-			slot_duration_millis: Duration::from_millis(1_000),
-			first_epoch_timestamp_millis: Timestamp::from_unix_millis(1_596_399_616_000),
-			first_epoch_number: 75,
-			first_slot_number: 0,
+			epoch_duration_millis: Duration::from_millis(MC_EPOCH_DURATION_MILLIS),
+			slot_duration_millis: Duration::from_millis(MC_SLOT_DURATION_MILLIS),
+			first_epoch_timestamp_millis: Timestamp::from_unix_millis(
+				MC_FIRST_EPOCH_TIMESTAMP_MILLIS,
+			),
+			first_epoch_number: MC_FIRST_EPOCH_NUMBER,
+			first_slot_number: MC_FIRST_SLOT_NUMBER,
 		}
 	}
 
@@ -415,30 +402,6 @@ mod tests {
 	}
 
 	#[test]
-	fn new_rejects_zero_slot_duration() {
-		let sc =
-			ScSlotConfig { slot_duration: SlotDuration::from_millis(0), ..valid_sc_slot_config() };
-		let result = CreateInherentDataConfig::new(valid_mc_epoch_config(), sc, time_source());
-		assert!(matches!(result, Err(ConfigError::ZeroSlotDuration)));
-	}
-
-	#[test]
-	fn new_rejects_zero_mc_epoch_duration() {
-		let mut mc = valid_mc_epoch_config();
-		mc.epoch_duration_millis = Duration::from_millis(0);
-		let result = CreateInherentDataConfig::new(mc, valid_sc_slot_config(), time_source());
-		assert!(matches!(result, Err(ConfigError::ZeroMcEpochDuration)));
-	}
-
-	#[test]
-	fn new_rejects_zero_mc_slot_duration() {
-		let mut mc = valid_mc_epoch_config();
-		mc.slot_duration_millis = Duration::from_millis(0);
-		let result = CreateInherentDataConfig::new(mc, valid_sc_slot_config(), time_source());
-		assert!(matches!(result, Err(ConfigError::ZeroMcSlotDuration)));
-	}
-
-	#[test]
 	fn new_rejects_mc_epoch_not_divisible_by_mc_slot() {
 		let mut mc = valid_mc_epoch_config();
 		mc.epoch_duration_millis = Duration::from_millis(1_000_000);
@@ -446,7 +409,7 @@ mod tests {
 		let result = CreateInherentDataConfig::new(mc, valid_sc_slot_config(), time_source());
 		assert!(matches!(
 			result,
-			Err(ConfigError::MainchainEpochNotDivisible {
+			Err(InherentDataConfigError::MainchainEpochNotDivisible {
 				epoch_duration_millis: 1_000_000,
 				slot_duration_millis: 3_000,
 			})
