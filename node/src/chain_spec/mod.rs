@@ -344,7 +344,14 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 				_marker: Default::default(),
 			}
 		},
-		consensus_config: Default::default(),
+		consensus_config: pallet_consensus_config::GenesisConfig {
+			mc_epoch_duration_millis: 432_000_000,
+			mc_slot_duration_millis: 1_000,
+			mc_first_epoch_timestamp_millis: 1_596_399_616_000,
+			mc_first_epoch_number: 75,
+			mc_first_slot_number: 0,
+			..Default::default()
+		},
 		system_parameters: {
 			let system_params = genesis.system_parameters_config();
 			let hash_bytes = system_params
