@@ -23,10 +23,19 @@
 
 #![cfg_attr(not(feature = "std"), no_std)]
 
+extern crate alloc;
+
+use alloc::vec::Vec;
+use parity_scale_codec::Encode;
+use sp_runtime::{ConsensusEngineId, DigestItem, generic::OpaqueDigestItemId};
+
 pub use pallet::*;
+
+pub const CONSENSUS_CONFIG_ENGINE_ID: ConsensusEngineId = *b"MNCC";
 
 #[frame_support::pallet]
 pub mod pallet {
+	use super::*;
 	use frame_support::pallet_prelude::*;
 	use frame_system::pallet_prelude::*;
 
@@ -100,6 +109,19 @@ pub mod pallet {
 
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
+		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
+			if !Self::is_initialized() {
+				return T::DbWeight::get().reads(1);
+			}
+
+			let hash = Self::compute_config_hash();
+			let log = DigestItem::Consensus(CONSENSUS_CONFIG_ENGINE_ID, hash.to_vec());
+			<frame_system::Pallet<T>>::deposit_log(log);
+
+			// 5 reads (storage values) + 1 write (deposit_log)
+			T::DbWeight::get().reads_writes(5, 1)
+		}
+
 		fn on_runtime_upgrade() -> Weight {
 			if Self::is_initialized() {
 				log::info!(
@@ -134,6 +156,23 @@ pub mod pallet {
 		pub fn is_initialized() -> bool {
 			McEpochDurationMillis::<T>::get() > 0
 		}
+
+		/// Computes the blake2-256 hash of the canonical SCALE-encoded config.
+		/// Fields are encoded in a fixed order matching the storage declaration.
+		pub fn compute_config_hash() -> [u8; 32] {
+			let mut payload = Vec::new();
+			McEpochDurationMillis::<T>::get().encode_to(&mut payload);
+			McSlotDurationMillis::<T>::get().encode_to(&mut payload);
+			McFirstEpochTimestampMillis::<T>::get().encode_to(&mut payload);
+			McFirstEpochNumber::<T>::get().encode_to(&mut payload);
+			McFirstSlotNumber::<T>::get().encode_to(&mut payload);
+			sp_crypto_hashing::blake2_256(&payload)
+		}
+
+		/// Extracts the config hash from a `DigestItem::Consensus(MNCC, _)` entry.
+		pub fn decode_config_hash(item: &DigestItem) -> Option<[u8; 32]> {
+			item.try_to::<[u8; 32]>(OpaqueDigestItemId::Consensus(&CONSENSUS_CONFIG_ENGINE_ID))
+		}
 	}
 }
 
@@ -154,7 +193,7 @@ mod tests {
 	use frame_support::{derive_impl, parameter_types, traits::Hooks};
 	use frame_system::mocking::MockUncheckedExtrinsic;
 	use sp_io::TestExternalities;
-	use sp_runtime::{BuildStorage, generic};
+	use sp_runtime::{BuildStorage, DigestItem, generic, traits::Header as HeaderT};
 
 	type Header = generic::Header<u64, sp_runtime::traits::BlakeTwo256>;
 	type Block = generic::Block<Header, MockUncheckedExtrinsic<Test>>;
@@ -282,6 +321,69 @@ mod tests {
 
 			let _ = weight;
 		});
+	}
+
+	// TC-10: on_initialize deposits DigestItem::Consensus with config hash
+	#[test]
+	fn on_initialize_deposits_config_hash_digest() {
+		let genesis = test_genesis();
+		new_test_ext(genesis).execute_with(|| {
+			<pallet::Pallet<Test> as Hooks<u64>>::on_initialize(1);
+			let header: Header = System::finalize();
+
+			let hash = header
+				.digest()
+				.convert_first(pallet::Pallet::<Test>::decode_config_hash)
+				.expect("MNCC digest entry should be present");
+
+			let expected_hash = pallet::Pallet::<Test>::compute_config_hash();
+			assert_eq!(hash, expected_hash);
+		});
+	}
+
+	// TC-16: on_initialize skips hash when storage is uninitialized
+	#[test]
+	fn on_initialize_skips_when_uninitialized() {
+		empty_test_ext().execute_with(|| {
+			<pallet::Pallet<Test> as Hooks<u64>>::on_initialize(1);
+			let header: Header = System::finalize();
+
+			let result = header
+				.digest()
+				.convert_first(pallet::Pallet::<Test>::decode_config_hash);
+
+			assert!(result.is_none(), "No MNCC digest when uninitialized");
+		});
+	}
+
+	// TC-11: Config hash is deterministic
+	#[test]
+	fn config_hash_is_deterministic() {
+		let genesis = test_genesis();
+		new_test_ext(genesis).execute_with(|| {
+			let hash1 = pallet::Pallet::<Test>::compute_config_hash();
+			let hash2 = pallet::Pallet::<Test>::compute_config_hash();
+			assert_eq!(hash1, hash2);
+		});
+	}
+
+	#[test]
+	fn config_hash_changes_with_different_values() {
+		let genesis = test_genesis();
+		new_test_ext(genesis).execute_with(|| {
+			let hash_before = pallet::Pallet::<Test>::compute_config_hash();
+
+			pallet::McSlotDurationMillis::<Test>::put(2_000u64);
+			let hash_after = pallet::Pallet::<Test>::compute_config_hash();
+
+			assert_ne!(hash_before, hash_after);
+		});
+	}
+
+	#[test]
+	fn decode_config_hash_returns_none_for_other_engine() {
+		let item = DigestItem::Consensus(*b"ABCD", vec![1, 2, 3]);
+		assert!(pallet::Pallet::<Test>::decode_config_hash(&item).is_none());
 	}
 
 	// TC-18: Migration is idempotent — does not overwrite populated storage
