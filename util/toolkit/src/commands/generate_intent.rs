@@ -1,11 +1,10 @@
+use crate::toolkit_js;
 use crate::toolkit_js::{EncodedZswapLocalState, RelativePath};
+use crate::tx_generator::builder::build_fork_aware_context_raw;
 use crate::tx_generator::source::Source;
-use crate::{ProofType, SignatureType, toolkit_js};
 use crate::{cli_parsers as cli, tx_generator::TxGenerator};
 use clap::{Args, Subcommand};
-use midnight_node_ledger_helpers::{
-	CoinPublicKey, DefaultDB, LedgerContext, WalletSeed, WalletState,
-};
+use midnight_node_ledger_helpers::{CoinPublicKey, DefaultDB, WalletSeed, WalletState};
 
 #[derive(Subcommand)]
 pub enum JsCommand {
@@ -92,7 +91,7 @@ pub async fn fetch_zswap_state(
 	coin_public: CoinPublicKey,
 	dry_run: bool,
 ) -> Result<EncodedZswapLocalState, Box<dyn std::error::Error + Send + Sync>> {
-	let source = TxGenerator::<SignatureType, ProofType>::source(source, dry_run).await?;
+	let source = TxGenerator::source(source, dry_run).await?;
 	if dry_run {
 		println!("Dry-run: fetching zswap state for wallet seed {:?}", wallet_seed);
 		println!("Dry-run: attributing to coin-public {:?}", coin_public);
@@ -103,20 +102,30 @@ pub async fn fetch_zswap_state(
 	}
 
 	let received_tx = source.get_txs().await?;
-	let network_id = received_tx.network();
-	let context = LedgerContext::new_from_wallet_seeds(network_id, &[wallet_seed]);
-	for block in received_tx.blocks {
-		context.update_from_block(
-			&block.transactions,
-			&block.context,
-			block.state_root.as_ref(),
-			block.state.as_ref(),
-		);
-	}
-	let wallet = context.wallet_from_seed(wallet_seed);
-	let zswap_local_state = wallet.shielded.state;
+	let fork_ctx = build_fork_aware_context_raw(&received_tx, &[wallet_seed]);
 
-	Ok(EncodedZswapLocalState::from_zswap_state(zswap_local_state, coin_public))
+	Ok(fork_ctx.dispatch(
+		|ctx| {
+			let seed_v7 =
+				crate::tx_generator::builder::builders::ledger_7::type_convert::convert_wallet_seed(
+					wallet_seed,
+				);
+			let cpk_v7 =
+				crate::tx_generator::builder::builders::ledger_7::type_convert::convert_coin_public_key(
+					coin_public,
+				);
+			crate::commands::fork::ledger_7::generate_intent::fetch_zswap_state_from_context(
+				&ctx, seed_v7, cpk_v7,
+			)
+		},
+		|ctx| {
+			crate::commands::fork::ledger_8::generate_intent::fetch_zswap_state_from_context(
+				&ctx,
+				wallet_seed,
+				coin_public,
+			)
+		},
+	))
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -204,7 +213,7 @@ pub async fn execute(
 
 /// Make sure to build toolkit-js before running these tests - this can be done with the earthly
 /// target:
-/// $ earthly --secret GITHUB_TOKEN=<github-token-here> +toolkit-js-prep-local
+/// $ earthly +toolkit-js-prep-local
 ///
 /// Test data is checked-in - to re-generate it, run:
 /// $ earthly -P +rebuild-genesis-state-undeployed
@@ -411,7 +420,6 @@ mod test {
 	}
 
 	#[tokio::test]
-	#[ignore = "test failing intermittently - reason unknown"]
 	async fn test_generate_maintain_remove_circuit() {
 		// as this is inside util/toolkit, current dir should move a few directories up
 		let toolkit_js_path = "../toolkit-js".to_string();

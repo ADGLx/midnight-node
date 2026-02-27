@@ -17,21 +17,11 @@ use crate::{
 };
 use async_trait::async_trait;
 use clap::Args;
-use midnight_node_ledger_helpers::*;
-use std::{
-	fs::File,
-	marker::PhantomData,
-	str::FromStr,
-	time::{SystemTime, UNIX_EPOCH},
-};
-use subxt::utils::H256;
+use midnight_node_ledger_helpers::fork::raw_block_data::{SerializedTx, SerializedTxBatches};
+use std::{fs::File, str::FromStr};
 use thiserror::Error;
 
-use crate::fetcher::fetch_storage::BlockData;
-use crate::{
-	client::ClientError,
-	serde_def::{SerializedTransactionsWithContext, SourceTransactions},
-};
+use crate::{client::ClientError, serde_def::SourceTransactions};
 
 #[derive(Clone, Debug)]
 pub enum FetchCacheConfig {
@@ -86,12 +76,20 @@ pub struct Source {
 		short = 's',
 		conflicts_with = "src_files",
 		default_value = "ws://127.0.0.1:9944",
+		env = "MN_SRC_URL",
 		global = true
 	)]
 	pub src_url: Option<String>,
+	/// Read transactions from the cache only - don't fetch anything from RPC
+	#[arg(long, global = true)]
+	pub fetch_only_cached: bool,
 	/// Number of threads to use when fetching transactions from a live network
 	#[arg(long, conflicts_with = "src_files", default_value = "20", global = true)]
 	pub fetch_concurrency: usize,
+	/// Number of threads to use for compute operations when fetching from a live network.
+	/// Defaults to number of CPU cores if not specified.
+	#[arg(long, conflicts_with = "src_files", global = true)]
+	pub fetch_compute_concurrency: Option<usize>,
 	/// Load input transactions/blocks from file(s). Used as initial state for transaction generator.
 	#[arg(long = "src-file", value_delimiter = ' ', conflicts_with = "src_url", global = true)]
 	pub src_files: Option<Vec<String>>,
@@ -144,113 +142,83 @@ pub enum SourceError {
 }
 
 #[async_trait]
-pub trait GetTxs<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + 'static,
-> where
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
-{
-	async fn get_txs(
-		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>>;
+pub trait GetTxs: Send + Sync {
+	async fn get_txs(&self)
+	-> Result<SourceTransactions, Box<dyn std::error::Error + Send + Sync>>;
 }
 
 #[async_trait]
-impl<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + 'static,
-> GetTxs<S, P> for ()
-{
+impl GetTxs for () {
 	async fn get_txs(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
-		Ok(SourceTransactions { blocks: vec![] })
+	) -> Result<SourceTransactions, Box<dyn std::error::Error + Send + Sync>> {
+		Ok(SourceTransactions::new(vec![], "undeployed"))
 	}
 }
 
-pub struct GetTxsFromFile<S, P> {
+pub struct GetTxsFromFile {
 	files: Vec<String>,
-	extension: String,
 	dust_warp: bool,
 	ignore_block_context: bool,
-	_marker_p: PhantomData<P>,
-	_marker_s: PhantomData<S>,
 }
 
-impl<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + Send + std::fmt::Debug + 'static,
-> GetTxsFromFile<S, P>
-where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
-{
-	pub fn new(
-		files: Vec<String>,
-		extension: String,
-		dust_warp: bool,
-		ignore_block_context: bool,
-	) -> Self {
-		Self {
-			files,
-			extension,
-			dust_warp,
-			ignore_block_context,
-			_marker_p: PhantomData,
-			_marker_s: PhantomData,
-		}
+impl GetTxsFromFile {
+	pub fn new(files: Vec<String>, dust_warp: bool, ignore_block_context: bool) -> Self {
+		Self { files, dust_warp, ignore_block_context }
+	}
+
+	pub fn load_single(filename: &str) -> Result<SerializedTx, std::io::Error> {
+		let file = File::open(filename)?;
+		let tx = serde_json::from_reader(file)?;
+		Ok(tx)
+	}
+
+	pub fn load_multiple(filename: &str) -> Result<SerializedTxBatches, std::io::Error> {
+		let file = File::open(filename)?;
+		Ok(serde_json::from_reader(file)?)
+	}
+
+	pub fn load_single_or_multiple(filename: &str) -> Result<SerializedTxBatches, std::io::Error> {
+		if let Ok(loaded) = Self::load_single(filename) {
+			return Ok(SerializedTxBatches { batches: vec![vec![loaded]] });
+		};
+		log::debug!("failed to load {} as single tx, loading as multiple...", filename);
+		return Self::load_multiple(filename);
 	}
 
 	fn txs_from_files(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
-		if self.extension == "json" {
-			// For json extension, we only handle 1 file
-			if self.files.len() > 1 {
-				return Err(Box::new(SourceError::TooManyJsonInputs));
-			}
-			let file = File::open(&self.files[0])?;
-			let loaded_txs: SerializedTransactionsWithContext = serde_json::from_reader(file)?;
-			let mut txs: Vec<TransactionWithContext<S, P, DefaultDB>> =
-				vec![serde_json::from_str(&loaded_txs.initial_tx).map_err(|e| Box::new(e))?];
-			for batch in loaded_txs.batches {
-				for tx in batch.txs {
-					txs.push(serde_json::from_str(&tx).map_err(|e| Box::new(e))?);
-				}
-			}
-			Ok(SourceTransactions::from_txs_with_context(txs, self.dust_warp))
-		} else {
-			let mut txs = vec![];
-			for file in &self.files {
-				let bytes = std::fs::read(file)?;
-				// files can either be one TransactionWithContext or many of them
-				let mut file_txs = mn_ledger_serialize::tagged_deserialize(bytes.as_slice())
-					.or_else(|_| {
-						mn_ledger_serialize::tagged_deserialize(bytes.as_slice()).map(|tx| vec![tx])
-					})?;
-				txs.append(&mut file_txs);
-			}
+	) -> Result<SourceTransactions, Box<dyn std::error::Error + Send + Sync>> {
+		if let [filename] = self.files.as_slice() {
+			let built_txs = Self::load_single_or_multiple(filename)?;
+
 			if self.ignore_block_context {
-				Ok(SourceTransactions::from_txs_with_context_ignored(txs))
+				let txs: Vec<SerializedTx> = built_txs.batches.into_iter().flatten().collect();
+				Ok(SourceTransactions::from_txs(txs))
 			} else {
-				Ok(SourceTransactions::from_txs_with_context(txs, self.dust_warp))
+				Ok(SourceTransactions::from_batches(built_txs.batches, self.dust_warp))
+			}
+		} else {
+			// Load from multiple files
+			let res: Result<Vec<SerializedTxBatches>, _> =
+				self.files.iter().map(|f| Self::load_single_or_multiple(f)).collect();
+			let batches: Vec<Vec<SerializedTx>> =
+				res?.into_iter().flat_map(|b| b.batches).collect();
+
+			if self.ignore_block_context {
+				Ok(SourceTransactions::from_txs(batches.into_iter().flatten()))
+			} else {
+				Ok(SourceTransactions::from_batches(batches, self.dust_warp))
 			}
 		}
 	}
 }
 
 #[async_trait]
-impl<
-	S: SignatureKind<DefaultDB> + Tagged + Send + Sync + 'static,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + Sync + 'static,
-> GetTxs<S, P> for GetTxsFromFile<S, P>
-where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send + Sync,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
-{
+impl GetTxs for GetTxsFromFile {
 	async fn get_txs(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
+	) -> Result<SourceTransactions, Box<dyn std::error::Error + Send + Sync>> {
 		let txs = self.txs_from_files()?;
 		Ok(txs)
 	}
@@ -259,7 +227,9 @@ where
 pub struct GetTxsFromUrl {
 	pub rpc_url: String,
 	pub num_fetch_workers: usize,
+	pub num_compute_workers: usize,
 	pub dust_warp: bool,
+	pub fetch_only_cache: bool,
 	pub fetch_cache_config: FetchCacheConfig,
 }
 
@@ -267,36 +237,44 @@ impl GetTxsFromUrl {
 	pub fn new(
 		rpc_url: &str,
 		num_fetch_workers: usize,
+		num_compute_workers: usize,
 		dust_warp: bool,
+		fetch_only_cache: bool,
 		fetch_cache_config: FetchCacheConfig,
 	) -> Self {
-		Self { rpc_url: rpc_url.to_string(), num_fetch_workers, dust_warp, fetch_cache_config }
+		Self {
+			rpc_url: rpc_url.to_string(),
+			num_fetch_workers,
+			num_compute_workers,
+			dust_warp,
+			fetch_only_cache,
+			fetch_cache_config,
+		}
 	}
 }
 
 #[async_trait]
-impl<
-	S: SignatureKind<DefaultDB> + Tagged,
-	P: ProofKind<DefaultDB> + std::fmt::Debug + Send + 'static,
-> GetTxs<S, P> for GetTxsFromUrl
-where
-	<P as ProofKind<DefaultDB>>::Pedersen: Send,
-	<P as ProofKind<DefaultDB>>::LatestProof: Send + Sync,
-	<P as ProofKind<DefaultDB>>::Proof: Send + Sync,
-	Transaction<S, P, PureGeneratorPedersen, DefaultDB>: Tagged,
-{
+impl GetTxs for GetTxsFromUrl {
 	async fn get_txs(
 		&self,
-	) -> Result<SourceTransactions<S, P>, Box<dyn std::error::Error + Send + Sync>> {
-		let mut blocks = match &self.fetch_cache_config {
+	) -> Result<SourceTransactions, Box<dyn std::error::Error + Send + Sync>> {
+		let blocks = match &self.fetch_cache_config {
 			FetchCacheConfig::InMemory => {
-				fetch_all(&self.rpc_url, self.num_fetch_workers, fetch_storage::InMemory::default())
-					.await?
+				fetch_all(
+					&self.rpc_url,
+					self.num_fetch_workers,
+					self.num_compute_workers,
+					self.fetch_only_cache,
+					fetch_storage::InMemory::default(),
+				)
+				.await?
 			},
 			FetchCacheConfig::Redb { filename } => {
 				fetch_all(
 					&self.rpc_url,
 					self.num_fetch_workers,
+					self.num_compute_workers,
+					self.fetch_only_cache,
 					fetch_storage::redb_backend::RedbBackend::new(filename),
 				)
 				.await?
@@ -305,37 +283,14 @@ where
 				fetch_all(
 					&self.rpc_url,
 					self.num_fetch_workers,
+					self.num_compute_workers,
+					self.fetch_only_cache,
 					fetch_storage::postgres_backend::PostgresBackend::new(&database_url).await,
 				)
 				.await?
 			},
 		};
 
-		if self.dust_warp {
-			// Add an empty block with a now() as a block_context
-			let now = Timestamp::from_secs(
-				SystemTime::now()
-					.duration_since(UNIX_EPOCH)
-					.expect("time has run backwards")
-					.as_secs(),
-			);
-			let context = BlockContext {
-				tblock: now,
-				tblock_err: 30,
-				parent_block_hash: Default::default(),
-				last_block_time: now,
-			};
-			blocks.push(BlockData {
-				hash: H256::zero(),
-				parent_hash: H256::zero(),
-				number: 0,
-				transactions: Vec::new(),
-				context,
-				state_root: None,
-				state: None,
-			});
-		}
-
-		Ok(SourceTransactions { blocks })
+		Ok(SourceTransactions::from_blocks(blocks, self.dust_warp))
 	}
 }
