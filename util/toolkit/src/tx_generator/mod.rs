@@ -20,9 +20,9 @@ pub mod builder;
 pub mod destination;
 pub mod source;
 
-use builder::{Builder, DynamicError, ProverConfig, build_fork_aware_context_raw};
+use builder::{Builder, DynamicError, ProverConfig, build_fork_aware_context_cached};
 use destination::{Destination, SendTxs, SendTxsToFile, SendTxsToUrl};
-use source::{GetTxs, GetTxsFromFile, GetTxsFromUrl, Source, SourceError};
+use source::{FetchCacheConfig, GetTxs, GetTxsFromFile, GetTxsFromUrl, Source, SourceError};
 
 #[derive(Debug, Error)]
 pub enum TxGeneratorError {
@@ -44,6 +44,7 @@ pub struct TxGenerator {
 	pub destinations: Vec<Box<dyn SendTxs>>,
 	pub builder_config: Builder,
 	pub prover_config: ProverConfig,
+	pub fetch_cache_config: FetchCacheConfig,
 	pub dry_run: bool,
 }
 
@@ -55,6 +56,7 @@ impl TxGenerator {
 		proof_server: Option<String>,
 		dry_run: bool,
 	) -> Result<Self, TxGeneratorError> {
+		let fetch_cache_config = src.fetch_cache.clone();
 		let source = Self::source(src, dry_run).await?;
 		let destinations = Self::destinations(dest, dry_run).await?;
 		if dry_run {
@@ -62,7 +64,14 @@ impl TxGenerator {
 		}
 		let prover_config = Self::prover_config(proof_server, dry_run);
 
-		Ok(Self { source, destinations, builder_config: builder, prover_config, dry_run })
+		Ok(Self {
+			source,
+			destinations,
+			builder_config: builder,
+			prover_config,
+			fetch_cache_config,
+			dry_run,
+		})
 	}
 
 	pub async fn source(src: Source, dry_run: bool) -> Result<Box<dyn GetTxs>, SourceError> {
@@ -176,7 +185,11 @@ impl TxGenerator {
 		let fork_ctx = if seeds.is_empty() {
 			None
 		} else {
-			Some(build_fork_aware_context_raw(received_txs, &seeds))
+			let wallet_cache = self.fetch_cache_config.create_wallet_cache().await;
+			Some(
+				build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
+					.await,
+			)
 		};
 
 		let builder = self.builder_config.clone().to_versioned_builder(

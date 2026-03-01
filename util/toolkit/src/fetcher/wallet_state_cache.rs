@@ -20,8 +20,8 @@
 //! replay new blocks, dramatically reducing startup time on long-running networks.
 
 use midnight_node_ledger_helpers::{
-	BlockContext, DefaultDB, HashOutput, LedgerContext, LedgerState, Sp, Timestamp, Wallet,
-	WalletSeed,
+	BlockContext, DefaultDB, DustLocalState, HashOutput, LedgerContext, LedgerState, Sp, Timestamp,
+	Wallet, WalletSeed, WalletState, deserialize_untagged, serialize_untagged,
 };
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -56,7 +56,7 @@ pub struct WalletStateCache {
 	pub latest_block_context: SerializableBlockContext,
 
 	/// State root hash for integrity verification
-	pub state_root: Option<Vec<u8>>,
+	pub state_root: Vec<u8>,
 
 	/// Version tag for cache format compatibility
 	pub version: String,
@@ -66,7 +66,7 @@ pub struct WalletStateCache {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SerializableBlockContext {
 	pub tblock_secs: u64,
-	pub tblock_err: u64,
+	pub tblock_err: u32,
 	pub parent_block_hash: [u8; 32],
 	pub last_block_time: u64,
 }
@@ -75,7 +75,7 @@ impl From<&BlockContext> for SerializableBlockContext {
 	fn from(ctx: &BlockContext) -> Self {
 		Self {
 			tblock_secs: ctx.tblock.to_secs(),
-			tblock_err: ctx.tblock_err as u64,
+			tblock_err: ctx.tblock_err,
 			parent_block_hash: ctx.parent_block_hash.0,
 			last_block_time: ctx.last_block_time.to_secs(),
 		}
@@ -105,11 +105,6 @@ pub struct WalletCacheKey {
 impl WalletCacheKey {
 	pub fn new(chain_id: H256, wallet_id: H256) -> Self {
 		Self { chain_id, wallet_id }
-	}
-
-	/// Create a byte representation for storage backends.
-	pub fn to_bytes(&self) -> Vec<u8> {
-		[self.chain_id.as_bytes(), self.wallet_id.as_bytes()].concat()
 	}
 }
 
@@ -152,24 +147,14 @@ pub enum CacheError {
 	ChainIdMismatch { expected: H256, actual: H256 },
 	#[error("State root mismatch: cached data may be corrupted")]
 	StateRootMismatch,
-	#[error("Compression error: {0}")]
-	Compression(String),
-	#[error("Decompression error: {0}")]
-	Decompression(String),
 	#[error("Failed to acquire lock: {0}")]
 	LockPoisoned(String),
 }
 
 /// Serialize a LedgerState to bytes using mn_ledger_serialize.
-pub fn serialize_ledger_state(state: &LedgerState<DefaultDB>) -> Result<Vec<u8>, CacheError> {
+fn serialize_ledger_state(state: &LedgerState<DefaultDB>) -> Result<Vec<u8>, CacheError> {
 	midnight_node_ledger_helpers::serialize(state)
 		.map_err(|e| CacheError::SerializeLedgerState(e.to_string()))
-}
-
-/// Deserialize a LedgerState from bytes.
-pub fn deserialize_ledger_state(bytes: &[u8]) -> Result<LedgerState<DefaultDB>, CacheError> {
-	midnight_node_ledger_helpers::deserialize(bytes)
-		.map_err(|e| CacheError::DeserializeLedgerState(e.to_string()))
 }
 
 /// Hash a wallet seed for use as snapshot key.
@@ -191,9 +176,9 @@ fn compute_state_root(ledger_state_bytes: &[u8]) -> Vec<u8> {
 
 /// Create a WalletStateCache from a LedgerContext.
 ///
-/// This captures the current state of the ledger. Wallet-specific state is stored
-/// as seed hashes only - the actual wallet state will be rebuilt during replay
-/// of blocks since the checkpoint.
+/// This captures the current state of the ledger and each wallet's dust and
+/// shielded state. On restore, wallets are reconstructed with the cached state
+/// so only blocks after the checkpoint need to be replayed.
 ///
 /// The state_root is automatically computed from the serialized ledger state
 /// to enable integrity verification on restore.
@@ -219,21 +204,33 @@ pub fn create_cache_from_context(
 	drop(ledger_state);
 
 	// Compute state root for integrity verification
-	let state_root = Some(compute_state_root(&ledger_state_bytes));
+	let state_root = compute_state_root(&ledger_state_bytes);
 
-	// Store wallet seed hashes (actual wallet state will be rebuilt during replay)
 	let wallets = context
 		.wallets
 		.lock()
 		.map_err(|_| CacheError::LockPoisoned("wallets".to_string()))?;
 	let wallet_snapshots: Vec<WalletSnapshot> = wallets
-		.keys()
-		.map(|seed| WalletSnapshot {
-			seed_hash: hash_seed(seed),
-			shielded_state_bytes: vec![],
-			dust_local_state_bytes: None,
+		.iter()
+		.map(|(seed, wallet)| {
+			let dust_local_state_bytes = wallet
+				.dust
+				.dust_local_state
+				.as_ref()
+				.map(|state| serialize_untagged(&**state))
+				.transpose()
+				.map_err(|e| CacheError::SerializeLedgerState(format!("dust state: {}", e)))?;
+
+			let shielded_state_bytes = serialize_untagged(&wallet.shielded.state)
+				.map_err(|e| CacheError::SerializeLedgerState(format!("shielded state: {}", e)))?;
+
+			Ok(WalletSnapshot {
+				seed_hash: hash_seed(seed),
+				shielded_state_bytes,
+				dust_local_state_bytes,
+			})
 		})
-		.collect();
+		.collect::<Result<Vec<_>, CacheError>>()?;
 	drop(wallets);
 
 	// Get latest block context
@@ -254,9 +251,9 @@ pub fn create_cache_from_context(
 
 /// Restore a LedgerContext from a WalletStateCache.
 ///
-/// This creates a new LedgerContext with the cached ledger state. Wallet state
-/// is initialized fresh and should be rebuilt by replaying blocks from the
-/// cache checkpoint to the current head.
+/// This creates a new LedgerContext with the cached ledger state and restores
+/// each wallet's dust and shielded state from the cache. Only blocks after the
+/// cache checkpoint need to be replayed.
 ///
 /// # Arguments
 ///
@@ -290,26 +287,21 @@ pub fn restore_context_from_cache(
 		});
 	}
 
-	// Verify state root integrity (if present in cache)
-	if let Some(ref cached_root) = cache.state_root {
-		let computed_root = compute_state_root(&cache.ledger_state_bytes);
-		if cached_root != &computed_root {
-			log::warn!(
-				"State root mismatch: cached data may be corrupted (height {})",
-				cache.block_height
-			);
-			return Err(CacheError::StateRootMismatch);
-		}
-		log::debug!("State root verification passed for cache at height {}", cache.block_height);
-	} else {
-		log::debug!(
-			"Skipping state root verification (old cache format) at height {}",
+	// Verify state root integrity
+	let computed_root = compute_state_root(&cache.ledger_state_bytes);
+	if cache.state_root != computed_root {
+		log::error!(
+			"State root mismatch: cached data may be corrupted (height {})",
 			cache.block_height
 		);
+		return Err(CacheError::StateRootMismatch);
 	}
 
-	// Deserialize ledger state
-	let ledger_state = deserialize_ledger_state(&cache.ledger_state_bytes)?;
+	// Deserialize ledger state using trusted (fast) deserializer
+	let ledger_state = super::trusted_deserialize::trusted_deserialize_tagged::<
+		LedgerState<DefaultDB>,
+	>(&cache.ledger_state_bytes)
+	.map_err(|e| CacheError::DeserializeLedgerState(e.to_string()))?;
 
 	// Create context with a placeholder network_id, then replace the ledger state.
 	let context = LedgerContext::new("restored");
@@ -324,7 +316,7 @@ pub fn restore_context_from_cache(
 	// Restore block context
 	let block_context = BlockContext {
 		tblock: Timestamp::from_secs(cache.latest_block_context.tblock_secs),
-		tblock_err: cache.latest_block_context.tblock_err as u32,
+		tblock_err: cache.latest_block_context.tblock_err,
 		parent_block_hash: HashOutput(cache.latest_block_context.parent_block_hash),
 		last_block_time: Timestamp::from_secs(cache.latest_block_context.last_block_time),
 	};
@@ -336,19 +328,42 @@ pub fn restore_context_from_cache(
 		*block_ctx = Some(block_context);
 	}
 
-	// Initialize wallets (will be updated during block replay)
 	let mut wallets = context
 		.wallets
 		.lock()
 		.map_err(|_| CacheError::LockPoisoned("wallets".to_string()))?;
 	for seed in wallet_seeds {
-		let wallet = Wallet::default(*seed, &ledger_state);
+		let mut wallet = Wallet::default(*seed, &ledger_state);
+
+		let seed_hash = hash_seed(seed);
+		if let Some(snapshot) = cache.wallet_snapshots.iter().find(|s| s.seed_hash == seed_hash) {
+			if let Some(ref dust_bytes) = snapshot.dust_local_state_bytes {
+				let dust_state =
+					deserialize_untagged::<DustLocalState<DefaultDB>>(dust_bytes.as_slice())
+						.map_err(|e| {
+							CacheError::DeserializeLedgerState(format!("dust state: {}", e))
+						})?;
+				wallet.dust.dust_local_state = Some(Sp::new(dust_state));
+				log::debug!("Restored dust state for wallet");
+			}
+			if !snapshot.shielded_state_bytes.is_empty() {
+				let shielded_state = deserialize_untagged::<WalletState<DefaultDB>>(
+					snapshot.shielded_state_bytes.as_slice(),
+				)
+				.map_err(|e| {
+					CacheError::DeserializeLedgerState(format!("shielded state: {}", e))
+				})?;
+				wallet.shielded.state = shielded_state;
+				log::debug!("Restored shielded state for wallet");
+			}
+		}
+
 		wallets.insert(*seed, wallet);
 	}
 	drop(wallets);
 
 	log::info!(
-		"Restored LedgerContext from cache at block height {}, {} wallets initialized",
+		"Restored LedgerContext from cache at block height {}, {} wallets restored",
 		cache.block_height,
 		wallet_seeds.len()
 	);
@@ -407,48 +422,20 @@ mod tests {
 				parent_block_hash: [0u8; 32],
 				last_block_time: 1234567890,
 			},
-			state_root: Some(valid_root.clone()),
+			state_root: valid_root.clone(),
 			version: CACHE_VERSION.to_string(),
 		};
 
 		// Corrupt the ledger state bytes (simulating storage corruption)
-		cache.ledger_state_bytes = vec![9u8, 9, 9, 9, 9]; // Different data
+		cache.ledger_state_bytes = vec![9u8, 9, 9, 9, 5]; // Different data
 
-		// Attempt to restore should fail with StateRootMismatch
-		// Note: We can't fully test restore_context_from_cache here because it requires
-		// valid serialized LedgerState bytes, but we can verify the state root check logic
+		// Verify the state root check detects corruption
 		let computed_root = compute_state_root(&cache.ledger_state_bytes);
-		assert_ne!(&computed_root, &valid_root, "Corrupted data should produce different root");
-
-		// Verify the check that would happen in restore_context_from_cache
-		if let Some(ref cached_root) = cache.state_root {
-			let matches = cached_root == &computed_root;
-			assert!(!matches, "State root verification should detect corruption");
-		}
-	}
-
-	#[test]
-	fn test_state_root_verification_allows_old_caches() {
-		// Cache without state_root (old format) should be accepted
-		let cache = WalletStateCache {
-			chain_id: H256::from([1u8; 32]),
-			wallet_id: H256::from([2u8; 32]),
-			block_height: 100,
-			ledger_state_bytes: vec![1, 2, 3],
-			wallet_snapshots: vec![],
-			latest_block_context: SerializableBlockContext {
-				tblock_secs: 1234567890,
-				tblock_err: 0,
-				parent_block_hash: [0u8; 32],
-				last_block_time: 1234567890,
-			},
-			state_root: None, // Old cache format without state root
-			version: CACHE_VERSION.to_string(),
-		};
-
-		// Verification should be skipped for old caches
-		assert!(cache.state_root.is_none());
-		// In restore_context_from_cache, this would skip the verification step
+		assert_ne!(computed_root, valid_root, "Corrupted data should produce different root");
+		assert_ne!(
+			cache.state_root, computed_root,
+			"State root verification should detect corruption"
+		);
 	}
 
 	#[test]
@@ -466,7 +453,7 @@ mod tests {
 				parent_block_hash: [0u8; 32],
 				last_block_time: 1234567890,
 			},
-			state_root: None,
+			state_root: compute_state_root(&[1, 2, 3]),
 			version: "wallet-state-cache-v0".to_string(), // Old version
 		};
 
@@ -481,6 +468,188 @@ mod tests {
 			Err(other) => panic!("Expected VersionMismatch error, got: {}", other),
 			Ok(_) => panic!("Expected VersionMismatch error, got Ok"),
 		}
+	}
+
+	/// Load genesis test data as SourceTransactions + build LedgerContext.
+	fn load_genesis_context(
+		wallet_seeds: &[WalletSeed],
+	) -> (crate::serde_def::SourceTransactions, LedgerContext<DefaultDB>) {
+		use crate::tx_generator::builder::build_fork_aware_context;
+
+		let genesis_path =
+			format!("{}/test-data/genesis/genesis_block_undeployed.mn", env!("CARGO_MANIFEST_DIR"));
+		let batches =
+			crate::tx_generator::source::GetTxsFromFile::load_single_or_multiple(&genesis_path)
+				.expect("failed to load genesis file");
+		let source = crate::serde_def::SourceTransactions::from_batches(batches.batches, true);
+		let context =
+			build_fork_aware_context(&source, wallet_seeds).expect("failed to build context");
+		(source, context)
+	}
+
+	#[test]
+	fn cache_create_and_restore_roundtrip() {
+		let wallet_seed = WalletSeed::try_from_hex_str(
+			"0000000000000000000000000000000000000000000000000000000000000001",
+		)
+		.unwrap();
+		let wallet_seeds = vec![wallet_seed];
+
+		let (source, context) = load_genesis_context(&wallet_seeds);
+		let total_blocks = source.blocks.len() as u64;
+
+		let chain_id = H256::from([1u8; 32]);
+		let wallet_id = H256::from([2u8; 32]);
+		let cache = create_cache_from_context(&context, chain_id, wallet_id, total_blocks)
+			.expect("create cache failed");
+
+		let (restored, height) = restore_context_from_cache(&cache, &wallet_seeds, chain_id)
+			.expect("restore from cache failed");
+		assert_eq!(height, total_blocks);
+
+		let original_bytes = {
+			let state = context.ledger_state.lock().unwrap();
+			midnight_node_ledger_helpers::serialize(&**state).expect("serialize failed")
+		};
+		let restored_bytes = {
+			let state = restored.ledger_state.lock().unwrap();
+			midnight_node_ledger_helpers::serialize(&**state).expect("serialize failed")
+		};
+
+		assert_eq!(
+			original_bytes,
+			restored_bytes,
+			"ledger state bytes differ: original {} bytes vs restored {} bytes",
+			original_bytes.len(),
+			restored_bytes.len()
+		);
+
+		// Verify wallet-level state survives the roundtrip
+		let original_wallets = context.wallets.lock().unwrap();
+		let restored_wallets = restored.wallets.lock().unwrap();
+		assert_eq!(original_wallets.len(), restored_wallets.len(), "wallet count mismatch");
+
+		let orig_wallet = original_wallets.get(&wallet_seed).expect("original wallet missing");
+		let rest_wallet = restored_wallets.get(&wallet_seed).expect("restored wallet missing");
+
+		let orig_shielded = serialize_untagged(&orig_wallet.shielded.state)
+			.expect("serialize original shielded state");
+		let rest_shielded = serialize_untagged(&rest_wallet.shielded.state)
+			.expect("serialize restored shielded state");
+		assert_eq!(
+			orig_shielded,
+			rest_shielded,
+			"shielded state bytes differ: {} vs {} bytes",
+			orig_shielded.len(),
+			rest_shielded.len()
+		);
+
+		let orig_dust = orig_wallet
+			.dust
+			.dust_local_state
+			.as_ref()
+			.map(|s| serialize_untagged(&**s).expect("serialize original dust state"));
+		let rest_dust = rest_wallet
+			.dust
+			.dust_local_state
+			.as_ref()
+			.map(|s| serialize_untagged(&**s).expect("serialize restored dust state"));
+		assert_eq!(orig_dust, rest_dust, "dust local state bytes differ");
+	}
+
+	/// Verifies that `cache at block N + replay N+1..M == full replay 0..M`.
+	///
+	/// With the test genesis having a single block (block 0), the incremental
+	/// portion is empty, but the test still exercises the full
+	/// restore_context_from_cache → update_from_block path.
+	#[test]
+	fn cache_restore_then_incremental_replay() {
+		use crate::tx_generator::builder::build_fork_aware_context;
+		use midnight_node_ledger_helpers::fork::fork_aware_context::ForkAwareLedgerContext;
+
+		let wallet_seed = WalletSeed::try_from_hex_str(
+			"0000000000000000000000000000000000000000000000000000000000000001",
+		)
+		.unwrap();
+		let wallet_seeds = vec![wallet_seed];
+		let chain_id = H256::from([1u8; 32]);
+		let wallet_id = H256::from([2u8; 32]);
+
+		let (source, _) = load_genesis_context(&wallet_seeds);
+
+		// Split blocks: first_half gets cached, second_half gets replayed incrementally
+		let split_at = source.blocks.len() / 2 + 1; // At least 1 block in first half
+		let first_half = &source.blocks[..split_at];
+		let second_half = &source.blocks[split_at..];
+
+		// --- Full path: replay all blocks from scratch ---
+		let full_context =
+			build_fork_aware_context(&source, &wallet_seeds).expect("full context build failed");
+
+		// --- Cached path: replay first half → cache → restore → replay second half ---
+		let partial_source =
+			crate::serde_def::SourceTransactions::new(first_half.to_vec(), &source.network_id);
+		let partial_context = build_fork_aware_context(&partial_source, &wallet_seeds)
+			.expect("partial context build failed");
+
+		let cache_height = (split_at as u64).saturating_sub(1);
+		let cache = create_cache_from_context(&partial_context, chain_id, wallet_id, cache_height)
+			.expect("create cache failed");
+
+		let (incremental_context, height) =
+			restore_context_from_cache(&cache, &wallet_seeds, chain_id)
+				.expect("restore from cache failed");
+		assert_eq!(height, cache_height);
+
+		// Replay remaining blocks through the fork-aware path
+		let mut fork_ctx = ForkAwareLedgerContext::Ledger8(incremental_context);
+		for block in second_half {
+			fork_ctx = fork_ctx.update_from_block(block);
+		}
+		let incremental_context = fork_ctx.into_ledger8().expect("expected ledger 8 after replay");
+
+		// --- Compare: full replay vs cache+incremental must produce identical state ---
+		let full_bytes = {
+			let state = full_context.ledger_state.lock().unwrap();
+			midnight_node_ledger_helpers::serialize(&**state).expect("serialize failed")
+		};
+		let incremental_bytes = {
+			let state = incremental_context.ledger_state.lock().unwrap();
+			midnight_node_ledger_helpers::serialize(&**state).expect("serialize failed")
+		};
+		assert_eq!(
+			full_bytes,
+			incremental_bytes,
+			"ledger state diverged: full replay {} bytes vs cached+incremental {} bytes",
+			full_bytes.len(),
+			incremental_bytes.len()
+		);
+
+		// Verify wallet-level state matches
+		let full_wallets = full_context.wallets.lock().unwrap();
+		let incr_wallets = incremental_context.wallets.lock().unwrap();
+		assert_eq!(full_wallets.len(), incr_wallets.len(), "wallet count mismatch");
+
+		let full_wallet = full_wallets.get(&wallet_seed).expect("full wallet missing");
+		let incr_wallet = incr_wallets.get(&wallet_seed).expect("incremental wallet missing");
+
+		let full_shielded =
+			serialize_untagged(&full_wallet.shielded.state).expect("serialize failed");
+		let incr_shielded =
+			serialize_untagged(&incr_wallet.shielded.state).expect("serialize failed");
+		assert_eq!(full_shielded, incr_shielded, "shielded state diverged");
+
+		let full_dust = full_wallet
+			.dust
+			.dust_local_state
+			.as_ref()
+			.map(|s| serialize_untagged(&**s).expect("serialize failed"));
+		let incr_dust = incr_wallet
+			.dust
+			.dust_local_state
+			.as_ref()
+			.map(|s| serialize_untagged(&**s).expect("serialize failed"));
+		assert_eq!(full_dust, incr_dust, "dust local state diverged");
 	}
 
 	#[test]
@@ -498,7 +667,7 @@ mod tests {
 				parent_block_hash: [0u8; 32],
 				last_block_time: 1234567890,
 			},
-			state_root: None,
+			state_root: compute_state_root(&[1, 2, 3]),
 			version: CACHE_VERSION.to_string(),
 		};
 

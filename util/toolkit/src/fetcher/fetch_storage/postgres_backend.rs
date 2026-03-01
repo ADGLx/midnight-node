@@ -19,7 +19,7 @@ use sqlx::{
 };
 use subxt::utils::H256;
 
-use super::{FetchStorage, WalletStateCache, WalletStateCaching};
+use super::{FetchStorage, WalletStateCache};
 use crate::fetcher::wallet_state_cache::{compress, decompress};
 
 /// Persistent [`FetchStorage`] backend using PostgreSQL.
@@ -92,17 +92,6 @@ impl PostgresBackend {
 		.await
 		.expect("failed to create highest_verified table");
 
-		// Create index for efficient range queries
-		sqlx::query(
-			r#"
-            CREATE INDEX IF NOT EXISTS idx_raw_block_data_v1_chain_number
-            ON raw_block_data_v1 (chain_id, block_number)
-            "#,
-		)
-		.execute(&mut *tx)
-		.await
-		.expect("failed to create index");
-
 		// Wallet state cache table (compressed data)
 		sqlx::query(
 			r#"
@@ -120,15 +109,7 @@ impl PostgresBackend {
 		.await
 		.expect("failed to create wallet_state_cache table");
 
-		sqlx::query(
-			r#"
-            CREATE INDEX IF NOT EXISTS idx_wallet_state_chain
-            ON wallet_state_cache (chain_id)
-            "#,
-		)
-		.execute(&mut *tx)
-		.await
-		.expect("failed to create wallet state index");
+		// Note: PRIMARY KEY (chain_id, wallet_id) already covers lookups by chain_id prefix.
 
 		tx.commit().await.expect("failed to commit init_tables transaction");
 	}
@@ -466,25 +447,5 @@ impl PostgresBackend {
 			.flatten();
 
 		result.map(|(count,)| count as u64).unwrap_or(0)
-	}
-}
-
-// Implement WalletStateCaching for PostgresBackend (delegates to FetchStorage impl)
-#[async_trait]
-impl WalletStateCaching for PostgresBackend {
-	async fn get_wallet_state(&self, chain_id: H256, wallet_id: H256) -> Option<WalletStateCache> {
-		<Self as FetchStorage>::get_wallet_state(self, chain_id, wallet_id).await
-	}
-
-	async fn set_wallet_state(&self, chain_id: H256, wallet_id: H256, cache: WalletStateCache) {
-		<Self as FetchStorage>::set_wallet_state(self, chain_id, wallet_id, cache).await
-	}
-
-	async fn get_cached_block_height(&self, chain_id: H256, wallet_id: H256) -> Option<u64> {
-		<Self as FetchStorage>::get_cached_block_height(self, chain_id, wallet_id).await
-	}
-
-	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256) {
-		<Self as FetchStorage>::delete_wallet_state(self, chain_id, wallet_id).await
 	}
 }

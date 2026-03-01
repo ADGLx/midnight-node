@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::source::Source;
-use crate::tx_generator::builder::build_fork_aware_context_raw;
+use crate::tx_generator::builder::build_fork_aware_context_cached;
 use crate::{HRP_CREDENTIAL_SHIELDED, TxGenerator, WalletAddress, WalletSeed};
 use crate::{
 	cli_parsers::{self as cli},
@@ -45,6 +45,7 @@ pub struct ShowWalletArgs {
 pub async fn execute(
 	args: ShowWalletArgs,
 ) -> Result<ShowWalletResult, Box<dyn std::error::Error + Send + Sync>> {
+	let fetch_cache_config = args.source.fetch_cache.clone();
 	let src = TxGenerator::source(args.source, args.dry_run).await?;
 
 	if args.dry_run {
@@ -57,9 +58,11 @@ pub async fn execute(
 	}
 
 	let source_blocks = src.get_txs().await?;
+	let wallet_cache = fetch_cache_config.create_wallet_cache().await;
 
 	if let Some(seed) = args.seed {
-		let fork_ctx = build_fork_aware_context_raw(&source_blocks, &[seed]);
+		let fork_ctx =
+			build_fork_aware_context_cached(&[seed], &source_blocks, wallet_cache.as_deref()).await;
 
 		Ok(fork_ctx.dispatch(
 			|ctx| {
@@ -83,7 +86,8 @@ pub async fn execute(
 			return Err("unavailable information - secret key needed".into());
 		}
 
-		let fork_ctx = build_fork_aware_context_raw(&source_blocks, &[]);
+		let fork_ctx =
+			build_fork_aware_context_cached(&[], &source_blocks, wallet_cache.as_deref()).await;
 
 		let address_clone = address.clone();
 		Ok(fork_ctx.dispatch(

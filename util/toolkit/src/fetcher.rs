@@ -15,6 +15,7 @@ pub mod compute_task;
 pub mod fetch_storage;
 pub mod fetch_task;
 pub mod runtimes;
+pub mod trusted_deserialize;
 pub mod wallet_state_cache;
 
 use std::time::Duration;
@@ -302,6 +303,17 @@ pub async fn fetch_from_rpc(
 	fetch_to_compute_rx.close();
 	compute_to_compute_rx.close();
 	final_jobs_rx.close();
+
+	// Wait for all workers to fully exit so their Arc<Database> handles are dropped.
+	// Without this, the JoinSet drop aborts tasks but doesn't synchronously release
+	// resources, causing "DatabaseAlreadyOpen" when the DB is reopened for wallet caching.
+	while let Some(result) = join_set.join_next().await {
+		if let Err(join_err) = result {
+			if join_err.is_panic() {
+				log::warn!("Worker task panicked during cleanup: {}", join_err);
+			}
+		}
+	}
 
 	// Set highest verified height for quicker fetch next time
 	fetch_storage.set_highest_verified_block(chain_id, finalized_height).await;

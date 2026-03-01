@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::tx_generator::builder::build_fork_aware_context_raw;
+use crate::tx_generator::builder::build_fork_aware_context_cached;
 use crate::{TxGenerator, WalletSeed, source::Source};
 use crate::{
 	cli_parsers::{self as cli},
@@ -42,6 +42,7 @@ pub enum DustBalanceResult {
 pub async fn execute(
 	args: DustBalanceArgs,
 ) -> Result<DustBalanceResult, Box<dyn std::error::Error + Send + Sync>> {
+	let fetch_cache_config = args.source.fetch_cache.clone();
 	let src = TxGenerator::source(args.source, args.dry_run).await?;
 
 	if args.dry_run {
@@ -50,8 +51,11 @@ pub async fn execute(
 	}
 
 	let source_blocks = src.get_txs().await?;
+	let wallet_cache = fetch_cache_config.create_wallet_cache().await;
 
-	let fork_ctx = build_fork_aware_context_raw(&source_blocks, &[args.seed]);
+	let fork_ctx =
+		build_fork_aware_context_cached(&[args.seed], &source_blocks, wallet_cache.as_deref())
+			.await;
 
 	let json = fork_ctx.dispatch(
 		|ctx| {
