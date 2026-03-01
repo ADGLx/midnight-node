@@ -13,7 +13,7 @@
 
 use crate::{
 	cli_parsers as cli,
-	fetcher::{fetch_all, fetch_storage},
+	fetcher::{fetch_all, fetch_storage, fetch_storage::WalletStateCaching},
 };
 use async_trait::async_trait;
 use clap::Args;
@@ -64,6 +64,31 @@ impl FromStr for FetchCacheConfig {
 			"inmemory" => Ok(Self::InMemory),
 			"postgres" => Ok(Self::Postgres { database_url: s.to_string() }),
 			_ => Err(FetchCacheConfigParseError::UnknownPrefix(prefix)),
+		}
+	}
+}
+
+impl FetchCacheConfig {
+	/// Create a wallet state cache backend from this config.
+	///
+	/// Returns `None` for `InMemory` (no persistence benefit).
+	/// For `Redb` and `Postgres`, creates a backend that persists wallet state
+	/// across runs, enabling fast session restoration.
+	///
+	/// Must be called AFTER block fetching completes to avoid Redb
+	/// single-writer conflicts with the block fetch backend.
+	pub async fn create_wallet_cache(&self) -> Option<Box<dyn WalletStateCaching>> {
+		match self {
+			Self::InMemory => None,
+			Self::Redb { filename } => {
+				let backend = fetch_storage::redb_backend::RedbBackend::new(filename);
+				Some(Box::new(backend))
+			},
+			Self::Postgres { database_url } => {
+				let backend =
+					fetch_storage::postgres_backend::PostgresBackend::new(database_url).await;
+				Some(Box::new(backend))
+			},
 		}
 	}
 }

@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use subxt::utils::H256;
 use tokio::sync::RwLock;
 
-use super::{FetchStorage, WalletStateCache, WalletStateCaching};
+use super::{FetchStorage, WalletStateCache};
 use crate::fetcher::wallet_state_cache::{WalletCacheKey, compress, decompress};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
@@ -255,26 +255,6 @@ impl FetchStorage for RedbBackend {
 	}
 }
 
-// Implement WalletStateCaching for RedbBackend (delegates to FetchStorage impl)
-#[async_trait]
-impl WalletStateCaching for RedbBackend {
-	async fn get_wallet_state(&self, chain_id: H256, wallet_id: H256) -> Option<WalletStateCache> {
-		<Self as FetchStorage>::get_wallet_state(self, chain_id, wallet_id).await
-	}
-
-	async fn set_wallet_state(&self, chain_id: H256, wallet_id: H256, cache: WalletStateCache) {
-		<Self as FetchStorage>::set_wallet_state(self, chain_id, wallet_id, cache).await
-	}
-
-	async fn get_cached_block_height(&self, chain_id: H256, wallet_id: H256) -> Option<u64> {
-		<Self as FetchStorage>::get_cached_block_height(self, chain_id, wallet_id).await
-	}
-
-	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256) {
-		<Self as FetchStorage>::delete_wallet_state(self, chain_id, wallet_id).await
-	}
-}
-
 /// Wrapper type to handle keys and values using bincode serialization
 #[derive(Debug)]
 pub struct Serde<T>(pub T);
@@ -329,6 +309,7 @@ where
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use crate::fetcher::fetch_storage::WalletStateCaching;
 	use crate::fetcher::wallet_state_cache::{SerializableBlockContext, WalletSnapshot};
 	use tempfile::tempdir;
 
@@ -349,7 +330,7 @@ mod tests {
 				parent_block_hash: [4u8; 32],
 				last_block_time: 1234567890,
 			},
-			state_root: Some(vec![5u8; 32]),
+			state_root: vec![5u8; 32],
 			version: "wallet-state-cache-v1".to_string(),
 		}
 	}
@@ -539,7 +520,7 @@ mod tests {
 							parent_block_hash: [wallet_idx as u8; 32],
 							last_block_time: 1234567890,
 						},
-						state_root: Some(vec![op as u8; 32]),
+						state_root: vec![op as u8; 32],
 						version: "wallet-state-cache-v1".to_string(),
 					};
 

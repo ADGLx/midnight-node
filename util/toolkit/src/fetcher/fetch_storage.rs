@@ -45,6 +45,25 @@ pub trait WalletStateCaching: Send + Sync {
 	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256);
 }
 
+#[async_trait]
+impl<T: FetchStorage + Send + Sync> WalletStateCaching for T {
+	async fn get_wallet_state(&self, chain_id: H256, wallet_id: H256) -> Option<WalletStateCache> {
+		<Self as FetchStorage>::get_wallet_state(self, chain_id, wallet_id).await
+	}
+
+	async fn set_wallet_state(&self, chain_id: H256, wallet_id: H256, cache: WalletStateCache) {
+		<Self as FetchStorage>::set_wallet_state(self, chain_id, wallet_id, cache).await
+	}
+
+	async fn get_cached_block_height(&self, chain_id: H256, wallet_id: H256) -> Option<u64> {
+		<Self as FetchStorage>::get_cached_block_height(self, chain_id, wallet_id).await
+	}
+
+	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256) {
+		<Self as FetchStorage>::delete_wallet_state(self, chain_id, wallet_id).await
+	}
+}
+
 #[derive(Clone)]
 pub struct FetchedBlock {
 	pub block: MidnightBlock,
@@ -207,25 +226,5 @@ impl FetchStorage for InMemory {
 	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256) {
 		let key = WalletCacheKey::new(chain_id, wallet_id);
 		self.wallet_cache.lock().await.remove(&key);
-	}
-}
-
-// Implement WalletStateCaching for InMemory (delegates to FetchStorage impl)
-#[async_trait]
-impl WalletStateCaching for InMemory {
-	async fn get_wallet_state(&self, chain_id: H256, wallet_id: H256) -> Option<WalletStateCache> {
-		<Self as FetchStorage>::get_wallet_state(self, chain_id, wallet_id).await
-	}
-
-	async fn set_wallet_state(&self, chain_id: H256, wallet_id: H256, cache: WalletStateCache) {
-		<Self as FetchStorage>::set_wallet_state(self, chain_id, wallet_id, cache).await
-	}
-
-	async fn get_cached_block_height(&self, chain_id: H256, wallet_id: H256) -> Option<u64> {
-		<Self as FetchStorage>::get_cached_block_height(self, chain_id, wallet_id).await
-	}
-
-	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256) {
-		<Self as FetchStorage>::delete_wallet_state(self, chain_id, wallet_id).await
 	}
 }

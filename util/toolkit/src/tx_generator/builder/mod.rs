@@ -611,156 +611,109 @@ pub trait BuildTxs {
 	) -> Result<SerializedTxBatches, Self::Error>;
 }
 
-/// Build context with optional wallet state caching.
+/// Build a fork-aware context with optional wallet state caching.
 ///
-/// This function wraps the standard context building with cache support:
-/// 1. If cache exists and is valid, restore from cache
-/// 2. Only replay blocks since the cache checkpoint
-/// 3. Save updated cache after processing
-///
-/// # Arguments
-///
-/// * `wallet_seeds` - The wallet seeds to initialize/restore
-/// * `received_tx` - The source transactions (blocks) from the network
-/// * `prover_arc` - The proof provider
-/// * `rng_seed` - Optional RNG seed
-/// * `chain_id` - The chain identity (block 1 hash)
-/// * `cache_storage` - The wallet state caching backend
-///
-/// # Returns
-///
-/// A tuple of (context_arc, tx_info, blocks_cached) where blocks_cached indicates
-/// how many blocks were skipped due to cache (0 if no cache hit).
-pub async fn build_context_with_cache<C: WalletStateCaching>(
-	wallet_seeds: Vec<WalletSeed>,
-	received_tx: SourceTransactions,
-	prover_arc: Arc<dyn ProofProvider<DefaultDB>>,
-	rng_seed: Option<[u8; 32]>,
-	chain_id: H256,
-	cache_storage: Option<&C>,
-) -> Result<
-	(Arc<LedgerContext<DefaultDB>>, StandardTrasactionInfo<DefaultDB>, u64),
-	ContextNotLedger8Error,
-> {
-	let total_blocks = received_tx.blocks.len() as u64;
+/// Tries cache restore first (ledger 8 only). On cache miss, falls back to
+/// full block replay via [`build_fork_aware_context_raw`]. Saves cache after
+/// processing if the final version is ledger 8.
+pub async fn build_fork_aware_context_cached(
+	wallet_seeds: &[WalletSeed],
+	received_tx: &SourceTransactions,
+	cache_storage: Option<&dyn WalletStateCaching>,
+) -> ForkAwareLedgerContext {
+	let chain_id = received_tx.chain_id();
 	let network_id = &received_tx.network_id;
+	let wallet_id = compute_wallet_id_for_seeds(wallet_seeds, network_id);
 
-	// Compute wallet ID for cache lookup
-	let wallet_id = compute_wallet_id_for_seeds(&wallet_seeds, network_id);
-
-	// Try to restore from cache if storage is provided
-	let (mut fork_ctx, start_block) = if let Some(storage) = cache_storage {
+	// Try cache restore (only produces Ledger8 contexts)
+	if let Some(storage) = cache_storage {
 		if let Some(cache) = storage.get_wallet_state(chain_id, wallet_id).await {
-			match wallet_state_cache::restore_context_from_cache(&cache, &wallet_seeds, chain_id) {
+			match wallet_state_cache::restore_context_from_cache(&cache, wallet_seeds, chain_id) {
 				Ok((ctx, height)) => {
 					log::info!("Restored wallet state from cache at block {}", height);
-					(ForkAwareLedgerContext::Ledger8(ctx), height + 1)
+					let mut fork_ctx = ForkAwareLedgerContext::Ledger8(ctx);
+
+					let blocks_to_replay: Vec<_> =
+						received_tx.blocks.iter().filter(|b| b.number > height).collect();
+					let blocks_replayed = blocks_to_replay.len() as u64;
+					if blocks_replayed > 0 {
+						log::info!(
+							"Replaying {} blocks after cache checkpoint ({}..)",
+							blocks_replayed,
+							height + 1
+						);
+					}
+					for block in &blocks_to_replay {
+						fork_ctx = fork_ctx.update_from_block(block);
+					}
+
+					// Save updated cache
+					if blocks_replayed > 0 {
+						let final_height =
+							blocks_to_replay.last().map(|b| b.number).unwrap_or(height);
+						try_save_cache(&fork_ctx, chain_id, wallet_id, final_height, storage).await;
+					}
+
+					return fork_ctx;
 				},
 				Err(e) => {
 					log::warn!("Failed to restore from cache: {}, starting fresh", e);
-					let initial_version = received_tx
-						.blocks
-						.first()
-						.map(|b| b.ledger_version())
-						.unwrap_or(LedgerVersion::Ledger8);
-					(
-						ForkAwareLedgerContext::new_from_wallet_seeds(
-							initial_version,
-							network_id,
-							&wallet_seeds,
-						),
-						0u64,
-					)
 				},
 			}
-		} else {
-			let initial_version = received_tx
-				.blocks
-				.first()
-				.map(|b| b.ledger_version())
-				.unwrap_or(LedgerVersion::Ledger8);
-			(
-				ForkAwareLedgerContext::new_from_wallet_seeds(
-					initial_version,
-					network_id,
-					&wallet_seeds,
-				),
-				0u64,
-			)
 		}
-	} else {
-		let initial_version = received_tx
-			.blocks
-			.first()
-			.map(|b| b.ledger_version())
-			.unwrap_or(LedgerVersion::Ledger8);
-		(
-			ForkAwareLedgerContext::new_from_wallet_seeds(
-				initial_version,
-				network_id,
-				&wallet_seeds,
-			),
-			0u64,
-		)
-	};
-
-	// Replay only blocks since start_block
-	let blocks_to_replay: Vec<_> =
-		received_tx.blocks.iter().filter(|b| b.number >= start_block).collect();
-
-	let blocks_replayed = blocks_to_replay.len() as u64;
-
-	if blocks_replayed > 0 {
-		log::info!(
-			"Replaying {} blocks (from {} to {})",
-			blocks_replayed,
-			start_block,
-			start_block + blocks_replayed - 1
-		);
 	}
 
-	for block in blocks_to_replay {
-		fork_ctx = fork_ctx.update_from_block(block);
-	}
+	// No cache or cache miss — full replay
+	let fork_ctx = build_fork_aware_context_raw(received_tx, wallet_seeds);
 
-	let final_version = fork_ctx.version();
-	let context = fork_ctx.into_ledger8().ok_or(ContextNotLedger8Error(final_version))?;
-
-	// Save updated cache if storage is provided and blocks were replayed
+	// Save cache if we ended up on ledger 8
 	if let Some(storage) = cache_storage {
-		if blocks_replayed > 0 || start_block == 0 {
-			let final_height = start_block + blocks_replayed.saturating_sub(1);
-			save_context_to_cache(&context, chain_id, wallet_id, final_height, storage).await;
-		}
+		let final_height = received_tx.blocks.last().map(|b| b.number).unwrap_or(0);
+		try_save_cache(&fork_ctx, chain_id, wallet_id, final_height, storage).await;
 	}
 
-	let context_arc = Arc::new(context);
-	let tx_info =
-		StandardTrasactionInfo::new_from_context(context_arc.clone(), prover_arc.clone(), rng_seed);
-
-	let blocks_cached = total_blocks.saturating_sub(blocks_replayed);
-	Ok((context_arc, tx_info, blocks_cached))
+	fork_ctx
 }
 
-/// Compute a wallet identity from seeds.
+/// Save cache from a `ForkAwareLedgerContext` if it holds a ledger 8 context.
+async fn try_save_cache(
+	fork_ctx: &ForkAwareLedgerContext,
+	chain_id: H256,
+	wallet_id: H256,
+	block_height: u64,
+	storage: &dyn WalletStateCaching,
+) {
+	match fork_ctx {
+		ForkAwareLedgerContext::Ledger8(ctx) => {
+			save_context_to_cache(ctx, chain_id, wallet_id, block_height, storage).await;
+		},
+		ForkAwareLedgerContext::Ledger7(_) => {
+			log::debug!("Skipping cache save: context is still on ledger 7");
+		},
+	}
+}
+
+/// Compute a wallet identity from seeds (order-independent via sorting).
 fn compute_wallet_id_for_seeds(seeds: &[WalletSeed], network_id: &str) -> H256 {
 	use sha2::{Digest, Sha256};
 
+	let mut sorted_seeds: Vec<_> = seeds.iter().collect();
+	sorted_seeds.sort();
 	let mut hasher = Sha256::new();
 	hasher.update(network_id.as_bytes());
-	for seed in seeds {
+	for seed in sorted_seeds {
 		hasher.update(seed.as_bytes());
 	}
 	H256::from_slice(&hasher.finalize())
 }
 
 /// Save context state to cache.
-async fn save_context_to_cache<C: WalletStateCaching>(
+async fn save_context_to_cache(
 	context: &LedgerContext<DefaultDB>,
 	chain_id: H256,
 	wallet_id: H256,
 	block_height: u64,
-	storage: &C,
+	storage: &dyn WalletStateCaching,
 ) {
 	let cache = match wallet_state_cache::create_cache_from_context(
 		context,
