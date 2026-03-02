@@ -574,27 +574,31 @@ ci:
 
 # Precompiled midnight contracts for use in testing and for the toolkit.
 contract-precompile-image:
-    # The results of this image is platform independent so we don't need to build for all platforms.
-    BUILD +contract-precompile-image-single-platform
+    BUILD --platform=linux/arm64 +contract-precompile-image-single-platform
+    BUILD --platform=linux/amd64 +contract-precompile-image-single-platform
 
 contract-precompile-image-single-platform:
+    ARG NATIVEARCH
     FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:13bffb7de7ef4836742a6be2b09642e819aaec50ceed1d7961424e19a95da0de
     # Install unzip and wget
     RUN microdnf -y install unzip wget tar gzip && \
         microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
     # Install gh CLI
-    RUN wget -q https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_amd64.tar.gz && \
-        tar -xzf gh_2.62.0_linux_amd64.tar.gz && \
-        mv gh_2.62.0_linux_amd64/bin/gh /usr/local/bin/ && \
-        rm -rf gh_2.62.0_linux_amd64*
+    ARG TARGETARCH
+    RUN if [ "$TARGETARCH" = "arm64" ]; then GH_ARCH="arm64"; else GH_ARCH="amd64"; fi && \
+        wget -q https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_${GH_ARCH}.tar.gz && \
+        tar -xzf gh_2.62.0_linux_${GH_ARCH}.tar.gz && \
+        mv gh_2.62.0_linux_${GH_ARCH}/bin/gh /usr/local/bin/ && \
+        rm -rf gh_2.62.0_linux_${GH_ARCH}*
 
-    # Fetch CompactC x86_64
+    # Fetch CompactC for the target architecture
     COPY COMPACTC_VERSION .
     RUN --secret GH_TOKEN set -e && \
+        if [ "$TARGETARCH" = "arm64" ]; then COMPACTC_ARCH="aarch64"; else COMPACTC_ARCH="x86_64"; fi && \
         VERSION=$(cat COMPACTC_VERSION) && \
         RELEASE_TAG="compactc-v${VERSION}" && \
-        echo "Attempting to download compactc from release: ${RELEASE_TAG}" && \
-        if gh release download --repo midnight-ntwrk/artifacts "${RELEASE_TAG}" --pattern "*x86_64-unknown-linux-musl.zip" 2>/dev/null; then \
+        echo "Attempting to download compactc (${COMPACTC_ARCH}) from release: ${RELEASE_TAG}" && \
+        if gh release download --repo midnight-ntwrk/artifacts "${RELEASE_TAG}" --pattern "*${COMPACTC_ARCH}-unknown-linux-musl.zip" 2>/dev/null; then \
             echo "Successfully downloaded from release"; \
         elif gh api repos/midnight-ntwrk/artifacts/git/refs/tags/${RELEASE_TAG} >/dev/null 2>&1; then \
             echo "ERROR: Tag '${RELEASE_TAG}' exists but has no release with binary assets." && \
@@ -626,14 +630,15 @@ contract-precompile-image-single-platform:
     LABEL org.opencontainers.image.source=https://github.com/midnight-ntwrk/artifacts
     LABEL org.opencontainers.image.title=node-test-contract-precompiles
     LABEL org.opencontainers.image.description="Midnight Test Contract Precompiles"
-    SAVE IMAGE --push $GHCR_REGISTRY/midnight-test-contract-precompiles:$IMAGE_TAG
+    SAVE IMAGE --push $GHCR_REGISTRY/midnight-test-contract-precompiles:$IMAGE_TAG-$NATIVEARCH
 
 use-contract-precompile-image:
+    ARG NATIVEARCH
     FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:13bffb7de7ef4836742a6be2b09642e819aaec50ceed1d7961424e19a95da0de
 #    FROM +contract-precompile-image
     COPY COMPACTC_VERSION .
     ARG IMAGE_TAG=$(cat COMPACTC_VERSION)
-    FROM ghcr.io/midnight-ntwrk/midnight-test-contract-precompiles:$IMAGE_TAG
+    FROM ghcr.io/midnight-ntwrk/midnight-test-contract-precompiles:$IMAGE_TAG-$NATIVEARCH
     SAVE ARTIFACT /simple-merkle-tree AS LOCAL target/contracts/simple-merkle-tree
 
 # a common setup of the build environment (not designed to be called directly)
@@ -762,9 +767,8 @@ prep:
     SAVE IMAGE --cache-hint
 
 # Prepares Node Toolkit (JS) in time for testing
-# Always uses linux/amd64 platform because compactc doesn't release for arm64
 toolkit-js-prep:
-    FROM --platform=linux/amd64 +node-ci-image-single-platform
+    FROM +node-ci-image-single-platform
 
     COPY COMPACTC_VERSION .
     COPY util/toolkit-js toolkit-js
@@ -783,8 +787,7 @@ toolkit-js-prep:
 
 # toolkit-js-prep-local saves Node Toolkit (JS) build artifacts
 toolkit-js-prep-local:
-    # We use `--platform=linux/amd64` here because compactc doesn't release for linux/arm64
-    FROM --platform=linux/amd64 +toolkit-js-prep
+    FROM +toolkit-js-prep
     SAVE ARTIFACT /toolkit-js/node_modules AS LOCAL ./util/toolkit-js/node_modules
     SAVE ARTIFACT /toolkit-js/dist AS LOCAL ./util/toolkit-js/dist
     SAVE ARTIFACT /toolkit-js/test/contract/managed/counter AS LOCAL ./util/toolkit-js/test/contract/managed/counter
@@ -921,7 +924,7 @@ test-pallet-fixtures:
     # SAVE ARTIFACT ./test-artifacts-pallet-fixtures-$NATIVEARCH AS LOCAL ./test-artifacts-pallet-fixtures
 
 # Midnight Node Toolkit tests - requires Node Toolkit (JS) which depends on midnight-js npm packages
-# NOTE: This target builds for native platform, but copies toolkit-js from amd64 build (compactc is amd64-only)
+# Midnight Node Toolkit tests - requires Node Toolkit (JS) which depends on midnight-js npm packages
 build-test-toolkit:
     ARG NATIVEARCH
     FROM +prep
@@ -938,8 +941,7 @@ build-test-toolkit:
     ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
 
     # Extract Node Toolkit (JS)
-    # We use `--platform=linux/amd64` here because compactc doesn't release for linux/arm64
-    COPY --platform=linux/amd64 +toolkit-js-prep/toolkit-js util/toolkit-js
+    COPY +toolkit-js-prep/toolkit-js util/toolkit-js
 
     # Run Midnight Node Toolkit package tests only (requires toolkit-js)
     COPY scripts/test-toolkit.sh /test-toolkit.sh
@@ -1213,9 +1215,8 @@ toolkit-image:
         npm install -g npm@11.11.0 && npm --version
 
     # Add toolkit-js (only when INCLUDE_TOOLKIT_JS=true)
-    # We use `--platform=linux/amd64` here because compactc doesn't release for linux/arm64
     IF [ "$INCLUDE_TOOLKIT_JS" = "true" ]
-        COPY --platform=linux/amd64 +toolkit-js-prep/toolkit-js /toolkit-js
+        COPY +toolkit-js-prep/toolkit-js /toolkit-js
     ELSE
         RUN mkdir -p /toolkit-js
     END
