@@ -152,8 +152,9 @@ node-image-minimal:
 
 # Grabs metadata.scale file from the latest node
 get-metadata:
-    FROM +subxt
-    DO github.com/EarthBuild/lib+INSTALL_DIND
+    ARG NATIVEARCH
+    FROM +prep-no-copy
+
     COPY local-environment/check-health.sh /usr/local/bin/check-health.sh
     WITH DOCKER --load localhost/node-minimal:latest=+node-image-minimal
       RUN docker run --env CFG_PRESET=dev -p 9944:9944 localhost/node-minimal:latest & \
@@ -165,8 +166,8 @@ get-metadata:
 
 # rebuild-metadata gets the metadata file and adds it to the metadata crate
 rebuild-metadata:
-    FROM +subxt
-    DO github.com/EarthBuild/lib+INSTALL_DIND
+    ARG NATIVEARCH
+    FROM +prep-no-copy
     COPY node/Cargo.toml /node/
     RUN cat /node/Cargo.toml | grep -m 1 version | sed 's/version *= *"\([^\"]*\)".*/\1/' > node_version
     LET NODE_VERSION = "$(cat node_version)"
@@ -655,6 +656,7 @@ node-ci-image-single-platform:
     # Install build dependencies
     RUN microdnf -y update && \
         microdnf -y install \
+        ca-certificates \
         gcc \
         gcc-c++ \
         make \
@@ -697,6 +699,14 @@ node-ci-image-single-platform:
     RUN cargo install --locked --git https://github.com/chevdor/subwasm --tag v$SUBWASM_VERSION
     RUN cargo install --locked cargo-shear --version 1.9.1
     RUN cargo install sqlx-cli --no-default-features --features rustls,postgres
+    # subxt-cli for generating runtime metadata - keep version in sync with Cargo.toml
+    RUN cargo binstall --no-confirm subxt-cli@0.44.0
+    RUN cargo binstall --no-confirm cargo-auditable
+
+    # Docker-in-Docker for targets that spin up containers (metadata generation, etc.)
+    # Note: EarthBuild/lib+INSTALL_DIND doesn't support AL2023 (no yum), so install directly.
+    RUN microdnf -y install docker && \
+        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
     ENV CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG=true
     ENV CARGO_TERM_COLOR=always
@@ -713,16 +723,12 @@ node-ci-image-single-platform:
 # a common setup of the build environment (not designed to be called directly)
 prep-no-copy:
     ARG NATIVEARCH
-    # FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    FROM midnightntwrk/midnight-node-ci:1.93-$NATIVEARCH
-
-    # Used to add repository for nodejs
-    RUN microdnf -y update && \
-        microdnf -y install ca-certificates && \
-        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
+    # If you need to alter the CI image, here is where you can build it locally rather than
+    # referring to the pre-built image:
+    FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
+    # FROM midnightntwrk/midnight-node-ci:1.93-$NATIVEARCH
 
     RUN cargo --version
-    RUN cargo binstall --no-confirm cargo-auditable
 
 prep:
     FROM +prep-no-copy
@@ -841,8 +847,8 @@ check-rust:
 check-metadata:
     ARG NODE_IMAGE
     #=ghcr.io/midnight-ntwrk/midnight-node:latest
-    FROM +subxt
-    DO github.com/EarthBuild/lib+INSTALL_DIND
+    ARG NATIVEARCH
+    FROM +prep-no-copy
     COPY local-environment/check-health.sh /usr/local/bin/check-health.sh
 
     WITH DOCKER --pull ${NODE_IMAGE}
