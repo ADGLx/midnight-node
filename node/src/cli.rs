@@ -11,16 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::str::FromStr;
-
 use clap::Parser;
 
-use crate::cfg::Cfg;
-use midnight_node_runtime::opaque::SessionKeys;
-use parity_scale_codec::Encode;
-use partner_chains_cli::{AURA, CROSS_CHAIN, CreateChainSpecConfig, GRANDPA, KeyDefinition};
-use partner_chains_node_commands::{PartnerChainRuntime, PartnerChainsSubcommand};
-use sc_cli::SubstrateCli;
 use sidechain_domain::McBlockHash;
 
 #[derive(Debug, Clone, clap::Parser)]
@@ -298,10 +290,6 @@ pub enum Subcommand {
 	#[command(subcommand)]
 	Key(sc_cli::KeySubcommand),
 
-	/// Partner chain subcommands (smart contract registration etc.)
-	#[clap(flatten)]
-	PartnerChains(PartnerChainsSubcommand<MidnightRuntime, MidnightAddress>),
-
 	/// Build a chain specification.
 	BuildSpec(sc_cli::BuildSpecCmd),
 
@@ -386,58 +374,3 @@ pub enum Subcommand {
 	/// Db meta columns information.
 	ChainInfo(sc_cli::ChainInfoCmd),
 }
-
-#[derive(Clone, Debug)]
-pub struct MidnightRuntime;
-impl PartnerChainRuntime for MidnightRuntime {
-	type Keys = SessionKeys;
-
-	fn create_chain_spec(_config: &CreateChainSpecConfig<Self::Keys>) -> serde_json::Value {
-		let cfg = Cfg::new_no_validation()
-			.expect("chainspec configuration must load without validation errors");
-
-		// Use the configured chain from CFG_PRESET or environment, defaulting to "dev" if not set
-		let chain_id = cfg.substrate_cfg.chain.as_deref().unwrap_or("dev");
-
-		let chain_spec = cfg
-			.load_spec(chain_id)
-			.expect("chain spec generation must succeed when using default configuration");
-
-		let chain_spec_json =
-			chain_spec.as_json(false).expect("Chain spec serialization cannot fail");
-		let chain_spec_value: serde_json::Value =
-			serde_json::from_str(&chain_spec_json).expect("Generated chain spec JSON is valid");
-
-		chain_spec_value
-	}
-
-	fn key_definitions() -> Vec<KeyDefinition<'static>> {
-		// TODO: BEEFY(follow up pr)
-		vec![AURA, GRANDPA, CROSS_CHAIN]
-	}
-}
-
-// TODO: this is used for signing address associations. Which kind of midnight address do we want to associate with Cardano?
-#[derive(Clone, Debug, serde::Serialize, Encode)]
-pub struct MidnightAddress;
-
-impl FromStr for MidnightAddress {
-	type Err = NotImplementedError;
-
-	fn from_str(_: &str) -> Result<Self, Self::Err> {
-		Err(NotImplementedError)
-	}
-}
-
-#[derive(Debug)]
-pub struct NotImplementedError;
-impl std::fmt::Display for NotImplementedError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_str("not implemented")
-	}
-}
-impl core::error::Error for NotImplementedError {}
-
-// TODO: this is used to sign block producer metadata. Do we have a better type for that?
-#[derive(serde::Deserialize, Encode)]
-pub struct MidnightBlockProducerMetadata;

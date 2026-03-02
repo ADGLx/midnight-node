@@ -15,7 +15,7 @@
 
 use crate::{
 	cfg::Cfg,
-	cli::{self, Cli, Subcommand},
+	cli::{Cli, Subcommand},
 	genesis::creation::{
 		cnight_genesis::generate_cnight_genesis,
 		federated_authority_genesis::generate_federated_authority_genesis,
@@ -318,28 +318,6 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 
 	match subcommand {
 		Subcommand::Key(ref cmd) => cmd.run(&cfg),
-		Subcommand::PartnerChains(cmd) => {
-			let midnight_cfg = cfg.midnight_cfg.clone();
-			let make_dependencies = |config: sc_service::Configuration| {
-				let storage_config =
-					storage_init_from_chain_spec(&config, cache_size).map_err(|e| e.to_string())?;
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						midnight_cfg,
-						None,
-					),
-				)?;
-				let PartialComponents { client, task_manager, other, .. } =
-					service::new_partial(&config, epoch_config, data_sources, storage_config)?;
-				Ok((client, task_manager, other.5.authority_selection))
-			};
-
-			partner_chains_node_commands::run::<_, _, _, _, cli::MidnightBlockProducerMetadata, _, _>(
-				&cfg,
-				make_dependencies,
-				cmd.clone(),
-			)
-		},
 		Subcommand::BuildSpec(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))

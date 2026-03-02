@@ -109,7 +109,7 @@ dependencies = [
  "actix-utils",
  "futures-core",
  "futures-util",
- "mio 1.0.4",
+ "mio",
  "socket2 0.5.10",
  "tokio",
  "tracing",
@@ -402,12 +402,6 @@ name = "arbitrary"
 version = "1.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c3d036a3c4ab069c7b410a2ce876bd74808d2d0888a82667669f8e783a898bf1"
-
-[[package]]
-name = "arc-swap"
-version = "1.7.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "69f7f8c3906b62b754cd5326047894316021dcfe5a194c8ea52bdd94934a3457"
 
 [[package]]
 name = "archery"
@@ -2084,35 +2078,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cli-commands"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "anyhow",
- "clap",
- "ed25519-zebra",
- "hex",
- "hex-literal 1.0.0",
- "k256",
- "pallet-address-associations",
- "parity-scale-codec",
- "plutus",
- "plutus-datum-derive",
- "secp256k1 0.30.0",
- "serde",
- "serde_json",
- "sidechain-domain",
- "sp-api",
- "sp-block-producer-metadata",
- "sp-blockchain",
- "sp-io",
- "sp-runtime",
- "sp-sidechain",
- "thiserror 2.0.12",
- "time-source",
-]
-
-[[package]]
 name = "cloudabi"
 version = "0.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2157,15 +2122,6 @@ name = "colorchoice"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
-
-[[package]]
-name = "colored"
-version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fde0e0ec90c9dfb3b4b1a0891a7dcd0e2bffde2f7efed5fe7c9bb00e5bfb915e"
-dependencies = [
- "windows-sys 0.48.0",
-]
 
 [[package]]
 name = "combine"
@@ -2656,31 +2612,6 @@ name = "crossbeam-utils"
 version = "0.8.21"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
-
-[[package]]
-name = "crossterm"
-version = "0.25.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e64e6c0fbe2c17357405f7c758c1ef960fce08bdfb2c03d88d2a18d7e09c4b67"
-dependencies = [
- "bitflags 1.3.2",
- "crossterm_winapi",
- "libc",
- "mio 0.8.11",
- "parking_lot 0.12.4",
- "signal-hook",
- "signal-hook-mio",
- "winapi",
-]
-
-[[package]]
-name = "crossterm_winapi"
-version = "0.9.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "acdd7c62a3665c7f6830a51635d9ac9b23ed385797f70a83bb8bafe9c572ab2b"
-dependencies = [
- "winapi",
-]
 
 [[package]]
 name = "crunchy"
@@ -3265,12 +3196,6 @@ dependencies = [
  "syn 2.0.104",
  "unicode-xid 0.2.6",
 ]
-
-[[package]]
-name = "destructure_traitobject"
-version = "0.2.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c877555693c14d2f84191cfd3ad8582790fc52b5e2274b40b59cf5f5cea25c7"
 
 [[package]]
 name = "deunicode"
@@ -4634,24 +4559,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fuzzy-matcher"
-version = "0.3.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54614a3312934d066701a80f20f15fa3b56d67ac7722b39eea5b4c9dd1d66c94"
-dependencies = [
- "thread_local",
-]
-
-[[package]]
-name = "fxhash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "generator"
 version = "0.8.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -5791,23 +5698,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "879f10e63c20629ecabbb64a8010319738c66a5cd0c29b02d63d272b03751d01"
 dependencies = [
  "generic-array 0.14.7",
-]
-
-[[package]]
-name = "inquire"
-version = "0.7.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0fddf93031af70e75410a2511ec04d49e758ed2f26dad3404a934e0fb45cc12a"
-dependencies = [
- "bitflags 2.9.1",
- "crossterm",
- "dyn-clone",
- "fuzzy-matcher",
- "fxhash",
- "newline-converter",
- "once_cell",
- "unicode-segmentation",
- "unicode-width 0.1.14",
 ]
 
 [[package]]
@@ -7015,40 +6905,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "log-mdc"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a94d21414c1f4a51209ad204c1776a3d0765002c76c6abcb602a6f09f1e881c7"
-
-[[package]]
-name = "log4rs"
-version = "1.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0816135ae15bd0391cf284eab37e6e3ee0a6ee63d2ceeb659862bd8d0a984ca6"
-dependencies = [
- "anyhow",
- "arc-swap",
- "chrono",
- "derivative",
- "fnv",
- "humantime",
- "libc",
- "log",
- "log-mdc",
- "once_cell",
- "parking_lot 0.12.4",
- "rand 0.8.5",
- "serde",
- "serde-value",
- "serde_json",
- "serde_yaml",
- "thiserror 1.0.69",
- "thread-id",
- "typemap-ors",
- "winapi",
-]
-
-[[package]]
 name = "loom"
 version = "0.7.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -7696,10 +7552,8 @@ dependencies = [
  "pallet-system-parameters-rpc",
  "pallet-throttle",
  "parity-scale-codec",
- "partner-chains-cli",
  "partner-chains-db-sync-data-sources",
  "partner-chains-mock-data-sources",
- "partner-chains-node-commands",
  "prost 0.13.5",
  "reqwest 0.12.22",
  "sc-basic-authorship",
@@ -8940,18 +8794,6 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.8.11"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a4a650543ca06a924e8b371db273b2756685faae30f8487da1b56505a8f78b0c"
-dependencies = [
- "libc",
- "log",
- "wasi 0.11.1+wasi-snapshot-preview1",
- "windows-sys 0.48.0",
-]
-
-[[package]]
-name = "mio"
 version = "1.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "78bed444cc8a2160f01cbcf811ef18cac863ad68ae8ca62092e8db51d51c761c"
@@ -9354,15 +9196,6 @@ dependencies = [
  "libc",
  "thiserror 2.0.12",
  "winapi",
-]
-
-[[package]]
-name = "newline-converter"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47b6b097ecb1cbfed438542d16e84fd7ad9b0c76c8a65b7f9039212a3d14dc7f"
-dependencies = [
- "unicode-segmentation",
 ]
 
 [[package]]
@@ -9771,15 +9604,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "ordered-float"
-version = "2.10.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "68f19d67e5a2795c94e73e0bb1cc1a7edeb2e28efd39e2e1c9b7a40c1108b11c"
-dependencies = [
- "num-traits",
-]
-
-[[package]]
 name = "ordered-multimap"
 version = "0.7.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9901,18 +9725,6 @@ dependencies = [
 
 [[package]]
 name = "pallas-codec"
-version = "0.32.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e344b3e39ca3bd79bb7547b65b980869c3c377a00c48ece70430f4611c32a18b"
-dependencies = [
- "hex",
- "minicbor 0.25.1",
- "serde",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pallas-codec"
 version = "0.33.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8b2737b05f0dbb6d197feeb26ef15d2567e54833184bd469f5655a0537da89fa"
@@ -9950,21 +9762,6 @@ dependencies = [
  "cryptoxide",
  "hex",
  "pallas-codec 0.31.0",
- "rand_core 0.6.4",
- "serde",
- "thiserror 1.0.69",
- "zeroize",
-]
-
-[[package]]
-name = "pallas-crypto"
-version = "0.32.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "59c89ea16190a87a1d8bd36923093740a2b659ed6129f4636329319a70cc4db3"
-dependencies = [
- "cryptoxide",
- "hex",
- "pallas-codec 0.32.1",
  "rand_core 0.6.4",
  "serde",
  "thiserror 1.0.69",
@@ -10016,22 +9813,6 @@ dependencies = [
  "log",
  "pallas-codec 0.31.0",
  "pallas-crypto 0.31.0",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "pallas-primitives"
-version = "0.32.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1912f4f4a0719e36ac061f7f3557b687e8ef7285b573608fb5c71eba64c1b04c"
-dependencies = [
- "base58",
- "bech32 0.9.1",
- "hex",
- "log",
- "pallas-codec 0.32.1",
- "pallas-crypto 0.32.1",
  "serde",
  "serde_json",
 ]
@@ -10132,21 +9913,6 @@ dependencies = [
  "pallas-crypto 0.33.0",
  "rand 0.8.5",
  "thiserror 1.0.69",
-]
-
-[[package]]
-name = "pallet-address-associations"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sidechain-domain",
- "sp-std",
 ]
 
 [[package]]
@@ -10415,21 +10181,6 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-runtime",
-]
-
-[[package]]
-name = "pallet-governed-map"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "frame-benchmarking",
- "frame-support",
- "frame-system",
- "log",
- "parity-scale-codec",
- "scale-info",
- "sidechain-domain",
- "sp-governed-map",
 ]
 
 [[package]]
@@ -11039,72 +10790,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7924d1d0ad836f665c9065e26d016c673ece3993f30d340068b16f282afc1156"
 
 [[package]]
-name = "partner-chains-cardano-offchain"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "anyhow",
- "cardano-serialization-lib 14.1.2",
- "cbor_event",
- "fraction",
- "hex",
- "hex-literal 1.0.0",
- "log",
- "minicbor 0.25.1",
- "ogmios-client",
- "pallas-primitives 0.32.1",
- "partner-chains-plutus-data",
- "plutus",
- "raw-scripts",
- "secp256k1 0.30.0",
- "serde",
- "serde_json",
- "sidechain-domain",
- "tokio",
- "tokio-retry",
- "uplc",
-]
-
-[[package]]
-name = "partner-chains-cli"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "anyhow",
- "authority-selection-inherents",
- "cardano-serialization-lib 14.1.2",
- "clap",
- "colored",
- "ed25519-zebra",
- "hex",
- "inquire",
- "libp2p-identity",
- "log",
- "ogmios-client",
- "pallet-governed-map",
- "pallet-partner-chains-bridge",
- "pallet-partner-chains-session",
- "pallet-session-validator-management",
- "pallet-sidechain",
- "partner-chains-cardano-offchain",
- "plutus",
- "plutus-datum-derive",
- "secp256k1 0.30.0",
- "serde",
- "serde_json",
- "sidechain-domain",
- "sidechain-slots",
- "sp-core",
- "sp-governed-map",
- "sp-partner-chains-bridge",
- "sp-runtime",
- "sp-session-validator-management",
- "tempfile",
- "thiserror 2.0.12",
- "tokio",
-]
-
-[[package]]
 name = "partner-chains-db-sync-data-sources"
 version = "1.8.1"
 source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
@@ -11160,34 +10845,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "partner-chains-node-commands"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "authority-selection-inherents",
- "clap",
- "cli-commands",
- "frame-support",
- "log",
- "log4rs",
- "once_cell",
- "parity-scale-codec",
- "partner-chains-cli",
- "partner-chains-smart-contracts-commands",
- "plutus",
- "sc-cli",
- "sc-service",
- "sidechain-domain",
- "sp-api",
- "sp-blockchain",
- "sp-core",
- "sp-runtime",
- "sp-session-validator-management",
- "sp-session-validator-management-query",
- "sp-sidechain",
-]
-
-[[package]]
 name = "partner-chains-plutus-data"
 version = "1.8.1"
 source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
@@ -11198,23 +10855,6 @@ dependencies = [
  "sidechain-domain",
  "sp-core",
  "thiserror 2.0.12",
-]
-
-[[package]]
-name = "partner-chains-smart-contracts-commands"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "anyhow",
- "clap",
- "hex",
- "ogmios-client",
- "partner-chains-cardano-offchain",
- "serde",
- "serde_json",
- "sidechain-domain",
- "sp-runtime",
- "tokio",
 ]
 
 [[package]]
@@ -15019,16 +14659,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde-value"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f3a1a3341211875ef120e117ea7fd5228530ae7e7036a779fdc9117be6b3282c"
-dependencies = [
- "ordered-float",
- "serde",
-]
-
-[[package]]
 name = "serde-wasm-bindgen"
 version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -15442,27 +15072,6 @@ dependencies = [
  "sp-consensus-slots",
  "sp-core",
  "sp-runtime",
-]
-
-[[package]]
-name = "signal-hook"
-version = "0.3.18"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d881a16cf4426aa584979d30bd82cb33429027e42122b169753d6ef1085ed6e2"
-dependencies = [
- "libc",
- "signal-hook-registry",
-]
-
-[[package]]
-name = "signal-hook-mio"
-version = "0.2.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "34db1a06d485c9142248b7a054f034b349b212551f3dfd19c94d45a754a217cd"
-dependencies = [
- "libc",
- "mio 0.8.11",
- "signal-hook",
 ]
 
 [[package]]
@@ -15944,17 +15553,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sp-block-producer-metadata"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "k256",
- "parity-scale-codec",
- "sidechain-domain",
- "sp-api",
-]
-
-[[package]]
 name = "sp-blockchain"
 version = "42.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable2509#5ab401310d2fbd808b3ffbcfc8735ad8f1c8fe10"
@@ -16192,24 +15790,6 @@ dependencies = [
  "serde_json",
  "sp-api",
  "sp-runtime",
-]
-
-[[package]]
-name = "sp-governed-map"
-version = "1.8.1"
-source = "git+https://github.com/input-output-hk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "async-trait",
- "envy",
- "log",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sidechain-domain",
- "sp-api",
- "sp-inherents",
- "sp-runtime",
- "thiserror 2.0.12",
 ]
 
 [[package]]
@@ -18090,16 +17670,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "3bf63baf9f5039dadc247375c29eb13706706cfde997d0330d05aa63a77d8820"
 
 [[package]]
-name = "thread-id"
-version = "4.2.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cfe8f25bbdd100db7e1d34acf7fd2dc59c4bf8f7483f505eaa7d4f12f76cc0ea"
-dependencies = [
- "libc",
- "winapi",
-]
-
-[[package]]
 name = "thread_local"
 version = "1.1.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -18235,7 +17805,7 @@ dependencies = [
  "bytes",
  "io-uring",
  "libc",
- "mio 1.0.4",
+ "mio",
  "parking_lot 0.12.4",
  "pin-project-lite",
  "signal-hook-registry",
@@ -18263,17 +17833,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bbae76ab933c85776efabc971569dd6119c580d8f5d448769dec1764bf796ef2"
 dependencies = [
  "native-tls",
- "tokio",
-]
-
-[[package]]
-name = "tokio-retry"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f57eb36ecbe0fc510036adff84824dd3c24bb781e21bfa67b69d556aa85214f"
-dependencies = [
- "pin-project",
- "rand 0.8.5",
  "tokio",
 ]
 
@@ -18785,15 +18344,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "bc7d623258602320d5c55d1bc22793b57daff0ec7efc270ea7d55ce1d5f5471c"
 
 [[package]]
-name = "typemap-ors"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a68c24b707f02dd18f1e4ccceb9d49f2058c2fb86384ef9972592904d7a28867"
-dependencies = [
- "unsafe-any-ors",
-]
-
-[[package]]
 name = "typenum"
 version = "1.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -18940,15 +18490,6 @@ checksum = "fc1de2c688dc15305988b563c3854064043356019f97a4b46276fe734c4f07ea"
 dependencies = [
  "crypto-common",
  "subtle 2.6.1",
-]
-
-[[package]]
-name = "unsafe-any-ors"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e0a303d30665362d9680d7d91d78b23f5f899504d4f08b3c4cf08d055d87c0ad"
-dependencies = [
- "destructure_traitobject",
 ]
 
 [[package]]

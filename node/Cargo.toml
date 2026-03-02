@@ -117,8 +117,6 @@ sidechain-mc-hash = { workspace = true, features = ["mock"] }
 sp-partner-chains-consensus-aura.workspace = true
 sc-partner-chains-consensus-aura.workspace = true
 sp-session-validator-management-query.workspace = true
-partner-chains-node-commands.workspace = true
-partner-chains-cli.workspace = true
 sp-partner-chains-bridge = { workspace = true, default-features = true }
 
 sc-storage-monitor.workspace = true
