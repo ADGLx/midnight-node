@@ -671,6 +671,7 @@ node-ci-image-single-platform:
         git \
         tar \
         gzip \
+        xz \
         jq && \
         microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
         # gcc-aarch64-linux-gnu \
@@ -701,7 +702,6 @@ node-ci-image-single-platform:
     RUN cargo install sqlx-cli --no-default-features --features rustls,postgres
     # subxt-cli for generating runtime metadata - keep version in sync with Cargo.toml
     RUN cargo binstall --no-confirm subxt-cli@0.44.0
-    RUN cargo binstall --no-confirm cargo-auditable
 
     # Docker-in-Docker for targets that spin up containers (metadata generation, etc.)
     # Note: EarthBuild/lib+INSTALL_DIND doesn't support AL2023 (no yum), so install directly.
@@ -791,9 +791,6 @@ toolkit-js-prep-local:
 # check-deps checks for unused dependencies
 check-deps:
     FROM +prep
-    RUN cargo install cargo-shear --version 1.6.6 --locked
-
-    # shear
     RUN cargo shear
 
 # check-rust runs cargo fmt and clippy.
@@ -929,10 +926,6 @@ build-test-toolkit:
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
     CACHE /target
-
-    # Install dependencies for Node.js (curl-minimal already in base image)
-    RUN microdnf -y install tar gzip xz && \
-        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
     # Install Node.js 22 for native platform (AL2023's nodejs is v18, which lacks File API needed by undici)
     # Use native architecture since tests run on native platform, even though toolkit-js is from amd64
