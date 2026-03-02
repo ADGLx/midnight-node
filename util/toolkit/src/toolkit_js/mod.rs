@@ -76,6 +76,9 @@ pub struct CircuitArgs {
 	/// The output file of the intent
 	#[arg(long, value_parser = PathBufValueParser::new().map(|p| RelativePath::from(p)))]
 	output_intent: RelativePath,
+	/// The output file of the on-chain (public) state
+	#[arg(long, value_parser = PathBufValueParser::new().map(|p| RelativePath::from(p)))]
+	output_onchain_state: Option<RelativePath>,
 	/// The output file of the private state
 	#[arg(long, value_parser = PathBufValueParser::new().map(|p| RelativePath::from(p)))]
 	output_private_state: RelativePath,
@@ -285,6 +288,10 @@ impl ToolkitJs {
 		if let Some(ref input_zswap_state) = input_zswap_state {
 			cmd_args.extend_from_slice(&["--input-zswap", &input_zswap_state]);
 		}
+		let output_onchain_state = args.output_onchain_state.map(|s| s.absolute());
+		if let Some(ref output_onchain_state) = output_onchain_state {
+			cmd_args.extend_from_slice(&["--output-oc", &output_onchain_state]);
+		}
 		let output_result = args.output_result.map(|s| s.absolute());
 		if let Some(ref output_result) = output_result {
 			cmd_args.extend_from_slice(&["--output-result", &output_result]);
@@ -349,7 +356,7 @@ impl ToolkitJs {
 
 	fn execute_js(&self, args: &[&str]) -> Result<(), ToolkitJsError> {
 		let cmd = PathBuf::from(&self.path).join(BUILD_DIST).to_string_lossy().to_string();
-		println!("Executing {cmd} with arguments: {args:?}...");
+		println!("Executing {cmd}...");
 
 		let output = std::process::Command::new(cmd)
 			.current_dir(&self.path)
