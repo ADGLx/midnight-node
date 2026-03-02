@@ -119,6 +119,10 @@ interface AwsDescribeInstancesResponse {
 export function getSecrets(namespace: string): Record<string, string> {
   const networkConfig = loadNetworkConfig(namespace);
 
+  if (networkConfig.secrets.mode === "k8s-secret") {
+    return getK8sSecretSecrets(namespace);
+  }
+
   if (networkConfig.secrets.mode === "aws-qanet") {
     return getAwsQanetSecrets();
   }
@@ -135,6 +139,213 @@ export function getSecrets(namespace: string): Record<string, string> {
 
   const envObject = convertSecretsToEnvObject(secrets);
   return envObject;
+}
+
+const K8S_SECRET_EXPECTED_NODE_COUNT = 12;
+
+interface K8sSecretResponse {
+  data?: Record<string, string>;
+}
+
+function getK8sSecretSecrets(namespace: string): Record<string, string> {
+  const secretName =
+    firstNonEmpty([process.env.MN_QANET_K8S_SECRET_NAME]) ??
+    `${namespace}-node-seed-phrases`;
+
+  console.log(
+    `loading seed phrases from k8s secret '${secretName}' in namespace '${namespace}'`,
+  );
+
+  const seedPayload = loadK8sSecretData(namespace, secretName);
+  const seedsByNode = parseQanetSeedPayload(seedPayload);
+  const nodeIndexes = Array.from(seedsByNode.keys()).sort((a, b) => a - b);
+
+  if (nodeIndexes.length === 0) {
+    throw new Error(
+      `k8s secret '${secretName}' did not contain any node seed entries`,
+    );
+  }
+
+  if (nodeIndexes.length < K8S_SECRET_EXPECTED_NODE_COUNT) {
+    console.warn(
+      `k8s secret has ${nodeIndexes.length} node(s); compose expects ${K8S_SECRET_EXPECTED_NODE_COUNT}. proceeding with available nodes.`,
+    );
+  }
+
+  const connectionString = buildK8sSecretConnectionString();
+
+  const env: Record<string, string> = {};
+
+  for (const nodeIndex of nodeIndexes) {
+    const seedSet = seedsByNode.get(nodeIndex);
+    if (!seedSet) {
+      continue;
+    }
+
+    const prefix = `MIDNIGHT_NODE_${padNodeIndex(nodeIndex)}_0`;
+    if (seedSet.seed) {
+      env[`${prefix}_SEED`] = seedSet.seed;
+    }
+    if (seedSet.auraSeed) {
+      env[`${prefix}_AURA_SEED`] = seedSet.auraSeed;
+    }
+    if (seedSet.grandpaSeed) {
+      env[`${prefix}_GRANDPA_SEED`] = seedSet.grandpaSeed;
+    }
+    if (seedSet.crossChainSeed) {
+      env[`${prefix}_CROSS_CHAIN_SEED`] = seedSet.crossChainSeed;
+    }
+  }
+
+  const maxNodeIndex = Math.max(
+    K8S_SECRET_EXPECTED_NODE_COUNT,
+    nodeIndexes[nodeIndexes.length - 1] ?? K8S_SECRET_EXPECTED_NODE_COUNT,
+  );
+
+  for (let index = 1; index <= maxNodeIndex; index += 1) {
+    env[
+      `DB_SYNC_POSTGRES_CONNECTION_STRING_NODE_MIDNIGHT_NODE_${padNodeIndex(index)}_0`
+    ] = connectionString;
+  }
+
+  return env;
+}
+
+function loadK8sSecretData(
+  namespace: string,
+  secretName: string,
+): Record<string, string> {
+  const cmd = `kubectl get secret ${secretName} -n ${namespace} -o json`;
+
+  let raw: string;
+  try {
+    raw = execSync(cmd, { encoding: "utf-8" }).trim();
+  } catch (error) {
+    throw new Error(
+      `failed to read k8s secret '${secretName}' in namespace '${namespace}': ${(error as Error).message}`,
+    );
+  }
+
+  const parsed = JSON.parse(raw) as K8sSecretResponse;
+  const data = parsed.data ?? {};
+
+  const decoded: Record<string, string> = {};
+  for (const [key, value] of Object.entries(data)) {
+    const decodedValue = Buffer.from(value, "base64").toString("utf-8").trim();
+    if (!decodedValue) {
+      continue;
+    }
+
+    // Support both individual keys (node-1, node-1-aura, etc.)
+    // and a single JSON blob key (e.g. "seeds" containing the full payload)
+    try {
+      const jsonBlob = JSON.parse(decodedValue) as Record<string, unknown>;
+      if (typeof jsonBlob === "object" && jsonBlob !== null && !Array.isArray(jsonBlob)) {
+        for (const [blobKey, blobValue] of Object.entries(jsonBlob)) {
+          if (typeof blobValue === "string") {
+            decoded[blobKey] = blobValue.trim();
+          }
+        }
+        continue;
+      }
+    } catch {
+      // Not JSON, treat as a plain string value
+    }
+
+    decoded[key] = decodedValue;
+  }
+
+  return decoded;
+}
+
+function buildK8sSecretConnectionString(): string {
+  const overrideConnectionString = process.env.MN_QANET_DB_CONNECTION_STRING;
+  if (overrideConnectionString?.trim()) {
+    console.log("using override DB connection string for qanet");
+    return overrideConnectionString.trim();
+  }
+
+  const host =
+    firstNonEmpty([process.env.MN_QANET_DB_HOST]) ??
+    discoverPostgresHostFromSdm();
+
+  if (!host) {
+    throw new Error(
+      "unable to discover DB host. ensure an SDM postgres resource is available, or set MN_QANET_DB_CONNECTION_STRING.",
+    );
+  }
+
+  const database =
+    firstNonEmpty([process.env.MN_QANET_DB_NAME]) ?? "cexplorer";
+
+  const portRaw = firstNonEmpty([process.env.MN_QANET_DB_PORT]) ?? "5432";
+  const port = Number.parseInt(portRaw, 10);
+  if (!Number.isFinite(port) || port <= 0) {
+    throw new Error(`invalid qanet DB port '${portRaw}'`);
+  }
+
+  const user = firstNonEmpty([process.env.MN_QANET_DB_USER]) ?? "cardano";
+  const encodedUser = encodeURIComponent(user);
+  const encodedDb = encodeURIComponent(database);
+
+  // No password — SDM handles authentication
+  return `psql://${encodedUser}@${host}:${port}/${encodedDb}`;
+}
+
+interface SdmStatusEntry {
+  name: string;
+  type: string;
+  address: string;
+  hostname: string;
+  tags: string;
+  connected: boolean;
+}
+
+function discoverPostgresHostFromSdm(): string | undefined {
+  console.log("discovering postgres host from StrongDM...");
+
+  let entries: SdmStatusEntry[];
+  try {
+    const output = execFileSync(
+      "sdm",
+      ["status", "--json"],
+      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
+    );
+    entries = JSON.parse(output) as SdmStatusEntry[];
+  } catch (error) {
+    console.warn(
+      `failed to query StrongDM resources: ${(error as Error).message}`,
+    );
+    return undefined;
+  }
+
+  // Find a resource tagged with chain_name=qanet and an aurora/postgres type
+  const qanetResource = entries.find(
+    (r) =>
+      /chain_name=qanet/i.test(r.tags ?? "") &&
+      /aurora|postgres/i.test(r.type ?? ""),
+  );
+
+  if (!qanetResource) {
+    console.warn(
+      "no StrongDM resource found with chain_name=qanet tag",
+    );
+    return undefined;
+  }
+
+  // The hostname field contains the actual remote DB host
+  const hostname = qanetResource.hostname;
+  if (!hostname) {
+    console.warn(
+      `StrongDM resource '${qanetResource.name}' has no hostname`,
+    );
+    return undefined;
+  }
+
+  console.log(
+    `discovered postgres host '${hostname}' from StrongDM resource '${qanetResource.name}'`,
+  );
+  return hostname;
 }
 
 function getAwsQanetSecrets(): Record<string, string> {

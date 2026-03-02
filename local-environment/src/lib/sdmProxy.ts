@@ -16,9 +16,13 @@ import { execFileSync } from "child_process";
 interface SdmResource {
   name: string;
   type: string;
+  /** Local proxy address, e.g. "127.0.0.1:10013" */
   address: string;
-  status: string;
-  localAddress?: string;
+  /** Remote target hostname, e.g. "midnight-qanet-gobbler.cluster-....rds.amazonaws.com" */
+  hostname: string;
+  connected: boolean;
+  connection_status: string;
+  tags: string;
 }
 
 interface HostTarget {
@@ -53,11 +57,12 @@ export async function setupSdmProxies(
       continue;
     }
 
-    if (resource.status !== "connected") {
+    if (!resource.connected) {
       ensureSdmConnected(resource.name);
     }
 
-    const localAddress = getSdmLocalAddress(resource.name);
+    // The address field is the local SDM proxy address (e.g. "127.0.0.1:10013")
+    const localAddress = resource.address;
     if (!localAddress) {
       console.warn(
         `Could not determine StrongDM local address for ${resource.name}; skipping`,
@@ -139,7 +144,7 @@ function findSdmResourceByHostname(
   resources: SdmResource[],
   hostname: string,
 ): SdmResource | undefined {
-  return resources.find((r) => r.address?.includes(hostname));
+  return resources.find((r) => r.hostname?.includes(hostname));
 }
 
 function ensureSdmConnected(resourceName: string): void {
@@ -153,21 +158,6 @@ function ensureSdmConnected(resourceName: string): void {
     console.warn(
       `Failed to connect StrongDM resource '${resourceName}': ${(error as Error).message}`,
     );
-  }
-}
-
-function getSdmLocalAddress(resourceName: string): string | undefined {
-  try {
-    const output = execFileSync(
-      "sdm",
-      ["status", "--json", "--filter", `name:${resourceName}`],
-      { encoding: "utf-8", stdio: ["pipe", "pipe", "pipe"] },
-    );
-    const resources = JSON.parse(output) as SdmResource[];
-    const resource = resources.find((r) => r.name === resourceName);
-    return resource?.localAddress;
-  } catch {
-    return undefined;
   }
 }
 
