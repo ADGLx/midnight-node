@@ -153,11 +153,12 @@ pub async fn generate_ics_genesis(
 		hex::encode(cardano_tip.0)
 	);
 
+	let policy_id_hex = hex::encode(addresses.asset.policy_id.0);
 	let asset_name_hex = hex::encode(&addresses.asset.asset_name);
 	let utxos = query_ics_utxos(
 		pool,
 		&addresses.illiquid_circulation_supply_validator_address,
-		&addresses.asset.policy_id.to_hex_string(),
+		&policy_id_hex,
 		&asset_name_hex,
 		&cardano_tip,
 	)
