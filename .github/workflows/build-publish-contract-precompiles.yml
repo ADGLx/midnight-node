@@ -2,11 +2,6 @@ name: Build and publish CI image
 
 on:
   workflow_dispatch:
-    inputs:
-      rust_version:
-        description: 'Rust version (e.g., 1.90, 1.92)'
-        required: true
-        type: string
   schedule:
     # Once a week
     - cron: "0 0 * * 0"
@@ -68,8 +63,9 @@ jobs:
 
           . ./.envrc && earthly --ci --platform=linux/${{ matrix.platform }} --push +node-ci-image-single-platform
 
+          RUST_VERSION=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')
           COMPACTC_VERSION=$(cat COMPACTC_VERSION)
-          VERSION="${{ github.event.inputs.rust_version }}-${COMPACTC_VERSION}"
+          VERSION="${RUST_VERSION}-${COMPACTC_VERSION}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           docker pull ghcr.io/midnight-ntwrk/midnight-node-ci:${VERSION}-${{ matrix.platform }}
 

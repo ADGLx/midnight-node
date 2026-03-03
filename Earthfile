@@ -586,8 +586,12 @@ node-ci-image-single-platform:
     RUN microdnf -y install curl-minimal ca-certificates && \
         microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
+    # Read Rust version from rust-toolchain.toml (single source of truth)
+    COPY rust-toolchain.toml .
+    ARG RUST_VERSION=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')
+
     # Install rust with complete profile for profiler runtime support (needed for cargo llvm-cov)
-    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain 1.93 --profile complete
+    RUN curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain $RUST_VERSION --profile complete
     ENV PATH="/root/.cargo/bin:${PATH}"
 
     # Install build dependencies
@@ -698,7 +702,7 @@ node-ci-image-single-platform:
     # SAVE IMAGE under the rust version and compactc version.
     # We rebuild the image weekly to apply security patches.
     ARG COMPACTC_VER=$(cat COMPACTC_VERSION)
-    ENV IMAGE_TAG="1.93-${COMPACTC_VER}"
+    ENV IMAGE_TAG="${RUST_VERSION}-${COMPACTC_VER}"
     LABEL org.opencontainers.image.source=https://github.com/midnightntwrk/midnight-node
     LABEL org.opencontainers.image.title=node-ci
     LABEL org.opencontainers.image.description="Midnight Node CI Image"
@@ -708,10 +712,12 @@ node-ci-image-single-platform:
 # a common setup of the build environment (not designed to be called directly)
 prep-no-copy:
     ARG NATIVEARCH
+    ARG RUST_VERSION
+    ARG COMPACTC_VERSION
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
     FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    # FROM midnightntwrk/midnight-node-ci:1.93-$(cat COMPACTC_VERSION)-$NATIVEARCH
+    # FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VERSION}-$NATIVEARCH
 
     RUN cargo --version
 
