@@ -686,13 +686,16 @@ node-ci-image-single-platform:
 
 # a common setup of the build environment (not designed to be called directly)
 prep-no-copy:
+    # Read versions from files (multi-FROM so we don't depend on env vars propagating)
+    FROM alpine:3.20
+    COPY rust-toolchain.toml COMPACTC_VERSION .
     ARG NATIVEARCH
-    ARG RUST_VERSION
-    ARG COMPACTC_VERSION
+    ARG RUST_VERSION=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')
+    ARG COMPACTC_VER=$(cat COMPACTC_VERSION)
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
-    # FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VERSION}-$NATIVEARCH
+    FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
+    # FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
 
     # Used to add repository for nodejs
     RUN microdnf -y update && \
