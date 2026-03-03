@@ -572,74 +572,6 @@ ci:
     BUILD +audit
     BUILD +test
 
-# Precompiled midnight contracts for use in testing and for the toolkit.
-contract-precompile-image:
-    BUILD --platform=linux/arm64 +contract-precompile-image-single-platform
-    BUILD --platform=linux/amd64 +contract-precompile-image-single-platform
-
-contract-precompile-image-single-platform:
-    ARG NATIVEARCH
-    FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:13bffb7de7ef4836742a6be2b09642e819aaec50ceed1d7961424e19a95da0de
-    # Install unzip and wget
-    RUN microdnf -y install unzip wget tar gzip && \
-        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-    # Install gh CLI
-    ARG TARGETARCH
-    RUN if [ "$TARGETARCH" = "arm64" ]; then GH_ARCH="arm64"; else GH_ARCH="amd64"; fi && \
-        wget -q https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_${GH_ARCH}.tar.gz && \
-        tar -xzf gh_2.62.0_linux_${GH_ARCH}.tar.gz && \
-        mv gh_2.62.0_linux_${GH_ARCH}/bin/gh /usr/local/bin/ && \
-        rm -rf gh_2.62.0_linux_${GH_ARCH}*
-
-    # Fetch CompactC for the target architecture
-    COPY COMPACTC_VERSION .
-    RUN --secret GH_TOKEN set -e && \
-        if [ "$TARGETARCH" = "arm64" ]; then COMPACTC_ARCH="aarch64"; else COMPACTC_ARCH="x86_64"; fi && \
-        VERSION=$(cat COMPACTC_VERSION) && \
-        RELEASE_TAG="compactc-v${VERSION}" && \
-        echo "Attempting to download compactc (${COMPACTC_ARCH}) from release: ${RELEASE_TAG}" && \
-        if gh release download --repo midnight-ntwrk/artifacts "${RELEASE_TAG}" --pattern "*${COMPACTC_ARCH}-unknown-linux-musl.zip" 2>/dev/null; then \
-            echo "Successfully downloaded from release"; \
-        elif gh api repos/midnight-ntwrk/artifacts/git/refs/tags/${RELEASE_TAG} >/dev/null 2>&1; then \
-            echo "ERROR: Tag '${RELEASE_TAG}' exists but has no release with binary assets." && \
-            echo "Available releases with binaries:" && \
-            gh release list --repo midnight-ntwrk/artifacts --limit 5 && \
-            exit 1; \
-        else \
-            echo "ERROR: No release or tag found for '${RELEASE_TAG}'" && \
-            echo "Available releases:" && \
-            gh release list --repo midnight-ntwrk/artifacts --limit 5 && \
-            exit 1; \
-        fi
-    RUN unzip compactc*.zip
-
-    COPY ledger/test-data/simple-merkle-tree.compact simple-merkle-tree.compact
-    RUN ./compactc simple-merkle-tree.compact simple-merkle-tree
-    # Keys should not have 0 size (but will have if we ran out of memory):
-    RUN [ -s /simple-merkle-tree/keys/check.prover ]
-    RUN [ -s /simple-merkle-tree/keys/check.verifier ]
-    RUN [ -s /simple-merkle-tree/keys/store.prover ]
-    RUN [ -s /simple-merkle-tree/keys/store.verifier ]
-
-    ENV PATH=$PATH:/bin
-    ENTRYPOINT [ "/bin/sh" ]
-
-    ENV GHCR_REGISTRY=ghcr.io/midnight-ntwrk
-    ARG IMAGE_TAG=$(cat COMPACTC_VERSION)
-    ENV IMAGE_TAG=$IMAGE_TAG
-    LABEL org.opencontainers.image.source=https://github.com/midnight-ntwrk/artifacts
-    LABEL org.opencontainers.image.title=node-test-contract-precompiles
-    LABEL org.opencontainers.image.description="Midnight Test Contract Precompiles"
-    SAVE IMAGE --push $GHCR_REGISTRY/midnight-test-contract-precompiles:$IMAGE_TAG-$NATIVEARCH
-
-use-contract-precompile-image:
-    ARG NATIVEARCH
-    FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:13bffb7de7ef4836742a6be2b09642e819aaec50ceed1d7961424e19a95da0de
-#    FROM +contract-precompile-image
-    COPY COMPACTC_VERSION .
-    ARG IMAGE_TAG=$(cat COMPACTC_VERSION)
-    FROM ghcr.io/midnight-ntwrk/midnight-test-contract-precompiles:$IMAGE_TAG-$NATIVEARCH
-    SAVE ARTIFACT /simple-merkle-tree AS LOCAL target/contracts/simple-merkle-tree
 
 # a common setup of the build environment (not designed to be called directly)
 node-ci-image:
@@ -728,13 +660,46 @@ node-ci-image-single-platform:
         rm node.tar.xz && \
         node --version && npm --version
 
+    # Install gh CLI
+    RUN if [ "$TARGETARCH" = "arm64" ]; then GH_ARCH="arm64"; else GH_ARCH="amd64"; fi && \
+        curl -fsSL "https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_${GH_ARCH}.tar.gz" -o gh.tar.gz && \
+        tar -xzf gh.tar.gz && \
+        mv "gh_2.62.0_linux_${GH_ARCH}/bin/gh" /usr/local/bin/ && \
+        rm -rf gh_2.62.0_linux_${GH_ARCH}* gh.tar.gz
+
+    # Download compactc compiler from public midnightntwrk/compact releases
+    COPY COMPACTC_VERSION .
+    RUN set -e && \
+        if [ "$TARGETARCH" = "arm64" ]; then COMPACTC_ARCH="aarch64"; else COMPACTC_ARCH="x86_64"; fi && \
+        VERSION=$(cat COMPACTC_VERSION) && \
+        ASSET="compactc_v${VERSION}_${COMPACTC_ARCH}-unknown-linux-musl.zip" && \
+        URL="https://github.com/midnightntwrk/compact/releases/download/compactc-v${VERSION}/${ASSET}" && \
+        mkdir -p /compactc-bin && \
+        echo "Downloading compactc: ${URL}" && \
+        curl -fsSL "${URL}" -o /tmp/compactc.zip && \
+        unzip /tmp/compactc.zip -d /compactc-bin && \
+        chmod +x /compactc-bin/compactc && \
+        rm /tmp/compactc.zip
+    ENV COMPACT_HOME=/compactc-bin
+
     ENV CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG=true
     ENV CARGO_TERM_COLOR=always
 
-    # SAVE IMAGE under the rust version used.
+    COPY ledger/test-data/simple-merkle-tree.compact simple-merkle-tree.compact
+    RUN $COMPACT_HOME/compactc simple-merkle-tree.compact simple-merkle-tree
+    # Keys should not have 0 size (but will have if we ran out of memory):
+    RUN [ -s /simple-merkle-tree/keys/check.prover ]
+    RUN [ -s /simple-merkle-tree/keys/check.verifier ]
+    RUN [ -s /simple-merkle-tree/keys/store.prover ]
+    RUN [ -s /simple-merkle-tree/keys/store.verifier ]
+
+    SAVE ARTIFACT /simple-merkle-tree AS LOCAL target/contracts/simple-merkle-tree
+
+    # SAVE IMAGE under the rust version and compactc version.
     # We rebuild the image weekly to apply security patches.
-    ENV IMAGE_TAG="1.93"
-    LABEL org.opencontainers.image.source=https://github.com/midnight-ntwrk/artifacts
+    ARG COMPACTC_VER=$(cat COMPACTC_VERSION)
+    ENV IMAGE_TAG="1.93-${COMPACTC_VER}"
+    LABEL org.opencontainers.image.source=https://github.com/midnightntwrk/midnight-node
     LABEL org.opencontainers.image.title=node-ci
     LABEL org.opencontainers.image.description="Midnight Node CI Image"
     SAVE IMAGE --push \
@@ -746,7 +711,7 @@ prep-no-copy:
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
     FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    # FROM midnightntwrk/midnight-node-ci:1.93-$NATIVEARCH
+    # FROM midnightntwrk/midnight-node-ci:1.93-$(cat COMPACTC_VERSION)-$NATIVEARCH
 
     RUN cargo --version
 
@@ -778,7 +743,7 @@ toolkit-js-prep:
     WORKDIR /toolkit-js
     RUN npm ci
     RUN npm run build
-    # Run npm compact script (includes fetch-compactc + compile steps)
+    # Compile compact contracts (fetch-compactc skipped via COMPACT_HOME from CI image)
     RUN npm run compact
     # Verify keys were generated
     RUN ls -la ./test/contract/managed/counter/keys/ && [ -s ./test/contract/managed/counter/keys/increment.verifier ]

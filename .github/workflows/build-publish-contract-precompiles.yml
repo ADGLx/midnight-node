@@ -1,4 +1,4 @@
-name: +contract-precompiles (Build ledger test static data contracts and CI image)
+name: Build and publish CI image
 
 on:
   workflow_dispatch:
@@ -15,7 +15,7 @@ concurrency:
   cancel-in-progress: true
 jobs:
   build:
-    name: Precompile contracts (linux/${{ matrix.platform }})
+    name: Build CI image (linux/${{ matrix.platform }})
     strategy:
       matrix:
         # Define matrix with platform and corresponding GitHub-hosted runner
@@ -26,6 +26,8 @@ jobs:
             runner: ubuntu-latest-8-core-arm64 # Native ARM64 GitHub-hosted runner (public preview)
 
     runs-on: ${{ matrix.runner }}
+    outputs:
+      version: ${{ steps.version.outputs.version }}
 
     env:
       FORCE_COLOR: 1
@@ -57,17 +59,18 @@ jobs:
 
       # Run Earthly build with platform-specific flags
       - name: Run Earthly build for linux/${{ matrix.platform }}
+        id: version
         run: |
           # Force cargo to use CLI git instead of libgit2 (more robust in CI)
           mkdir -p "$HOME"/.cargo
           echo "[net]" >> "$HOME"/.cargo/config
           echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
 
-          # Run Earthly platform-specific image builds
-          # (todo: we can skip pushing to GHCR here and push directly to dockerhub)
           . ./.envrc && earthly --ci --platform=linux/${{ matrix.platform }} --push +node-ci-image-single-platform
 
-          export VERSION="${{ github.event.inputs.rust_version }}"
+          COMPACTC_VERSION=$(cat COMPACTC_VERSION)
+          VERSION="${{ github.event.inputs.rust_version }}-${COMPACTC_VERSION}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
           docker pull ghcr.io/midnight-ntwrk/midnight-node-ci:${VERSION}-${{ matrix.platform }}
 
           echo "Tag and push ${VERSION} images"
@@ -92,7 +95,7 @@ jobs:
 
       - name: Create multiplatform image (Docker Hub)
         run: |
-          export VERSION="${{ github.event.inputs.rust_version }}"
+          VERSION="${{ needs.build.outputs.version }}"
 
           docker buildx imagetools create \
             -t midnightntwrk/midnight-node-ci:${VERSION} \
