@@ -94,7 +94,7 @@ async fn query_ics_utxos(
 		SELECT
 			encode(tx.hash, 'hex') as tx_hash,
 			txo.index as output_index,
-			ma.quantity as amount
+			ma.quantity::BIGINT as amount
 		FROM tx_out txo
 		JOIN tx ON tx.id = txo.tx_id
 		JOIN block b ON b.id = tx.block_id
