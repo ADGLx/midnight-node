@@ -21,7 +21,7 @@ impl Settings {
                     base_url: "ws://172.17.0.1:9933".into(),
 
                     #[cfg(feature="qanet")]
-                    base_url: "wss://rpc.qanet.dev.midnight.network".into(),
+                    base_url: "wss://rpc.qanet.midnight.network".into(),
                 },
                 ogmios_client: OgmiosClientSettings {
                     #[cfg(feature="local")]
@@ -29,7 +29,7 @@ impl Settings {
                     #[cfg(feature="local-ci")]
                     base_url: "ws://172.17.0.1:1337".into(),
                     #[cfg(feature="qanet")]
-                    base_url: "wss://ogmios.qanet.dev.midnight.network".into(),
+                    base_url: "wss://ogmios.devnet.midnight.network".into(),
                     timeout_seconds: 180,
                     network: CardanoNetwork::Preview,
                     network_info: network_info.clone(),
