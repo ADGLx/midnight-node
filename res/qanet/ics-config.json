@@ -4,6 +4,22 @@
     "policy_id": "0xd2dbff622e509dda256fedbd31ef6e9fd98ed49ad91d5c0e07f68af1",
     "asset_name": "NIGHT"
   },
-  "utxos": [],
-  "total_amount": 0
+  "utxos": [
+    {
+      "tx_hash": "500f044fb5117550bc625b26fe28a85a9d55e213b5000e1d709c7ac0b5bba00c",
+      "output_index": 0,
+      "amount": 50000000
+    },
+    {
+      "tx_hash": "93e5fdd56d7425b39b04861fffe87d64ab07a2e395da96f98090af86cf69e619",
+      "output_index": 2,
+      "amount": 12000000
+    },
+    {
+      "tx_hash": "93e5fdd56d7425b39b04861fffe87d64ab07a2e395da96f98090af86cf69e619",
+      "output_index": 3,
+      "amount": 35000000
+    }
+  ],
+  "total_amount": 97000000
 }
