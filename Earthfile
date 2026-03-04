@@ -189,24 +189,7 @@ rebuild-sqlx:
 
 # rebuild-redemption-skeleton rebuilds the redemption skeleton contract using aiken
 rebuild-redemption-skeleton:
-    # aiken doesn't support arm yet.
-    FROM --platform=linux/amd64 public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:13bffb7de7ef4836742a6be2b09642e819aaec50ceed1d7961424e19a95da0de
-
-    # Install dependencies for Node.js (curl-minimal already in base image)
-    RUN microdnf -y install tar gzip xz && \
-        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-
-    # Install Node.js 22 from official binaries (AL2023's nodejs is v18)
-    # renovate: datasource=node-version depName=node versioning=node
-    ARG NODE_VERSION=22.22.0
-    RUN curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-x64.tar.xz -o node.tar.xz && \
-        tar -xJf node.tar.xz -C /usr/local --strip-components=1 && \
-        rm node.tar.xz && \
-        node --version && npm --version
-
-    # renovate: datasource=npm packageName=aiken-lang/aiken
-    ENV aiken_version=1.1.19
-    RUN npm install -g @aiken-lang/aiken@${aiken_version}
+    FROM +node-ci-image-single-platform
     COPY tests/redemption-skeleton .
     RUN aiken build --trace-level verbose
     SAVE ARTIFACT plutus.json AS LOCAL tests/src/plutus.json
@@ -638,6 +621,9 @@ node-ci-image-single-platform:
     RUN cargo install --locked --git https://github.com/chevdor/subwasm --tag v$SUBWASM_VERSION
     RUN cargo install --locked cargo-shear --version 1.9.1
     RUN cargo install sqlx-cli --no-default-features --features rustls,postgres
+    # renovate: datasource=crate packageName=aiken
+    ARG AIKEN_VERSION=1.1.19
+    RUN cargo install aiken --version $AIKEN_VERSION --locked
 
     # Install gh CLI
     RUN if [ "$TARGETARCH" = "arm64" ]; then GH_ARCH="arm64"; else GH_ARCH="amd64"; fi && \
