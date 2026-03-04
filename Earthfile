@@ -591,6 +591,7 @@ node-ci-image-single-platform:
         pkgconfig \
         openssh-clients \
         git \
+        patch \
         tar \
         gzip \
         jq && \
