@@ -626,8 +626,9 @@ node-ci-image-single-platform:
     ARG AIKEN_VERSION=1.1.19
     RUN cargo install aiken --version $AIKEN_VERSION --locked
 
-    # Install gh CLI
-    RUN if [ "$TARGETARCH" = "arm64" ]; then GH_ARCH="arm64"; else GH_ARCH="amd64"; fi && \
+    # Install gh CLI (use uname -m for reliable arch detection)
+    RUN ARCH=$(uname -m) && \
+        if [ "$ARCH" = "aarch64" ]; then GH_ARCH="arm64"; else GH_ARCH="amd64"; fi && \
         curl -fsSL "https://github.com/cli/cli/releases/download/v2.62.0/gh_2.62.0_linux_${GH_ARCH}.tar.gz" -o gh.tar.gz && \
         tar -xzf gh.tar.gz && \
         mv "gh_2.62.0_linux_${GH_ARCH}/bin/gh" /usr/local/bin/ && \
@@ -636,7 +637,8 @@ node-ci-image-single-platform:
     # Download compactc compiler from public midnightntwrk/compact releases
     COPY COMPACTC_VERSION .
     RUN set -e && \
-        if [ "$TARGETARCH" = "arm64" ]; then COMPACTC_ARCH="aarch64"; else COMPACTC_ARCH="x86_64"; fi && \
+        ARCH=$(uname -m) && \
+        if [ "$ARCH" = "aarch64" ]; then COMPACTC_ARCH="aarch64"; else COMPACTC_ARCH="x86_64"; fi && \
         VERSION=$(cat COMPACTC_VERSION) && \
         ASSET="compactc_v${VERSION}_${COMPACTC_ARCH}-unknown-linux-musl.zip" && \
         URL="https://github.com/midnightntwrk/compact/releases/download/compactc-v${VERSION}/${ASSET}" && \
