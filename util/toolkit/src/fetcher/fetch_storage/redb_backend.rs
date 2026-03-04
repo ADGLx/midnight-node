@@ -16,13 +16,15 @@ use std::{any::type_name, cmp::Ordering, path::Path, sync::Arc};
 use async_trait::async_trait;
 use core::fmt::Debug;
 use midnight_node_ledger_helpers::fork::raw_block_data::RawBlockData;
-use redb::{Database, Key, ReadableDatabase, TableDefinition, TypeName, Value};
+use redb::{Database, Key, ReadableDatabase, ReadableTable, TableDefinition, TypeName, Value};
 use serde::{Deserialize, Serialize};
 use subxt::utils::H256;
 use tokio::sync::RwLock;
 
-use super::{FetchStorage, WalletStateCache};
-use crate::fetcher::wallet_state_cache::{WalletCacheKey, compress, decompress};
+use super::FetchStorage;
+use crate::fetcher::wallet_state_cache::{
+	CachedWalletState, IndividualWalletKey, LedgerSnapshot, LedgerSnapshotKey,
+};
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub struct BlockKey {
@@ -32,14 +34,15 @@ pub struct BlockKey {
 
 /// Persistent [`FetchStorage`] backend using [redb](https://github.com/cberner/redb).
 ///
-/// Data is serialized as BSON. Uses `RwLock` for concurrent read access.
-/// Wallet state is compressed with zstd for efficient storage.
+/// Block data keys/values use BSON via `Serde<T>` wrapper. Wallet state uses
+/// manual byte encoding (see [`LedgerSnapshot::to_value_bytes`] / [`CachedWalletState::to_value_bytes`]).
 #[derive(Clone)]
 pub struct RedbBackend {
 	pub db: Arc<RwLock<Database>>,
 	pub block_data_table: TableDefinition<'static, Serde<BlockKey>, Serde<RawBlockData>>,
 	pub highest_verified_table: TableDefinition<'static, [u8; 32], u64>,
-	pub wallet_state_table: TableDefinition<'static, Serde<WalletCacheKey>, &'static [u8]>,
+	pub ledger_snapshot_table: TableDefinition<'static, Serde<LedgerSnapshotKey>, &'static [u8]>,
+	pub wallet_cache_v2_table: TableDefinition<'static, Serde<IndividualWalletKey>, &'static [u8]>,
 }
 
 impl RedbBackend {
@@ -56,7 +59,8 @@ impl RedbBackend {
 			)),
 			block_data_table: TableDefinition::new("raw_block_data_v1"),
 			highest_verified_table: TableDefinition::new("highest_verified"),
-			wallet_state_table: TableDefinition::new("wallet_state"),
+			ledger_snapshot_table: TableDefinition::new("ledger_snapshots_v2"),
+			wallet_cache_v2_table: TableDefinition::new("wallet_cache_v2"),
 		}
 	}
 }
@@ -92,7 +96,6 @@ impl FetchStorage for RedbBackend {
 	}
 
 	async fn insert_block_data(&self, chain_id: H256, block_number: u64, block: RawBlockData) {
-		// Can only open the table as writable from one thread
 		let write_txn = self.db.write().await.begin_write().expect("failed to begin write txn");
 		{
 			let mut table =
@@ -109,7 +112,6 @@ impl FetchStorage for RedbBackend {
 		chain_id: H256,
 		range: impl Iterator<Item = (u64, RawBlockData)> + Send,
 	) {
-		// Can only open the table as writable from one thread
 		let write_txn = self.db.write().await.begin_write().expect("failed to begin write txn");
 		{
 			let mut table =
@@ -139,60 +141,50 @@ impl FetchStorage for RedbBackend {
 		write_txn.commit().expect("failed to commit write")
 	}
 
-	async fn get_wallet_state(&self, chain_id: H256, wallet_id: H256) -> Option<WalletStateCache> {
-		let key = WalletCacheKey::new(chain_id, wallet_id);
+	// =========================================================================
+	// Per-wallet cache (v2) — ledger snapshots
+	// =========================================================================
+
+	async fn get_ledger_snapshot(
+		&self,
+		chain_id: H256,
+		block_height: u64,
+	) -> Option<LedgerSnapshot> {
+		let key = LedgerSnapshotKey { chain_id, block_height };
 		let read_txn = match self.db.read().await.begin_read() {
 			Ok(txn) => txn,
 			Err(e) => {
-				log::warn!("Failed to begin read transaction for wallet state: {e}");
+				log::warn!("Failed to begin read transaction for ledger snapshot: {e}");
 				return None;
 			},
 		};
-		let Ok(table) = read_txn.open_table(self.wallet_state_table) else { return None };
+		let Ok(table) = read_txn.open_table(self.ledger_snapshot_table) else { return None };
 
-		let compressed = match table.get(key) {
+		let raw = match table.get(key) {
 			Ok(Some(data)) => data,
 			Ok(None) => return None,
 			Err(e) => {
-				log::warn!("Failed to get wallet state from table: {e}");
+				log::warn!("Failed to get ledger snapshot: {e}");
 				return None;
 			},
 		};
 
-		// Decompress and deserialize
-		let decompressed = match decompress(compressed.value()) {
-			Ok(data) => data,
+		match LedgerSnapshot::from_value_bytes(raw.value(), block_height) {
+			Ok(snapshot) => Some(snapshot),
 			Err(e) => {
-				log::warn!("Failed to decompress wallet state cache: {e}");
-				return None;
-			},
-		};
-
-		match bson::deserialize_from_slice(&decompressed) {
-			Ok(cache) => Some(cache),
-			Err(e) => {
-				log::warn!("Failed to deserialize wallet state cache: {e}");
+				log::warn!("Failed to decode ledger snapshot: {e}");
 				None
 			},
 		}
 	}
 
-	async fn set_wallet_state(&self, chain_id: H256, wallet_id: H256, cache: WalletStateCache) {
-		let key = WalletCacheKey::new(chain_id, wallet_id);
-		let block_height = cache.block_height;
-
-		// Serialize and compress
-		let serialized = match bson::serialize_to_vec(&cache) {
-			Ok(data) => data,
+	async fn set_ledger_snapshot(&self, chain_id: H256, snapshot: LedgerSnapshot) {
+		let key = LedgerSnapshotKey { chain_id, block_height: snapshot.block_height };
+		let block_height = snapshot.block_height;
+		let encoded = match snapshot.to_value_bytes() {
+			Ok(b) => b,
 			Err(e) => {
-				log::warn!("Failed to serialize wallet state: {e}");
-				return;
-			},
-		};
-		let compressed = match compress(&serialized) {
-			Ok(data) => data,
-			Err(e) => {
-				log::warn!("Failed to compress wallet state: {e}");
+				log::warn!("Failed to serialize ledger snapshot: {e}");
 				return;
 			},
 		};
@@ -200,43 +192,152 @@ impl FetchStorage for RedbBackend {
 		let write_txn = match self.db.write().await.begin_write() {
 			Ok(txn) => txn,
 			Err(e) => {
-				log::warn!("Failed to begin write transaction for wallet state: {e}");
+				log::warn!("Failed to begin write transaction for ledger snapshot: {e}");
 				return;
 			},
 		};
 		{
-			let mut table = match write_txn.open_table(self.wallet_state_table) {
+			let mut table = match write_txn.open_table(self.ledger_snapshot_table) {
 				Ok(t) => t,
 				Err(e) => {
-					log::warn!("Failed to open wallet state table: {e}");
+					log::warn!("Failed to open ledger snapshot table: {e}");
 					return;
 				},
 			};
-			if let Err(e) = table.insert(key, compressed.as_slice()) {
-				log::warn!("Failed to insert wallet state: {e}");
+			if let Err(e) = table.insert(key, encoded.as_slice()) {
+				log::warn!("Failed to insert ledger snapshot: {e}");
 				return;
 			}
 		}
 		if let Err(e) = write_txn.commit() {
-			log::warn!("Failed to commit wallet state write: {e}");
+			log::warn!("Failed to commit ledger snapshot write: {e}");
 			return;
 		}
 
-		log::info!(
-			"Cached wallet state at block {} (compressed: {} bytes)",
-			block_height,
-			compressed.len()
-		);
+		log::info!("Cached ledger snapshot at block {} ({} bytes)", block_height, encoded.len());
 	}
 
-	async fn get_cached_block_height(&self, chain_id: H256, wallet_id: H256) -> Option<u64> {
-		<Self as FetchStorage>::get_wallet_state(self, chain_id, wallet_id)
-			.await
-			.map(|c| c.block_height)
+	async fn get_latest_ledger_height(&self, chain_id: H256) -> Option<u64> {
+		let read_txn = match self.db.read().await.begin_read() {
+			Ok(txn) => txn,
+			Err(e) => {
+				log::warn!("Failed to begin read transaction for latest ledger height: {e}");
+				return None;
+			},
+		};
+		let Ok(table) = read_txn.open_table(self.ledger_snapshot_table) else { return None };
+
+		let start = LedgerSnapshotKey { chain_id, block_height: 0 };
+		let end = LedgerSnapshotKey { chain_id, block_height: i64::MAX as u64 };
+		let mut range = match table.range(start..=end) {
+			Ok(range) => range,
+			Err(e) => {
+				log::warn!("Failed to range-query ledger snapshot table: {e}");
+				return None;
+			},
+		};
+
+		range.next_back().and_then(|entry| {
+			let (key, _) = entry.ok()?;
+			Some(key.value().block_height)
+		})
 	}
 
-	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256) {
-		let key = WalletCacheKey::new(chain_id, wallet_id);
+	// =========================================================================
+	// Per-wallet cache (v2) — individual wallets
+	// =========================================================================
+
+	async fn get_wallet_states(
+		&self,
+		chain_id: H256,
+		seed_hashes: &[H256],
+	) -> Vec<Option<CachedWalletState>> {
+		let read_txn = match self.db.read().await.begin_read() {
+			Ok(txn) => txn,
+			Err(e) => {
+				log::warn!("Failed to begin read transaction for wallet states: {e}");
+				return seed_hashes.iter().map(|_| None).collect();
+			},
+		};
+		let Ok(table) = read_txn.open_table(self.wallet_cache_v2_table) else {
+			return seed_hashes.iter().map(|_| None).collect();
+		};
+
+		seed_hashes
+			.iter()
+			.map(|&seed_hash| {
+				let key = IndividualWalletKey { chain_id, seed_hash };
+				match table.get(key) {
+					Ok(Some(data)) => {
+						match CachedWalletState::from_value_bytes(data.value(), seed_hash) {
+							Ok(cached) => Some(cached),
+							Err(e) => {
+								log::warn!("Failed to decode wallet state: {e}");
+								None
+							},
+						}
+					},
+					Ok(None) => None,
+					Err(e) => {
+						log::warn!("Failed to get wallet state: {e}");
+						None
+					},
+				}
+			})
+			.collect()
+	}
+
+	async fn set_wallet_states(&self, chain_id: H256, wallets: &[CachedWalletState]) {
+		if wallets.is_empty() {
+			return;
+		}
+
+		let write_txn = match self.db.write().await.begin_write() {
+			Ok(txn) => txn,
+			Err(e) => {
+				log::warn!("Failed to begin write transaction for wallet states: {e}");
+				return;
+			},
+		};
+		{
+			let mut table = match write_txn.open_table(self.wallet_cache_v2_table) {
+				Ok(t) => t,
+				Err(e) => {
+					log::warn!("Failed to open wallet cache table: {e}");
+					return;
+				},
+			};
+
+			for wallet in wallets {
+				let key = IndividualWalletKey { chain_id, seed_hash: wallet.seed_hash };
+				let encoded = match wallet.to_value_bytes() {
+					Ok(b) => b,
+					Err(e) => {
+						log::warn!(
+							"Failed to serialize wallet state for {:?}: {e}",
+							wallet.seed_hash
+						);
+						continue;
+					},
+				};
+				if let Err(e) = table.insert(key, encoded.as_slice()) {
+					log::warn!("Failed to insert wallet state: {e}");
+				}
+			}
+		}
+		if let Err(e) = write_txn.commit() {
+			log::warn!("Failed to commit wallet states write: {e}");
+			return;
+		}
+
+		log::info!("Saved {} wallet cache entries", wallets.len());
+	}
+
+	async fn delete_wallet_states(&self, chain_id: H256, seed_hashes: &[H256]) {
+		if seed_hashes.is_empty() {
+			return;
+		}
+
 		let write_txn = match self.db.write().await.begin_write() {
 			Ok(txn) => txn,
 			Err(e) => {
@@ -245,13 +346,100 @@ impl FetchStorage for RedbBackend {
 			},
 		};
 		{
-			if let Ok(mut table) = write_txn.open_table(self.wallet_state_table) {
-				let _ = table.remove(key);
+			if let Ok(mut table) = write_txn.open_table(self.wallet_cache_v2_table) {
+				for &seed_hash in seed_hashes {
+					let key = IndividualWalletKey { chain_id, seed_hash };
+					let _ = table.remove(key);
+				}
 			}
 		}
 		if let Err(e) = write_txn.commit() {
 			log::warn!("Failed to commit wallet state deletion: {e}");
 		}
+	}
+
+	async fn gc_ledger_snapshots(&self, chain_id: H256, keep_heights: &[u64]) {
+		let write_txn = match self.db.write().await.begin_write() {
+			Ok(txn) => txn,
+			Err(e) => {
+				log::warn!("Failed to begin write transaction for GC: {e}");
+				return;
+			},
+		};
+		{
+			let Ok(mut table) = write_txn.open_table(self.ledger_snapshot_table) else {
+				return;
+			};
+
+			// Collect keys to remove
+			let keys_to_remove: Vec<LedgerSnapshotKey> = {
+				let start = LedgerSnapshotKey { chain_id, block_height: 0 };
+				let end = LedgerSnapshotKey { chain_id, block_height: i64::MAX as u64 };
+				let iter = match table.range(start..=end) {
+					Ok(iter) => iter,
+					Err(e) => {
+						log::warn!("Failed to iterate ledger snapshots for GC: {e}");
+						return;
+					},
+				};
+				iter.filter_map(|entry| {
+					let (key, _) = entry.ok()?;
+					let key = key.value();
+					if !keep_heights.contains(&key.block_height) { Some(key) } else { None }
+				})
+				.collect()
+			};
+
+			let count = keys_to_remove.len();
+			for key in keys_to_remove {
+				let _ = table.remove(key);
+			}
+
+			if count > 0 {
+				log::info!("GC: removed {} stale ledger snapshots", count);
+			}
+		}
+		if let Err(e) = write_txn.commit() {
+			log::warn!("Failed to commit GC: {e}");
+		}
+	}
+
+	async fn get_all_cached_wallet_heights(&self, chain_id: H256) -> Vec<u64> {
+		let read_txn = match self.db.read().await.begin_read() {
+			Ok(txn) => txn,
+			Err(e) => {
+				log::warn!("Failed to begin read transaction for cached wallet heights: {e}");
+				return Vec::new();
+			},
+		};
+		let Ok(table) = read_txn.open_table(self.wallet_cache_v2_table) else {
+			return Vec::new();
+		};
+
+		// Range query scoped to this chain_id — avoids full table scan.
+		// IndividualWalletKey is Ord-ordered by (chain_id, seed_hash).
+		let start = IndividualWalletKey { chain_id, seed_hash: H256::zero() };
+		let end = IndividualWalletKey { chain_id, seed_hash: H256::from([0xFF; 32]) };
+		let iter = match table.range(start..=end) {
+			Ok(iter) => iter,
+			Err(e) => {
+				log::warn!("Failed to range-query wallet cache for heights: {e}");
+				return Vec::new();
+			},
+		};
+
+		let mut heights = std::collections::HashSet::new();
+		for entry in iter {
+			let (_, value) = match entry {
+				Ok(e) => e,
+				Err(_) => continue,
+			};
+			if let Some(h) = CachedWalletState::block_height_from_value_bytes(value.value()) {
+				heights.insert(h);
+			}
+		}
+
+		heights.into_iter().collect()
 	}
 }
 
@@ -310,114 +498,178 @@ where
 mod tests {
 	use super::*;
 	use crate::fetcher::fetch_storage::WalletStateCaching;
-	use crate::fetcher::wallet_state_cache::{SerializableBlockContext, WalletSnapshot};
+	use crate::fetcher::wallet_state_cache::{
+		CachedWalletState, LedgerSnapshot, SerializableBlockContext,
+	};
 	use tempfile::tempdir;
 
-	fn create_test_cache(block_height: u64) -> WalletStateCache {
-		WalletStateCache {
-			chain_id: H256::from([1u8; 32]),
-			wallet_id: H256::from([2u8; 32]),
+	fn create_test_ledger_snapshot(block_height: u64) -> LedgerSnapshot {
+		LedgerSnapshot {
 			block_height,
-			ledger_state_bytes: vec![0u8; 1000], // 1KB of test data
-			wallet_snapshots: vec![WalletSnapshot {
-				seed_hash: H256::from([3u8; 32]),
-				shielded_state_bytes: vec![],
-				dust_local_state_bytes: None,
-			}],
+			ledger_state_bytes: vec![0u8; 1000],
 			latest_block_context: SerializableBlockContext {
 				tblock_secs: 1234567890,
 				tblock_err: 0,
 				parent_block_hash: [4u8; 32],
 				last_block_time: 1234567890,
 			},
-			state_root: vec![5u8; 32],
-			version: "wallet-state-cache-v1".to_string(),
+			state_root: [5u8; 32],
+		}
+	}
+
+	fn create_test_wallet_state(seed_hash: H256, block_height: u64) -> CachedWalletState {
+		CachedWalletState {
+			seed_hash,
+			block_height,
+			shielded_state_bytes: vec![10u8; 200],
+			dust_local_state_bytes: Some(vec![20u8; 100]),
 		}
 	}
 
 	#[tokio::test]
-	async fn test_redb_wallet_state_roundtrip() {
+	async fn test_redb_ledger_snapshot_roundtrip() {
 		let dir = tempdir().unwrap();
 		let db_path = dir.path().join("test.db");
 		let backend = RedbBackend::new(&db_path);
 
 		let chain_id = H256::from([1u8; 32]);
-		let wallet_id = H256::from([2u8; 32]);
-		let cache = create_test_cache(100);
 
-		// Initially no cache
-		let result = WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id).await;
-		assert!(result.is_none());
+		// Initially no snapshot
+		assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 100).await.is_none());
 
-		// Save cache
-		WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id, cache.clone()).await;
+		// Save snapshot
+		let snapshot = create_test_ledger_snapshot(100);
+		WalletStateCaching::set_ledger_snapshot(&backend, chain_id, snapshot.clone()).await;
 
-		// Retrieve cache
-		let retrieved = WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id).await;
+		// Retrieve snapshot
+		let retrieved = WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 100).await;
 		assert!(retrieved.is_some());
 		let retrieved = retrieved.unwrap();
-
-		assert_eq!(retrieved.chain_id, cache.chain_id);
-		assert_eq!(retrieved.wallet_id, cache.wallet_id);
-		assert_eq!(retrieved.block_height, cache.block_height);
-		assert_eq!(retrieved.ledger_state_bytes, cache.ledger_state_bytes);
-		assert_eq!(retrieved.version, cache.version);
-		assert_eq!(retrieved.state_root, cache.state_root);
+		assert_eq!(retrieved.block_height, 100);
+		assert_eq!(retrieved.ledger_state_bytes, snapshot.ledger_state_bytes);
+		assert_eq!(retrieved.state_root, snapshot.state_root);
 	}
 
 	#[tokio::test]
-	async fn test_redb_wallet_state_get_cached_height() {
+	async fn test_redb_latest_ledger_height() {
 		let dir = tempdir().unwrap();
 		let db_path = dir.path().join("test.db");
 		let backend = RedbBackend::new(&db_path);
 
 		let chain_id = H256::from([1u8; 32]);
-		let wallet_id = H256::from([2u8; 32]);
 
-		// No cache initially
-		assert!(
-			WalletStateCaching::get_cached_block_height(&backend, chain_id, wallet_id)
-				.await
-				.is_none()
-		);
+		assert!(WalletStateCaching::get_latest_ledger_height(&backend, chain_id).await.is_none());
 
-		// Save cache at height 500
-		let cache = create_test_cache(500);
-		WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id, cache).await;
+		WalletStateCaching::set_ledger_snapshot(
+			&backend,
+			chain_id,
+			create_test_ledger_snapshot(100),
+		)
+		.await;
+		WalletStateCaching::set_ledger_snapshot(
+			&backend,
+			chain_id,
+			create_test_ledger_snapshot(200),
+		)
+		.await;
 
-		// Check height
-		let height =
-			WalletStateCaching::get_cached_block_height(&backend, chain_id, wallet_id).await;
-		assert_eq!(height, Some(500));
+		let height = WalletStateCaching::get_latest_ledger_height(&backend, chain_id).await;
+		assert_eq!(height, Some(200));
 	}
 
 	#[tokio::test]
-	async fn test_redb_wallet_state_delete() {
+	async fn test_redb_wallet_states_batch() {
 		let dir = tempdir().unwrap();
 		let db_path = dir.path().join("test.db");
 		let backend = RedbBackend::new(&db_path);
 
 		let chain_id = H256::from([1u8; 32]);
-		let wallet_id = H256::from([2u8; 32]);
-		let cache = create_test_cache(100);
+		let seed_hash_1 = H256::from([2u8; 32]);
+		let seed_hash_2 = H256::from([3u8; 32]);
+		let seed_hash_3 = H256::from([4u8; 32]);
 
-		// Save and verify exists
-		WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id, cache).await;
-		assert!(
-			WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id)
-				.await
-				.is_some()
-		);
+		// Initially all None
+		let results = WalletStateCaching::get_wallet_states(
+			&backend,
+			chain_id,
+			&[seed_hash_1, seed_hash_2, seed_hash_3],
+		)
+		.await;
+		assert_eq!(results.len(), 3);
+		assert!(results.iter().all(|r| r.is_none()));
 
-		// Delete
-		WalletStateCaching::delete_wallet_state(&backend, chain_id, wallet_id).await;
+		// Save two wallets
+		let wallet_1 = create_test_wallet_state(seed_hash_1, 100);
+		let wallet_2 = create_test_wallet_state(seed_hash_2, 200);
+		WalletStateCaching::set_wallet_states(
+			&backend,
+			chain_id,
+			&[wallet_1.clone(), wallet_2.clone()],
+		)
+		.await;
 
-		// Verify deleted
-		assert!(
-			WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id)
-				.await
-				.is_none()
-		);
+		// Batch retrieve: 1 and 2 exist, 3 doesn't
+		let results = WalletStateCaching::get_wallet_states(
+			&backend,
+			chain_id,
+			&[seed_hash_1, seed_hash_2, seed_hash_3],
+		)
+		.await;
+		assert!(results[0].is_some());
+		assert_eq!(results[0].as_ref().unwrap().block_height, 100);
+		assert!(results[1].is_some());
+		assert_eq!(results[1].as_ref().unwrap().block_height, 200);
+		assert!(results[2].is_none());
+	}
+
+	#[tokio::test]
+	async fn test_redb_delete_wallet_states() {
+		let dir = tempdir().unwrap();
+		let db_path = dir.path().join("test.db");
+		let backend = RedbBackend::new(&db_path);
+
+		let chain_id = H256::from([1u8; 32]);
+		let seed_hash_1 = H256::from([2u8; 32]);
+		let seed_hash_2 = H256::from([3u8; 32]);
+
+		let wallet_1 = create_test_wallet_state(seed_hash_1, 100);
+		let wallet_2 = create_test_wallet_state(seed_hash_2, 200);
+		WalletStateCaching::set_wallet_states(&backend, chain_id, &[wallet_1, wallet_2]).await;
+
+		// Delete one
+		WalletStateCaching::delete_wallet_states(&backend, chain_id, &[seed_hash_1]).await;
+
+		let results =
+			WalletStateCaching::get_wallet_states(&backend, chain_id, &[seed_hash_1, seed_hash_2])
+				.await;
+		assert!(results[0].is_none());
+		assert!(results[1].is_some());
+	}
+
+	#[tokio::test]
+	async fn test_redb_gc_ledger_snapshots() {
+		let dir = tempdir().unwrap();
+		let db_path = dir.path().join("test.db");
+		let backend = RedbBackend::new(&db_path);
+
+		let chain_id = H256::from([1u8; 32]);
+
+		// Save snapshots at heights 100, 200, 300
+		for h in [100, 200, 300] {
+			WalletStateCaching::set_ledger_snapshot(
+				&backend,
+				chain_id,
+				create_test_ledger_snapshot(h),
+			)
+			.await;
+		}
+
+		// GC keeping only height 200
+		WalletStateCaching::gc_ledger_snapshots(&backend, chain_id, &[200]).await;
+
+		assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 100).await.is_none());
+		assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 200).await.is_some());
+		assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 300).await.is_none());
 	}
 
 	#[tokio::test]
@@ -427,67 +679,21 @@ mod tests {
 		let backend = RedbBackend::new(&db_path);
 
 		let chain_id = H256::from([1u8; 32]);
-		let wallet_id = H256::from([2u8; 32]);
+		let seed_hash = H256::from([2u8; 32]);
 
 		// Save at height 100
-		let cache1 = create_test_cache(100);
-		WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id, cache1).await;
-		assert_eq!(
-			WalletStateCaching::get_cached_block_height(&backend, chain_id, wallet_id).await,
-			Some(100)
-		);
+		let wallet_1 = create_test_wallet_state(seed_hash, 100);
+		WalletStateCaching::set_wallet_states(&backend, chain_id, &[wallet_1]).await;
+
+		let results = WalletStateCaching::get_wallet_states(&backend, chain_id, &[seed_hash]).await;
+		assert_eq!(results[0].as_ref().unwrap().block_height, 100);
 
 		// Update to height 200
-		let cache2 = create_test_cache(200);
-		WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id, cache2).await;
-		assert_eq!(
-			WalletStateCaching::get_cached_block_height(&backend, chain_id, wallet_id).await,
-			Some(200)
-		);
-	}
+		let wallet_2 = create_test_wallet_state(seed_hash, 200);
+		WalletStateCaching::set_wallet_states(&backend, chain_id, &[wallet_2]).await;
 
-	#[tokio::test]
-	async fn test_redb_wallet_state_multiple_wallets() {
-		let dir = tempdir().unwrap();
-		let db_path = dir.path().join("test.db");
-		let backend = RedbBackend::new(&db_path);
-
-		let chain_id = H256::from([1u8; 32]);
-		let wallet_id_1 = H256::from([2u8; 32]);
-		let wallet_id_2 = H256::from([3u8; 32]);
-
-		let mut cache1 = create_test_cache(100);
-		cache1.wallet_id = wallet_id_1;
-
-		let mut cache2 = create_test_cache(200);
-		cache2.wallet_id = wallet_id_2;
-
-		// Save both
-		WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id_1, cache1).await;
-		WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id_2, cache2).await;
-
-		// Verify independent
-		assert_eq!(
-			WalletStateCaching::get_cached_block_height(&backend, chain_id, wallet_id_1).await,
-			Some(100)
-		);
-		assert_eq!(
-			WalletStateCaching::get_cached_block_height(&backend, chain_id, wallet_id_2).await,
-			Some(200)
-		);
-
-		// Delete one doesn't affect other
-		WalletStateCaching::delete_wallet_state(&backend, chain_id, wallet_id_1).await;
-		assert!(
-			WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id_1)
-				.await
-				.is_none()
-		);
-		assert!(
-			WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id_2)
-				.await
-				.is_some()
-		);
+		let results = WalletStateCaching::get_wallet_states(&backend, chain_id, &[seed_hash]).await;
+		assert_eq!(results[0].as_ref().unwrap().block_height, 200);
 	}
 
 	#[tokio::test]
@@ -497,71 +703,45 @@ mod tests {
 		let backend = RedbBackend::new(&db_path);
 
 		let chain_id = H256::from([1u8; 32]);
-		let num_wallets = 10;
-		let num_operations = 5;
+		let num_wallets = 10u8;
+		let num_operations = 5u64;
 
-		// Spawn concurrent tasks that each operate on their own wallet
 		let mut handles = vec![];
 		for wallet_idx in 0..num_wallets {
 			let backend_clone = backend.clone();
-			let wallet_id = H256::from([wallet_idx as u8; 32]);
+			let seed_hash = H256::from([wallet_idx; 32]);
 
 			let handle = tokio::spawn(async move {
 				for op in 0..num_operations {
-					let cache = WalletStateCache {
-						chain_id,
-						wallet_id,
-						block_height: (wallet_idx * 100 + op) as u64,
-						ledger_state_bytes: vec![wallet_idx as u8; 100],
-						wallet_snapshots: vec![],
-						latest_block_context: SerializableBlockContext {
-							tblock_secs: 1234567890,
-							tblock_err: 0,
-							parent_block_hash: [wallet_idx as u8; 32],
-							last_block_time: 1234567890,
-						},
-						state_root: vec![op as u8; 32],
-						version: "wallet-state-cache-v1".to_string(),
+					let wallet = CachedWalletState {
+						seed_hash,
+						block_height: wallet_idx as u64 * 100 + op,
+						shielded_state_bytes: vec![wallet_idx; 100],
+						dust_local_state_bytes: None,
 					};
 
-					// Write
-					WalletStateCaching::set_wallet_state(
+					WalletStateCaching::set_wallet_states(&backend_clone, chain_id, &[wallet])
+						.await;
+
+					let results = WalletStateCaching::get_wallet_states(
 						&backend_clone,
 						chain_id,
-						wallet_id,
-						cache,
+						&[seed_hash],
 					)
 					.await;
-
-					// Read back
-					let retrieved =
-						WalletStateCaching::get_wallet_state(&backend_clone, chain_id, wallet_id)
-							.await;
-					assert!(retrieved.is_some(), "Wallet {} should have cache", wallet_idx);
-
-					// Height check
-					let height = WalletStateCaching::get_cached_block_height(
-						&backend_clone,
-						chain_id,
-						wallet_id,
-					)
-					.await;
-					assert!(height.is_some(), "Wallet {} should have height", wallet_idx);
+					assert!(results[0].is_some(), "Wallet {} should have cache", wallet_idx);
 				}
 			});
 			handles.push(handle);
 		}
 
-		// Wait for all tasks to complete
 		for handle in handles {
 			handle.await.expect("Task should complete successfully");
 		}
 
 		// Verify all wallets have their final state
-		for wallet_idx in 0..num_wallets {
-			let wallet_id = H256::from([wallet_idx as u8; 32]);
-			let cache = WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id).await;
-			assert!(cache.is_some(), "Wallet {} should have final state", wallet_idx);
-		}
+		let all_hashes: Vec<H256> = (0..num_wallets).map(|i| H256::from([i; 32])).collect();
+		let results = WalletStateCaching::get_wallet_states(&backend, chain_id, &all_hashes).await;
+		assert!(results.iter().all(|r| r.is_some()));
 	}
 }

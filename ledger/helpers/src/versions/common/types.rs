@@ -27,7 +27,7 @@ use std::{
 };
 use subxt_signer::{SecretUri, SecretUriError, sr25519};
 
-#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, Debug, Storable, Serializable)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Storable, Serializable)]
 #[storable(base)]
 pub enum WalletSeed {
 	Short([u8; 16]),
