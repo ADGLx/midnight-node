@@ -267,7 +267,7 @@ pub async fn create_cnight_observation_data_source(
 	)
 	.await?;
 
-	midnight_primitives_mainchain_follower::db::create_cnight_observation_indexes(&pool).await?;
+	// midnight_primitives_mainchain_follower::db::create_cnight_observation_indexes(&pool).await?;
 
 	Ok(Arc::new(MidnightCNightObservationDataSourceImpl::new(pool, metrics_opt.clone(), 1000)))
 }
