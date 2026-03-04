@@ -189,7 +189,7 @@ rebuild-sqlx:
 
 # rebuild-redemption-skeleton rebuilds the redemption skeleton contract using aiken
 rebuild-redemption-skeleton:
-    FROM +node-ci-image-single-platform
+    FROM +prep-no-copy
     COPY tests/redemption-skeleton .
     RUN aiken build --trace-level verbose
     SAVE ARTIFACT plutus.json AS LOCAL tests/src/plutus.json
@@ -712,7 +712,7 @@ prep:
 
 # Prepares Node Toolkit (JS) in time for testing
 toolkit-js-prep:
-    FROM +node-ci-image-single-platform
+    FROM +prep-no-copy
 
     # Install dependencies for Node.js (curl-minimal already in base image)
     RUN microdnf -y install tar gzip xz && \
