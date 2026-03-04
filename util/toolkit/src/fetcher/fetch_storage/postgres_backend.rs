@@ -19,12 +19,13 @@ use sqlx::{
 };
 use subxt::utils::H256;
 
-use super::{FetchStorage, WalletStateCache};
-use crate::fetcher::wallet_state_cache::{compress, decompress};
+use super::FetchStorage;
+use crate::fetcher::wallet_state_cache::{CachedWalletState, LedgerSnapshot};
 
 /// Persistent [`FetchStorage`] backend using PostgreSQL.
 ///
-/// Data is serialized as BSON. Uses sqlx connection pooling.
+/// Block data uses BSON serialization. Wallet cache uses manual byte encoding.
+/// Uses sqlx connection pooling.
 #[derive(Clone)]
 pub struct PostgresBackend {
 	pool: PgPool,
@@ -92,24 +93,52 @@ impl PostgresBackend {
 		.await
 		.expect("failed to create highest_verified table");
 
-		// Wallet state cache table (compressed data)
 		sqlx::query(
 			r#"
-            CREATE TABLE IF NOT EXISTS wallet_state_cache (
+            CREATE TABLE IF NOT EXISTS ledger_snapshots_v2 (
                 chain_id BYTEA NOT NULL,
-                wallet_id BYTEA NOT NULL,
                 block_height BIGINT NOT NULL,
                 data BYTEA NOT NULL,
                 updated_at TIMESTAMP DEFAULT NOW(),
-                PRIMARY KEY (chain_id, wallet_id)
+                PRIMARY KEY (chain_id, block_height)
             )
             "#,
 		)
 		.execute(&mut *tx)
 		.await
-		.expect("failed to create wallet_state_cache table");
+		.expect("failed to create ledger_snapshots_v2 table");
 
-		// Note: PRIMARY KEY (chain_id, wallet_id) already covers lookups by chain_id prefix.
+		sqlx::query(
+			r#"
+            CREATE TABLE IF NOT EXISTS wallet_cache_v2 (
+                chain_id BYTEA NOT NULL,
+                seed_hash BYTEA NOT NULL,
+                block_height BIGINT NOT NULL,
+                data BYTEA NOT NULL,
+                updated_at TIMESTAMP DEFAULT NOW(),
+                PRIMARY KEY (chain_id, seed_hash)
+            )
+            "#,
+		)
+		.execute(&mut *tx)
+		.await
+		.expect("failed to create wallet_cache_v2 table");
+
+		// Drop legacy v1 wallet state cache table and stale indexes
+		sqlx::query("DROP TABLE IF EXISTS wallet_state_cache")
+			.execute(&mut *tx)
+			.await
+			.expect("failed to drop legacy wallet_state_cache table");
+
+		sqlx::query("DROP INDEX IF EXISTS idx_raw_block_data_v1_chain_number")
+			.execute(&mut *tx)
+			.await
+			.expect("failed to drop legacy idx_raw_block_data_v1_chain_number index");
+
+		sqlx::query("DROP INDEX IF EXISTS idx_wallet_state_chain")
+			.execute(&mut *tx)
+			.await
+			.expect("failed to drop legacy idx_wallet_state_chain index");
 
 		tx.commit().await.expect("failed to commit init_tables transaction");
 	}
@@ -157,7 +186,6 @@ impl FetchStorage for PostgresBackend {
 
 		let block_numbers_i64: Vec<i64> = block_numbers.iter().map(|&n| n as i64).collect();
 
-		// Create a table with the block numbers, then left-join to create nulls if missing
 		let rows: Vec<PgRow> = sqlx::query(
 			r#"
             SELECT bd.data
@@ -210,7 +238,6 @@ impl FetchStorage for PostgresBackend {
 			return;
 		}
 
-		// Use a transaction for batch insert
 		let mut tx = self.pool.begin().await.expect("failed to begin transaction");
 
 		for (block_number, block) in blocks {
@@ -269,133 +296,275 @@ impl FetchStorage for PostgresBackend {
 		.expect("failed to set highest verified block");
 	}
 
-	async fn get_wallet_state(&self, chain_id: H256, wallet_id: H256) -> Option<WalletStateCache> {
+	// =========================================================================
+	// Per-wallet cache (v2) — ledger snapshots
+	// =========================================================================
+
+	async fn get_ledger_snapshot(
+		&self,
+		chain_id: H256,
+		block_height: u64,
+	) -> Option<LedgerSnapshot> {
 		let result: Option<PgRow> = match sqlx::query(
 			r#"
-            SELECT data FROM wallet_state_cache
-            WHERE chain_id = $1 AND wallet_id = $2
+            SELECT data FROM ledger_snapshots_v2
+            WHERE chain_id = $1 AND block_height = $2
             "#,
 		)
 		.bind(chain_id.0.as_slice())
-		.bind(wallet_id.0.as_slice())
+		.bind(block_height as i64)
 		.fetch_optional(&self.pool)
 		.await
 		{
 			Ok(row) => row,
 			Err(e) => {
-				log::warn!("Failed to query wallet state cache: {e}");
+				log::warn!("Failed to query ledger snapshot: {e}");
 				return None;
 			},
 		};
 
 		result.and_then(|row| {
-			let compressed: Vec<u8> = row.get("data");
-
-			// Decompress and deserialize
-			let decompressed = match decompress(&compressed) {
-				Ok(data) => data,
+			let data: Vec<u8> = row.get("data");
+			match LedgerSnapshot::from_value_bytes(&data, block_height) {
+				Ok(snapshot) => Some(snapshot),
 				Err(e) => {
-					log::warn!("Failed to decompress wallet state cache: {e}");
-					return None;
-				},
-			};
-
-			match bson::deserialize_from_slice(&decompressed) {
-				Ok(cache) => Some(cache),
-				Err(e) => {
-					log::warn!("Failed to deserialize wallet state cache: {e}");
+					log::warn!("Failed to decode ledger snapshot: {e}");
 					None
 				},
 			}
 		})
 	}
 
-	async fn set_wallet_state(&self, chain_id: H256, wallet_id: H256, cache: WalletStateCache) {
-		let block_height = cache.block_height;
-
-		// Serialize and compress
-		let serialized = match bson::serialize_to_vec(&cache) {
-			Ok(data) => data,
+	async fn set_ledger_snapshot(&self, chain_id: H256, snapshot: LedgerSnapshot) {
+		let block_height = snapshot.block_height;
+		let encoded = match snapshot.to_value_bytes() {
+			Ok(b) => b,
 			Err(e) => {
-				log::warn!("Failed to serialize wallet state: {e}");
-				return;
-			},
-		};
-		let compressed = match compress(&serialized) {
-			Ok(data) => data,
-			Err(e) => {
-				log::warn!("Failed to compress wallet state: {e}");
+				log::warn!("Failed to serialize ledger snapshot: {e}");
 				return;
 			},
 		};
 
 		if let Err(e) = sqlx::query(
 			r#"
-            INSERT INTO wallet_state_cache (chain_id, wallet_id, block_height, data, updated_at)
-            VALUES ($1, $2, $3, $4, NOW())
-            ON CONFLICT (chain_id, wallet_id)
-            DO UPDATE SET block_height = EXCLUDED.block_height,
-                          data = EXCLUDED.data,
-                          updated_at = NOW()
+            INSERT INTO ledger_snapshots_v2 (chain_id, block_height, data, updated_at)
+            VALUES ($1, $2, $3, NOW())
+            ON CONFLICT (chain_id, block_height)
+            DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
             "#,
 		)
 		.bind(chain_id.0.as_slice())
-		.bind(wallet_id.0.as_slice())
 		.bind(block_height as i64)
-		.bind(&compressed)
+		.bind(&encoded)
 		.execute(&self.pool)
 		.await
 		{
-			log::warn!("Failed to set wallet state cache: {e}");
+			log::warn!("Failed to set ledger snapshot: {e}");
 			return;
 		}
 
-		log::info!(
-			"Cached wallet state at block {} (compressed: {} bytes)",
-			block_height,
-			compressed.len()
-		);
+		log::info!("Saved ledger snapshot at block {} ({} bytes)", block_height, encoded.len());
 	}
 
-	async fn get_cached_block_height(&self, chain_id: H256, wallet_id: H256) -> Option<u64> {
+	async fn get_latest_ledger_height(&self, chain_id: H256) -> Option<u64> {
 		let result: Option<PgRow> = match sqlx::query(
 			r#"
-            SELECT block_height FROM wallet_state_cache
-            WHERE chain_id = $1 AND wallet_id = $2
+            SELECT MAX(block_height) as max_height FROM ledger_snapshots_v2
+            WHERE chain_id = $1
             "#,
 		)
 		.bind(chain_id.0.as_slice())
-		.bind(wallet_id.0.as_slice())
 		.fetch_optional(&self.pool)
 		.await
 		{
 			Ok(row) => row,
 			Err(e) => {
-				log::warn!("Failed to query wallet state cache height: {e}");
+				log::warn!("Failed to query latest ledger height: {e}");
 				return None;
 			},
 		};
 
-		result.map(|row| {
-			let height: i64 = row.get("block_height");
-			height as u64
+		result.and_then(|row| {
+			let height: Option<i64> = row.get("max_height");
+			height.map(|h| h as u64)
 		})
 	}
 
-	async fn delete_wallet_state(&self, chain_id: H256, wallet_id: H256) {
-		if let Err(e) = sqlx::query(
+	// =========================================================================
+	// Per-wallet cache (v2) — individual wallets
+	// =========================================================================
+
+	async fn get_wallet_states(
+		&self,
+		chain_id: H256,
+		seed_hashes: &[H256],
+	) -> Vec<Option<CachedWalletState>> {
+		if seed_hashes.is_empty() {
+			return Vec::new();
+		}
+
+		let seed_hash_bytes: Vec<Vec<u8>> = seed_hashes.iter().map(|h| h.0.to_vec()).collect();
+
+		let rows: Vec<PgRow> = match sqlx::query(
 			r#"
-            DELETE FROM wallet_state_cache
-            WHERE chain_id = $1 AND wallet_id = $2
+            SELECT seed_hash, data FROM wallet_cache_v2
+            WHERE chain_id = $1 AND seed_hash = ANY($2)
             "#,
 		)
 		.bind(chain_id.0.as_slice())
-		.bind(wallet_id.0.as_slice())
+		.bind(&seed_hash_bytes)
+		.fetch_all(&self.pool)
+		.await
+		{
+			Ok(rows) => rows,
+			Err(e) => {
+				log::warn!("Failed to query wallet states: {e}");
+				return seed_hashes.iter().map(|_| None).collect();
+			},
+		};
+
+		// Build a lookup map: seed_hash -> CachedWalletState
+		let mut found: std::collections::HashMap<H256, CachedWalletState> =
+			std::collections::HashMap::new();
+		for row in rows {
+			let seed_hash_bytes: Vec<u8> = row.get("seed_hash");
+			let data: Vec<u8> = row.get("data");
+
+			if seed_hash_bytes.len() == 32 {
+				let seed_hash = H256::from_slice(&seed_hash_bytes);
+				match CachedWalletState::from_value_bytes(&data, seed_hash) {
+					Ok(cached) => {
+						found.insert(seed_hash, cached);
+					},
+					Err(e) => {
+						log::warn!("Failed to decode wallet state: {e}");
+					},
+				}
+			}
+		}
+
+		seed_hashes.iter().map(|h| found.remove(h)).collect()
+	}
+
+	async fn set_wallet_states(&self, chain_id: H256, wallets: &[CachedWalletState]) {
+		if wallets.is_empty() {
+			return;
+		}
+
+		let mut tx = match self.pool.begin().await {
+			Ok(tx) => tx,
+			Err(e) => {
+				log::warn!("Failed to begin transaction for wallet states: {e}");
+				return;
+			},
+		};
+
+		for wallet in wallets {
+			let encoded = match wallet.to_value_bytes() {
+				Ok(b) => b,
+				Err(e) => {
+					log::warn!("Failed to serialize wallet state for {:?}: {e}", wallet.seed_hash);
+					continue;
+				},
+			};
+
+			if let Err(e) = sqlx::query(
+				r#"
+                INSERT INTO wallet_cache_v2 (chain_id, seed_hash, block_height, data, updated_at)
+                VALUES ($1, $2, $3, $4, NOW())
+                ON CONFLICT (chain_id, seed_hash)
+                DO UPDATE SET block_height = EXCLUDED.block_height,
+                              data = EXCLUDED.data,
+                              updated_at = NOW()
+                "#,
+			)
+			.bind(chain_id.0.as_slice())
+			.bind(wallet.seed_hash.0.as_slice())
+			.bind(wallet.block_height as i64)
+			.bind(&encoded)
+			.execute(&mut *tx)
+			.await
+			{
+				log::warn!("Failed to set wallet state for {:?}: {e}", wallet.seed_hash);
+				continue;
+			}
+		}
+
+		if let Err(e) = tx.commit().await {
+			log::warn!("Failed to commit wallet states: {e}");
+			return;
+		}
+
+		log::info!("Saved {} wallet cache entries", wallets.len());
+	}
+
+	async fn delete_wallet_states(&self, chain_id: H256, seed_hashes: &[H256]) {
+		if seed_hashes.is_empty() {
+			return;
+		}
+
+		let seed_hash_bytes: Vec<Vec<u8>> = seed_hashes.iter().map(|h| h.0.to_vec()).collect();
+
+		if let Err(e) = sqlx::query(
+			r#"
+            DELETE FROM wallet_cache_v2
+            WHERE chain_id = $1 AND seed_hash = ANY($2)
+            "#,
+		)
+		.bind(chain_id.0.as_slice())
+		.bind(&seed_hash_bytes)
 		.execute(&self.pool)
 		.await
 		{
-			log::warn!("Failed to delete wallet state cache: {e}");
+			log::warn!("Failed to delete wallet states: {e}");
 		}
+	}
+
+	async fn gc_ledger_snapshots(&self, chain_id: H256, keep_heights: &[u64]) {
+		let keep_heights_i64: Vec<i64> = keep_heights.iter().map(|&h| h as i64).collect();
+
+		match sqlx::query(
+			r#"
+            DELETE FROM ledger_snapshots_v2
+            WHERE chain_id = $1 AND block_height <> ALL($2)
+            "#,
+		)
+		.bind(chain_id.0.as_slice())
+		.bind(&keep_heights_i64)
+		.execute(&self.pool)
+		.await
+		{
+			Ok(r) => {
+				let count = r.rows_affected();
+				if count > 0 {
+					log::info!("GC: removed {} stale ledger snapshots", count);
+				}
+			},
+			Err(e) => {
+				log::warn!("Failed to GC ledger snapshots: {e}");
+			},
+		}
+	}
+
+	async fn get_all_cached_wallet_heights(&self, chain_id: H256) -> Vec<u64> {
+		let rows: Vec<PgRow> = match sqlx::query(
+			r#"
+            SELECT DISTINCT block_height FROM wallet_cache_v2
+            WHERE chain_id = $1
+            "#,
+		)
+		.bind(chain_id.0.as_slice())
+		.fetch_all(&self.pool)
+		.await
+		{
+			Ok(rows) => rows,
+			Err(e) => {
+				log::warn!("Failed to query cached wallet heights: {e}");
+				return Vec::new();
+			},
+		};
+
+		rows.iter().map(|row| row.get::<i64, _>("block_height") as u64).collect()
 	}
 }
 
@@ -406,12 +575,11 @@ impl FetchStorage for PostgresBackend {
 impl PostgresBackend {
 	/// Evict wallet state cache entries older than the specified number of days.
 	///
-	/// This helps prevent unbounded storage growth in long-running deployments.
 	/// Returns the number of entries evicted.
 	pub async fn evict_stale_wallet_cache(&self, max_age_days: u32) -> u64 {
 		let result = sqlx::query(
 			r#"
-            DELETE FROM wallet_state_cache
+            DELETE FROM wallet_cache_v2
             WHERE updated_at < NOW() - INTERVAL '1 day' * $1
             "#,
 		)
@@ -440,7 +608,7 @@ impl PostgresBackend {
 
 	/// Get the count of wallet state cache entries.
 	pub async fn wallet_cache_count(&self) -> u64 {
-		let result: Option<(i64,)> = sqlx::query_as(r#"SELECT COUNT(*) FROM wallet_state_cache"#)
+		let result: Option<(i64,)> = sqlx::query_as(r#"SELECT COUNT(*) FROM wallet_cache_v2"#)
 			.fetch_optional(&self.pool)
 			.await
 			.ok()

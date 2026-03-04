@@ -16,7 +16,7 @@ mod common;
 use common::test_image;
 use midnight_node_toolkit::fetcher::{
 	fetch_storage::{WalletStateCaching, postgres_backend::PostgresBackend},
-	wallet_state_cache::{SerializableBlockContext, WalletSnapshot, WalletStateCache},
+	wallet_state_cache::{CachedWalletState, LedgerSnapshot, SerializableBlockContext},
 };
 use subxt::utils::H256;
 use testcontainers::{GenericImage, ImageExt, core::WaitFor, runners::AsyncRunner};
@@ -55,89 +55,171 @@ async fn postgres_url() -> &'static str {
 		.url
 }
 
-fn create_test_cache(block_height: u64, wallet_id: H256) -> WalletStateCache {
-	WalletStateCache {
-		chain_id: H256::from([1u8; 32]),
-		wallet_id,
+fn create_test_ledger_snapshot(block_height: u64) -> LedgerSnapshot {
+	LedgerSnapshot {
 		block_height,
 		ledger_state_bytes: vec![0u8; 1000],
-		wallet_snapshots: vec![WalletSnapshot {
-			seed_hash: H256::from([3u8; 32]),
-			shielded_state_bytes: vec![],
-			dust_local_state_bytes: None,
-		}],
 		latest_block_context: SerializableBlockContext {
 			tblock_secs: 1234567890,
 			tblock_err: 0,
 			parent_block_hash: [4u8; 32],
 			last_block_time: 1234567890,
 		},
-		state_root: vec![5u8; 32],
-		version: "wallet-state-cache-v1".to_string(),
+		state_root: [5u8; 32],
+	}
+}
+
+fn create_test_wallet_state(seed_hash: H256, block_height: u64) -> CachedWalletState {
+	CachedWalletState {
+		seed_hash,
+		block_height,
+		shielded_state_bytes: vec![10u8; 200],
+		dust_local_state_bytes: Some(vec![20u8; 100]),
 	}
 }
 
 #[tokio::test]
-async fn test_postgres_wallet_state_roundtrip() {
+async fn test_postgres_ledger_snapshot_roundtrip() {
 	let backend = PostgresBackend::new(postgres_url().await).await;
 
 	let chain_id = H256::from([100u8; 32]);
-	let wallet_id = H256::from([2u8; 32]);
 
-	let cache = create_test_cache(100, wallet_id);
+	// Initially no snapshot
+	assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 100).await.is_none());
 
-	// Initially no cache
-	assert!(
-		WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id)
-			.await
-			.is_none()
-	);
+	// Save snapshot
+	let snapshot = create_test_ledger_snapshot(100);
+	WalletStateCaching::set_ledger_snapshot(&backend, chain_id, snapshot.clone()).await;
 
-	// Save cache
-	WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id, cache.clone()).await;
-
-	// Retrieve cache
-	let retrieved = WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id).await;
+	// Retrieve snapshot
+	let retrieved = WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 100).await;
 	assert!(retrieved.is_some());
 	let retrieved = retrieved.unwrap();
+	assert_eq!(retrieved.block_height, 100);
+	assert_eq!(retrieved.ledger_state_bytes, snapshot.ledger_state_bytes);
+	assert_eq!(retrieved.state_root, snapshot.state_root);
+}
 
-	assert_eq!(retrieved.chain_id, cache.chain_id);
-	assert_eq!(retrieved.wallet_id, cache.wallet_id);
-	assert_eq!(retrieved.block_height, cache.block_height);
-	assert_eq!(retrieved.ledger_state_bytes, cache.ledger_state_bytes);
-	assert_eq!(retrieved.version, cache.version);
+#[tokio::test]
+async fn test_postgres_wallet_states_batch() {
+	let backend = PostgresBackend::new(postgres_url().await).await;
+
+	let chain_id = H256::from([101u8; 32]);
+	let seed_hash_1 = H256::from([2u8; 32]);
+	let seed_hash_2 = H256::from([3u8; 32]);
+	let seed_hash_3 = H256::from([4u8; 32]);
+
+	// Initially all None
+	let results = WalletStateCaching::get_wallet_states(
+		&backend,
+		chain_id,
+		&[seed_hash_1, seed_hash_2, seed_hash_3],
+	)
+	.await;
+	assert_eq!(results.len(), 3);
+	assert!(results.iter().all(|r| r.is_none()));
+
+	// Save two wallets
+	let wallet_1 = create_test_wallet_state(seed_hash_1, 100);
+	let wallet_2 = create_test_wallet_state(seed_hash_2, 200);
+	WalletStateCaching::set_wallet_states(&backend, chain_id, &[wallet_1, wallet_2]).await;
+
+	// Batch retrieve
+	let results = WalletStateCaching::get_wallet_states(
+		&backend,
+		chain_id,
+		&[seed_hash_1, seed_hash_2, seed_hash_3],
+	)
+	.await;
+	assert!(results[0].is_some());
+	assert_eq!(results[0].as_ref().unwrap().block_height, 100);
+	assert!(results[1].is_some());
+	assert_eq!(results[1].as_ref().unwrap().block_height, 200);
+	assert!(results[2].is_none());
+}
+
+#[tokio::test]
+async fn test_postgres_latest_ledger_height() {
+	let backend = PostgresBackend::new(postgres_url().await).await;
+
+	let chain_id = H256::from([102u8; 32]);
+
+	assert!(WalletStateCaching::get_latest_ledger_height(&backend, chain_id).await.is_none());
+
+	WalletStateCaching::set_ledger_snapshot(&backend, chain_id, create_test_ledger_snapshot(100))
+		.await;
+	WalletStateCaching::set_ledger_snapshot(&backend, chain_id, create_test_ledger_snapshot(200))
+		.await;
+
+	let height = WalletStateCaching::get_latest_ledger_height(&backend, chain_id).await;
+	assert_eq!(height, Some(200));
+}
+
+#[tokio::test]
+async fn test_postgres_gc_ledger_snapshots() {
+	let backend = PostgresBackend::new(postgres_url().await).await;
+
+	let chain_id = H256::from([103u8; 32]);
+
+	for h in [100, 200, 300] {
+		WalletStateCaching::set_ledger_snapshot(&backend, chain_id, create_test_ledger_snapshot(h))
+			.await;
+	}
+
+	// Keep only 200
+	WalletStateCaching::gc_ledger_snapshots(&backend, chain_id, &[200]).await;
+
+	assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 100).await.is_none());
+	assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 200).await.is_some());
+	assert!(WalletStateCaching::get_ledger_snapshot(&backend, chain_id, 300).await.is_none());
 }
 
 #[tokio::test]
 async fn test_postgres_evict_stale_entries() {
 	let backend = PostgresBackend::new(postgres_url().await).await;
 
-	let chain_id = H256::from([101u8; 32]);
-	let wallet_id = H256::from([2u8; 32]);
+	let chain_id = H256::from([104u8; 32]);
+	let seed_hash = H256::from([2u8; 32]);
 
-	// Save a cache entry
-	let cache = create_test_cache(100, wallet_id);
-	WalletStateCaching::set_wallet_state(&backend, chain_id, wallet_id, cache).await;
+	// Save a wallet cache entry
+	let wallet = create_test_wallet_state(seed_hash, 100);
+	WalletStateCaching::set_wallet_states(&backend, chain_id, &[wallet]).await;
 
 	// Evict entries older than 30 days (should not evict our fresh entry)
 	let evicted = backend.evict_stale_wallet_cache(30).await;
 	assert_eq!(evicted, 0);
 
 	// Entry should still exist
-	assert!(
-		WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id)
-			.await
-			.is_some()
-	);
+	let results = WalletStateCaching::get_wallet_states(&backend, chain_id, &[seed_hash]).await;
+	assert!(results[0].is_some());
 
 	// Evict entries older than 0 days (should evict everything)
 	let evicted = backend.evict_stale_wallet_cache(0).await;
 	assert!(evicted >= 1);
 
 	// Entry should be gone
-	assert!(
-		WalletStateCaching::get_wallet_state(&backend, chain_id, wallet_id)
-			.await
-			.is_none()
-	);
+	let results = WalletStateCaching::get_wallet_states(&backend, chain_id, &[seed_hash]).await;
+	assert!(results[0].is_none());
+}
+
+#[tokio::test]
+async fn test_postgres_delete_wallet_states() {
+	let backend = PostgresBackend::new(postgres_url().await).await;
+
+	let chain_id = H256::from([105u8; 32]);
+	let seed_hash_1 = H256::from([2u8; 32]);
+	let seed_hash_2 = H256::from([3u8; 32]);
+
+	let wallet_1 = create_test_wallet_state(seed_hash_1, 100);
+	let wallet_2 = create_test_wallet_state(seed_hash_2, 200);
+	WalletStateCaching::set_wallet_states(&backend, chain_id, &[wallet_1, wallet_2]).await;
+
+	// Delete one
+	WalletStateCaching::delete_wallet_states(&backend, chain_id, &[seed_hash_1]).await;
+
+	let results =
+		WalletStateCaching::get_wallet_states(&backend, chain_id, &[seed_hash_1, seed_hash_2])
+			.await;
+	assert!(results[0].is_none());
+	assert!(results[1].is_some());
 }

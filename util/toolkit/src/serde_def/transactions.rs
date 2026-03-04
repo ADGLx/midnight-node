@@ -140,13 +140,19 @@ impl SourceTransactions {
 
 	/// Derive a deterministic chain identity for wallet state cache keying.
 	///
-	/// Uses block 1's hash when available (RPC-sourced blocks have real hashes).
-	/// Falls back to H256::zero() for other cases.
-	pub fn chain_id(&self) -> subxt::utils::H256 {
+	/// Returns `None` when no block #1 is available (e.g. file-loaded datasets),
+	/// which signals the caller to skip caching and avoid cross-dataset collisions.
+	pub fn chain_id(&self) -> Option<subxt::utils::H256> {
 		self.blocks
 			.iter()
 			.find(|b| b.number == 1)
 			.map(|b| subxt::utils::H256::from(b.hash))
-			.unwrap_or(subxt::utils::H256::zero())
+	}
+
+	pub fn ledger_version(&self) -> LedgerVersion {
+		self.blocks
+			.first()
+			.map(|b| b.ledger_version())
+			.unwrap_or(LedgerVersion::default())
 	}
 }
