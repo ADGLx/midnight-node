@@ -725,6 +725,19 @@ prep:
 toolkit-js-prep:
     FROM +node-ci-image-single-platform
 
+    # Install dependencies for Node.js (curl-minimal already in base image)
+    RUN microdnf -y install tar gzip xz && \
+        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
+
+    # Install Node.js 22 from official binaries (AL2023's nodejs is v18)
+    ARG NODE_VERSION=22.13.1
+    ARG TARGETARCH
+    RUN if [ "$TARGETARCH" = "arm64" ]; then NODE_ARCH="arm64"; else NODE_ARCH="x64"; fi && \
+        curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz -o node.tar.xz && \
+        tar -xJf node.tar.xz -C /usr/local --strip-components=1 && \
+        rm node.tar.xz && \
+        node --version && npm --version
+
     COPY COMPACTC_VERSION .
     COPY util/toolkit-js toolkit-js
     ARG COMPACTC_VERSION=$(cat COMPACTC_VERSION)
