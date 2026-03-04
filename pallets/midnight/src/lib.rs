@@ -103,8 +103,7 @@ pub mod pallet {
 	#[cfg(hardfork_test)]
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(100);
 
-	// Manually add ~1% of block weight
-	pub const EXTRA_WEIGHT_TX_SIZE: Weight = Weight::from_parts(20_000_000_000, 0);
+	pub const EXTRA_WEIGHT_TX_SIZE: Weight = Weight::from_parts(0, 0);
 
 	#[pallet::pallet]
 	#[pallet::storage_version(STORAGE_VERSION)]
