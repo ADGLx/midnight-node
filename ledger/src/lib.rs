@@ -149,7 +149,11 @@ pub mod native_api {
 	) -> Result<Hash, ValidationError> {
 		if runtime_ledger_version == ledger_8_version() {
 			Ledger8Bridge::validate_transaction_verbose(
-				state_key, tx, block_context, runtime_version, max_weight,
+				state_key,
+				tx,
+				block_context,
+				runtime_version,
+				max_weight,
 			)
 			.map_err(|e| {
 				let reason = format!("{}", e.error);
@@ -164,7 +168,11 @@ pub mod native_api {
 				last_block_time: block_context.last_block_time,
 			};
 			HfBridge::validate_transaction_verbose(
-				state_key, tx, hf_ctx, runtime_version, max_weight,
+				state_key,
+				tx,
+				hf_ctx,
+				runtime_version,
+				max_weight,
 			)
 			.map_err(|e| {
 				let reason = format!("{}", e.error);
@@ -178,7 +186,11 @@ pub mod native_api {
 				parent_block_hash: block_context.parent_block_hash,
 			};
 			Ledger7Bridge::validate_transaction_verbose(
-				state_key, tx, l7_ctx, runtime_version, max_weight,
+				state_key,
+				tx,
+				l7_ctx,
+				runtime_version,
+				max_weight,
 			)
 			.map_err(|e| {
 				let reason = format!("{}", e.error);
