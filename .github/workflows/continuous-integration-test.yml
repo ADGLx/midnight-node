@@ -28,10 +28,14 @@ jobs:
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
 
-      - name: Free disk space and run tests
+      - name: Free disk space
+        run: scripts/free-disk-space.sh
+
+      - name: Run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
         run: |
-          scripts/free-disk-space.sh
-          . ./.envrc && earthly --secret GITHUB_TOKEN="${{ secrets.MIDNIGHTCI_PACKAGES_READ }}" --strict +test
+          . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" --strict +test
 
       - name: Upload test report artifact
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
