@@ -24,6 +24,7 @@ use subxt::{
 	Config, OnlineClient,
 	backend::{legacy::LegacyRpcMethods, rpc::RpcClient},
 	config::substrate::{BlakeTwo256, SubstrateExtrinsicParams, SubstrateHeader},
+	ext::subxt_rpcs::rpc_params,
 };
 use thiserror::Error;
 
@@ -45,6 +46,7 @@ impl Config for MidnightNodeClientConfig {
 pub struct MidnightNodeClient {
 	pub api: OnlineClient<MidnightNodeClientConfig>,
 	pub rpc: LegacyRpcMethods<MidnightNodeClientConfig>,
+	pub rpc_client: RpcClient,
 }
 
 impl MidnightNodeClient {
@@ -67,7 +69,7 @@ impl MidnightNodeClient {
 		let rpc_client = RpcClient::from_insecure_url(rpc_url).await?;
 		let rpc = LegacyRpcMethods::<MidnightNodeClientConfig>::new(rpc_client.clone());
 		let api = OnlineClient::<MidnightNodeClientConfig>::from_insecure_url(rpc_url).await?;
-		Ok(MidnightNodeClient { rpc, api })
+		Ok(MidnightNodeClient { rpc, api, rpc_client })
 	}
 
 	pub async fn get_network_id(&self) -> Result<String, ClientError> {
@@ -111,6 +113,15 @@ impl MidnightNodeClient {
 	pub async fn get_finalized_height(&self) -> Result<u64, ClientError> {
 		let latest_block = self.api.blocks().at_latest().await?;
 		Ok(latest_block.number().into())
+	}
+
+	pub async fn validate_transaction(&self, tx_bytes: &[u8]) -> Result<String, ClientError> {
+		let tx_hex = hex::encode(tx_bytes);
+		let result: String = self
+			.rpc_client
+			.request("midnight_validateTransaction", rpc_params![tx_hex])
+			.await?;
+		Ok(result)
 	}
 
 	pub async fn get_ledger_parameters(&self) -> Result<LedgerParameters, ClientError> {
