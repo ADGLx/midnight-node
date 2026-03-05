@@ -100,6 +100,83 @@ pub mod ledger_8 {
 pub use ledger_8 as latest;
 
 #[cfg(feature = "std")]
+pub mod native_api {
+	use super::*;
+	use common::types::Hash;
+
+	/// Version-agnostic validation error returned across the native API boundary.
+	#[derive(Debug)]
+	pub struct ValidationError {
+		/// The LedgerApiError encoded as a u8 error code.
+		pub error_code: u8,
+		/// Human-readable Display of the LedgerApiError.
+		pub reason: String,
+		/// Debug representation of the original ledger error (before lossy conversion).
+		pub details: String,
+	}
+
+	type Ledger8Sig = ledger_8::base_crypto_local::signatures::Signature;
+	type Ledger8Db = ledger_8::ledger_storage_local::db::ParityDb;
+	type Ledger8Bridge = ledger_8::Bridge<Ledger8Sig, Ledger8Db>;
+
+	type HfSig = hard_fork_test::base_crypto_local::signatures::Signature;
+	type HfDb = hard_fork_test::ledger_storage_local::db::ParityDb;
+	type HfBridge = hard_fork_test::Bridge<HfSig, HfDb>;
+
+	fn ledger_8_version() -> Vec<u8> {
+		Ledger8Bridge::get_version()
+	}
+
+	fn hf_version() -> Vec<u8> {
+		HfBridge::get_version()
+	}
+
+	pub fn validate_transaction_verbose(
+		runtime_ledger_version: &[u8],
+		state_key: &[u8],
+		tx: &[u8],
+		block_context: latest::BlockContext,
+		runtime_version: u32,
+		max_weight: u64,
+	) -> Result<Hash, ValidationError> {
+		if runtime_ledger_version == ledger_8_version() {
+			Ledger8Bridge::validate_transaction_verbose(
+				state_key, tx, block_context, runtime_version, max_weight,
+			)
+			.map_err(|e| {
+				let reason = format!("{}", e.error);
+				let error_code: u8 = e.error.into();
+				ValidationError { error_code, reason, details: e.details }
+			})
+		} else if runtime_ledger_version == hf_version() {
+			let hf_ctx = hard_fork_test::BlockContext {
+				tblock: block_context.tblock,
+				tblock_err: block_context.tblock_err,
+				parent_block_hash: block_context.parent_block_hash,
+				last_block_time: block_context.last_block_time,
+			};
+			HfBridge::validate_transaction_verbose(
+				state_key, tx, hf_ctx, runtime_version, max_weight,
+			)
+			.map_err(|e| {
+				let reason = format!("{}", e.error);
+				let error_code: u8 = e.error.into();
+				ValidationError { error_code, reason, details: e.details }
+			})
+		} else {
+			Err(ValidationError {
+				error_code: 151, // NoLedgerState
+				reason: "Unsupported ledger version".into(),
+				details: format!(
+					"Unsupported ledger version: {}",
+					String::from_utf8_lossy(runtime_ledger_version)
+				),
+			})
+		}
+	}
+}
+
+#[cfg(feature = "std")]
 fn drop_all_default_storage() {
 	ledger_7::storage::drop_default_storage_if_exists();
 	hard_fork_test::storage::drop_default_storage_if_exists();

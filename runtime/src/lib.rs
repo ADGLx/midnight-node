@@ -1112,6 +1112,9 @@ impl_runtime_apis! {
 		fn get_ledger_state_root() -> Result<Vec<u8>, LedgerApiError> {
 			Midnight::get_ledger_state_root()
 		}
+		fn get_validation_context() -> (Vec<u8>, midnight_node_ledger::types::active_version::BlockContext, u32, u64) {
+			Midnight::get_validation_context().expect("validation context")
+		}
 	}
 
 	impl sp_partner_chains_bridge::TokenBridgeIDPRuntimeApi<Block> for Runtime {

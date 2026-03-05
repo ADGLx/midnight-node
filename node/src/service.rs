@@ -464,6 +464,10 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	metrics_push_config: Option<MetricsPushConfig>,
 ) -> Result<TaskManager, ServiceError> {
 	let database_source = config.database.clone();
+	let validate_rate_limit_config = pallet_midnight_rpc::ValidateRateLimitConfig {
+		global_rate_limit: midnight_cfg.rpc_validate_rate_limit,
+		per_tx_cooldown_secs: midnight_cfg.rpc_validate_per_tx_cooldown,
+	};
 	let new_partial_components =
 		new_partial(&config, epoch_config.clone(), midnight_cfg, storage_config)?;
 
@@ -599,6 +603,7 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 		let epoch_config = epoch_config.clone();
 		let network_for_rpc = network.clone();
 		let system_rpc_tx_for_rpc = system_rpc_tx.clone();
+		let validate_rate_limit_config = validate_rate_limit_config.clone();
 
 		move |subscription_executor: SubscriptionTaskExecutor| {
 			let grandpa = GrandpaDeps {
@@ -629,6 +634,7 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 				backend: backend.clone(),
 				network: network_for_rpc.clone(),
 				system_rpc_tx: system_rpc_tx_for_rpc.clone(),
+				validate_rate_limit_config: validate_rate_limit_config.clone(),
 			};
 			crate::rpc::create_full(deps).map_err(Into::into)
 		}

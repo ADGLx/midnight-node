@@ -586,6 +586,16 @@ pub mod pallet {
 			LedgerApi::get_ledger_state_root(&state_key)
 		}
 
+		pub fn get_validation_context() -> Result<(Vec<u8>, BlockContext, u32, u64), LedgerApiError>
+		{
+			let state_key: Vec<u8> =
+				StateKey::<T>::get().ok_or(LedgerApiError::NoLedgerState)?.into();
+			let block_context = Self::get_block_context();
+			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
+			let max_weight = T::BlockWeights::get().max_block.ref_time();
+			Ok((state_key, block_context, runtime_version, max_weight))
+		}
+
 		// Helper for the weight macro
 		pub fn get_tx_weight(tx: &[u8]) -> Weight {
 			Self::get_transaction_cost(tx)

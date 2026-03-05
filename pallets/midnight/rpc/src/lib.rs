@@ -20,11 +20,14 @@ use jsonrpsee::{
 	types::error::{ErrorObject, ErrorObjectOwned, INVALID_PARAMS_CODE},
 };
 
+use governor::{Quota, RateLimiter, clock::DefaultClock, state::keyed::DefaultKeyedStateStore};
 use pallet_midnight::MidnightRuntimeApi;
 use sc_client_api::{BlockBackend, BlockchainEvents};
 use sp_api::{ApiExt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
+use sp_core::hashing::blake2_256;
 use sp_runtime::traits::Block as BlockT;
+use std::num::NonZeroU32;
 use std::sync::Arc;
 
 pub const API_VERSIONS: [u32; 1] = [2];
@@ -49,6 +52,9 @@ pub trait MidnightApi<BlockHash> {
 
 	#[method(name = "midnight_ledgerVersion")]
 	fn get_ledger_version(&self, at: Option<BlockHash>) -> Result<String, BlockRpcError>;
+
+	#[method(name = "midnight_validateTransaction")]
+	fn validate_transaction(&self, tx_hex: String, at: Option<BlockHash>) -> RpcResult<String>;
 }
 
 #[derive(Debug)]
@@ -208,16 +214,53 @@ pub struct RpcBlock<Header> {
 	pub transactions_index: Vec<(String, String)>,
 }
 
+#[derive(Debug, Clone)]
+pub struct ValidateRateLimitConfig {
+	pub global_rate_limit: u32,
+	pub per_tx_cooldown_secs: u64,
+}
+
+type KeyedRateLimiter = RateLimiter<[u8; 32], DefaultKeyedStateStore<[u8; 32]>, DefaultClock>;
+
+struct ValidationRateLimiter {
+	global: governor::RateLimiter<
+		governor::state::NotKeyed,
+		governor::state::InMemoryState,
+		DefaultClock,
+	>,
+	per_tx: KeyedRateLimiter,
+}
+
+impl ValidationRateLimiter {
+	fn new(config: &ValidateRateLimitConfig) -> Self {
+		let global_quota =
+			Quota::per_second(NonZeroU32::new(config.global_rate_limit.max(1)).unwrap());
+		let per_tx_quota =
+			Quota::with_period(std::time::Duration::from_secs(config.per_tx_cooldown_secs.max(1)))
+				.expect("per_tx_cooldown_secs > 0");
+
+		Self {
+			global: governor::RateLimiter::direct(global_quota),
+			per_tx: governor::RateLimiter::keyed(per_tx_quota),
+		}
+	}
+}
+
 pub struct Midnight<C, Block> {
-	/// Shared reference to the client.
 	client: Arc<C>,
-	//todo do I need this one?
+	validate_rate_limiter: Arc<ValidationRateLimiter>,
 	_marker: std::marker::PhantomData<Block>,
 }
 
 impl<C, Block> Midnight<C, Block> {
-	pub fn new(client: Arc<C>) -> Self {
-		Self { client, _marker: Default::default() }
+	pub fn new(client: Arc<C>, validate_rate_limit_config: ValidateRateLimitConfig) -> Self {
+		Self {
+			client,
+			validate_rate_limiter: Arc::new(ValidationRateLimiter::new(
+				&validate_rate_limit_config,
+			)),
+			_marker: Default::default(),
+		}
 	}
 }
 
@@ -334,5 +377,94 @@ where
 			.map_err(|_e| BlockRpcError::BlockNotFound)?;
 
 		Ok(String::from_utf8_lossy(&ledger_version).to_string())
+	}
+
+	fn validate_transaction(
+		&self,
+		tx_hex: String,
+		at: Option<<Block as BlockT>::Hash>,
+	) -> RpcResult<String> {
+		let tx_bytes = hex::decode(&tx_hex).map_err(|e| {
+			ErrorObject::owned(
+				INVALID_PARAMS_CODE,
+				format!("Invalid hex encoding: {e}"),
+				None::<()>,
+			)
+		})?;
+
+		// Per-tx rate limit (keyed by blake2_256 of tx bytes)
+		let tx_key = blake2_256(&tx_bytes);
+		if self.validate_rate_limiter.per_tx.check_key(&tx_key).is_err() {
+			return Err(ErrorObject::owned(
+				-32005,
+				"Rate limit exceeded: per-transaction cooldown",
+				None::<()>,
+			));
+		}
+
+		// Global rate limit
+		if self.validate_rate_limiter.global.check().is_err() {
+			return Err(ErrorObject::owned(-32005, "Rate limit exceeded", None::<()>));
+		}
+
+		let at = at.unwrap_or_else(|| self.client.info().best_hash);
+		let api = self.client.runtime_api();
+
+		// Check runtime API version supports get_validation_context
+		let api_version = get_api_version::<C, Block>(&api, at).map_err(|e| {
+			ErrorObject::owned(-32603, format!("Runtime API error: {e}"), None::<()>)
+		})?;
+		if api_version < 6 {
+			return Err(ErrorObject::owned(
+				-32601,
+				"midnight_validateTransaction requires runtime API version >= 6",
+				None::<()>,
+			));
+		}
+
+		// Get cheap validation context from runtime
+		let (state_key, block_context, runtime_version, max_weight) =
+			api.get_validation_context(at).map_err(|e| {
+				ErrorObject::owned(
+					-32603,
+					format!("Failed to get validation context: {e}"),
+					None::<()>,
+				)
+			})?;
+
+		// Get ledger version to dispatch to the correct native Bridge
+		let runtime_ledger_version = api.get_ledger_version(at).map_err(|e| {
+			ErrorObject::owned(-32603, format!("Failed to get ledger version: {e}"), None::<()>)
+		})?;
+
+		// Expensive native validation — dispatches to correct ledger version
+		match midnight_node_ledger::native_api::validate_transaction_verbose(
+			&runtime_ledger_version,
+			&state_key,
+			&tx_bytes,
+			block_context,
+			runtime_version,
+			max_weight,
+		) {
+			Ok(tx_hash) => Ok(format!("0x{}", hex::encode(tx_hash))),
+			Err(validation_err) => {
+				#[derive(Serialize)]
+				struct ValidationErrorData {
+					error_code: u8,
+					reason: String,
+					details: String,
+				}
+
+				Err(ErrorObject::owned(
+					-32001,
+					"Transaction validation failed",
+					Some(ValidationErrorData {
+						error_code: validation_err.error_code,
+						reason: validation_err.reason,
+						details: validation_err.details,
+					}),
+				))
+			},
+		}
 	}
 }

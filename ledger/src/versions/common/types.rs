@@ -184,6 +184,19 @@ pub enum LedgerApiError {
 	GetTransactionContextError,
 }
 
+#[derive(RuntimeDebug, Encode, Decode, DecodeWithMemTracking, Clone, TypeInfo)]
+pub struct DetailedTransactionError {
+	pub error: LedgerApiError,
+	pub details: alloc::string::String,
+}
+
+impl From<LedgerApiError> for DetailedTransactionError {
+	fn from(error: LedgerApiError) -> Self {
+		let details = alloc::format!("{error}");
+		Self { error, details }
+	}
+}
+
 impl core::fmt::Display for LedgerApiError {
 	fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
 		match self {
