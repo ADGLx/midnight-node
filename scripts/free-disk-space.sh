@@ -190,7 +190,3 @@ cleanSwap
 
 echo "Disk space after cleanup:"
 df -h /
-
-# apt-get is slow and nothing downstream needs dpkg — run in background
-cleanPackages &
-echo "cleanPackages running in background (PID $!)"
