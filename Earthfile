@@ -714,7 +714,10 @@ prep-no-copy:
 
     RUN cargo --version
     RUN cargo binstall --no-confirm cargo-auditable sccache
-    ENV RUSTC_WRAPPER=sccache
+    # Wrapper: falls back to direct compilation if sccache server can't start (exit code 2)
+    RUN printf '#!/bin/sh\nsccache "$@"\nrc=$?\nif [ $rc -eq 2 ]; then\n  echo "WARNING: sccache unavailable, compiling without cache" >&2\n  exec "$@"\nfi\nexit $rc\n' > /usr/local/bin/sccache-or-passthrough \
+        && chmod 755 /usr/local/bin/sccache-or-passthrough
+    ENV RUSTC_WRAPPER=sccache-or-passthrough
     ENV SCCACHE_CACHE_SIZE=30G
     ENV CARGO_INCREMENTAL=0
     IF [ "$SCCACHE_GHA" = "true" ]
