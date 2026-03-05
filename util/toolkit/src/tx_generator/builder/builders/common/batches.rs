@@ -42,7 +42,8 @@ pub fn compute_batches_seeds(
 		for _ in 0..num_txs_per_batch {
 			init_output_wallet_seeds
 				.push(Wallet::<DefaultDB>::wallet_seed_decode(&wallet_seed_str));
-			wallet_seed_str = Wallet::<DefaultDB>::increment_seed(&wallet_seed_str);
+			wallet_seed_str = Wallet::<DefaultDB>::increment_seed(&wallet_seed_str)
+				.expect("Wallet seed overflow");
 		}
 	}
 
@@ -245,7 +246,8 @@ impl BuildTxs for BatchesBuilder {
 			for _ in 0..self.num_txs_per_batch {
 				init_output_wallet_seeds
 					.push(Wallet::<DefaultDB>::wallet_seed_decode(&wallet_seed_str));
-				wallet_seed_str = Wallet::<DefaultDB>::increment_seed(&wallet_seed_str);
+				wallet_seed_str = Wallet::<DefaultDB>::increment_seed(&wallet_seed_str)
+					.expect("Wallet seed overflow");
 			}
 		}
 

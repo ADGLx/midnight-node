@@ -79,11 +79,11 @@ impl<D: DB + Clone> Wallet<D> {
 	}
 
 	#[cfg(feature = "can-panic")]
-	pub fn increment_seed(s: &str) -> String {
-		let num = u128::from_str_radix(s, 2).expect("Invalid wallet seed");
-		let result = num + 1;
+	pub fn increment_seed(s: &str) -> Result<String, &'static str> {
+		let num = u128::from_str_radix(s, 2).map_err(|_| "Invalid wallet seed")?;
+		let result = num.checked_add(1).ok_or("Wallet seed overflow")?;
 		let width = s.len();
-		format!("{result:0width$b}")
+		Ok(format!("{result:0width$b}"))
 	}
 
 	#[cfg(feature = "can-panic")]

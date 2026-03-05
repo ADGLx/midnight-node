@@ -15,7 +15,7 @@ use super::{
 	BuildInput, BuildOutput, BuildTransient, DB, Delta, Input, LedgerContext, Offer, Output,
 	ProofPreimage, ShieldedTokenType, StdRng, Transient,
 };
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, num::TryFromIntError, sync::Arc};
 
 pub trait TokenInfo {
 	fn token_type(&self) -> ShieldedTokenType;
@@ -23,6 +23,23 @@ pub trait TokenInfo {
 }
 
 pub type TokensBalance = HashMap<ShieldedTokenType, u128>;
+
+#[derive(Debug)]
+pub struct OfferDeltaError(TryFromIntError);
+
+impl std::fmt::Display for OfferDeltaError {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "offer delta arithmetic error: token value exceeds i128 range: {}", self.0)
+	}
+}
+
+impl std::error::Error for OfferDeltaError {}
+
+impl From<TryFromIntError> for OfferDeltaError {
+	fn from(e: TryFromIntError) -> Self {
+		Self(e)
+	}
+}
 
 #[derive(Default)]
 pub struct OfferInfo<D: DB + Clone> {
@@ -44,7 +61,9 @@ impl<D: DB + Clone> OfferInfo<D> {
 		let inputs = inputs.into();
 		let outputs = outputs.into();
 		let transient = transient.into();
-		let deltas = Self::calculate_offer_deltas(&inputs_balance, &outputs_balance).into();
+		let deltas = Self::calculate_offer_deltas(&inputs_balance, &outputs_balance)
+			.expect("offer delta calculation failed: token value exceeds i128 range")
+			.into();
 
 		let mut offer = Offer { inputs, outputs, transient, deltas };
 
@@ -104,29 +123,35 @@ impl<D: DB + Clone> OfferInfo<D> {
 	fn calculate_offer_deltas(
 		inputs_balance: &TokensBalance,
 		outputs_balance: &TokensBalance,
-	) -> Vec<Delta> {
+	) -> Result<Vec<Delta>, OfferDeltaError> {
 		let mut deltas = HashMap::new();
 
 		// Process input balances (adding to deltas)
 		for (token, &value) in inputs_balance {
+			let value = i128::try_from(value)?;
 			deltas
 				.entry(*token)
-				.and_modify(|e| *e += value as i128)
-				.or_insert(value as i128);
+				.and_modify(|e: &mut i128| {
+					*e = e.checked_add(value).expect("delta overflow in input accumulation")
+				})
+				.or_insert(value);
 		}
 
 		// Process output balances (subtracting from deltas)
 		for (token, &value) in outputs_balance {
+			let value = i128::try_from(value)?;
 			deltas
 				.entry(*token)
-				.and_modify(|e| *e -= value as i128)
-				.or_insert(-(value as i128));
+				.and_modify(|e: &mut i128| {
+					*e = e.checked_sub(value).expect("delta overflow in output accumulation")
+				})
+				.or_insert(value.checked_neg().expect("delta overflow negating output value"));
 		}
 
 		// Convert HashMap into a Vec of `Delta`
-		deltas
+		Ok(deltas
 			.into_iter()
 			.map(|(token_type, value)| Delta { token_type, value })
-			.collect()
+			.collect())
 	}
 }
