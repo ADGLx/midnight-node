@@ -1,5 +1,12 @@
 VERSION 0.8
 
+# sccache GHA backend: pass --build-arg SCCACHE_GHA=true and the GHA tokens
+# from CI to enable cross-runner caching via GitHub Actions cache.
+# Locally, sccache uses a local disk cache via Earthly CACHE.
+ARG --global SCCACHE_GHA=false
+ARG --global ACTIONS_CACHE_URL=""
+ARG --global ACTIONS_RUNTIME_TOKEN=""
+
 # ================ Local Targets START ================
 # If you add a new one here, prefix it with "local-"
 # Add the target name to the doc string so it shows up
@@ -706,7 +713,17 @@ prep-no-copy:
         microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
     RUN cargo --version
-    RUN cargo binstall --no-confirm cargo-auditable
+    RUN cargo binstall --no-confirm cargo-auditable sccache
+    ENV RUSTC_WRAPPER=sccache
+    ENV SCCACHE_CACHE_SIZE=30G
+    ENV CARGO_INCREMENTAL=0
+    IF [ "$SCCACHE_GHA" = "true" ]
+        ENV SCCACHE_GHA_ENABLED=true
+        ENV ACTIONS_CACHE_URL=$ACTIONS_CACHE_URL
+        ENV ACTIONS_RUNTIME_TOKEN=$ACTIONS_RUNTIME_TOKEN
+    ELSE
+        ENV SCCACHE_DIR=/sccache-cache
+    END
 
 prep:
     FROM +prep-no-copy
@@ -795,6 +812,7 @@ check-rust:
     FROM +check-rust-prepare
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    CACHE --sharing shared --id sccache /sccache-cache
     COPY --keep-ts --dir \
         Cargo.lock Cargo.toml .config .sqlx deny.toml docs \
         ledger LICENSE node pallets primitives README.md res runtime \
@@ -847,6 +865,7 @@ test:
     FROM +prep
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    CACHE --sharing shared --id sccache /sccache-cache
     CACHE /target
 
     # Test
@@ -863,6 +882,7 @@ test:
     RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo nextest r --profile ci --release --workspace --locked \
         --exclude midnight-node-toolkit \
         -E 'not (test(/^tests::test_get_contract_state$/) | test(/^tests::test_send_mn_transaction$/) | test(/^tests::test_validation_works$/))'
+    RUN sccache --show-stats
 
     # RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo llvm-cov nextest --profile ci --release --workspace --locked \
     #     --exclude midnight-node-toolkit \
@@ -880,6 +900,7 @@ test-pallet-fixtures:
     FROM +prep
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    CACHE --sharing shared --id sccache /sccache-cache
     CACHE /target
 
     # These tests use a mock runtime (MockBlock<Test>), not the real WASM runtime.
@@ -903,6 +924,7 @@ build-test-toolkit:
     FROM +prep
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    CACHE --sharing shared --id sccache /sccache-cache
     CACHE /target
 
     # Install dependencies for Node.js and docker CLI (for hardfork e2e tests)
@@ -1002,9 +1024,10 @@ build-prepare:
 # build creates production ready binaries
 build:
     FROM +build-prepare
-    # CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    # CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-    # CACHE /target
+    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
+    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    CACHE --sharing shared --id sccache /sccache-cache
+    CACHE /target
     COPY --keep-ts --dir Cargo.lock Cargo.toml docs .sqlx \
     ledger node pallets primitives metadata res runtime util tests relay COMPACTC_VERSION .
 
@@ -1020,8 +1043,8 @@ build:
     # ENV CXX_X86_64_UNKNOWN_LINUX_GNU=x86_64-unknown-linux-gnu-g++=g++
 
     # Default build (no hardfork)
-    RUN \
-        cargo auditable build --workspace --locked --release
+    RUN cargo auditable build --workspace --locked --release \
+        && sccache --show-stats
 
     RUN mkdir -p /artifacts-$NATIVEARCH/midnight-node-runtime/ \
         && mv /target/release/midnight-node /artifacts-$NATIVEARCH \
@@ -1035,9 +1058,10 @@ build:
 build-fork:
     FROM +prep
     ARG NATIVEARCH
-    # CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    # CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-    # CACHE /target
+    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
+    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+    CACHE --sharing shared --id sccache /sccache-cache
+    CACHE /target
     COPY --keep-ts --dir Cargo.lock Cargo.toml docs .sqlx \
     ledger node pallets primitives res metadata runtime util tests relay .
 
@@ -1060,6 +1084,7 @@ build-fork:
 
 build-benchmarks:
     FROM +build-prepare
+    CACHE --sharing shared --id sccache /sccache-cache
     COPY --keep-ts --dir Cargo.lock Cargo.toml docs .sqlx \
     ledger node pallets primitives metadata res runtime util tests .
 
@@ -1454,6 +1479,7 @@ testnet-sync-e2e:
 # local-env-e2e executes any tests that depend on a running local-env
 local-env-e2e:
     FROM +prep
+    CACHE --sharing shared --id sccache /sccache-cache
     COPY --keep-ts --dir Cargo.lock Cargo.toml docs .sqlx \
     ledger node pallets primitives metadata res runtime util tests local-environment scripts .
     WORKDIR tests/e2e
