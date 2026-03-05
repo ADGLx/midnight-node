@@ -22,11 +22,13 @@ use jsonrpsee::{
 
 use governor::{Quota, RateLimiter, clock::DefaultClock, state::keyed::DefaultKeyedStateStore};
 use pallet_midnight::MidnightRuntimeApi;
+use parity_scale_codec::Decode;
 use sc_client_api::{BlockBackend, BlockchainEvents};
-use sp_api::{ApiExt, ProvideRuntimeApi};
+use sp_api::{ApiExt, CallApiAt, ProvideRuntimeApi};
 use sp_blockchain::HeaderBackend;
-use sp_core::hashing::blake2_256;
-use sp_runtime::traits::Block as BlockT;
+use sp_core::hashing::{blake2_256, twox_128};
+use sp_runtime::traits::{Block as BlockT, HashingFor, Header};
+use sp_state_machine::backend::Backend as StateBackend;
 use std::num::NonZeroU32;
 use std::sync::Arc;
 
@@ -218,6 +220,11 @@ pub struct RpcBlock<Header> {
 pub struct ValidateRateLimitConfig {
 	pub global_rate_limit: u32,
 	pub per_tx_cooldown_secs: u64,
+	/// Maximum block weight (ref_time) used for transaction validation.
+	/// Set at node startup from the runtime's `BlockWeights` constant. Since this is a
+	/// compile-time constant (not a storage item), it cannot be read via storage queries.
+	/// A runtime upgrade that changes `BlockWeights` requires a node restart to take effect here.
+	pub max_block_weight: u64,
 }
 
 type KeyedRateLimiter = RateLimiter<[u8; 32], DefaultKeyedStateStore<[u8; 32]>, DefaultClock>;
@@ -249,6 +256,7 @@ impl ValidationRateLimiter {
 pub struct Midnight<C, Block> {
 	client: Arc<C>,
 	validate_rate_limiter: Arc<ValidationRateLimiter>,
+	max_block_weight: u64,
 	_marker: std::marker::PhantomData<Block>,
 }
 
@@ -259,6 +267,7 @@ impl<C, Block> Midnight<C, Block> {
 			validate_rate_limiter: Arc::new(ValidationRateLimiter::new(
 				&validate_rate_limit_config,
 			)),
+			max_block_weight: validate_rate_limit_config.max_block_weight,
 			_marker: Default::default(),
 		}
 	}
@@ -282,6 +291,31 @@ where
 		.ok_or(sp_api::ApiError::UsingSameInstanceForDifferentBlocks)
 }
 
+fn storage_value_key(pallet: &str, name: &str) -> Vec<u8> {
+	let mut key = twox_128(pallet.as_bytes()).to_vec();
+	key.extend_from_slice(&twox_128(name.as_bytes()));
+	key
+}
+
+fn read_storage_value<T, H>(
+	state: &impl StateBackend<H>,
+	pallet: &str,
+	name: &str,
+) -> Result<Option<T>, String>
+where
+	T: Decode,
+	H: sp_core::Hasher,
+{
+	let key = storage_value_key(pallet, name);
+	match state.storage(&key) {
+		Ok(Some(data)) => T::decode(&mut &data[..])
+			.map(Some)
+			.map_err(|e| format!("Decode error for {pallet}::{name}: {e}")),
+		Ok(None) => Ok(None),
+		Err(e) => Err(format!("Storage read error for {pallet}::{name}: {e:?}")),
+	}
+}
+
 impl<C, Block> MidnightApiServer<<Block as BlockT>::Hash> for Midnight<C, Block>
 where
 	Block: BlockT,
@@ -290,6 +324,7 @@ where
 	C: HeaderBackend<Block>,
 	C: BlockBackend<Block>,
 	C: BlockchainEvents<Block>,
+	C: CallApiAt<Block>,
 	C::Api: MidnightRuntimeApi<Block>,
 {
 	fn get_state(
@@ -408,31 +443,57 @@ where
 		}
 
 		let at = at.unwrap_or_else(|| self.client.info().best_hash);
-		let api = self.client.runtime_api();
 
-		// Check runtime API version supports get_validation_context
-		let api_version = get_api_version::<C, Block>(&api, at).map_err(|e| {
-			ErrorObject::owned(-32603, format!("Runtime API error: {e}"), None::<()>)
+		// Read validation context from storage queries
+		let state = self.client.state_at(at).map_err(|e| {
+			ErrorObject::owned(-32603, format!("Failed to get state: {e}"), None::<()>)
 		})?;
-		if api_version < 6 {
-			return Err(ErrorObject::owned(
-				-32601,
-				"midnight_validateTransaction requires runtime API version >= 6",
-				None::<()>,
-			));
-		}
 
-		// Get cheap validation context from runtime
-		let (state_key, block_context, runtime_version, max_weight) =
-			api.get_validation_context(at).map_err(|e| {
+		let state_key: Vec<u8> =
+			read_storage_value::<Vec<u8>, HashingFor<Block>>(&state, "Midnight", "StateKey")
+				.map_err(|e| ErrorObject::owned(-32603, e, None::<()>))?
+				.ok_or_else(|| ErrorObject::owned(-32603, "No ledger state", None::<()>))?;
+
+		let last_block_time: u64 =
+			read_storage_value::<u64, HashingFor<Block>>(&state, "Midnight", "ParentTimestamp")
+				.map_err(|e| ErrorObject::owned(-32603, e, None::<()>))?
+				.unwrap_or(0);
+
+		let now_ms: u64 = read_storage_value::<u64, HashingFor<Block>>(&state, "Timestamp", "Now")
+			.map_err(|e| ErrorObject::owned(-32603, e, None::<()>))?
+			.unwrap_or(0);
+
+		let header = self
+			.client
+			.header(at)
+			.map_err(|e| {
+				ErrorObject::owned(-32603, format!("Failed to get header: {e}"), None::<()>)
+			})?
+			.ok_or_else(|| ErrorObject::owned(-32603, "Block header not found", None::<()>))?;
+
+		let block_context = midnight_node_ledger::types::active_version::BlockContext {
+			tblock: now_ms / 1000,
+			tblock_err: 30,
+			parent_block_hash: header.parent_hash().as_ref().to_vec(),
+			last_block_time,
+		};
+
+		let runtime_version = self
+			.client
+			.runtime_version_at(at)
+			.map_err(|e| {
 				ErrorObject::owned(
 					-32603,
-					format!("Failed to get validation context: {e}"),
+					format!("Failed to get runtime version: {e}"),
 					None::<()>,
 				)
-			})?;
+			})?
+			.spec_version;
+
+		let max_weight = self.max_block_weight;
 
 		// Get ledger version to dispatch to the correct native Bridge
+		let api = self.client.runtime_api();
 		let runtime_ledger_version = api.get_ledger_version(at).map_err(|e| {
 			ErrorObject::owned(-32603, format!("Failed to get ledger version: {e}"), None::<()>)
 		})?;

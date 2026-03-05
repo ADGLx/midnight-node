@@ -10561,12 +10561,14 @@ dependencies = [
  "log",
  "midnight-node-ledger",
  "pallet-midnight",
+ "parity-scale-codec",
  "sc-client-api",
  "serde",
  "sp-api",
  "sp-blockchain",
  "sp-core",
  "sp-runtime",
+ "sp-state-machine",
 ]
 
 [[package]]
