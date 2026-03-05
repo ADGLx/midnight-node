@@ -189,11 +189,9 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
-      - name: Free disk space
-        run: scripts/free-disk-space.sh
-
-      - name: Run build
+      - name: Free disk space and run build
         run: |
+          scripts/free-disk-space.sh
           mkdir -p "$HOME/.cargo"
           echo "[net]" >> "$HOME/.cargo/config"
           echo "git-fetch-with-cli = true" >> "$HOME/.cargo/config"
@@ -341,11 +339,9 @@ jobs:
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
 
-      - name: Free disk space
-        run: scripts/free-disk-space.sh
-
-      - name: Run pallet fixture tests
+      - name: Free disk space and run pallet fixture tests
         run: |
+          scripts/free-disk-space.sh
           . ./.envrc && earthly --strict +test-pallet-fixtures
 
   # Gate job for toolkit E2E tests - if this fails, toolkit E2E tests are skipped
@@ -372,11 +368,9 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
 
-      - name: Free disk space
-        run: scripts/free-disk-space.sh
-
-      - name: Run toolkit tests
+      - name: Free disk space and run toolkit tests
         run: |
+          scripts/free-disk-space.sh
           . ./.envrc && earthly -P --strict \
             --build-arg "NODE_IMAGE=ghcr.io/midnight-ntwrk/midnight-node:${{ needs.run.outputs.node_image_tag }}" \
             +test-toolkit
@@ -589,16 +583,14 @@ jobs:
         with:
           submodules: true
 
-      - name: Free disk space
-        run: scripts/free-disk-space.sh
-
       - name: Install just
         uses: taiki-e/install-action@cfdb446e391c69574ebc316dfb7d7849ec12b940 #v2.68.8
         with:
           tool: just
 
-      - name: Build indexer images
+      - name: Free disk space and build indexer images
         run: |
+          scripts/free-disk-space.sh
           mkdir -p "$HOME/.cargo"
           echo "[net]" >> "$HOME/.cargo/config"
           echo "git-fetch-with-cli = true" >> "$HOME/.cargo/config"

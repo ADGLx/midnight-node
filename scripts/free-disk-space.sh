@@ -160,8 +160,6 @@ cleanPackages() {
 
     sudo apt-get "${WAIT_DPKG_LOCK}" autoremove -y \
         || echo "::warning::The command [sudo apt-get autoremove -y] failed"
-    sudo apt-get "${WAIT_DPKG_LOCK}" clean \
-        || echo "::warning::The command [sudo apt-get clean] failed"
 }
 
 # Remove Docker images, containers, volumes, and build cache.
@@ -184,9 +182,15 @@ cleanSwap() {
 # Display initial disk space stats
 echo "Initial disk space:"
 df -h /
-cleanPackages
+
+# Fast operations run synchronously
+removeUnusedFilesAndDirs
 cleanDocker
 cleanSwap
-removeUnusedFilesAndDirs
-echo "Final disk space:"
+
+echo "Disk space after cleanup:"
 df -h /
+
+# apt-get is slow and nothing downstream needs dpkg — run in background
+cleanPackages &
+echo "cleanPackages running in background (PID $!)"

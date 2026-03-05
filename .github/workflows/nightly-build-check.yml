@@ -27,11 +27,9 @@ jobs:
       - name: Cat the Cargo.toml
         run: cat ./Cargo.toml
 
-      - name: Free disk space
-        run: scripts/free-disk-space.sh
-
-      - name: Run check
+      - name: Free disk space and run check
         run: |
+          scripts/free-disk-space.sh
           mkdir -p "$HOME"/.cargo
           echo "[net]" >> "$HOME"/.cargo/config
           echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
