@@ -56,6 +56,9 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
+      - name: Expose GitHub Actions cache env
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 #v4.0.0
+
       - name: Run build
         run: |
           mkdir -p "$HOME"/.cargo
@@ -140,6 +143,9 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
+      - name: Expose GitHub Actions cache env
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 #v4.0.0
+
       - name: Run build
         run: |
           mkdir -p "$HOME"/.cargo
@@ -199,6 +205,9 @@ jobs:
 
       - name: Free disk space
         run: scripts/free-disk-space.sh
+
+      - name: Expose GitHub Actions cache env
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 #v4.0.0
 
       - name: Run build
         run: |
@@ -355,6 +364,9 @@ jobs:
 
       - name: Free disk space
         run: scripts/free-disk-space.sh
+
+      - name: Expose GitHub Actions cache env
+        uses: crazy-max/ghaction-github-runtime@04d248b84655b509d8c44dc1d6f990c879747487 #v4.0.0
 
       - name: Run pallet fixture tests
         run: |
