@@ -349,7 +349,7 @@ mod test {
 				.unwrap()
 				.trim()
 				.to_string();
-		let custom_ledger_parameters = hex::encode(serialize(&INITIAL_PARAMETERS).unwrap()); //to_hex(&INITIAL_PARAMETERS);
+		let custom_ledger_parameters = hex::encode(serialize(&INITIAL_PARAMETERS).unwrap());
 
 		let args = vec![
 			"midnight-node-toolkit",
