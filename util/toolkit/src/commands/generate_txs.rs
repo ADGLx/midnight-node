@@ -116,6 +116,7 @@ mod tests {
 					ignore_block_context: false,
 					fetch_only_cached: false,
 					fetch_cache: FetchCacheConfig::InMemory,
+					ledger_state_db: String::new(),
 				},
 				destination: Destination {
 					dest_urls: vec![],

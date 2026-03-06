@@ -68,29 +68,14 @@ impl FromStr for FetchCacheConfig {
 	}
 }
 
-impl FetchCacheConfig {
-	/// Create a wallet state cache backend from this config.
-	///
-	/// Returns `None` for `InMemory` (no persistence benefit).
-	/// For `Redb` and `Postgres`, creates a backend that persists wallet state
-	/// across runs, enabling fast session restoration.
-	///
-	/// Must be called AFTER block fetching completes to avoid Redb
-	/// single-writer conflicts with the block fetch backend.
-	pub async fn create_wallet_cache(&self) -> Option<Box<dyn WalletStateCaching>> {
-		match self {
-			Self::InMemory => None,
-			Self::Redb { filename } => {
-				let backend = fetch_storage::redb_backend::RedbBackend::new(filename);
-				Some(Box::new(backend))
-			},
-			Self::Postgres { database_url } => {
-				let backend =
-					fetch_storage::postgres_backend::PostgresBackend::new(database_url).await;
-				Some(Box::new(backend))
-			},
-		}
+/// Create a file-based wallet state cache backend.
+///
+/// Returns `None` if `ledger_state_db` is empty.
+pub fn create_file_wallet_cache(ledger_state_db: &str) -> Option<Box<dyn WalletStateCaching>> {
+	if ledger_state_db.is_empty() {
+		return None;
 	}
+	Some(Box::new(fetch_storage::file_backend::FileBackend::new(ledger_state_db)))
 }
 
 #[derive(Args, Clone, Debug)]
@@ -134,14 +119,17 @@ pub struct Source {
 		default_value = "redb:toolkit.db",
 		env = "MN_FETCH_CACHE"
 	)]
-	/// Fetch cache config. Caches both block data and wallet state.
+	/// Fetch cache config. Caches block data fetched from the node.
 	/// Available options:
 	/// - "inmemory" (RAM-only, no persistence),
 	/// - "redb:<filename>" (file-cache, single-writer)
 	/// - "postgres://[user[:password]@][netloc][:port][/dbname][?param1=value1&...]" (external db, multi-writer)
-	///
-	/// When using redb or postgres backends, wallet state is also cached to speed up subsequent runs.
 	pub fetch_cache: FetchCacheConfig,
+
+	/// Directory for file-based wallet state cache (ledger snapshots + per-wallet state).
+	/// Set to empty string to disable caching.
+	#[arg(long, global = true, default_value = "ledger_state_db", env = "MN_LEDGER_STATE_DB")]
+	pub ledger_state_db: String,
 }
 
 #[derive(Error, Debug)]
