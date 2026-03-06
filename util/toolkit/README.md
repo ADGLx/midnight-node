@@ -41,9 +41,10 @@ docker pull midnightntwrk/midnight-node:0.18.0-rc.7
 | Shielded + Unshielded tokens sending between contract calls          | ✅       |
 | Contract Maintenance - updating authority + verifier keys            | ✅       |
 | Execute calls via governance (root-call)                             | ✅       |
-| DUST registration command                                            | 🚧       |
+| Runtime upgrade via governance                                       | ✅       |
+| Support for Ledger forks                                             | ✅       |
+| DUST registration command                                            | ✅       |
 | Contracts receiving Shielded + Unshielded tokens from user           | 🚧       |
-| Support for Ledger forks                                             | ⏳       |
 | Fallible Contracts                                                   | ⏳       |
 | Composable Contracts                                                 | ⏳       |
 
@@ -81,7 +82,7 @@ midnight-node-toolkit generate-txs <SRC_ARGS> <DEST_ARGS> <PROVER_ARG> batches <
   - `--src-url <chain_url>` (defaults to `ws://127.0.0.1:9944`)
 
 - **`Destination`**: Specifies where the generated transactions will be sent (either a file or a chain). Use:
-  - `--dest-file <file_path>` (use `--to-bytes` to specify whether to save in JSON or bytes)
+  - `--dest-file <file_path>`
   - `--dest-url <chain_url>` (defaults to `ws://127.0.0.1:9944`)
     - Supports multiple urls:
       - `--dest-url="ws://127.0.0.1:9944" --dest-url="ws://127.0.0.1:9933" --dest-url="ws://127.0.0.1:9922"`
@@ -92,7 +93,6 @@ midnight-node-toolkit generate-txs <SRC_ARGS> <DEST_ARGS> <PROVER_ARG> batches <
 - **`Builder`**: Specifies how transactions are built. There are six builder subcommands:
   - `send`: Pass-through mode for sending transactions from a JSON file (`DoNothingBuilder`)
   - `single-tx`: Send a single transaction funded by a single wallet to N destination wallets (supports shielded and unshielded) (`SingleTxBuilder`)
-  - `migrate`: Migrates transactions between chains (`ReplaceInitialTxBuilder`)
   - `batches`: Generates ZSwap & Unshielded Utxos transaction batches (`BatcherBuilder`)
   - `claim-mint`: Builds claim mint transactions (`ClaimMintBuilder`)
   - `contract-simple deploy`: Builds contract deployment transactions (`ContractDeployBuilder`)
@@ -182,12 +182,10 @@ Dry-run: local prover (no proof server)
 $ midnight-node-toolkit generate-txs --dry-run
 >   --src-file res/genesis/genesis_tx_undeployed.mn
 >   --dest-file deploy.mn
->   --to-bytes
 >   contract-simple deploy
 >   --rng-seed '0000000000000000000000000000000000000000000000000000000000000037'
 Dry-run: Source transactions from file(s): ["res/genesis/genesis_tx_undeployed.mn"]
 Dry-run: Destination file: "deploy.mn"
-Dry-run: Destination file-format: bytes
 Dry-run: Builder type: ContractSimple(Deploy[..]
 Dry-run: local prover (no proof server)
 
@@ -196,12 +194,10 @@ Dry-run: local prover (no proof server)
 ```console
 $ midnight-node-toolkit generate-txs --dry-run
 >   --dest-file deploy.mn
->   --to-bytes
 >   contract-simple deploy
 >   --rng-seed '0000000000000000000000000000000000000000000000000000000000000037'
 Dry-run: Source transactions from url: "ws://127.0.0.1:9944"
 Dry-run: Destination file: "deploy.mn"
-Dry-run: Destination file-format: bytes
 Dry-run: Builder type: ContractSimple(Deploy[..]
 Dry-run: local prover (no proof server)
 
@@ -316,7 +312,6 @@ Dry-run: generate deploy intent: DeployArgs[..]
 $ midnight-node-toolkit send-intent --dry-run
 >   --intent-file "/out/deploy.bin"
 >   --compiled-contract-dir contract/counter/out
->   --to-bytes
 >   --dest-file "/out/deploy_tx.mn"
 ...
 ```
@@ -334,7 +329,6 @@ $ midnight-node-toolkit send-intent --dry-run
 >   --intent-file "out/mint_intent.bin"
 >   --intent-file "out/recieveAndSend_intent.bin"
 >   --compiled-contract-dir ../toolkit-js/test/minter_contract/out
->   --to-bytes
 >   --dest-file "/out/mint_tx.mn"
 ...
 ```
@@ -366,18 +360,66 @@ $ midnight-node-toolkit generate-intent circuit
 >   --input-private-state ./test-data/contract/counter/initial_state.json
 >   --contract-address 3102ba67572345ef8bc5cd238bff10427b4533e376b4aaed524c2f1ef5eca806
 >   --output-intent out/intent.bin
+>   --output-onchain-state out/onchain_state.mn
 >   --output-private-state out/ps_state.json
 >   --output-zswap-state out/zswap_state.json
+>   --output-result out/result.json
 >   increment
 Executing generate-intent
 Executing circuit command
-Executing ../toolkit-js/dist/bin.js with arguments: ["circuit", "-c", "[CWD]/../toolkit-js/test/contract/contract.config.ts", "--network", "undeployed", "--coin-public", "aa0d72bb77ea46f986a800c66d75c4e428a95bd7e1244f1ed059374e6266eb98", "--input", "[CWD]/test-data/contract/counter/contract_state.mn", "--input-ps", "[CWD]/test-data/contract/counter/initial_state.json", "--output", "[CWD]/out/intent.bin", "--output-ps", "[CWD]/out/ps_state.json", "--output-zswap", "[CWD]/out/zswap_state.json", "3102ba67572345ef8bc5cd238bff10427b4533e376b4aaed524c2f1ef5eca806", "increment"]...
+Executing ../toolkit-js/dist/bin.js with arguments: ["circuit", "-c", "[CWD]/../toolkit-js/test/contract/contract.config.ts", "--network", "undeployed", "--coin-public", "aa0d72bb77ea46f986a800c66d75c4e428a95bd7e1244f1ed059374e6266eb98", "--input", "[CWD]/test-data/contract/counter/contract_state.mn", "--input-ps", "[CWD]/test-data/contract/counter/initial_state.json", "--output", "[CWD]/out/intent.bin", "--output-ps", "[CWD]/out/ps_state.json", "--output-zswap", "[CWD]/out/zswap_state.json", "--output-oc", "[CWD]/out/onchain_state.mn", "--output-result", "[CWD]/out/result.json", "3102ba67572345ef8bc5cd238bff10427b4533e376b4aaed524c2f1ef5eca806", "increment"]...
 toolkit-js> []
 written: out/intent.bin, out/ps_state.json, out/zswap_state.json
 
 ```
 
 To send it, see "Generate and send a tx from an intent" above
+
+- Generate batched circuit call intents (multiple calls in one transaction)
+
+When batching multiple circuit calls into a single transaction, each call's output state must be chained as the next call's input. Without chaining, subsequent calls would operate on stale state and the transaction would fail.
+
+```ignore-compact-0.27
+# Call 1: first circuit call — outputs on-chain and private state for chaining
+$ midnight-node-toolkit generate-intent circuit
+>   -c ../toolkit-js/test/contract/contract.config.ts
+>   --toolkit-js-path ../toolkit-js/
+>   --coin-public aa0d72bb77ea46f986a800c66d75c4e428a95bd7e1244f1ed059374e6266eb98
+>   --input-onchain-state ./contract_state.mn
+>   --input-private-state ./initial_state.json
+>   --contract-address <CONTRACT_ADDRESS>
+>   --output-intent out/intent_1.bin
+>   --output-onchain-state out/onchain_state_1.mn
+>   --output-private-state out/private_state_1.json
+>   --output-zswap-state out/zswap_1.json
+>   increment
+```
+```ignore-compact-0.27
+# Call 2: uses call 1's outputs as inputs
+$ midnight-node-toolkit generate-intent circuit
+>   -c ../toolkit-js/test/contract/contract.config.ts
+>   --toolkit-js-path ../toolkit-js/
+>   --coin-public aa0d72bb77ea46f986a800c66d75c4e428a95bd7e1244f1ed059374e6266eb98
+>   --input-onchain-state out/onchain_state_1.mn
+>   --input-private-state out/private_state_1.json
+>   --contract-address <CONTRACT_ADDRESS>
+>   --output-intent out/intent_2.bin
+>   --output-onchain-state out/onchain_state_2.mn
+>   --output-private-state out/private_state_2.json
+>   --output-zswap-state out/zswap_2.json
+>   increment
+```
+```ignore-compact-0.27
+# Combine both intents into a single transaction
+$ midnight-node-toolkit send-intent
+>   --intent-file out/intent_1.bin
+>   --intent-file out/intent_2.bin
+>   --compiled-contract-dir contract/counter/out
+```
+
+The key state files to chain between calls:
+- `--output-onchain-state` from call N becomes `--input-onchain-state` for call N+1
+- `--output-private-state` from call N becomes `--input-private-state` for call N+1
 
 - Generate a contract maintenance intent
 ```ignore-compact-0.27
@@ -453,7 +495,6 @@ midnight-node-toolkit \
     generate-txs \
     --src-files "res/genesis/genesis_block_undeployed.mn" \
     --dest-file "register.mn" \
-    --to-bytes \
     register-dust-address \
     --wallet-seed "0000000000000000000000000000000000000000000000000000000000000000" \
     --funding-seed "0000000000000000000000000000000000000000000000000000000000000001" \
@@ -506,28 +547,11 @@ The `ledger-parameters-config.json` file should contain a JSON representation of
 ---
 
 ### Show Transaction
-Show deserialized result of a single transaction. Two options:
-- Tx saved as hex string
-- Tx saved as bytes: use `--from-bytes` flag if the tx is saved in a file as bytes
+Show the structure of a saved transaction. Works with files containing multiple txs
 ```console
 $ midnight-node-toolkit show-transaction
->   --from-bytes --src-file ../../res/test-tx-deserialize/serialized_tx_no_context.mn
+>   --src-file ../../res/test-tx-deserialize/serialized_tx.mn
 
-Tx StandardTransaction {
-...
-```
-
----
-
-### Show Transaction With Context
-Show deserialized result of a single transaction with its context. Two options:
-- Tx saved as hex string
-- Tx saved as bytes: use `--from-bytes` flag if the tx is saved in a file as bytes
-```console
-$ midnight-node-toolkit show-transaction --with-context
->   --from-bytes --src-file ../../res/test-tx-deserialize/serialized_tx_with_context.mn
-
-Tx TransactionWithContext {
 ...
 ```
 
@@ -596,6 +620,31 @@ The command will:
 6. Have TC members vote on the proposal
 7. Close the TC proposal
 8. Close the federated motion to execute the call with Root origin
+
+### Runtime Upgrade
+Perform a runtime upgrade through the federated authority governance mechanism. This reads a WASM runtime file, authorizes the upgrade via governance (Council + Technical Committee), and then applies it.
+
+```bash
+midnight-node-toolkit runtime-upgrade \
+    --wasm-file /path/to/midnight_node_runtime.compact.compressed.wasm \
+    -c <COUNCIL_KEY_1> -c <COUNCIL_KEY_2> \
+    -t <TC_KEY_1> -t <TC_KEY_2> \
+    --rpc-url ws://localhost:9944 \
+    --signer-key //Alice
+```
+
+Parameters:
+- `--wasm-file`: Path to the runtime WASM file
+- `-c`: Council member private keys (32-byte sr25519 seeds or `//Name` dev keys). At least 2 required.
+- `-t`: Technical Committee member private keys. At least 2 required.
+- `--rpc-url`: RPC URL of the node (defaults to `ws://localhost:9944`, can also be set via `RPC_URL` env var)
+- `--signer-key`: Signer key for the apply step, any funded account (defaults to `//Alice`)
+
+The command will:
+1. Compute the blake2-256 hash of the WASM code
+2. Build a `System::authorize_upgrade` call and execute it through governance (same flow as `root-call`)
+3. Submit `System::apply_authorized_upgrade` with the full WASM code
+4. Verify the `System::CodeUpdated` event to confirm the upgrade succeeded
 
 ---
 

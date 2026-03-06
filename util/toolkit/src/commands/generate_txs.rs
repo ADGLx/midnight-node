@@ -1,12 +1,11 @@
 use crate::{
-	ProofType, SignatureType,
-	serde_def::{DeserializedTransactionsWithContext, SourceTransactions},
+	serde_def::SourceTransactions,
 	tx_generator::{
 		TxGenerator, TxGeneratorError, builder::Builder, destination::Destination, source::Source,
 	},
 };
 use clap::Args;
-use midnight_node_ledger_helpers::{ProofMarker, Signature};
+use midnight_node_ledger_helpers::fork::raw_block_data::SerializedTxBatches;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -38,7 +37,7 @@ pub struct GenerateTxsArgs {
 }
 
 pub async fn execute(args: GenerateTxsArgs) -> Result<(), GenerateTxsError> {
-	let generator = TxGenerator::<SignatureType, ProofType>::new(
+	let generator = TxGenerator::new(
 		args.source,
 		args.destination,
 		args.builder,
@@ -58,9 +57,9 @@ pub async fn execute(args: GenerateTxsArgs) -> Result<(), GenerateTxsError> {
 }
 
 async fn generate_txs(
-	generator: &TxGenerator<SignatureType, ProofType>,
-	received_txs: SourceTransactions<Signature, ProofMarker>,
-) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker>, GenerateTxsError> {
+	generator: &TxGenerator,
+	received_txs: SourceTransactions,
+) -> Result<SerializedTxBatches, GenerateTxsError> {
 	generator
 		.build_txs(&received_txs)
 		.await
@@ -68,8 +67,8 @@ async fn generate_txs(
 }
 
 async fn send_txs(
-	generator: &TxGenerator<SignatureType, ProofType>,
-	generated_txs: DeserializedTransactionsWithContext<Signature, ProofMarker>,
+	generator: &TxGenerator,
+	generated_txs: SerializedTxBatches,
 ) -> Result<(), GenerateTxsError> {
 	generator
 		.send_txs(&generated_txs)
@@ -79,7 +78,7 @@ async fn send_txs(
 
 #[cfg(test)]
 mod tests {
-	use std::str::FromStr;
+	use std::{path::Path, str::FromStr};
 
 	use super::*;
 	use crate::{
@@ -122,7 +121,6 @@ mod tests {
 					dest_urls: vec![],
 					rate: 1.0,
 					dest_file: Some("out.tx".to_string()),
-					to_bytes: true,
 					no_watch_progress: false,
 				},
 				proof_server: None,
@@ -205,8 +203,25 @@ mod tests {
 	#[tokio::test]
 	async fn test_generation(
 		args: GenerateTxsArgs,
-	) -> Result<DeserializedTransactionsWithContext<Signature, ProofMarker>, GenerateTxsError> {
-		let generator = TxGenerator::<SignatureType, ProofType>::new(
+	) -> Result<SerializedTxBatches, GenerateTxsError> {
+		let is_contract_builder = matches!(args.builder, Builder::ContractSimple(_));
+		if is_contract_builder {
+			let Ok(path) = std::env::var("MIDNIGHT_LEDGER_TEST_STATIC_DIR") else {
+				eprintln!(
+					"Skipping contract tx generation tests: MIDNIGHT_LEDGER_TEST_STATIC_DIR is not set"
+				);
+				return Ok(SerializedTxBatches { batches: vec![] });
+			};
+			if !Path::new(&path).exists() {
+				eprintln!(
+					"Skipping contract tx generation tests: MIDNIGHT_LEDGER_TEST_STATIC_DIR does not exist: {}",
+					path
+				);
+				return Ok(SerializedTxBatches { batches: vec![] });
+			}
+		}
+
+		let generator = TxGenerator::new(
 			args.source,
 			args.destination,
 			args.builder,
