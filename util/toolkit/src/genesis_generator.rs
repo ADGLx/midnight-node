@@ -233,7 +233,7 @@ impl GenesisGenerator {
 		// Ensure the genesis block always contains at least one transaction so that the
 		// block context (which carries the genesis timestamp) is included in the output.
 		// Without this, the chain spec builder cannot derive the Timestamp extrinsic.
-		if self.txs.is_empty() {
+		if self.txs.batches.is_empty() {
 			println!(
 				"No genesis transactions - emitting SetLedgerParameters to carry block context"
 			);
