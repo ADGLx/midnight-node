@@ -627,6 +627,9 @@ pub async fn build_fork_aware_context_cached(
 	received_tx: &SourceTransactions,
 	cache_storage: Option<&dyn WalletStateCaching>,
 ) -> ForkAwareLedgerContext {
+	if wallet_seeds.is_empty() {
+		return build_fork_aware_context_raw(received_tx, wallet_seeds);
+	}
 	let Some(chain_id) = received_tx.chain_id() else {
 		return build_fork_aware_context_raw(received_tx, wallet_seeds);
 	};
@@ -648,11 +651,10 @@ pub async fn build_fork_aware_context_cached(
 	}
 	cached.sort_by_key(|(_, ws)| ws.block_height);
 
-	// TODO: what if wallet seeds is empty?
 	let start_height = if !uncached_seeds.is_empty() {
 		0
 	} else {
-		cached.get(0).map(|c| c.1.block_height).unwrap_or(0)
+		cached.first().map(|c| c.1.block_height).unwrap_or(0)
 	};
 
 	let mut fork_ctx = if start_height == 0 {

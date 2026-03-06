@@ -18,9 +18,7 @@ use subxt::utils::H256;
 use tokio::sync::Mutex;
 
 use super::MidnightBlock;
-use super::wallet_state_cache::{
-	CachedWalletState, IndividualWalletKey, LedgerSnapshot, LedgerSnapshotKey,
-};
+use super::wallet_state_cache::{CachedWalletState, LedgerSnapshot};
 use async_trait::async_trait;
 
 pub mod file_backend;
@@ -70,49 +68,6 @@ pub trait WalletStateCaching: Send + Sync {
 	async fn get_all_cached_wallet_heights(&self, chain_id: H256) -> Vec<u64>;
 }
 
-#[async_trait]
-impl<T: FetchStorage + Send + Sync> WalletStateCaching for T {
-	async fn get_ledger_snapshot(
-		&self,
-		chain_id: H256,
-		block_height: u64,
-	) -> Option<LedgerSnapshot> {
-		<Self as FetchStorage>::get_ledger_snapshot(self, chain_id, block_height).await
-	}
-
-	async fn set_ledger_snapshot(&self, chain_id: H256, snapshot: LedgerSnapshot) {
-		<Self as FetchStorage>::set_ledger_snapshot(self, chain_id, snapshot).await
-	}
-
-	async fn get_latest_ledger_height(&self, chain_id: H256) -> Option<u64> {
-		<Self as FetchStorage>::get_latest_ledger_height(self, chain_id).await
-	}
-
-	async fn get_wallet_states(
-		&self,
-		chain_id: H256,
-		seed_hashes: &[H256],
-	) -> Vec<Option<CachedWalletState>> {
-		<Self as FetchStorage>::get_wallet_states(self, chain_id, seed_hashes).await
-	}
-
-	async fn set_wallet_states(&self, chain_id: H256, wallets: &[CachedWalletState]) {
-		<Self as FetchStorage>::set_wallet_states(self, chain_id, wallets).await
-	}
-
-	async fn delete_wallet_states(&self, chain_id: H256, seed_hashes: &[H256]) {
-		<Self as FetchStorage>::delete_wallet_states(self, chain_id, seed_hashes).await
-	}
-
-	async fn gc_ledger_snapshots(&self, chain_id: H256, keep_heights: &[u64]) {
-		<Self as FetchStorage>::gc_ledger_snapshots(self, chain_id, keep_heights).await
-	}
-
-	async fn get_all_cached_wallet_heights(&self, chain_id: H256) -> Vec<u64> {
-		<Self as FetchStorage>::get_all_cached_wallet_heights(self, chain_id).await
-	}
-}
-
 #[derive(Clone)]
 pub struct FetchedBlock {
 	pub block: MidnightBlock,
@@ -120,13 +75,10 @@ pub struct FetchedBlock {
 	pub state: Option<Vec<u8>>,
 }
 
-/// Storage backend for fetched block data and wallet state caching.
+/// Storage backend for fetched block data.
 ///
 /// Provides methods to store and retrieve [`RawBlockData`] by chain ID and block number,
 /// as well as tracking the highest verified block per chain.
-///
-/// Also provides methods for per-wallet state caching to enable fast session restoration
-/// without replaying all transactions from genesis.
 #[async_trait]
 pub trait FetchStorage {
 	// =========================================================================
@@ -160,73 +112,12 @@ pub trait FetchStorage {
 	}
 	async fn get_highest_verified_block(&self, chain_id: H256) -> Option<u64>;
 	async fn set_highest_verified_block(&self, chain_id: H256, height: u64);
-
-	// =========================================================================
-	// Per-wallet state caching methods (v2)
-	// =========================================================================
-
-	async fn get_ledger_snapshot(
-		&self,
-		chain_id: H256,
-		block_height: u64,
-	) -> Option<LedgerSnapshot> {
-		let _ = (chain_id, block_height);
-		None
-	}
-
-	async fn set_ledger_snapshot(&self, chain_id: H256, snapshot: LedgerSnapshot) {
-		let _ = (chain_id, snapshot);
-	}
-
-	async fn get_latest_ledger_height(&self, chain_id: H256) -> Option<u64> {
-		let _ = chain_id;
-		None
-	}
-
-	async fn get_wallet_states(
-		&self,
-		chain_id: H256,
-		seed_hashes: &[H256],
-	) -> Vec<Option<CachedWalletState>> {
-		let _ = chain_id;
-		seed_hashes.iter().map(|_| None).collect()
-	}
-
-	async fn set_wallet_states(&self, chain_id: H256, wallets: &[CachedWalletState]) {
-		let _ = (chain_id, wallets);
-	}
-
-	async fn delete_wallet_states(&self, chain_id: H256, seed_hashes: &[H256]) {
-		let _ = (chain_id, seed_hashes);
-	}
-
-	async fn gc_ledger_snapshots(&self, chain_id: H256, keep_heights: &[u64]) {
-		let _ = (chain_id, keep_heights);
-	}
-
-	async fn get_all_cached_wallet_heights(&self, chain_id: H256) -> Vec<u64> {
-		let _ = chain_id;
-		Vec::new()
-	}
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct InMemory {
 	highest_verified: Arc<Mutex<HashMap<H256, u64>>>,
 	blocks: Arc<Mutex<HashMap<Vec<u8>, RawBlockData>>>,
-	ledger_snapshots: Arc<Mutex<HashMap<LedgerSnapshotKey, LedgerSnapshot>>>,
-	wallet_cache: Arc<Mutex<HashMap<IndividualWalletKey, CachedWalletState>>>,
-}
-
-impl Default for InMemory {
-	fn default() -> Self {
-		Self {
-			highest_verified: Arc::new(Mutex::new(HashMap::new())),
-			blocks: Arc::new(Mutex::new(HashMap::new())),
-			ledger_snapshots: Arc::new(Mutex::new(HashMap::new())),
-			wallet_cache: Arc::new(Mutex::new(HashMap::new())),
-		}
-	}
 }
 
 impl InMemory {
@@ -277,77 +168,5 @@ impl FetchStorage for InMemory {
 
 	async fn set_highest_verified_block(&self, chain_id: H256, height: u64) {
 		self.highest_verified.lock().await.insert(chain_id, height);
-	}
-
-	async fn get_ledger_snapshot(
-		&self,
-		chain_id: H256,
-		block_height: u64,
-	) -> Option<LedgerSnapshot> {
-		let key = LedgerSnapshotKey { chain_id, block_height };
-		self.ledger_snapshots.lock().await.get(&key).cloned()
-	}
-
-	async fn set_ledger_snapshot(&self, chain_id: H256, snapshot: LedgerSnapshot) {
-		let key = LedgerSnapshotKey { chain_id, block_height: snapshot.block_height };
-		self.ledger_snapshots.lock().await.insert(key, snapshot);
-	}
-
-	async fn get_latest_ledger_height(&self, chain_id: H256) -> Option<u64> {
-		self.ledger_snapshots
-			.lock()
-			.await
-			.keys()
-			.filter(|k| k.chain_id == chain_id)
-			.map(|k| k.block_height)
-			.max()
-	}
-
-	async fn get_wallet_states(
-		&self,
-		chain_id: H256,
-		seed_hashes: &[H256],
-	) -> Vec<Option<CachedWalletState>> {
-		let cache = self.wallet_cache.lock().await;
-		seed_hashes
-			.iter()
-			.map(|&seed_hash| {
-				let key = IndividualWalletKey { chain_id, seed_hash };
-				cache.get(&key).cloned()
-			})
-			.collect()
-	}
-
-	async fn set_wallet_states(&self, chain_id: H256, wallets: &[CachedWalletState]) {
-		let mut cache = self.wallet_cache.lock().await;
-		for w in wallets {
-			let key = IndividualWalletKey { chain_id, seed_hash: w.seed_hash };
-			cache.insert(key, w.clone());
-		}
-	}
-
-	async fn delete_wallet_states(&self, chain_id: H256, seed_hashes: &[H256]) {
-		let mut cache = self.wallet_cache.lock().await;
-		for &seed_hash in seed_hashes {
-			let key = IndividualWalletKey { chain_id, seed_hash };
-			cache.remove(&key);
-		}
-	}
-
-	async fn gc_ledger_snapshots(&self, chain_id: H256, keep_heights: &[u64]) {
-		let mut snapshots = self.ledger_snapshots.lock().await;
-		snapshots.retain(|k, _| k.chain_id != chain_id || keep_heights.contains(&k.block_height));
-	}
-
-	async fn get_all_cached_wallet_heights(&self, chain_id: H256) -> Vec<u64> {
-		let cache = self.wallet_cache.lock().await;
-		let mut heights: Vec<u64> = cache
-			.iter()
-			.filter(|(k, _)| k.chain_id == chain_id)
-			.map(|(_, v)| v.block_height)
-			.collect();
-		heights.sort_unstable();
-		heights.dedup();
-		heights
 	}
 }

@@ -191,7 +191,7 @@ impl TxGenerator {
 		let fork_ctx = if seeds.is_empty() {
 			None
 		} else {
-			let wallet_cache = create_file_wallet_cache(&self.ledger_state_db);
+			let wallet_cache = create_file_wallet_cache(&self.ledger_state_db, &self.fetch_cache_config);
 			Some(
 				build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
 					.await,

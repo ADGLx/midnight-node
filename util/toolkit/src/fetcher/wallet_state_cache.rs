@@ -180,6 +180,35 @@ impl CachedWalletState {
 	pub fn block_height_from_value_bytes(bytes: &[u8]) -> Option<u64> {
 		bson::deserialize_from_slice::<Self>(bytes).ok().map(|v| v.block_height)
 	}
+
+	/// Extract block_height from just the BSON header (first 26 bytes).
+	///
+	/// In BSON, `block_height` is always the first serialized field (since
+	/// `seed_hash` is `#[serde(skip)]`). The layout is deterministic:
+	/// - Bytes 0–3: document size (i32 LE)
+	/// - Byte 4: type tag `0x12` (int64)
+	/// - Bytes 5–17: `"block_height\0"` (13 bytes)
+	/// - Bytes 18–25: value (i64 LE)
+	///
+	/// Falls back to `None` if the header doesn't match the expected layout.
+	pub fn block_height_from_bson_header(header: &[u8]) -> Option<u64> {
+		const HEADER_LEN: usize = 26;
+		const FIELD_NAME_OFFSET: usize = 5;
+		const VALUE_OFFSET: usize = 18; // 5 + 13
+		const FIELD_NAME: &[u8] = b"block_height\0";
+
+		if header.len() < HEADER_LEN {
+			return None;
+		}
+		if header[4] != 0x12 {
+			return None;
+		}
+		if &header[FIELD_NAME_OFFSET..VALUE_OFFSET] != FIELD_NAME {
+			return None;
+		}
+		let bytes: [u8; 8] = header[VALUE_OFFSET..HEADER_LEN].try_into().ok()?;
+		Some(i64::from_le_bytes(bytes) as u64)
+	}
 }
 
 // =============================================================================
@@ -426,6 +455,33 @@ mod tests {
 		assert_eq!(CachedWalletState::block_height_from_value_bytes(&bytes), Some(12345));
 		assert_eq!(CachedWalletState::block_height_from_value_bytes(&[]), None);
 		assert_eq!(CachedWalletState::block_height_from_value_bytes(&[1, 2, 3]), None);
+	}
+
+	#[test]
+	fn block_height_from_bson_header_matches_full_deser() {
+		for height in [0u64, 1, 42, 12345, u32::MAX as u64, i64::MAX as u64] {
+			let wallet = CachedWalletState {
+				seed_hash: H256::from([0xAB; 32]),
+				block_height: height,
+				shielded_state_bytes: vec![0xDD; 500],
+				dust_local_state_bytes: Some(vec![0xEE; 200]),
+			};
+
+			let bytes = wallet.to_value_bytes().expect("serialize failed");
+			let from_full = CachedWalletState::block_height_from_value_bytes(&bytes);
+			let from_header = CachedWalletState::block_height_from_bson_header(&bytes);
+			assert_eq!(
+				from_header, from_full,
+				"header extraction mismatch at height {height}"
+			);
+		}
+
+		assert_eq!(CachedWalletState::block_height_from_bson_header(&[]), None);
+		assert_eq!(CachedWalletState::block_height_from_bson_header(&[0; 25]), None);
+		// Wrong type tag
+		let mut bad = [0u8; 26];
+		bad[4] = 0x01; // not int64
+		assert_eq!(CachedWalletState::block_height_from_bson_header(&bad), None);
 	}
 
 	/// Load genesis test data as SourceTransactions + build LedgerContext.

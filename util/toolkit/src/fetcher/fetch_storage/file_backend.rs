@@ -264,10 +264,14 @@ impl WalletStateCaching for FileBackend {
 					continue;
 				}
 				let path = dir.join(&name);
-				if let Ok(data) = fs::read(&path) {
-					if let Some(h) = CachedWalletState::block_height_from_value_bytes(&data) {
-						heights.insert(h);
-					}
+				let height = (|| {
+					let mut file = fs::File::open(&path).ok()?;
+					let mut header = [0u8; 26];
+					io::Read::read_exact(&mut file, &mut header).ok()?;
+					CachedWalletState::block_height_from_bson_header(&header)
+				})();
+				if let Some(h) = height {
+					heights.insert(h);
 				}
 			}
 			heights.into_iter().collect()

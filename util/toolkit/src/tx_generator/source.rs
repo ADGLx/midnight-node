@@ -70,9 +70,13 @@ impl FromStr for FetchCacheConfig {
 
 /// Create a file-based wallet state cache backend.
 ///
-/// Returns `None` if `ledger_state_db` is empty.
-pub fn create_file_wallet_cache(ledger_state_db: &str) -> Option<Box<dyn WalletStateCaching>> {
-	if ledger_state_db.is_empty() {
+/// Returns `None` if `ledger_state_db` is empty or `fetch_cache` is `InMemory`
+/// (ephemeral mode should not leave persistent wallet cache files).
+pub fn create_file_wallet_cache(
+	ledger_state_db: &str,
+	fetch_cache: &FetchCacheConfig,
+) -> Option<Box<dyn WalletStateCaching>> {
+	if ledger_state_db.is_empty() || matches!(fetch_cache, FetchCacheConfig::InMemory) {
 		return None;
 	}
 	Some(Box::new(fetch_storage::file_backend::FileBackend::new(ledger_state_db)))
