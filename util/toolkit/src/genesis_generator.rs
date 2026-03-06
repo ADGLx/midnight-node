@@ -223,21 +223,13 @@ impl GenesisGenerator {
 
 			// Restore fees now that we've finished.
 			self.set_parameters(original_parameters, &genesis_block_context)?;
+		} else {
+			self.set_parameters(original_parameters, &genesis_block_context)?;
 		}
 
 		if let Some(system_tx) = cnight_system_tx {
 			self.apply_system_tx(system_tx.clone(), &genesis_block_context)?;
 			println!("cNight System Tx applied: {:?}", system_tx);
-		}
-
-		// Ensure the genesis block always contains at least one transaction so that the
-		// block context (which carries the genesis timestamp) is included in the output.
-		// Without this, the chain spec builder cannot derive the Timestamp extrinsic.
-		if self.txs.batches.is_empty() {
-			println!(
-				"No genesis transactions - emitting SetLedgerParameters to carry block context"
-			);
-			self.set_parameters((*self.state.parameters).clone(), &genesis_block_context)?;
 		}
 
 		let block_limits = self.state.parameters.limits.block_limits;
