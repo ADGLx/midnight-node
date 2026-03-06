@@ -183,7 +183,6 @@ cleanSwap() {
 echo "Initial disk space:"
 df -h /
 
-# Fast operations run synchronously
 removeUnusedFilesAndDirs
 cleanDocker
 cleanSwap
