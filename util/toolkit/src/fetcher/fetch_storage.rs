@@ -23,6 +23,7 @@ use super::wallet_state_cache::{
 };
 use async_trait::async_trait;
 
+pub mod file_backend;
 pub mod postgres_backend;
 pub mod redb_backend;
 

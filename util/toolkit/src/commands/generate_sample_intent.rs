@@ -1,7 +1,7 @@
 use crate::tx_generator::{
 	TxGenerator,
 	builder::{ContractCall, ProverConfig, build_fork_aware_context_cached},
-	source::Source,
+	source::{Source, create_file_wallet_cache},
 };
 use clap::Args;
 use midnight_node_ledger_helpers::fork::raw_block_data::LedgerVersion;
@@ -27,7 +27,7 @@ pub struct GenerateSampleIntentArgs {
 pub async fn execute(args: GenerateSampleIntentArgs) {
 	println!("Generate a contract and save to file");
 
-	let fetch_cache_config = args.source.fetch_cache.clone();
+	let ledger_state_db = args.source.ledger_state_db.clone();
 	let source = TxGenerator::source(args.source, args.dry_run)
 		.await
 		.expect("failed to init tx source");
@@ -40,7 +40,7 @@ pub async fn execute(args: GenerateSampleIntentArgs) {
 	}
 
 	let received_txs = source.get_txs().await.expect("should receive txs");
-	let wallet_cache = fetch_cache_config.create_wallet_cache().await;
+	let wallet_cache = create_file_wallet_cache(&ledger_state_db);
 
 	// Build the context + prover, then construct the appropriate builder
 	let funding_seed_str = match &args.contract_call {
@@ -194,6 +194,7 @@ mod test {
 			ignore_block_context: false,
 			fetch_only_cached: false,
 			fetch_cache: FetchCacheConfig::InMemory,
+			ledger_state_db: String::new(),
 		};
 
 		let args = GenerateSampleIntentArgs {

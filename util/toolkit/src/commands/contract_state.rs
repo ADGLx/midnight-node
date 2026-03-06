@@ -1,6 +1,7 @@
 use super::super::tx_generator::{TxGenerator, source::Source};
 use crate::cli_parsers as cli;
 use crate::tx_generator::builder::build_fork_aware_context_cached;
+use crate::tx_generator::source::create_file_wallet_cache;
 use clap::Args;
 use midnight_node_ledger_helpers::ContractAddress;
 use std::{fs, path::Path};
@@ -23,7 +24,7 @@ pub struct ContractStateArgs {
 pub async fn execute(
 	args: ContractStateArgs,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-	let fetch_cache_config = args.source.fetch_cache.clone();
+	let ledger_state_db = args.source.ledger_state_db.clone();
 	let source = TxGenerator::source(args.source, args.dry_run)
 		.await
 		.expect("failed to init tx source");
@@ -35,7 +36,7 @@ pub async fn execute(
 	}
 
 	let blocks = source.get_txs().await?;
-	let wallet_cache = fetch_cache_config.create_wallet_cache().await;
+	let wallet_cache = create_file_wallet_cache(&ledger_state_db);
 
 	let fork_ctx = build_fork_aware_context_cached(&[], &blocks, wallet_cache.as_deref()).await;
 

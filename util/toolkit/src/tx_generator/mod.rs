@@ -22,7 +22,10 @@ pub mod source;
 
 use builder::{Builder, DynamicError, ProverConfig, build_fork_aware_context_cached};
 use destination::{Destination, SendTxs, SendTxsToFile, SendTxsToUrl};
-use source::{FetchCacheConfig, GetTxs, GetTxsFromFile, GetTxsFromUrl, Source, SourceError};
+use source::{
+	FetchCacheConfig, GetTxs, GetTxsFromFile, GetTxsFromUrl, Source, SourceError,
+	create_file_wallet_cache,
+};
 
 #[derive(Debug, Error)]
 pub enum TxGeneratorError {
@@ -45,6 +48,7 @@ pub struct TxGenerator {
 	pub builder_config: Builder,
 	pub prover_config: ProverConfig,
 	pub fetch_cache_config: FetchCacheConfig,
+	pub ledger_state_db: String,
 	pub dry_run: bool,
 }
 
@@ -57,6 +61,7 @@ impl TxGenerator {
 		dry_run: bool,
 	) -> Result<Self, TxGeneratorError> {
 		let fetch_cache_config = src.fetch_cache.clone();
+		let ledger_state_db = src.ledger_state_db.clone();
 		let source = Self::source(src, dry_run).await?;
 		let destinations = Self::destinations(dest, dry_run).await?;
 		if dry_run {
@@ -70,6 +75,7 @@ impl TxGenerator {
 			builder_config: builder,
 			prover_config,
 			fetch_cache_config,
+			ledger_state_db,
 			dry_run,
 		})
 	}
@@ -185,7 +191,7 @@ impl TxGenerator {
 		let fork_ctx = if seeds.is_empty() {
 			None
 		} else {
-			let wallet_cache = self.fetch_cache_config.create_wallet_cache().await;
+			let wallet_cache = create_file_wallet_cache(&self.ledger_state_db);
 			Some(
 				build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
 					.await,
