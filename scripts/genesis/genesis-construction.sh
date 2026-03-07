@@ -391,12 +391,12 @@ run_ledger_state_generation() {
     local earthly_cmd
     if [[ "$network" == "mainnet" ]]; then
         echo -e "${BOLD}Command to execute:${NC}"
-        echo -e "  ${CYAN}earthly -P +$earthly_target${NC}"
-        earthly_cmd=(earthly -P "+$earthly_target")
+        echo -e "  ${CYAN}earthly --no-cache -P +$earthly_target${NC}"
+        earthly_cmd=(earthly --no-cache -P "+$earthly_target")
     else
         echo -e "${BOLD}Command to execute:${NC}"
-        echo -e "  ${CYAN}earthly -P +$earthly_target --RNG_SEED=$rng_seed${NC}"
-        earthly_cmd=(earthly -P "+$earthly_target" "--RNG_SEED=$rng_seed")
+        echo -e "  ${CYAN}earthly --no-cache -P +$earthly_target --RNG_SEED=$rng_seed${NC}"
+        earthly_cmd=(earthly --no-cache -P "+$earthly_target" "--RNG_SEED=$rng_seed")
     fi
     echo ""
 
@@ -587,7 +587,7 @@ run_chainspec_generation() {
     print_file "$REPO_ROOT/res/genesis/genesis_state_$network.mn"
     echo ""
 
-    local earthly_cmd=(earthly -P +rebuild-chainspec "--NETWORK=$network")
+    local earthly_cmd=(earthly --no-cache -P +rebuild-chainspec "--NETWORK=$network")
     if [[ "$deterministic" == "true" ]]; then
         earthly_cmd+=("--DETERMINISTIC=true")
     fi
