@@ -1,0 +1,25 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "pallet-cnight-observation-mock",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2024",
+    deps = [
+        "//ledger:midnight-node-ledger",
+        "//pallets/cnight-observation:pallet-cnight-observation",
+        "//pallets/midnight:pallet-midnight",
+        "//pallets/midnight-system:pallet-midnight-system",
+        "//primitives/midnight:midnight-primitives",
+        "//res:midnight-node-res",
+        "@crates//:frame-support",
+        "@crates//:frame-system",
+        "@crates//:pallet-timestamp",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-io",
+    ],
+    visibility = ["//visibility:public"],
+)

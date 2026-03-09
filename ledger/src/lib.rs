@@ -29,6 +29,7 @@ mod utils;
 
 pub mod host_api;
 
+#[cfg(feature = "hardfork")]
 #[path = "versions"]
 pub mod hard_fork_test {
 	#[cfg(feature = "std")]
@@ -102,6 +103,7 @@ pub use ledger_8 as latest;
 #[cfg(feature = "std")]
 fn drop_all_default_storage() {
 	ledger_7::storage::drop_default_storage_if_exists();
+	#[cfg(feature = "hardfork")]
 	hard_fork_test::storage::drop_default_storage_if_exists();
 	ledger_8::storage::drop_default_storage_if_exists();
 }
@@ -111,9 +113,9 @@ mod common;
 pub mod types {
 	pub use super::common::types::*;
 
-	#[cfg(hardfork_test)]
+	#[cfg(all(hardfork_test, feature = "hardfork"))]
 	pub use super::hard_fork_test::types as active_version;
-	#[cfg(hardfork_test)]
+	#[cfg(all(hardfork_test, feature = "hardfork"))]
 	pub use super::host_api::ledger_hf::ledger_bridge_hf as active_ledger_bridge;
 
 	#[cfg(not(hardfork_test))]

@@ -1,0 +1,16 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-primitives-reserve-observation",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:serde",
+        "@crates//:sidechain-domain",
+        "@crates//:thiserror",
+    ],
+    visibility = ["//visibility:public"],
+)

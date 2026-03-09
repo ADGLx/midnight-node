@@ -1,0 +1,73 @@
+module(
+    name = "midnight-node",
+    version = "0.1.0",
+)
+
+# renovate: datasource=github-releases packageName=bazelbuild/rules_rust
+bazel_dep(name = "rules_rust", version = "0.69.0")
+
+git_override(
+    module_name = "rules_rust",
+    remote = "https://github.com/bazelbuild/rules_rust",
+    commit = "e37a71f614ef5ffab38ac482abfc6782d11ba144",
+)
+
+rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
+
+rust.toolchain(
+    versions = ["1.93.0"],
+    extra_target_triples = ["wasm32v1-none"],
+)
+
+use_repo(rust, "rust_toolchains")
+
+register_toolchains("@rust_toolchains//:all")
+
+crate = use_extension("@rules_rust//crate_universe:extension.bzl", "crate")
+
+crate.from_cargo(
+    name = "crates",
+    cargo_lockfile = "//:Cargo.lock",
+    manifests = ["//:Cargo.toml"],
+)
+
+# Patch proc-macro-crate to fall back to scanning Cargo.toml for
+# alias→package mappings when CARGO env is not set (Bazel builds).
+# Fixes parity-scale-codec-derive, scale-info-derive, frame-support-procedural,
+# and all other proc macros that use proc-macro-crate for crate resolution.
+crate.annotation(
+    crate = "proc-macro-crate",
+    version = "3.3.0",
+    patches = ["//patches:proc-macro-crate-bazel-fallback.patch"],
+    patch_args = ["-p1"],
+)
+
+# Ensure Cargo.toml is available in the sandbox during compilation.
+# Proc macros (via proc-macro-crate) read $CARGO_MANIFEST_DIR/Cargo.toml
+# to discover dependency aliases (e.g. codec → parity-scale-codec).
+# Without this, Cargo.toml is not a declared input and the read fails,
+# causing derive macros to generate wrong crate paths.
+crate.annotation(
+    crate = "*",
+    compile_data_glob = ["Cargo.toml"],
+)
+
+# Force std feature on Substrate crates that have no_std support.
+# crate_universe resolves features from workspace Cargo.toml where deps use
+# default-features = false. The std feature chain (our crate std → dep/std)
+# isn't followed by crate_universe, so these crates compile in no_std mode
+# causing missing Debug impls and std module errors.
+crate.annotation(
+    crate = "frame-support",
+    crate_features = ["std"],
+)
+
+# Expose spoke repos for crates that lack hub aliases due to duplicate versions
+use_repo(
+    crate,
+    "crates",
+    "crates__midnight-coin-structure-2.0.1",
+    "crates__midnight-transient-crypto-2.0.1",
+    "crates__midnight-ledger-8.0.0-rc.4",
+    "crates__midnight-zswap-8.0.0-rc.4",
+)

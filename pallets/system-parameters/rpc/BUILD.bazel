@@ -1,0 +1,26 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "pallet-system-parameters-rpc",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2024",
+    deps = [
+        "//pallets/system-parameters:pallet-system-parameters",
+        "@crates//:jsonrpsee",
+        "@crates//:sc-client-api",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-api",
+        "@crates//:sp-blockchain",
+        "@crates//:sp-core",
+        "@crates//:sp-runtime",
+        "@crates//:sp-session-validator-management-query",
+    ],
+    proc_macro_deps = [
+        "@crates//:async-trait",
+    ],
+    visibility = ["//visibility:public"],
+)

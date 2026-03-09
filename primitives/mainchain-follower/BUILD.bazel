@@ -1,0 +1,43 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-primitives-mainchain-follower",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = ["Cargo.toml", ".env", "//:sqlx_offline"],
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "//primitives/cnight-observation:midnight-primitives-cnight-observation",
+        "//primitives/federated-authority-observation:midnight-primitives-federated-authority-observation",
+        "@crates//:authority-selection-inherents",
+        "@crates//:cardano-serialization-lib",
+        "@crates//:db-sync-sqlx",
+        "@crates//:figment",
+        "@crates//:itertools",
+        "@crates//:log",
+        "@crates//:lru",
+        "@crates//:parity-scale-codec",
+        "@crates//:partner-chains-db-sync-data-sources",
+        "@crates//:partner-chains-plutus-data",
+        "@crates//:rand-0.9.2",
+        "@crates//:scale-info",
+        "@crates//:serde",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-api",
+        "@crates//:sp-blockchain",
+        "@crates//:sp-core",
+        "@crates//:sp-inherents",
+        "@crates//:sp-keyring",
+        "@crates//:sp-runtime",
+        "@crates//:sqlx",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+    ],
+    proc_macro_deps = [
+        "@crates//:async-trait",
+        "@crates//:derive-new",
+    ],
+    visibility = ["//visibility:public"],
+)

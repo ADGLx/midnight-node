@@ -1,0 +1,28 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-beefy-relay",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2024",
+    deps = [
+        "//metadata:midnight-node-metadata",
+        "//primitives/beefy:midnight-primitives-beefy",
+        "@crates//:clap",
+        "@crates//:env_logger",
+        "@crates//:log",
+        "@crates//:mmr-rpc",
+        "@crates//:pallas",
+        "@crates//:parity-scale-codec",
+        "@crates//:rs_merkle",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sp-consensus-beefy",
+        "@crates//:sp-core",
+        "@crates//:subxt",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,19 @@
+# Compiler
+build --action_env=CC=clang
+build --action_env=CXX=clang++
+
+# Pass PATH so sandboxed actions can find tools
+build --action_env=PATH
+
+# Linker — use cc (universally available) with lld for faster linking
+build --linkopt=-fuse-ld=lld
+build --@rules_rust//:extra_rustc_flags=-Clink-arg=-fuse-ld=lld
+
+# Release mode
+build --compilation_mode=opt
+
+# Performance
+build --jobs=auto
+
+# Test output
+test --test_output=errors

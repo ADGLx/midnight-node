@@ -1,0 +1,29 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "pallet-cnight-observation",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "//ledger:midnight-node-ledger",
+        "//primitives/cnight-observation:midnight-primitives-cnight-observation",
+        "//primitives/mainchain-follower:midnight-primitives-mainchain-follower",
+        "//primitives/midnight:midnight-primitives",
+        "@crates//:frame-support",
+        "@crates//:frame-system",
+        "@crates//:hex",
+        "@crates//:log",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+        "@crates//:serde",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-core",
+    ],
+    proc_macro_deps = [
+        "@crates//:derive-new",
+    ],
+    visibility = ["//visibility:public"],
+)

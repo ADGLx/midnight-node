@@ -1,0 +1,27 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-node-e2e",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    deps = [
+        "//util/aiken-contracts-lib:aiken-contracts-lib",
+        "@crates//:blake2",
+        "@crates//:hex",
+        "@crates//:midnight-node-metadata",
+        "@crates//:ogmios-client",
+        "@crates//:rand-0.8.5",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:subxt",
+        "@crates//:tiny-bip39",
+        "@crates//:tokio",
+        "@crates//:whisky",
+    ],
+    proc_macro_deps = [
+        "//ledger/helpers:midnight-node-ledger-helpers",
+    ],
+    visibility = ["//visibility:public"],
+)

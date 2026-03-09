@@ -1,0 +1,81 @@
+--- a/src/lib.rs
++++ b/src/lib.rs
+@@ -182,6 +182,78 @@
+ /// The returned crate name is sanitized in such a way that it is a valid rust identifier. Thus,
+ /// it is ready to be used in `extern crate` as identifier.
+ pub fn crate_name(orig_name: &str) -> Result<FoundCrate, Error> {
++    crate_name_impl(orig_name).or_else(|_| {
++        // Fallback for non-Cargo build systems (Bazel, Buck2, etc.):
++        // The primary lookup may fail because CARGO env is not set (needed for
++        // workspace dep resolution). Try a simpler Cargo.toml scan that only
++        // looks at [dependencies] for alias -> package mappings.
++        bazel_fallback(orig_name)
++    })
++}
++
++fn bazel_fallback(orig_name: &str) -> Result<FoundCrate, Error> {
++    let manifest_dir = env::var("CARGO_MANIFEST_DIR")
++        .map_err(|_| Error::CargoManifestDirNotSet)?;
++    let manifest_path = Path::new(&manifest_dir).join("Cargo.toml");
++
++    // If Cargo.toml can't be read (common in Bazel sandbox where it's not
++    // in compile_data), fall back to canonical crate name.
++    let content = match std::fs::read_to_string(&manifest_path) {
++        Ok(c) => c,
++        Err(_) => return Ok(FoundCrate::Name(sanitize_crate_name(orig_name))),
++    };
++    let doc = match content.parse::<toml_edit::DocumentMut>() {
++        Ok(d) => d,
++        Err(_) => return Ok(FoundCrate::Name(sanitize_crate_name(orig_name))),
++    };
++
++    if let Some(deps) = doc.get("dependencies").and_then(|d| d.as_table()) {
++        let mut workspace_candidate = None;
++        for (dep_name, dep_value) in deps.iter() {
++            let tbl = dep_value.as_table_like();
++            let pkg = tbl
++                .and_then(|t| t.get("package"))
++                .and_then(|p| p.as_str());
++            // Exact match by package field (resolved deps, e.g. crates.io)
++            if pkg == Some(orig_name) {
++                return Ok(FoundCrate::Name(sanitize_crate_name(dep_name)));
++            }
++            // Exact match by dep name
++            if dep_name == orig_name
++                || sanitize_crate_name(dep_name) == sanitize_crate_name(orig_name)
++            {
++                return Ok(FoundCrate::Name(sanitize_crate_name(dep_name)));
++            }
++            // For workspace deps (workspace = true, no package field),
++            // the dep_name is the alias. Check if it matches a segment
++            // of orig_name (e.g. "codec" matches "parity-scale-codec").
++            let is_workspace = tbl
++                .and_then(|t| t.get("workspace"))
++                .and_then(|w| w.as_bool())
++                .unwrap_or(false);
++            if is_workspace && pkg.is_none() {
++                let segments: Vec<&str> = orig_name.split('-').collect();
++                if segments.contains(&dep_name) {
++                    workspace_candidate = Some(sanitize_crate_name(dep_name));
++                }
++            }
++        }
++        // Use workspace candidate if no exact match was found
++        if let Some(name) = workspace_candidate {
++            return Ok(FoundCrate::Name(name));
++        }
++    }
++
++    // Cargo.toml was readable but crate not found in [dependencies].
++    // Return error so callers can try alternative names
++    // (e.g. polkadot-sdk-frame lookup fails → caller falls through to frame-support).
++    Err(Error::CrateNotFound {
++        crate_name: orig_name.to_owned(),
++        path: manifest_path,
++    })
++}
++
++fn crate_name_impl(orig_name: &str) -> Result<FoundCrate, Error> {
+     let manifest_dir = env::var("CARGO_MANIFEST_DIR").map_err(|_| Error::CargoManifestDirNotSet)?;
+     let manifest_path = Path::new(&manifest_dir).join("Cargo.toml");
+ 

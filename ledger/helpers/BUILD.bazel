@@ -1,0 +1,126 @@
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+cargo_build_script(
+    name = "build_script",
+    srcs = ["build.rs"],
+    edition = "2024",
+    data = glob(["static/**"]),
+)
+
+# Bridge crates: provide a second extern name for crates that collide in the
+# aliases dict (same spoke target, different workspace alias). See docs/bazel-notes.md.
+# L7 bridges (L7 alias loses to L8 in dict dedup)
+rust_library(
+    name = "_coin_structure_bridge",
+    crate_name = "coin_structure",
+    srcs = ["bridges/coin_structure.rs"],
+    deps = ["@crates__midnight-coin-structure-2.0.1//:midnight_coin_structure"],
+    edition = "2024",
+    visibility = ["//ledger:__pkg__"],
+)
+
+rust_library(
+    name = "_transient_crypto_bridge",
+    crate_name = "transient_crypto",
+    srcs = ["bridges/transient_crypto.rs"],
+    deps = ["@crates__midnight-transient-crypto-2.0.1//:midnight_transient_crypto"],
+    edition = "2024",
+    visibility = ["//ledger:__pkg__"],
+)
+
+rust_library(
+    name = "_zkir_bridge",
+    crate_name = "zkir",
+    srcs = ["bridges/zkir.rs"],
+    deps = ["@crates//:midnight-zkir"],
+    edition = "2024",
+)
+
+# L8 bridges (L8 alias loses to HF in dict dedup)
+rust_library(
+    name = "_mn_ledger_8_bridge",
+    crate_name = "mn_ledger_8",
+    srcs = ["bridges/mn_ledger_8.rs"],
+    deps = ["@crates__midnight-ledger-8.0.0-rc.4//:midnight_ledger"],
+    edition = "2024",
+    visibility = ["//ledger:__pkg__"],
+)
+
+rust_library(
+    name = "_zswap_ledger_8_bridge",
+    crate_name = "zswap_ledger_8",
+    srcs = ["bridges/zswap_ledger_8.rs"],
+    deps = ["@crates__midnight-zswap-8.0.0-rc.4//:midnight_zswap"],
+    edition = "2024",
+    visibility = ["//ledger:__pkg__"],
+)
+
+rust_library(
+    name = "midnight-node-ledger-helpers",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = glob(["static/**"]) + ["//:Cargo.toml", "Cargo.toml"],
+    edition = "2024",
+    aliases = {
+        # L7 aliases (only for deps that DON'T collide with L8)
+        "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
+        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+        "@crates//:midnight-storage-1.1.1": "ledger_storage",
+        "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
+        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
+        # L8 aliases (only for deps that DON'T collide with L7)
+        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+        "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
+        "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
+        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
+        "@crates//:zkir_ledger_8": "zkir_ledger_8",
+        # HF deps excluded — hardfork feature not enabled in Bazel to avoid
+        # midnight_storage_core version conflict (see docs/bazel-notes.md Bug 3)
+    },
+    deps = [
+        ":build_script",
+        # L7 midnight deps (non-colliding use aliases, colliding use bridges)
+        "@crates//:midnight-base-crypto-1.0.0",
+        ":_coin_structure_bridge",
+        "@crates//:midnight-ledger-7.0.3-rc.1",
+        "@crates//:midnight-onchain-runtime-2.0.1",
+        "@crates//:midnight-serialize",
+        "@crates//:midnight-storage-1.1.1",
+        ":_transient_crypto_bridge",
+        ":_zkir_bridge",
+        "@crates//:midnight-zswap-7.0.3-rc.1",
+        # L8 midnight deps (non-colliding use aliases, colliding use bridges)
+        ":_mn_ledger_8_bridge",
+        "@crates//:coin_structure_ledger_8",
+        "@crates//:onchain_runtime_ledger_8",
+        "@crates//:ledger_storage_ledger_8",
+        "@crates//:transient_crypto_ledger_8",
+        "@crates//:zkir_ledger_8",
+        ":_zswap_ledger_8_bridge",
+        # HF deps excluded (see aliases comment above)
+        # Other deps
+        "@crates//:bech32",
+        "@crates//:bip32",
+        "@crates//:bip39",
+        "@crates//:futures",
+        "@crates//:hex",
+        "@crates//:itertools",
+        "@crates//:lazy_static",
+        "@crates//:log",
+        "@crates//:rand-0.8.5",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:subxt",
+        "@crates//:subxt-signer",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:toml",
+    ],
+    proc_macro_deps = [
+        "@crates//:async-trait",
+        "@crates//:derive-where",
+    ],
+    visibility = ["//visibility:public"],
+)

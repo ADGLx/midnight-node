@@ -1,0 +1,18 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-primitives-ledger",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2024",
+    aliases = {
+        "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
+    },
+    deps = [
+        "@crates//:log",
+        "@crates//:sp-externalities",
+        "@crates//:substrate-prometheus-endpoint-0.17.7",
+    ],
+    visibility = ["//visibility:public"],
+)

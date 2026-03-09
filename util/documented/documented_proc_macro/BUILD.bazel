@@ -1,0 +1,14 @@
+load("@rules_rust//rust:defs.bzl", "rust_proc_macro")
+
+exports_files(["Cargo.toml"])
+
+rust_proc_macro(
+    name = "documented_proc_macro",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2024",
+    deps = [
+        "@crates//:quote",
+        "@crates//:syn",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,3 @@
+exports_files(["Cargo.toml"])
+
+# docs crate has no library sources; only dev-dependencies for doctests.

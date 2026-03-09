@@ -1,0 +1,19 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+exports_files(["Cargo.toml"])
+
+rust_binary(
+    name = "aiken-deployer",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2021",
+    deps = [
+        "//util/aiken-contracts-lib",
+        "@crates//:clap",
+        "@crates//:hex",
+        "@crates//:ogmios-client",
+        "@crates//:serde_json",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:whisky",
+    ],
+)

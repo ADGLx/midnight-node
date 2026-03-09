@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bazel build:*)",
+      "Bash(bazel clean:*)",
+      "Bash(ls:*)",
+      "Bash(cargo clean:*)",
+      "Bash(curl:*)",
+      "Bash(cargo update:*)",
+      "Bash(earthly:*)",
+      "Read(//tmp/**)",
+      "Bash(python3:*)",
+      "Bash(find:*)",
+      "Bash(grep -A 20 'name = \"\"proc-macro-crate\"\"')",
+      "Bash(grep:*)",
+      "Bash(bazel query:*)",
+      "Bash(xcrun:*)",
+      "Read(//opt/homebrew/opt/llvm/bin/**)"
+    ]
+  }
+}

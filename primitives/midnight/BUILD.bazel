@@ -1,0 +1,20 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-primitives",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = ["Cargo.toml"],
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "//ledger:midnight-node-ledger",
+        "@crates//:hex-literal",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+        "@crates//:sp-core",
+        "@crates//:sp-runtime",
+    ],
+    visibility = ["//visibility:public"],
+)

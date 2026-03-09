@@ -1,0 +1,16 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-primitives-system-parameters",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:hex",
+        "@crates//:serde",
+        "@crates//:sidechain-domain",
+    ],
+    visibility = ["//visibility:public"],
+)

@@ -1,0 +1,23 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-primitives-federated-authority-observation",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:hex",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+        "@crates//:serde",
+        "@crates//:serde_valid",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-api",
+        "@crates//:sp-core",
+        "@crates//:sp-inherents",
+        "@crates//:sp-runtime",
+    ],
+    visibility = ["//visibility:public"],
+)

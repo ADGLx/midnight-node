@@ -1,0 +1,84 @@
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+cargo_build_script(
+    name = "build_script",
+    srcs = ["build.rs"],
+    edition = "2024",
+)
+
+rust_library(
+    name = "midnight-node-ledger",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = ["Cargo.toml", "//:Cargo.toml"],
+    crate_features = [
+        "std",
+        "test-utils",
+        # "hardfork" excluded — avoids midnight_storage_core version conflict
+        # (see docs/bazel-notes.md Bug 3)
+    ],
+    edition = "2024",
+    aliases = {
+        # L7 aliases (non-colliding only)
+        "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
+        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+        "@crates//:midnight-storage-1.1.1": "ledger_storage",
+        "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
+        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
+        "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
+        # L8 aliases (non-colliding only)
+        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+        "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
+        "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
+        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
+        # HF deps excluded (see crate_features comment above)
+    },
+    deps = [
+        ":build_script",
+        "//ledger/helpers:midnight-node-ledger-helpers",
+        "//primitives/ledger:midnight-primitives-ledger",
+        # L7 midnight deps (colliding use bridges from helpers)
+        "@crates//:midnight-base-crypto-1.0.0",
+        "//ledger/helpers:_coin_structure_bridge",
+        "@crates//:midnight-ledger-7.0.3-rc.1",
+        "@crates//:midnight-onchain-runtime-2.0.1",
+        "@crates//:midnight-serialize",
+        "@crates//:midnight-storage-1.1.1",
+        "@crates//:midnight-storage-core",
+        "//ledger/helpers:_transient_crypto_bridge",
+        "@crates//:midnight-zswap-7.0.3-rc.1",
+        # L8 midnight deps (colliding use bridges from helpers)
+        "//ledger/helpers:_mn_ledger_8_bridge",
+        "@crates//:coin_structure_ledger_8",
+        "@crates//:onchain_runtime_ledger_8",
+        "@crates//:ledger_storage_ledger_8",
+        "@crates//:transient_crypto_ledger_8",
+        "//ledger/helpers:_zswap_ledger_8_bridge",
+        # HF deps excluded (see crate_features comment above)
+        # Substrate/framework deps
+        "@crates//:frame-support",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+        "@crates//:sp-externalities",
+        "@crates//:sp-runtime",
+        "@crates//:sp-runtime-interface",
+        "@crates//:sp-tracing",
+        "@crates//:substrate-prometheus-endpoint-0.17.7",
+        # Other deps
+        "@crates//:hex",
+        "@crates//:lazy_static",
+        "@crates//:log",
+        "@crates//:moka",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:toml",
+    ],
+    proc_macro_deps = [
+        "@crates//:derive-where",
+        "@crates//:scale-info-derive",
+    ],
+    visibility = ["//visibility:public"],
+)

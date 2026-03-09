@@ -1,0 +1,17 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "midnight-primitives-beefy",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:parity-scale-codec",
+        "@crates//:sp-api",
+        "@crates//:sp-consensus-beefy",
+        "@crates//:sp-runtime",
+    ],
+    visibility = ["//visibility:public"],
+)

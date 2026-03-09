@@ -1,0 +1,19 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "pallet-midnight-system",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "//ledger:midnight-node-ledger",
+        "//primitives/midnight:midnight-primitives",
+        "@crates//:frame-support",
+        "@crates//:frame-system",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+    ],
+    visibility = ["//visibility:public"],
+)

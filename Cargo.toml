@@ -1,5 +1,9 @@
 [workspace]
 resolver = "2"
+exclude = [
+    "target",
+    "scripts",
+]
 members = [
     "ledger",
     "ledger/helpers",
@@ -105,7 +109,7 @@ midnight-serialize-hf = { git = "https://github.com/midnightntwrk/midnight-ledge
 # Midnight local dependencies
 midnight-node-ledger = { path = "ledger", default-features = false }
 midnight-node-metadata = { path = "metadata", default-features = false }
-midnight-node-ledger-helpers = { path = "ledger/helpers", default-features = false, features = ["test-utils"] }
+midnight-node-ledger-helpers = { path = "ledger/helpers", default-features = false, features = ["test-utils", "hardfork"] }
 midnight-node-res = { path = "res", default-features = false }
 midnight-node-toolkit = { path = "util/toolkit", default-features = true }
 pallet-midnight = { path = "pallets/midnight", default-features = false }

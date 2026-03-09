@@ -58,7 +58,18 @@ midnight-node-res = { workspace = true, features = ["test", "chain-spec"] }
 [features]
 default = [
     "std",
-    "test-utils"
+    "test-utils",
+    "hardfork",
+]
+hardfork = [
+    "mn-ledger-hf",
+    "base-crypto-hf",
+    "coin-structure-hf",
+    "onchain-runtime-hf",
+    "midnight-serialize-hf",
+    "ledger-storage-hf",
+    "transient-crypto-hf",
+    "zswap-hf",
 ]
 std = [
     "sp-runtime-interface/std",
@@ -83,14 +94,6 @@ std = [
     "midnight-storage-core",
     "transient-crypto",
     "zswap",
-    "mn-ledger-hf",
-    "base-crypto-hf",
-    "coin-structure-hf",
-    "onchain-runtime-hf",
-    "midnight-serialize-hf",
-    "ledger-storage-hf",
-    "transient-crypto-hf",
-    "zswap-hf",
     "mn-ledger-8",
     "coin-structure-ledger-8",
     "transient-crypto-ledger-8",

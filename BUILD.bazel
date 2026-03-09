@@ -1,0 +1,10 @@
+exports_files([
+    "Cargo.toml",
+    "Cargo.lock",
+])
+
+filegroup(
+    name = "sqlx_offline",
+    srcs = glob([".sqlx/**"]),
+    visibility = ["//visibility:public"],
+)

@@ -25,15 +25,15 @@ transient-crypto-ledger-8 = { workspace = true }
 zswap-ledger-8 = { workspace = true }
 zkir-ledger-8 = { workspace = true }
 
-mn-ledger-hf = { workspace = true, features = ["proving", "test-utilities"] }
-base-crypto-hf = { workspace = true }
-coin-structure-hf = { workspace = true }
-onchain-runtime-hf = { workspace = true }
-midnight-serialize-hf = { workspace = true }
-ledger-storage-hf = { workspace = true }
-transient-crypto-hf = { workspace = true }
-zswap-hf = { workspace = true }
-zkir-hf = { workspace = true }
+mn-ledger-hf = { workspace = true, features = ["proving", "test-utilities"], optional = true }
+base-crypto-hf = { workspace = true, optional = true }
+coin-structure-hf = { workspace = true, optional = true }
+onchain-runtime-hf = { workspace = true, optional = true }
+midnight-serialize-hf = { workspace = true, optional = true }
+ledger-storage-hf = { workspace = true, optional = true }
+transient-crypto-hf = { workspace = true, optional = true }
+zswap-hf = { workspace = true, optional = true }
+zkir-hf = { workspace = true, optional = true }
 
 rand = { workspace = true, features = ["small_rng"] }
 log.workspace = true
@@ -54,7 +54,18 @@ subxt-signer.workspace = true
 serde_json.workspace = true
 
 [features]
-default = []
+default = ["hardfork"]
+hardfork = [
+    "mn-ledger-hf",
+    "base-crypto-hf",
+    "coin-structure-hf",
+    "onchain-runtime-hf",
+    "midnight-serialize-hf",
+    "ledger-storage-hf",
+    "transient-crypto-hf",
+    "zswap-hf",
+    "zkir-hf",
+]
 can-panic = []
 erase-proof = []
 test-utils = []

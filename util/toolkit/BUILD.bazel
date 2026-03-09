@@ -1,0 +1,48 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+exports_files(["Cargo.toml"])
+
+rust_binary(
+    name = "midnight-node-toolkit",
+    srcs = glob(["src/**/*.rs"]),
+    edition = "2024",
+    deps = [
+        "//ledger/helpers:midnight-node-ledger-helpers",
+        "//metadata:midnight-node-metadata",
+        "//primitives/ics-observation:midnight-primitives-ics-observation",
+        "//primitives/reserve-observation:midnight-primitives-reserve-observation",
+        "@crates//:async-channel",
+        "@crates//:backoff",
+        "@crates//:bson",
+        "@crates//:chrono",
+        "@crates//:clap",
+        "@crates//:console",
+        "@crates//:futures",
+        "@crates//:hex",
+        "@crates//:indicatif",
+        "@crates//:log",
+        "@crates//:num_cpus",
+        "@crates//:parity-scale-codec",
+        "@crates//:rand-0.8.5",
+        "@crates//:redb",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sha2",
+        "@crates//:sp-crypto-hashing",
+        "@crates//:sqlx",
+        "@crates//:structured-logger",
+        "@crates//:strum",
+        "@crates//:subxt",
+        "@crates//:subxt-signer",
+        "@crates//:tempfile",
+        "@crates//:thiserror",
+        "@crates//:tokio",
+        "@crates//:toml",
+        "@crates//:tracing",
+        "@crates//:tracing-subscriber",
+        "@crates//:zstd",
+    ],
+    proc_macro_deps = [
+        "@crates//:async-trait",
+    ],
+)

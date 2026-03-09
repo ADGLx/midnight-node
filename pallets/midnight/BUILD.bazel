@@ -1,0 +1,33 @@
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+cargo_build_script(
+    name = "build_script",
+    srcs = ["build.rs"],
+    edition = "2024",
+)
+
+rust_library(
+    name = "pallet-midnight",
+    srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        ":build_script",
+        "//ledger:midnight-node-ledger",
+        "//primitives/midnight:midnight-primitives",
+        "@crates//:frame-support",
+        "@crates//:frame-system",
+        "@crates//:log",
+        "@crates//:pallet-timestamp",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-api",
+        "@crates//:sp-runtime",
+        "@crates//:sp-tracing",
+    ],
+    visibility = ["//visibility:public"],
+)

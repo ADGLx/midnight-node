@@ -33,6 +33,8 @@ sp_api::decl_runtime_apis! {
 		/// Get the current Terms and Conditions
 		fn get_terms_and_conditions() -> Option<TermsAndConditionsResponse<Hash>>;
 
+
+		
 		/// Get the current D-Parameter
 		fn get_d_parameter() -> DParameter;
 	}

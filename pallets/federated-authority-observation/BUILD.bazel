@@ -1,0 +1,22 @@
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+rust_library(
+    name = "pallet-federated-authority-observation",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = ["Cargo.toml"],
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "//primitives/federated-authority-observation:midnight-primitives-federated-authority-observation",
+        "@crates//:frame-support",
+        "@crates//:frame-system",
+        "@crates//:log",
+        "@crates//:parity-scale-codec",
+        "@crates//:scale-info",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-inherents",
+    ],
+    visibility = ["//visibility:public"],
+)

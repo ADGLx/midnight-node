@@ -1,0 +1,26 @@
+load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
+load("@rules_rust//rust:defs.bzl", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+cargo_build_script(
+    name = "build_script",
+    srcs = ["build.rs"],
+    edition = "2024",
+    data = glob(["static/**"]),
+    deps = [
+        "@crates//:walkdir",
+    ],
+)
+
+rust_library(
+    name = "midnight-node-metadata",
+    srcs = glob(["src/**/*.rs"]),
+    compile_data = glob(["static/**"]),
+    edition = "2024",
+    deps = [
+        "@crates//:subxt",
+        ":build_script",
+    ],
+    visibility = ["//visibility:public"],
+)

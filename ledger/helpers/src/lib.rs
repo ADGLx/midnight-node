@@ -16,6 +16,7 @@ mod utils;
 pub use utils::find_dependency_version;
 pub mod extract_tx_with_context;
 
+#[cfg(feature = "hardfork")]
 #[path = "versions"]
 pub mod hard_fork_test {
 	#[cfg(feature = "can-panic")]
@@ -80,7 +81,7 @@ pub use ledger_8 as latest;
 
 pub mod fork;
 
-#[cfg(hardfork_test)]
+#[cfg(all(feature = "hardfork", hardfork_test))]
 pub use hard_fork_test::*;
 
 #[cfg(not(hardfork_test))]

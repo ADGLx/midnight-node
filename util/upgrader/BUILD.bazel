@@ -1,0 +1,34 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+
+exports_files(["Cargo.toml"])
+
+DEPS = [
+    "@crates//:actix-web",
+    "@crates//:bip39",
+    "@crates//:clap",
+    "@crates//:env_logger",
+    "@crates//:hex",
+    "@crates//:log",
+    "@crates//:parity-scale-codec",
+    "@crates//:sp-crypto-hashing",
+    "@crates//:subxt",
+    "@crates//:subxt-signer",
+    "@crates//:thiserror",
+    "@crates//:tokio",
+]
+
+rust_library(
+    name = "upgrader_lib",
+    crate_name = "upgrader",
+    srcs = glob(["src/**/*.rs"], exclude = ["src/main.rs"]),
+    edition = "2024",
+    deps = DEPS,
+    visibility = ["//visibility:public"],
+)
+
+rust_binary(
+    name = "upgrader",
+    srcs = ["src/main.rs"],
+    edition = "2024",
+    deps = DEPS + [":upgrader_lib"],
+)
