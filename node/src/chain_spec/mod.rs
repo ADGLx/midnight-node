@@ -115,7 +115,7 @@ pub fn runtime_wasm() -> &'static [u8] {
 }
 
 /// Message embedded in the genesis block as a System::remark extrinsic.
-const GENESIS_REMARK: &[u8] = b"Hello World";
+const GENESIS_REMARK: &[u8] = b"The One remains, the many change and pass; Heaven's light forever shines, Earth's shadows fly; Life, like a dome of many-colour'd glass, Stains the white radiance of Eternity, Until Death tramples it to fragments,";
 
 pub fn get_chainspec_extrinsics(
 	genesis_block: &[u8],
