@@ -16,14 +16,27 @@ cargo_build_script(
 rust_library(
     name = "midnight-node-res",
     srcs = glob(["src/**/*.rs"]),
-    compile_data = glob(["cfg/**"]),
+    compile_data = glob(["cfg/**"]) + glob(["dev/**"]) + glob(["genesis/**"]),
+    crate_features = [
+        "std",
+        "chain-spec",
+    ],
     edition = "2024",
     deps = [
         ":build_script",
+        "//pallets/cnight-observation:pallet-cnight-observation",
+        "//primitives/federated-authority-observation:midnight-primitives-federated-authority-observation",
+        "//primitives/ics-observation:midnight-primitives-ics-observation",
+        "//primitives/reserve-observation:midnight-primitives-reserve-observation",
+        "//primitives/system-parameters:midnight-primitives-system-parameters",
         "@crates//:hex-literal",
         "@crates//:midnight-serialize",
+        "@crates//:sc-service",
         "@crates//:serde",
         "@crates//:serde_json",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-core",
+        "@crates//:sp-session-validator-management",
     ],
     visibility = ["//visibility:public"],
 )

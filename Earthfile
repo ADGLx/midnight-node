@@ -1034,19 +1034,13 @@ build:
 
     SAVE ARTIFACT /artifacts-$NATIVEARCH AS LOCAL artifacts
 
-# build-bazel creates production ready binaries using Bazel
-build-bazel:
+# build-bazel-image creates a Docker image with Bazel tooling for persistent container builds
+build-bazel-image:
     FROM +build-prepare
-    COPY --keep-ts --dir Cargo.lock Cargo.toml .cargo .sqlx \
-    ledger node pallets primitives metadata res runtime util tests relay COMPACTC_VERSION \
-    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel scripts docs patches .
-
     ARG NATIVEARCH
 
-    # Install lld for faster linking
     RUN microdnf -y install lld && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
-    # Install Bazelisk
     ARG BAZELISK_VERSION=1.25.0
     RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
         curl -fsSL -o /usr/local/bin/bazel \
@@ -1055,6 +1049,82 @@ build-bazel:
 
     # Remove .cargo/config.toml — cargo-bazel rejects parent-dir cargo configs
     RUN rm -f /.cargo/config.toml
+
+    # Install wasm-opt binary — substrate-wasm-builder uses it to optimize WASM.
+    # Building wasm-opt-sys from source in Bazel is broken (cxx/scratch crate
+    # symlinks dangle across sandbox boundaries). Pre-installing avoids this.
+    RUN cargo install wasm-opt --version 0.116.0
+
+    # Pre-download Bazel binary so first build doesn't wait
+    RUN bazel version
+
+    SAVE IMAGE midnight-bazel-builder:latest
+
+# build-bazel-local uses a persistent Docker container to keep the Bazel server alive
+# between builds, avoiding the ~100s analysis phase on incremental builds
+build-bazel-local:
+    LOCALLY
+    ARG CONTAINER_NAME=midnight-bazel
+    ARG WORKSPACE_DIR=$(pwd)
+    RUN if ! docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then \
+            echo "Starting persistent Bazel container..." && \
+            docker run -d --name "$CONTAINER_NAME" \
+                -v "$WORKSPACE_DIR":/workspace \
+                -v midnight-bazel-cache:/root/.cache/bazel \
+                -w /workspace \
+                midnight-bazel-builder:latest \
+                sleep infinity; \
+        elif [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != "true" ]; then \
+            echo "Restarting Bazel container..." && \
+            docker start "$CONTAINER_NAME"; \
+        fi
+    RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
+        docker exec "$CONTAINER_NAME" bazel build \
+        //util/upgrader:upgrader \
+        //util/aiken-deployer:aiken-deployer \
+        //util/documented/documented_proc_macro \
+        //util/documented/documented_types \
+        //util/documented \
+        //primitives/ledger:midnight-primitives-ledger \
+        //primitives/beefy:midnight-primitives-beefy \
+        //primitives/midnight:midnight-primitives \
+        //primitives/system-parameters:midnight-primitives-system-parameters \
+        //primitives/ics-observation:midnight-primitives-ics-observation \
+        //primitives/reserve-observation:midnight-primitives-reserve-observation \
+        //primitives/cnight-observation:midnight-primitives-cnight-observation \
+        //primitives/federated-authority-observation:midnight-primitives-federated-authority-observation \
+        //primitives/mainchain-follower:midnight-primitives-mainchain-follower \
+        //pallets/throttle:pallet-throttle \
+        //pallets/version:pallet-version \
+        //pallets/federated-authority:pallet-federated-authority \
+        //pallets/system-parameters:pallet-system-parameters \
+        //pallets/federated-authority-observation:pallet-federated-authority-observation \
+        //runtime/common:runtime-common \
+        //metadata:midnight-node-metadata
+
+# build-bazel creates production ready binaries using Bazel
+build-bazel:
+    FROM +build-prepare
+    ARG NATIVEARCH
+
+    # Install lld for faster linking (cached — only re-runs when base image changes)
+    RUN microdnf -y install lld && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
+
+    # Install Bazelisk (cached — only re-runs when BAZELISK_VERSION changes)
+    ARG BAZELISK_VERSION=1.25.0
+    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
+        curl -fsSL -o /usr/local/bin/bazel \
+        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
+        chmod 0755 /usr/local/bin/bazel
+
+    # Copy source files AFTER tool installation so tool layers stay cached
+    COPY --keep-ts --dir Cargo.lock Cargo.toml .sqlx \
+    ledger node pallets primitives metadata res runtime util tests relay COMPACTC_VERSION \
+    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel scripts docs patches .
+
+    # Remove base image's .cargo/config.toml — cargo-bazel rejects parent-dir cargo configs
+    RUN rm -f /.cargo/config.toml
+
 
     # Cache Bazel binary (downloaded by Bazelisk) and build outputs
     # (action cache, external repos, compiled artifacts)

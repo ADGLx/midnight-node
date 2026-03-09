@@ -1,3 +1,6 @@
+# Auto-select build:linux or build:macos based on host OS
+build --enable_platform_specific_config
+
 # Compiler
 build --action_env=CC=clang
 build --action_env=CXX=clang++
@@ -5,9 +8,20 @@ build --action_env=CXX=clang++
 # Pass PATH so sandboxed actions can find tools
 build --action_env=PATH
 
-# Linker — use cc (universally available) with lld for faster linking
-build --linkopt=-fuse-ld=lld
-build --@rules_rust//:extra_rustc_flags=-Clink-arg=-fuse-ld=lld
+# wasm-opt-sys build script (via cxx/scratch crates) creates symlinks across
+# sandbox boundaries. The scratch crate bakes sandbox-specific paths via env!("OUT_DIR")
+# at compile time, causing dangling symlinks in tree artifact outputs.
+build --noincompatible_disallow_unsound_directory_outputs
+build --experimental_allow_unresolved_symlinks
+
+# C++ standard — binaryen (wasm-opt-sys) requires C++17.
+# BAZEL_CXXOPTS overrides the auto-configured CC toolchain's default standard,
+# which otherwise injects -std=c++14 into CXXFLAGS and breaks cc-rs builds.
+build --repo_env=BAZEL_CXXOPTS=-std=c++17
+
+# Linker — use lld for faster linking (Linux only; macOS uses system linker)
+build:linux --linkopt=-fuse-ld=lld
+build:linux --@rules_rust//:extra_rustc_flags=-Clink-arg=-fuse-ld=lld
 
 # Release mode
 build --compilation_mode=opt

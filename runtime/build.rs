@@ -38,4 +38,18 @@ fn main() {
 			.import_memory()
 			.build();
 	}
+
+	// When std is not enabled (e.g. Bazel builds that skip wasm-builder to avoid
+	// the wasm-opt-sys/scratch/cxx sandbox symlink issue), generate a stub so the
+	// runtime crate's `include!(…"/wasm_binary.rs")` still resolves.
+	#[cfg(not(feature = "std"))]
+	{
+		let out = std::env::var("OUT_DIR").unwrap();
+		std::fs::write(
+			std::path::Path::new(&out).join("wasm_binary.rs"),
+			"pub const WASM_BINARY: Option<&[u8]> = None;\n\
+			 pub const WASM_BINARY_BLOATY: Option<&[u8]> = None;\n",
+		)
+		.unwrap();
+	}
 }

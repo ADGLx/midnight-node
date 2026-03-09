@@ -5,7 +5,9 @@ exports_files(["Cargo.toml"])
 rust_library(
     name = "pallet-cnight-observation-mock",
     srcs = glob(["src/**/*.rs"]),
+    crate_features = ["std"],
     edition = "2024",
+    compile_data = ["Cargo.toml"],
     deps = [
         "//ledger:midnight-node-ledger",
         "//pallets/cnight-observation:pallet-cnight-observation",

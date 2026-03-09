@@ -7,6 +7,7 @@ rust_library(
     srcs = glob(["src/**/*.rs"]),
     crate_features = ["std"],
     edition = "2024",
+    compile_data = ["Cargo.toml"],
     deps = [
         "//ledger:midnight-node-ledger",
         "//primitives/cnight-observation:midnight-primitives-cnight-observation",
@@ -19,6 +20,7 @@ rust_library(
         "@crates//:parity-scale-codec",
         "@crates//:scale-info",
         "@crates//:serde",
+        "@crates//:serde_valid",
         "@crates//:sidechain-domain",
         "@crates//:sp-core",
     ],

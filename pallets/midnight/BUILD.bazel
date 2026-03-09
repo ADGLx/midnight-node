@@ -14,6 +14,7 @@ rust_library(
     srcs = glob(["src/**/*.rs"]),
     crate_features = ["std"],
     edition = "2024",
+    compile_data = ["Cargo.toml"],
     deps = [
         ":build_script",
         "//ledger:midnight-node-ledger",
