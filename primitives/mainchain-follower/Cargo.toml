@@ -23,6 +23,7 @@ sqlx = { version = "0.8.5",  optional = true,  default-features = false, feature
 db-sync-sqlx = { workspace = true, optional = true }
 derive-new.workspace = true
 partner-chains-db-sync-data-sources = { default-features = false, workspace = true, optional = true }
+partner-chains-data-source-metrics = { default-features = false, workspace = true, optional = true }
 scale-info.workspace = true
 log.workspace = true
 prometheus-endpoint = { workspace = true, optional = true }
@@ -59,6 +60,7 @@ std = [
     "db-sync-sqlx",
     "log/std",
     "partner-chains-db-sync-data-sources",
+    "partner-chains-data-source-metrics",
     "prometheus-endpoint",
     "rand/std",
     "rand/thread_rng",

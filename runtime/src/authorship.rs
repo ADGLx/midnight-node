@@ -12,7 +12,6 @@
 // limitations under the License.
 
 use frame_support::traits::FindAuthor;
-use sp_session_validator_management::CommitteeMember;
 
 pub fn current_block_author_aura_index<T: pallet_aura::Config>() -> Option<usize> {
 	let digest = <frame_system::Pallet<T>>::digest();
@@ -25,7 +24,7 @@ pub fn current_block_author<
 >() -> <T as pallet_session_validator_management::Config>::AuthorityId {
 	let author = current_block_author_aura_index::<T>()
 		.expect("Each aura block should have an author encoded in the digest");
-	pallet_session_validator_management::Pallet::<T>::get_current_authority_round_robin(author)
+	pallet_session_validator_management::Pallet::<T>::get_current_authority_at(author)
 		.expect(
 			"Aura authorities must match session committee management, thus aura index can't be too big",
 		)

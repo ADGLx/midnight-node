@@ -276,7 +276,7 @@ name = "aiken-contracts-lib"
 version = "0.1.0"
 dependencies = [
  "hex",
- "ogmios-client",
+ "ogmios-client 1.8.1",
  "serde",
  "serde_json",
  "thiserror 1.0.69",
@@ -290,7 +290,7 @@ dependencies = [
  "aiken-contracts-lib",
  "clap",
  "hex",
- "ogmios-client",
+ "ogmios-client 1.8.1",
  "serde_json",
  "thiserror 1.0.69",
  "tokio",
@@ -1096,23 +1096,21 @@ dependencies = [
 
 [[package]]
 name = "authority-selection-inherents"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "frame-support",
  "log",
  "minicbor 0.25.1",
  "parity-scale-codec",
- "plutus",
- "plutus-datum-derive",
+ "plutus 1.8.0",
+ "plutus-datum-derive 1.8.0",
  "scale-info",
  "selection",
  "serde",
- "sidechain-domain",
- "sidechain-slots",
+ "sidechain-domain 1.8.0",
  "sp-api",
- "sp-consensus-slots",
  "sp-core",
  "sp-inherents",
  "sp-runtime",
@@ -1687,6 +1685,15 @@ checksum = "7575182f7272186991736b70173b0ea045398f984bf5ebbb3804736ce1330c9d"
 
 [[package]]
 name = "byte-string-derive"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
+dependencies = [
+ "quote 1.0.40",
+ "syn 2.0.104",
+]
+
+[[package]]
+name = "byte-string-derive"
 version = "1.8.1"
 source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
 dependencies = [
@@ -2072,8 +2079,8 @@ dependencies = [
 
 [[package]]
 name = "cli-commands"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "anyhow",
  "clap",
@@ -2083,12 +2090,12 @@ dependencies = [
  "k256",
  "pallet-address-associations",
  "parity-scale-codec",
- "plutus",
- "plutus-datum-derive",
+ "plutus 1.8.0",
+ "plutus-datum-derive 1.8.0",
  "secp256k1 0.30.0",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-block-producer-metadata",
  "sp-blockchain",
@@ -3066,11 +3073,12 @@ dependencies = [
 
 [[package]]
 name = "db-sync-sqlx"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
+ "hex",
  "num-traits",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sqlx",
 ]
 
@@ -7545,6 +7553,7 @@ dependencies = [
  "pallet-throttle",
  "parity-scale-codec",
  "partner-chains-cli",
+ "partner-chains-data-source-metrics",
  "partner-chains-db-sync-data-sources",
  "partner-chains-mock-data-sources",
  "partner-chains-node-commands",
@@ -7579,9 +7588,8 @@ dependencies = [
  "serde_json",
  "serde_valid",
  "shell-words",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sidechain-mc-hash",
- "sidechain-slots",
  "snap",
  "sp-api",
  "sp-block-builder",
@@ -7627,7 +7635,7 @@ dependencies = [
  "midnight-node-metadata",
  "midnight-node-res",
  "midnight-node-toolkit",
- "ogmios-client",
+ "ogmios-client 1.8.1",
  "rand 0.9.2",
  "serde",
  "serde_json",
@@ -7738,7 +7746,7 @@ dependencies = [
  "sc-service",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-core",
  "sp-session-validator-management",
  "toml 0.9.5",
@@ -7778,7 +7786,6 @@ dependencies = [
  "pallet-migrations",
  "pallet-mmr",
  "pallet-partner-chains-bridge",
- "pallet-partner-chains-session",
  "pallet-preimage",
  "pallet-scheduler",
  "pallet-session",
@@ -7790,12 +7797,11 @@ dependencies = [
  "pallet-tx-pause",
  "pallet-version",
  "parity-scale-codec",
- "plutus",
+ "plutus 1.8.0",
  "runtime-common",
  "scale-info",
  "serde",
- "sidechain-domain",
- "sidechain-slots",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-block-builder",
  "sp-consensus-aura",
@@ -8031,7 +8037,7 @@ dependencies = [
  "scale-info",
  "serde",
  "serde_valid",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-inherents",
  "sqlx",
@@ -8047,7 +8053,7 @@ dependencies = [
  "scale-info",
  "serde",
  "serde_valid",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-core",
  "sp-inherents",
@@ -8059,7 +8065,7 @@ name = "midnight-primitives-ics-observation"
 version = "0.1.0"
 dependencies = [
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "thiserror 1.0.69",
 ]
 
@@ -8088,12 +8094,13 @@ dependencies = [
  "midnight-primitives-cnight-observation",
  "midnight-primitives-federated-authority-observation",
  "parity-scale-codec",
+ "partner-chains-data-source-metrics",
  "partner-chains-db-sync-data-sources",
  "partner-chains-plutus-data",
  "rand 0.9.2",
  "scale-info",
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-blockchain",
  "sp-core",
@@ -8111,7 +8118,7 @@ name = "midnight-primitives-reserve-observation"
 version = "0.1.0"
 dependencies = [
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "thiserror 1.0.69",
 ]
 
@@ -8121,7 +8128,7 @@ version = "0.1.0"
 dependencies = [
  "hex",
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
 ]
 
 [[package]]
@@ -9151,6 +9158,23 @@ dependencies = [
 
 [[package]]
 name = "ogmios-client"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
+dependencies = [
+ "anyhow",
+ "fraction",
+ "hex",
+ "jsonrpsee",
+ "log",
+ "serde",
+ "serde_json",
+ "sidechain-domain 1.8.0",
+ "thiserror 2.0.12",
+ "time",
+]
+
+[[package]]
+name = "ogmios-client"
 version = "1.8.1"
 source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
 dependencies = [
@@ -9161,7 +9185,7 @@ dependencies = [
  "log",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.1",
  "thiserror 2.0.12",
  "time",
 ]
@@ -9661,8 +9685,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-address-associations"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9670,7 +9694,7 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-std",
 ]
 
@@ -9861,7 +9885,7 @@ dependencies = [
  "serde",
  "serde_json",
  "serde_valid",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-core",
  "sp-io",
  "tempfile",
@@ -9883,7 +9907,7 @@ dependencies = [
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-io",
 ]
 
@@ -9936,7 +9960,7 @@ dependencies = [
  "parity-scale-codec",
  "runtime-common",
  "scale-info",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-inherents",
  "sp-io",
  "sp-runtime",
@@ -9944,8 +9968,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-governed-map"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -9953,7 +9977,7 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-governed-map",
 ]
 
@@ -10031,7 +10055,7 @@ dependencies = [
  "pallet-timestamp",
  "parity-scale-codec",
  "scale-info",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-core",
  "sp-io",
@@ -10101,8 +10125,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-partner-chains-bridge"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "frame-benchmarking",
  "frame-support",
@@ -10110,27 +10134,8 @@ dependencies = [
  "log",
  "parity-scale-codec",
  "scale-info",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-partner-chains-bridge",
-]
-
-[[package]]
-name = "pallet-partner-chains-session"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "frame-support",
- "frame-system",
- "impl-trait-for-tuples",
- "log",
- "pallet-session",
- "pallet-timestamp",
- "parity-scale-codec",
- "scale-info",
- "sp-core",
- "sp-runtime",
- "sp-staking",
- "sp-std",
 ]
 
 [[package]]
@@ -10190,48 +10195,47 @@ dependencies = [
 
 [[package]]
 name = "pallet-session-validator-management"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
- "derive-new",
  "frame-benchmarking",
  "frame-support",
  "frame-system",
  "log",
- "pallet-partner-chains-session",
  "pallet-session",
  "parity-scale-codec",
  "scale-info",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-core",
+ "sp-io",
  "sp-runtime",
  "sp-session-validator-management",
+ "sp-staking",
  "sp-std",
 ]
 
 [[package]]
 name = "pallet-session-validator-management-rpc"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "derive-new",
  "jsonrpsee",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-session-validator-management-query",
 ]
 
 [[package]]
 name = "pallet-sidechain"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "frame-support",
  "frame-system",
  "log",
  "parity-scale-codec",
  "scale-info",
- "sidechain-domain",
- "sidechain-slots",
+ "sidechain-domain 1.8.0",
  "sp-core",
  "sp-runtime",
  "sp-sidechain",
@@ -10240,8 +10244,8 @@ dependencies = [
 
 [[package]]
 name = "pallet-sidechain-rpc"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "derive-new",
  "hex",
@@ -10250,8 +10254,7 @@ dependencies = [
  "scale-info",
  "serde",
  "serde_json",
- "sidechain-domain",
- "sidechain-slots",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-blockchain",
  "sp-core",
@@ -10294,7 +10297,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-core",
  "sp-io",
@@ -10312,7 +10315,7 @@ dependencies = [
  "schemars 0.8.22",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-blockchain",
  "sp-core",
@@ -10568,8 +10571,8 @@ checksum = "7924d1d0ad836f665c9065e26d016c673ece3993f30d340068b16f282afc1156"
 
 [[package]]
 name = "partner-chains-cardano-offchain"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "anyhow",
  "cardano-serialization-lib 14.1.2",
@@ -10579,15 +10582,15 @@ dependencies = [
  "hex-literal 1.0.0",
  "log",
  "minicbor 0.25.1",
- "ogmios-client",
+ "ogmios-client 1.8.0",
  "pallas-primitives 0.32.1",
  "partner-chains-plutus-data",
- "plutus",
+ "plutus 1.8.0",
  "raw-scripts",
  "secp256k1 0.30.0",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "tokio",
  "tokio-retry",
  "uplc",
@@ -10595,8 +10598,8 @@ dependencies = [
 
 [[package]]
 name = "partner-chains-cli"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "anyhow",
  "authority-selection-inherents",
@@ -10608,34 +10611,45 @@ dependencies = [
  "inquire",
  "libp2p-identity",
  "log",
- "ogmios-client",
+ "ogmios-client 1.8.0",
  "pallet-governed-map",
  "pallet-partner-chains-bridge",
- "pallet-partner-chains-session",
+ "pallet-session",
  "pallet-session-validator-management",
  "pallet-sidechain",
  "partner-chains-cardano-offchain",
- "plutus",
- "plutus-datum-derive",
+ "plutus 1.8.0",
+ "plutus-datum-derive 1.8.0",
  "secp256k1 0.30.0",
  "serde",
  "serde_json",
- "sidechain-domain",
- "sidechain-slots",
+ "sidechain-domain 1.8.0",
  "sp-core",
  "sp-governed-map",
  "sp-partner-chains-bridge",
  "sp-runtime",
  "sp-session-validator-management",
+ "sp-staking",
  "tempfile",
  "thiserror 2.0.12",
  "tokio",
 ]
 
 [[package]]
+name = "partner-chains-data-source-metrics"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
+dependencies = [
+ "async-trait",
+ "log",
+ "substrate-prometheus-endpoint",
+ "tokio",
+]
+
+[[package]]
 name = "partner-chains-db-sync-data-sources"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "authority-selection-inherents",
@@ -10654,23 +10668,23 @@ dependencies = [
  "lru 0.16.3",
  "num-bigint",
  "pallet-sidechain-rpc",
+ "partner-chains-data-source-metrics",
  "partner-chains-plutus-data",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sidechain-mc-hash",
  "sp-partner-chains-bridge",
  "sp-timestamp",
  "sqlx",
- "substrate-prometheus-endpoint",
  "thiserror 2.0.12",
  "tokio",
 ]
 
 [[package]]
 name = "partner-chains-mock-data-sources"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "authority-selection-inherents",
@@ -10681,7 +10695,7 @@ dependencies = [
  "rand 0.9.2",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sidechain-mc-hash",
  "sp-partner-chains-bridge",
  "sp-timestamp",
@@ -10689,8 +10703,8 @@ dependencies = [
 
 [[package]]
 name = "partner-chains-node-commands"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "authority-selection-inherents",
  "clap",
@@ -10702,10 +10716,10 @@ dependencies = [
  "parity-scale-codec",
  "partner-chains-cli",
  "partner-chains-smart-contracts-commands",
- "plutus",
+ "plutus 1.8.0",
  "sc-cli",
  "sc-service",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-blockchain",
  "sp-core",
@@ -10717,30 +10731,30 @@ dependencies = [
 
 [[package]]
 name = "partner-chains-plutus-data"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "cardano-serialization-lib 14.1.2",
  "log",
  "raw-scripts",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-core",
  "thiserror 2.0.12",
 ]
 
 [[package]]
 name = "partner-chains-smart-contracts-commands"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "anyhow",
  "clap",
  "hex",
- "ogmios-client",
+ "ogmios-client 1.8.0",
  "partner-chains-cardano-offchain",
  "serde",
  "serde_json",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-runtime",
  "tokio",
 ]
@@ -11033,6 +11047,17 @@ checksum = "7edddbd0b52d732b21ad9a5fab5c704c14cd949e5e9a1ec5929a24fded1b904c"
 
 [[package]]
 name = "plutus"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
+dependencies = [
+ "hex",
+ "minicbor 0.25.1",
+ "num-bigint",
+ "num-traits",
+]
+
+[[package]]
+name = "plutus"
 version = "1.8.1"
 source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
 dependencies = [
@@ -11040,6 +11065,15 @@ dependencies = [
  "minicbor 0.25.1",
  "num-bigint",
  "num-traits",
+]
+
+[[package]]
+name = "plutus-datum-derive"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
+dependencies = [
+ "quote 1.0.40",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -12183,8 +12217,8 @@ dependencies = [
 
 [[package]]
 name = "raw-scripts"
-version = "8.1.0"
-source = "git+https://github.com/input-output-hk/partner-chains-smart-contracts.git?tag=v8.1.0#08bc5346d17d258ab84e4312e22339eaa1762c57"
+version = "8.2.0"
+source = "git+https://github.com/input-output-hk/partner-chains-smart-contracts.git?tag=v8.2.0#8d57492a9d9a8e3ccda4165bf2ec61f98aa9430c"
 dependencies = [
  "hex-literal 0.4.1",
 ]
@@ -13695,8 +13729,8 @@ dependencies = [
 
 [[package]]
 name = "sc-partner-chains-consensus-aura"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "fork-tree 13.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
@@ -14501,8 +14535,8 @@ dependencies = [
 
 [[package]]
 name = "selection"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "rand 0.9.2",
  "rand_chacha 0.9.0",
@@ -14893,30 +14927,13 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0fda2ff0d084019ba4d7c6f371c95d8fd75ce3524c3cb8fb653a3023f6323e64"
 
 [[package]]
-name = "sidechain-block-search"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "hex",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sidechain-domain",
- "sp-api",
- "sp-blockchain",
- "sp-core",
- "sp-runtime",
- "sp-sidechain",
-]
-
-[[package]]
 name = "sidechain-domain"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "bech32 0.11.0",
  "blake2b_simd",
- "byte-string-derive",
+ "byte-string-derive 1.8.0",
  "derive-where",
  "derive_more 2.0.1",
  "ed25519-zebra",
@@ -14927,8 +14944,39 @@ dependencies = [
  "num-derive",
  "num-traits",
  "parity-scale-codec",
- "plutus",
- "plutus-datum-derive",
+ "plutus 1.8.0",
+ "plutus-datum-derive 1.8.0",
+ "scale-info",
+ "secp256k1 0.30.0",
+ "serde",
+ "sp-core",
+ "sp-crypto-hashing 0.1.0 (git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable2509)",
+ "sp-io",
+ "sp-runtime",
+ "sp-std",
+ "thiserror 2.0.12",
+]
+
+[[package]]
+name = "sidechain-domain"
+version = "1.8.1"
+source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+dependencies = [
+ "bech32 0.11.0",
+ "blake2b_simd",
+ "byte-string-derive 1.8.1",
+ "derive-where",
+ "derive_more 2.0.1",
+ "ed25519-zebra",
+ "figment",
+ "hex",
+ "k256",
+ "num-bigint",
+ "num-derive",
+ "num-traits",
+ "parity-scale-codec",
+ "plutus 1.8.1",
+ "plutus-datum-derive 1.8.1",
  "scale-info",
  "secp256k1 0.30.0",
  "serde",
@@ -14941,37 +14989,19 @@ dependencies = [
 
 [[package]]
 name = "sidechain-mc-hash"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "derive-new",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-blockchain",
  "sp-consensus",
- "sp-consensus-slots",
  "sp-inherents",
  "sp-partner-chains-consensus-aura",
  "sp-runtime",
  "sp-timestamp",
  "thiserror 2.0.12",
-]
-
-[[package]]
-name = "sidechain-slots"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
-dependencies = [
- "envy",
- "parity-scale-codec",
- "scale-info",
- "serde",
- "sidechain-domain",
- "sp-api",
- "sp-blockchain",
- "sp-consensus-slots",
- "sp-core",
- "sp-runtime",
 ]
 
 [[package]]
@@ -15475,12 +15505,12 @@ dependencies = [
 
 [[package]]
 name = "sp-block-producer-metadata"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "k256",
  "parity-scale-codec",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
 ]
 
@@ -15726,8 +15756,8 @@ dependencies = [
 
 [[package]]
 name = "sp-governed-map"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "envy",
@@ -15735,7 +15765,7 @@ dependencies = [
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-inherents",
  "sp-runtime",
@@ -15883,16 +15913,18 @@ dependencies = [
 
 [[package]]
 name = "sp-partner-chains-bridge"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "envy",
+ "hex",
  "log",
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sidechain-domain",
+ "serde_json",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-core",
  "sp-inherents",
@@ -15902,8 +15934,8 @@ dependencies = [
 
 [[package]]
 name = "sp-partner-chains-consensus-aura"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "futures",
  "sp-consensus",
@@ -15998,14 +16030,14 @@ dependencies = [
 
 [[package]]
 name = "sp-session-validator-management"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "envy",
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-core",
  "sp-inherents",
@@ -16016,19 +16048,18 @@ dependencies = [
 
 [[package]]
 name = "sp-session-validator-management-query"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "async-trait",
  "authority-selection-inherents",
  "derive-new",
  "parity-scale-codec",
- "plutus",
+ "plutus 1.8.0",
  "scale-info",
  "serde",
  "serde_json",
- "sidechain-block-search",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-blockchain",
  "sp-core",
@@ -16040,15 +16071,15 @@ dependencies = [
 
 [[package]]
 name = "sp-sidechain"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 dependencies = [
  "envy",
  "frame-support",
  "parity-scale-codec",
  "scale-info",
  "serde",
- "sidechain-domain",
+ "sidechain-domain 1.8.0",
  "sp-api",
  "sp-runtime",
 ]
@@ -17688,8 +17719,8 @@ dependencies = [
 
 [[package]]
 name = "time-source"
-version = "1.8.1"
-source = "git+https://github.com/midnightntwrk/partner-chains?tag=v1.8.1#56c3af3f9f665b79a1d2212c3fe714b814fbe270"
+version = "1.8.0"
+source = "git+https://github.com/midnightntwrk/partner-chains?rev=fca81666309db5348bf100d83e605dcb03e84215#fca81666309db5348bf100d83e605dcb03e84215"
 
 [[package]]
 name = "tiny-bip39"

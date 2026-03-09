@@ -110,9 +110,9 @@ sp-sidechain.workspace = true
 sp-session-validator-management.workspace = true
 partner-chains-db-sync-data-sources = { workspace = true, features = ["block-source", "candidate-source", "mc-hash", "sidechain-rpc", "bridge"] }
 partner-chains-mock-data-sources = { workspace = true, features = ["block-source", "candidate-source", "mc-hash", "sidechain-rpc", "bridge"] }
+partner-chains-data-source-metrics.workspace = true
 pallet-session-validator-management-rpc.workspace = true
 pallet-sidechain-rpc.workspace = true
-sidechain-slots.workspace = true
 sidechain-domain = { workspace = true, features = ["serde"] }
 sidechain-mc-hash = { workspace = true, features = ["mock"] }
 sp-partner-chains-consensus-aura.workspace = true

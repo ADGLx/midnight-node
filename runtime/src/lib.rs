@@ -24,9 +24,12 @@ extern crate frame_benchmarking;
 extern crate alloc;
 use alloc::string::String;
 use authority_selection_inherents::{
-	AuthoritySelectionInputs, CommitteeMember, PermissionedCandidateDataError,
-	RegistrationDataError, StakeError, select_authorities, validate_permissioned_candidate_data,
+	AuthoritySelectionInputs, PermissionedCandidateDataError, RegistrationDataError, StakeError,
+	select_authorities, validate_permissioned_candidate_data,
 };
+use pallet_session_validator_management::CommitteeMemberOf;
+use sp_runtime::traits::ConvertInto;
+use sp_session_validator_management::CommitteeMember;
 
 pub use frame_support::{
 	BoundedVec, PalletId, StorageValue,
@@ -61,10 +64,9 @@ pub use pallet_session_validator_management::{self, Config};
 pub use pallet_timestamp::Call as TimestampCall;
 pub use pallet_version::VERSION_ID;
 use parity_scale_codec::Encode;
-use session_manager::ValidatorManagementSessionManager;
 use sidechain_domain::{
 	MainchainAddress, PermissionedCandidateData, PolicyId, RegistrationData, ScEpochNumber,
-	ScSlotNumber, StakeDelegation, StakePoolPublicKey, UtxoId,
+	StakeDelegation, StakePoolPublicKey, UtxoId,
 };
 use sp_api::impl_runtime_apis;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
@@ -120,7 +122,6 @@ pub mod check_call_filter;
 mod constants;
 mod currency;
 mod migrations;
-mod session_manager;
 
 use check_call_filter::CheckCallFilter;
 use constants::time_units::DAYS;
@@ -388,8 +389,6 @@ impl pallet_aura::Config for Runtime {
 	type SlotDuration = ConstU64<SLOT_DURATION>;
 }
 
-pallet_partner_chains_session::impl_pallet_session_config!(Runtime);
-
 impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 
@@ -519,15 +518,19 @@ impl pallet_scheduler::Config for Runtime {
 	type BlockNumberProvider = frame_system::Pallet<Runtime>;
 }
 
-impl pallet_partner_chains_session::Config for Runtime {
-	type ValidatorId = <Self as frame_system::Config>::AccountId;
-	type ShouldEndSession = ValidatorManagementSessionManager<Runtime>;
+impl pallet_session::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type ValidatorId = AccountId;
+	type ValidatorIdOf = ConvertInto;
+	type ShouldEndSession = SessionCommitteeManagement;
 	type NextSessionRotation = ();
-	type SessionManager = ValidatorManagementSessionManager<Runtime>;
-	type SessionHandler = <opaque::SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
-	type Keys = opaque::SessionKeys;
+	type SessionManager = SessionCommitteeManagement;
+	type SessionHandler = <SessionKeys as OpaqueKeys>::KeyTypeIdProviders;
+	type Keys = SessionKeys;
+	type DisablingStrategy = pallet_session::disabling::UpToLimitWithReEnablingDisablingStrategy;
 	type Currency = CurrencyWaiver;
 	type KeyDeposit = ();
+	type WeightInfo = pallet_session::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -549,13 +552,11 @@ impl pallet_session_validator_management::Config for Runtime {
 	type MaxValidators = MaxAuthorities;
 	type AuthorityId = CrossChainPublic;
 	type AuthorityKeys = SessionKeys;
-	type AuthoritySelectionInputs = AuthoritySelectionInputs;
-	type ScEpochNumber = ScEpochNumber;
 
 	fn select_authorities(
 		input: AuthoritySelectionInputs,
 		sidechain_epoch: ScEpochNumber,
-	) -> Option<BoundedVec<Self::CommitteeMember, MaxAuthorities>> {
+	) -> Option<BoundedVec<CommitteeMemberOf<Self>, MaxAuthorities>> {
 		select_authorities_optionally_overriding(input, sidechain_epoch)
 	}
 
@@ -565,8 +566,6 @@ impl pallet_session_validator_management::Config for Runtime {
 
 	// TODO: Benchmark all pallets
 	type WeightInfo = ();
-
-	type CommitteeMember = CommitteeMember<CrossChainPublic, SessionKeys>;
 
 	type MainChainScriptsOrigin = EnsureRoot<Self::AccountId>;
 	#[cfg(feature = "runtime-benchmarks")]
@@ -589,8 +588,8 @@ impl sp_sidechain::OnNewEpoch for LogBeneficiaries {
 }
 
 impl pallet_sidechain::Config for Runtime {
-	fn current_slot_number() -> ScSlotNumber {
-		ScSlotNumber(*pallet_aura::CurrentSlot::<Self>::get())
+	fn reference_timestamp_millis() -> u64 {
+		*pallet_aura::CurrentSlot::<Runtime>::get() * SLOT_DURATION
 	}
 	type OnNewEpoch = LogBeneficiaries;
 }
@@ -891,8 +890,6 @@ mod runtime {
 
 	#[runtime::pallet_index(8)]
 	pub type SessionCommitteeManagement = pallet_session_validator_management::Pallet<Runtime>;
-	#[runtime::pallet_index(30)]
-	pub type Session = pallet_partner_chains_session::Pallet<Runtime>;
 	//#[cfg(feature = "experimental")]
 	//BlockRewards: pallet_block_rewards = 9,
 
@@ -908,11 +905,9 @@ mod runtime {
 
 	#[runtime::pallet_index(16)]
 	pub type MultiBlockMigrations = pallet_migrations::Pallet<Runtime>;
-	// Only stub implementation of pallet_session should be wired.
-	// Partner Chains session_manager ValidatorManagementSessionManager writes to pallet_session::pallet::CurrentIndex.
-	// ValidatorManagementSessionManager is wired in by pallet_partner_chains_session.
+
 	#[runtime::pallet_index(17)]
-	pub type PalletSession = pallet_session::Pallet<Runtime>;
+	pub type Session = pallet_session::Pallet<Runtime>; // TODO `exclude_parts { Call }`
 
 	#[runtime::pallet_index(18)]
 	pub type Scheduler = pallet_scheduler::Pallet<Runtime>;
@@ -1407,9 +1402,15 @@ impl_runtime_apis! {
 		fn get_sidechain_status() -> SidechainStatus {
 			SidechainStatus {
 				epoch: Sidechain::current_epoch_number(),
-				slot: ScSlotNumber(*pallet_aura::CurrentSlot::<Runtime>::get()),
-				slots_per_epoch: Sidechain::slots_per_epoch().0,
+				slot: *pallet_aura::CurrentSlot::<Runtime>::get(),
+				slots_per_epoch: (Sidechain::epoch_duration_millis() / SLOT_DURATION) as u32,
 			}
+		}
+	}
+
+	impl sp_sidechain::GetEpochDurationApi<Block> for Runtime {
+		fn get_epoch_duration_millis() -> u64 {
+			Sidechain::epoch_duration_millis()
 		}
 	}
 
@@ -1419,31 +1420,23 @@ impl_runtime_apis! {
 		}
 	}
 
-	impl sidechain_slots::SlotApi<Block> for Runtime {
-		fn slot_config() -> sidechain_slots::ScSlotConfig {
-			sidechain_slots::ScSlotConfig {
-				slots_per_epoch: Sidechain::slots_per_epoch(),
-				slot_duration: <Self as sp_consensus_aura::runtime_decl_for_aura_api::AuraApi<Block, AuraId>>::slot_duration()
-			}
-		}
-	}
 
 	impl sp_session_validator_management::SessionValidatorManagementApi<
 		Block,
-		<Runtime as pallet_session_validator_management::Config>::CommitteeMember,
-		AuthoritySelectionInputs,
+		CrossChainPublic,
+		SessionKeys,
 		sidechain_domain::ScEpochNumber
 	> for Runtime {
-		fn get_current_committee() -> (ScEpochNumber, sidechain_domain::Vec<authority_selection_inherents::CommitteeMember<CrossChainPublic, opaque::SessionKeys>>) {
+		fn get_current_committee() -> (ScEpochNumber, sidechain_domain::Vec<CommitteeMember<CrossChainPublic, opaque::SessionKeys>>) {
 			SessionCommitteeManagement::current_committee_storage().as_pair()
 		}
-		fn get_next_committee() -> Option<(ScEpochNumber, sidechain_domain::Vec<authority_selection_inherents::CommitteeMember<CrossChainPublic, opaque::SessionKeys>>)>  {
+		fn get_next_committee() -> Option<(ScEpochNumber, sidechain_domain::Vec<CommitteeMember<CrossChainPublic, opaque::SessionKeys>>)>  {
 			Some(SessionCommitteeManagement::next_committee_storage()?.as_pair())
 		}
 		fn get_next_unset_epoch_number() -> sidechain_domain::ScEpochNumber {
 			SessionCommitteeManagement::get_next_unset_epoch_number()
 		}
-		fn calculate_committee(authority_selection_inputs: AuthoritySelectionInputs, sidechain_epoch: sidechain_domain::ScEpochNumber) -> Option<Vec<authority_selection_inherents::CommitteeMember<CrossChainPublic, opaque::SessionKeys>>> {
+		fn calculate_committee(authority_selection_inputs: AuthoritySelectionInputs, sidechain_epoch: sidechain_domain::ScEpochNumber) -> Option<Vec<CommitteeMember<CrossChainPublic, opaque::SessionKeys>>> {
 			SessionCommitteeManagement::calculate_committee(authority_selection_inputs, sidechain_epoch)
 		}
 		fn get_main_chain_scripts() -> sp_session_validator_management::MainChainScripts {
@@ -1527,7 +1520,10 @@ impl_runtime_apis! {
 #[cfg(test)]
 mod tests {
 	use crate::mock::*;
-	use crate::{SystemParameters, select_authorities_optionally_overriding};
+	use crate::{
+		Grandpa, Runtime, RuntimeOrigin, SessionCommitteeManagement, Sidechain, SystemParameters,
+		select_authorities_optionally_overriding,
+	};
 	use authority_selection_inherents::{AuthoritySelectionInputs, RegisterValidatorSignedMessage};
 	use frame_support::{
 		assert_ok,
@@ -1585,13 +1581,13 @@ mod tests {
 			});
 
 			set_committee_through_inherent_data(&[bob()]);
-			for_next_n_blocks_after_finalizing(SLOTS_PER_EPOCH, &|| {
+			for_next_n_blocks_after_finalizing(TEST_SLOTS_PER_EPOCH, &|| {
 				assert_current_epoch!(1);
 				assert_grandpa_weights();
 				assert_grandpa_authorities!([alice()]);
 			});
 
-			for_next_n_blocks_after_finalizing(SLOTS_PER_EPOCH, &|| {
+			for_next_n_blocks_after_finalizing(TEST_SLOTS_PER_EPOCH, &|| {
 				assert_current_epoch!(2);
 				assert_grandpa_weights();
 				assert_grandpa_authorities!([bob()]);
@@ -1603,13 +1599,13 @@ mod tests {
 			assert_current_epoch!(3);
 			assert_grandpa_authorities!([bob()]);
 			set_committee_through_inherent_data(&[alice(), bob()]);
-			for_next_n_blocks_after_finalizing(SLOTS_PER_EPOCH - 1, &|| {
+			for_next_n_blocks_after_finalizing(TEST_SLOTS_PER_EPOCH - 1, &|| {
 				assert_current_epoch!(3);
 				assert_grandpa_weights();
 				assert_grandpa_authorities!([alice()]);
 			});
 
-			for_next_n_blocks_after_finalizing(SLOTS_PER_EPOCH * 3, &|| {
+			for_next_n_blocks_after_finalizing(TEST_SLOTS_PER_EPOCH * 3, &|| {
 				assert_grandpa_weights();
 				assert_grandpa_authorities!([alice(), bob()]);
 			});
@@ -1633,7 +1629,7 @@ mod tests {
 				assert_aura_authorities!([alice(), bob()]);
 			});
 
-			for_next_n_blocks(SLOTS_PER_EPOCH, &|| {
+			for_next_n_blocks(TEST_SLOTS_PER_EPOCH, &|| {
 				assert_current_epoch!(1);
 				assert_aura_authorities!([alice()]);
 			});
@@ -1644,13 +1640,13 @@ mod tests {
 			assert_aura_authorities!([alice()]);
 			advance_block();
 			set_committee_through_inherent_data(&[alice(), bob()]);
-			for_next_n_blocks(SLOTS_PER_EPOCH - 1, &|| {
+			for_next_n_blocks(TEST_SLOTS_PER_EPOCH - 1, &|| {
 				assert_current_epoch!(2);
 				assert_aura_authorities!([bob()]);
 			});
 
 			set_committee_through_inherent_data(&[alice(), bob()]);
-			for_next_n_blocks(SLOTS_PER_EPOCH * 3, &|| {
+			for_next_n_blocks(TEST_SLOTS_PER_EPOCH * 3, &|| {
 				assert_aura_authorities!([alice(), bob()]);
 			});
 		});
@@ -1668,13 +1664,13 @@ mod tests {
 			});
 
 			set_committee_through_inherent_data(&[bob()]);
-			for_next_n_blocks(SLOTS_PER_EPOCH, &|| {
+			for_next_n_blocks(TEST_SLOTS_PER_EPOCH, &|| {
 				assert_current_epoch!(1);
 				assert_next_committee!([bob()]);
 			});
 
 			set_committee_through_inherent_data(&[]);
-			for_next_n_blocks(SLOTS_PER_EPOCH, &|| {
+			for_next_n_blocks(TEST_SLOTS_PER_EPOCH, &|| {
 				assert_current_epoch!(2);
 				assert_next_committee!([bob()]);
 			});
@@ -1723,7 +1719,7 @@ mod tests {
 		expected_authorities: &[TestKeys],
 	) -> PostDispatchInfo {
 		let epoch = Sidechain::current_epoch_number();
-		let slot = *pallet_aura::CurrentSlot::<Test>::get();
+		let slot = *pallet_aura::CurrentSlot::<Runtime>::get();
 		println!(
 			"(slot {slot}, epoch {epoch}) Setting {} authorities for next epoch",
 			expected_authorities.len()

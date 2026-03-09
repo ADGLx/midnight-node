@@ -23,12 +23,13 @@ use crate::{
 	rpc::{BeefyDeps, GrandpaDeps},
 };
 use futures::FutureExt;
+use midnight_node_runtime::SLOTS_PER_EPOCH;
 use midnight_node_runtime::storage::child::StateVersion;
 use midnight_node_runtime::{self, RuntimeApi, opaque::Block};
 use midnight_primitives_ledger::{LedgerMetrics, LedgerStorage};
 use midnight_primitives_mainchain_follower::MidnightDataSourceMetrics;
 use parity_scale_codec::{Decode, Encode};
-use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
+use partner_chains_data_source_metrics::register_metrics_warn_errors;
 use sc_client_api::{Backend, BlockImportOperation, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
@@ -42,8 +43,12 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sidechain_mc_hash::McHashInherentDigest;
+use sp_api::ProvideRuntimeApi;
+use sp_blockchain::HeaderBackend;
+use sp_consensus_aura::AuraApi;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
+use sp_sidechain::GetEpochDurationApi;
 
 use crate::filtering_pool::{FilteringMetrics, FilteringTransactionPool, TxFilterConfig};
 use mmr_gadget::MmrGadget;
@@ -409,11 +414,24 @@ pub fn new_partial(
 		config.prometheus_registry().cloned(),
 	);
 
-	let sc_slot_config = sidechain_slots::runtime_api_client::slot_config(&*client)
-		.map_err(sp_blockchain::Error::from)?;
+	let slot_duration = client
+		.runtime_api()
+		.slot_duration(client.info().best_hash)
+		.expect("Aura slot duration must be configured in the runtime");
+	// TODO: in subsequent versions don't use constant but following runtime API
+	// let sc_epoch_duration_millis = client
+	// 	.runtime_api()
+	// 	.get_epoch_duration_millis(client.info().best_hash)
+	// 	.expect("Epoch duration must be configured in the runtime");
+	let sc_epoch_duration_millis = SLOTS_PER_EPOCH * slot_duration.as_millis();
 
 	let time_source = Arc::new(SystemTimeSource);
-	let inherent_config = CreateInherentDataConfig::new(epoch_config, sc_slot_config, time_source);
+	let inherent_config = CreateInherentDataConfig::new(
+		epoch_config,
+		slot_duration,
+		sc_epoch_duration_millis,
+		time_source,
+	);
 
 	let import_queue = partner_chains_aura_import_queue::import_queue::<
 		AuraPair,
@@ -673,11 +691,23 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 		let proposer_factory: PartnerChainsProposerFactory<_, _, McHashInherentDigest> =
 			PartnerChainsProposerFactory::new(basic_authorship_proposer_factory);
 
-		let sc_slot_config = sidechain_slots::runtime_api_client::slot_config(&*client)
-			.map_err(sp_blockchain::Error::from)?;
+		let slot_duration = client
+			.runtime_api()
+			.slot_duration(client.info().best_hash)
+			.expect("Aura slot duration must be configured in the runtime");
+		// TODO: use runtime_api().get_epoch_duration_millis() after runtime upgrade
+		// let sc_epoch_duration_millis = client
+		// 	.runtime_api()
+		// 	.get_epoch_duration_millis(client.info().best_hash)
+		// 	.expect("Epoch duration must be configured in the runtime");
+		let sc_epoch_duration_millis = SLOTS_PER_EPOCH * slot_duration.as_millis();
 		let time_source = Arc::new(SystemTimeSource);
-		let inherent_config =
-			CreateInherentDataConfig::new(epoch_config, sc_slot_config.clone(), time_source);
+		let inherent_config = CreateInherentDataConfig::new(
+			epoch_config,
+			slot_duration,
+			sc_epoch_duration_millis,
+			time_source,
+		);
 
 		let aura = sc_partner_chains_consensus_aura::start_aura::<
 			AuraPair,
@@ -693,7 +723,7 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 			_,
 			McHashInherentDigest,
 		>(StartAuraParams {
-			slot_duration: sc_slot_config.slot_duration,
+			slot_duration,
 			client: client.clone(),
 			select_chain,
 			block_import,

@@ -12,10 +12,8 @@
 // limitations under the License.
 
 use async_trait::async_trait;
-use authority_selection_inherents::CommitteeMember;
 use authority_selection_inherents::{
 	AriadneInherentDataProvider as AriadneIDP, AuthoritySelectionDataSource,
-	AuthoritySelectionInputs,
 };
 use derive_new::new;
 use midnight_node_runtime::{
@@ -30,7 +28,6 @@ use sc_service::Arc;
 use sidechain_domain::{McBlockHash, ScEpochNumber, mainchain_epoch::MainchainEpochConfig};
 use sidechain_mc_hash::McHashDataSource;
 use sidechain_mc_hash::McHashInherentDataProvider as McHashIDP;
-use sidechain_slots::ScSlotConfig;
 use sp_api::ProvideRuntimeApi;
 use sp_blockchain::HeaderBackend;
 use sp_consensus_aura::{Slot, sr25519::AuthorityPair as AuraPair};
@@ -71,12 +68,7 @@ impl<T> CreateInherentDataProviders<Block, ()> for ProposalCIDP<T>
 where
 	T: ProvideRuntimeApi<Block> + Send + Sync + 'static,
 	T: HeaderBackend<Block>,
-	T::Api: SessionValidatorManagementApi<
-			Block,
-			CommitteeMember<CrossChainPublic, SessionKeys>,
-			AuthoritySelectionInputs,
-			ScEpochNumber,
-		>,
+	T::Api: SessionValidatorManagementApi<Block, CrossChainPublic, SessionKeys, ScEpochNumber>,
 	T::Api: CNightObservationApi<Block>,
 	T::Api: FederatedAuthorityObservationApi<Block>,
 	T::Api: TokenBridgeIDPRuntimeApi<Block>,
@@ -107,29 +99,28 @@ where
 			bridge_data_source,
 		} = self;
 
-		let CreateInherentDataConfig { mc_epoch_config, sc_slot_config, time_source } = config;
+		let CreateInherentDataConfig { mc_epoch_config, slot_duration, time_source, .. } = config;
 
-		let (slot, timestamp) =
-			timestamp_and_slot_cidp(sc_slot_config.slot_duration, time_source.clone());
+		let (slot, timestamp) = timestamp_and_slot_cidp(*slot_duration, time_source.clone());
 
 		let parent_header = client
 			.header(parent_hash)?
 			.ok_or_else(|| format!("Missing parent header for {parent_hash:?}"))?;
 
+		let slot_start_timestamp = config.slot_start_time(*slot);
 		let mc_hash = McHashIDP::new_proposal(
 			parent_header,
 			mc_hash_data_source.as_ref(),
-			*slot,
-			sc_slot_config.slot_duration,
+			slot_start_timestamp,
 		)
 		.await?;
 
 		let ariadne_data_provider = AriadneIDP::new(
 			client.as_ref(),
-			sc_slot_config,
+			config.sc_epoch_duration_millis,
 			mc_epoch_config,
 			parent_hash,
-			*slot,
+			(*timestamp).as_millis(),
 			authority_selection_data_source.as_ref(),
 			mc_hash.mc_epoch(),
 		)
@@ -194,7 +185,7 @@ pub struct VerifierCIDP<T> {
 
 impl<T: Send + Sync> CurrentSlotProvider for VerifierCIDP<T> {
 	fn slot(&self) -> Slot {
-		*timestamp_and_slot_cidp(self.config.slot_duration(), self.config.time_source.clone()).0
+		*timestamp_and_slot_cidp(self.config.slot_duration, self.config.time_source.clone()).0
 	}
 }
 
@@ -202,12 +193,7 @@ impl<T: Send + Sync> CurrentSlotProvider for VerifierCIDP<T> {
 impl<T> CreateInherentDataProviders<Block, (Slot, McBlockHash)> for VerifierCIDP<T>
 where
 	T: ProvideRuntimeApi<Block> + Send + Sync + HeaderBackend<Block> + 'static,
-	T::Api: SessionValidatorManagementApi<
-			Block,
-			CommitteeMember<CrossChainPublic, SessionKeys>,
-			AuthoritySelectionInputs,
-			ScEpochNumber,
-		>,
+	T::Api: SessionValidatorManagementApi<Block, CrossChainPublic, SessionKeys, ScEpochNumber>,
 	T::Api: CNightObservationApi<Block>,
 	T::Api: FederatedAuthorityObservationApi<Block>,
 	T::Api: TokenBridgeIDPRuntimeApi<Block>,
@@ -235,29 +221,29 @@ where
 			bridge_data_source,
 		} = self;
 
-		let CreateInherentDataConfig { mc_epoch_config, sc_slot_config, time_source, .. } = config;
+		let CreateInherentDataConfig { mc_epoch_config, .. } = config;
 
-		let timestamp = sp_timestamp::InherentDataProvider::new(Timestamp::new(
-			time_source.get_current_time_millis(),
-		));
+		let timestamp =
+			sp_timestamp::InherentDataProvider::new(config.slot_start_time(verified_block_slot));
 		let parent_header = client.expect_header(parent_hash)?;
 		let parent_slot = slot_from_predigest(&parent_header)?;
+		let parent_slot_timestamp = parent_slot.map(|slot| config.slot_start_time(slot));
+
 		let mc_state_reference = McHashIDP::new_verification(
 			parent_header,
-			parent_slot,
-			verified_block_slot,
+			parent_slot_timestamp,
+			*timestamp,
 			mc_hash.clone(),
-			config.slot_duration(),
 			mc_hash_data_source.as_ref(),
 		)
 		.await?;
 
 		let ariadne_data_provider = AriadneIDP::new(
 			client.as_ref(),
-			sc_slot_config,
+			config.sc_epoch_duration_millis,
 			mc_epoch_config,
 			parent_hash,
-			verified_block_slot,
+			(*timestamp).as_millis(),
 			authority_selection_data_source.as_ref(),
 			mc_state_reference.epoch,
 		)
@@ -306,13 +292,14 @@ pub fn slot_from_predigest(
 pub(crate) struct CreateInherentDataConfig {
 	pub mc_epoch_config: MainchainEpochConfig,
 	// TODO ETCM-4079 make sure that this struct can be instantiated only if sidechain epoch duration is divisible by slot_duration
-	pub sc_slot_config: ScSlotConfig,
+	pub slot_duration: SlotDuration,
+	pub sc_epoch_duration_millis: u64,
 	pub time_source: Arc<dyn TimeSource + Send + Sync + 'static>,
 }
 
 impl CreateInherentDataConfig {
-	pub fn slot_duration(&self) -> SlotDuration {
-		self.sc_slot_config.slot_duration
+	pub fn slot_start_time(&self, slot: Slot) -> Timestamp {
+		Timestamp::new(self.slot_duration.as_millis() * u64::from(slot))
 	}
 }
 

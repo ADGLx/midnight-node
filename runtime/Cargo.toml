@@ -70,9 +70,7 @@ pallet-partner-chains-bridge.workspace = true
 pallet-sidechain.workspace = true
 pallet-session.workspace = true
 pallet-session-validator-management.workspace = true
-pallet-partner-chains-session.workspace = true
 sidechain-domain = { workspace = true, features = ["serde"] }
-sidechain-slots.workspace = true
 
 # Midnight Dependencies
 midnight-node-ledger.workspace = true
@@ -156,10 +154,8 @@ std = [
     "pallet-sidechain/std",
     "pallet-session/std",
     "pallet-session-validator-management/std",
-    "pallet-partner-chains-session/std",
     "pallet-tx-pause/std",
     "sidechain-domain/std",
-    "sidechain-slots/std",
     "sp-io/std",
     "midnight-primitives/std",
     "midnight-primitives-beefy/std",

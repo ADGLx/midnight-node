@@ -21,11 +21,11 @@ use midnight_node_runtime::{
 	AccountId, BeefyConfig, Block, BridgeConfig, CNightObservationCall, CNightObservationConfig,
 	CouncilConfig, CouncilMembershipConfig, CrossChainPublic, FederatedAuthorityObservationConfig,
 	MidnightCall, MidnightConfig, MidnightSystemCall, RuntimeCall, RuntimeGenesisConfig,
-	SessionCommitteeManagementConfig, SessionConfig, SidechainConfig, Signature, SystemCall,
-	SystemParametersConfig, TechnicalCommitteeConfig, TechnicalCommitteeMembershipConfig,
-	TimestampCall, UncheckedExtrinsic, WASM_BINARY, opaque::SessionKeys,
+	SLOT_DURATION, SessionCommitteeManagementConfig, SessionConfig, SidechainConfig, Signature,
+	SystemCall, SystemParametersConfig, TechnicalCommitteeConfig,
+	TechnicalCommitteeMembershipConfig, TimestampCall, UncheckedExtrinsic, WASM_BINARY,
+	opaque::SessionKeys,
 };
-
 use midnight_primitives_cnight_observation::ObservedUtxos;
 use sc_chain_spec::{ChainSpecExtension, GenericChainSpec};
 use sidechain_domain::{AssetName, MainchainAddress};
@@ -251,16 +251,19 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 			),
 		},
 		session: SessionConfig {
-			initial_validators: authority_keys
+			keys: authority_keys
 				.iter()
 				.cloned()
-				.map(|keys| (keys.cross_chain.into(), keys.session))
+				.map(|keys| {
+					(keys.cross_chain.clone().into(), keys.cross_chain.into(), keys.session)
+				})
 				.collect::<Vec<_>>(),
+			non_authority_keys: vec![],
 		},
 		sidechain: SidechainConfig {
 			genesis_utxo: std::str::FromStr::from_str(genesis.genesis_utxo())
 				.expect("failed to convert genesis_utxo"),
-			slots_per_epoch: sidechain_slots::SlotsPerEpoch(300),
+			epoch_duration: sidechain_domain::ScEpochDuration::from_millis(SLOT_DURATION * 300),
 			..Default::default()
 		},
 		session_committee_management: SessionCommitteeManagementConfig {
@@ -272,7 +275,6 @@ fn genesis_config<T: MidnightNetwork>(genesis: T) -> Result<serde_json::Value, C
 			main_chain_scripts: genesis.main_chain_scripts().into(),
 		},
 		tx_pause: Default::default(),
-		pallet_session: Default::default(),
 		c_night_observation: CNightObservationConfig {
 			config: cnight_genesis,
 			_marker: Default::default(),

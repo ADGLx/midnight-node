@@ -15,9 +15,10 @@ use authority_selection_inherents::AuthoritySelectionDataSource;
 use midnight_primitives_mainchain_follower::CandidatesDataSourceImpl;
 use midnight_primitives_mainchain_follower::MidnightDataSourceMetrics;
 use pallet_sidechain_rpc::SidechainRpcDataSource;
+use partner_chains_data_source_metrics::McFollowerMetrics;
 use partner_chains_db_sync_data_sources::{
 	BlockDataSourceImpl, CachedTokenBridgeDataSourceImpl, DbSyncBlockDataSourceConfig,
-	McFollowerMetrics, McHashDataSourceImpl, SidechainRpcDataSourceImpl,
+	McHashDataSourceImpl, SidechainRpcDataSourceImpl,
 };
 use partner_chains_mock_data_sources::{
 	AuthoritySelectionDataSourceMock, BlockDataSourceMock, McHashDataSourceMock,

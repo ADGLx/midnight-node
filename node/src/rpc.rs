@@ -18,8 +18,7 @@
 
 #![warn(missing_docs)]
 
-use authority_selection_inherents::CommitteeMember;
-use authority_selection_inherents::{AuthoritySelectionInputs, CandidateValidationApi};
+use authority_selection_inherents::CandidateValidationApi;
 use jsonrpsee::RpcModule;
 use midnight_node_runtime::{
 	AccountId, BlockNumber, CrossChainPublic, Hash, Nonce,
@@ -33,7 +32,7 @@ use sc_consensus_grandpa_rpc::{Grandpa, GrandpaApiServer};
 use sc_rpc::SubscriptionTaskExecutor;
 use sc_transaction_pool_api::TransactionPool;
 use sidechain_domain::ScEpochNumber;
-use sp_api::ProvideRuntimeApi;
+use sp_api::{CallApiAt, ProvideRuntimeApi};
 use sp_block_builder::BlockBuilder;
 use sp_blockchain::{Error as BlockChainError, HeaderBackend, HeaderMetadata};
 use sp_session_validator_management_query::SessionValidatorManagementQuery;
@@ -114,6 +113,7 @@ pub fn create_full<C, P, B, T, AuthorityId: AuthorityIdBound>(
 ) -> Result<RpcModule<()>, Box<dyn std::error::Error + Send + Sync>>
 where
 	C: ProvideRuntimeApi<Block>,
+	C: CallApiAt<Block>,
 	C: HeaderBackend<Block> + HeaderMetadata<Block, Error = BlockChainError> + 'static,
 	C: BlockBackend<Block>,
 	C: BlockchainEvents<Block>,
@@ -124,13 +124,13 @@ where
 	C::Api: sp_consensus_aura::AuraApi<Block, sp_consensus_aura::sr25519::AuthorityId>,
 	C::Api: sp_consensus_beefy::BeefyApi<Block, AuthorityId>,
 	C::Api: mmr_rpc::MmrRuntimeApi<Block, <Block as sp_runtime::traits::Block>::Hash, BlockNumber>,
-	C::Api: sidechain_slots::SlotApi<Block>,
 	C::Api: sp_sidechain::GetGenesisUtxo<Block>,
+	C::Api: sp_sidechain::GetEpochDurationApi<Block>,
 	C::Api: sp_sidechain::GetSidechainStatus<Block>,
 	C::Api: sp_session_validator_management::SessionValidatorManagementApi<
 			Block,
-			CommitteeMember<CrossChainPublic, SessionKeys>,
-			AuthoritySelectionInputs,
+			CrossChainPublic,
+			SessionKeys,
 			ScEpochNumber,
 		>,
 	C::Api: CandidateValidationApi<Block>,
