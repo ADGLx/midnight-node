@@ -143,7 +143,7 @@ get_cardano_tip() {
 uses_cnight_config() {
     local network="$1"
     case "$network" in
-        qanet|undeployed|devnet|govnet|node-dev-01)
+        mainnet|qanet|undeployed|devnet|govnet|node-dev-01)
             return 0  # true
             ;;
         *)
@@ -156,7 +156,7 @@ uses_cnight_config() {
 uses_ics_config() {
     local network="$1"
     case "$network" in
-        qanet|undeployed|devnet|govnet|node-dev-01)
+        mainnet|qanet|undeployed|devnet|govnet|node-dev-01)
             return 0  # true
             ;;
         *)
@@ -169,7 +169,7 @@ uses_ics_config() {
 uses_reserve_config() {
     local network="$1"
     case "$network" in
-        qanet|undeployed|devnet|govnet|node-dev-01)
+        mainnet|qanet|undeployed|devnet|govnet|node-dev-01)
             return 0  # true
             ;;
         *)
