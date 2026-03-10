@@ -270,8 +270,17 @@ impl WalletStateCaching for FileBackend {
 					io::Read::read_exact(&mut file, &mut header).ok()?;
 					CachedWalletState::block_height_from_bson_header(&header)
 				})();
-				if let Some(h) = height {
-					heights.insert(h);
+				match height {
+					Some(h) => {
+						heights.insert(h);
+					},
+					None => {
+						log::error!(
+							"Removing corrupted wallet cache file {name}: \
+							 could not extract block_height"
+						);
+						let _ = fs::remove_file(&path);
+					},
 				}
 			}
 			heights.into_iter().collect()
@@ -447,5 +456,25 @@ mod tests {
 
 		let results = backend.get_wallet_states(cid, &[h1]).await;
 		assert_eq!(results[0].as_ref().unwrap().block_height, 200);
+	}
+
+	#[tokio::test]
+	async fn corrupted_wallet_file_is_deleted() {
+		let tmp = tempfile::TempDir::new().unwrap();
+		let backend = FileBackend::new(tmp.path());
+		let cid = chain_id();
+
+		let h1 = H256::from([0x01; 32]);
+
+		// Write a valid wallet, then overwrite with garbage
+		backend.set_wallet_states(cid, &[test_wallet(h1, 300)]).await;
+		let path = backend.wallet_path(cid, h1);
+		assert!(path.exists());
+		fs::write(&path, b"garbage data").unwrap();
+
+		// Height should not be found and the corrupted file should be deleted
+		let heights = backend.get_all_cached_wallet_heights(cid).await;
+		assert!(heights.is_empty());
+		assert!(!path.exists(), "corrupted file should have been deleted");
 	}
 }

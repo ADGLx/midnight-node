@@ -36,6 +36,7 @@ zswap-hf = { workspace = true }
 zkir-hf = { workspace = true }
 
 rand = { workspace = true, features = ["small_rng"] }
+rayon.workspace = true
 log.workspace = true
 lazy_static.workspace = true
 itertools = { workspace = true, features = ["use_alloc"] }

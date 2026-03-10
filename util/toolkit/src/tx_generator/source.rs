@@ -275,6 +275,7 @@ impl GetTxs for GetTxsFromUrl {
 	async fn get_txs(
 		&self,
 	) -> Result<SourceTransactions, Box<dyn std::error::Error + Send + Sync>> {
+		let t = std::time::Instant::now();
 		let blocks = match &self.fetch_cache_config {
 			FetchCacheConfig::InMemory => {
 				fetch_all(
@@ -307,7 +308,11 @@ impl GetTxs for GetTxsFromUrl {
 				.await?
 			},
 		};
+		log::info!("[perf] fetch_all took {:?}", t.elapsed());
 
-		Ok(SourceTransactions::from_blocks(blocks, self.dust_warp))
+		let t = std::time::Instant::now();
+		let source_txs = SourceTransactions::from_blocks(blocks, self.dust_warp);
+		log::info!("[perf] SourceTransactions::from_blocks took {:?}", t.elapsed());
+		Ok(source_txs)
 	}
 }

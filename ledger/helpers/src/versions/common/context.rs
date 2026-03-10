@@ -21,7 +21,7 @@ use super::{
 	mn_ledger_serialize as serialize, mn_ledger_storage as storage, types::StorableSyntheticCost,
 };
 use derive_where::derive_where;
-use hex::{ToHex, encode as hex_encode};
+use hex::encode as hex_encode;
 use lazy_static::lazy_static;
 use std::{
 	collections::{HashMap, HashSet},
@@ -119,23 +119,59 @@ impl<D: DB + Clone> LedgerContext<D> {
 	) where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
+		use std::time::Instant;
+		use std::sync::atomic::{AtomicU64, Ordering};
+
+		static TX_COUNTER: AtomicU64 = AtomicU64::new(0);
+		static CLONE_NS: AtomicU64 = AtomicU64::new(0);
+		static WELLFORMED_APPLY_NS: AtomicU64 = AtomicU64::new(0);
+		static OFFERS_NS: AtomicU64 = AtomicU64::new(0);
+		static DUST_NS: AtomicU64 = AtomicU64::new(0);
+		static POST_BLOCK_NS: AtomicU64 = AtomicU64::new(0);
+
 		let mut total_cost = SyntheticCost::ZERO;
+		let mut all_events: Vec<Event<D>> = Vec::new();
 		for tx in txs {
-			let (events, cost) = self.update_from_tx(tx, block_context);
-			for wallet in
-				self.wallets.lock().expect("Error locking `LedgerContext` wallets").values_mut()
-			{
-				wallet.update_dust_from_tx(&events).unwrap_or_else(|e| {
-					panic!(
-						"failed to replay dust events for tx {}: {e}",
-						tx.transaction_hash().0.0.encode_hex::<String>()
-					)
-				});
-			}
+			let (events, cost) = self.update_from_tx_instrumented(
+				tx, block_context, &CLONE_NS, &WELLFORMED_APPLY_NS, &OFFERS_NS,
+			);
+			all_events.extend(events);
 			total_cost = total_cost + cost;
+			TX_COUNTER.fetch_add(1, Ordering::Relaxed);
+		}
+
+		// Batch dust update: one clone + one rehash per wallet per block instead of per-tx
+		let t_dust = Instant::now();
+		{
+			use rayon::prelude::*;
+			self.wallets
+				.lock()
+				.expect("Error locking `LedgerContext` wallets")
+				.par_iter_mut()
+				.for_each(|(_, wallet)| {
+					wallet.update_dust_from_tx(&all_events).unwrap_or_else(|e| {
+						panic!("failed to replay dust events: {e}")
+					});
+				});
+		}
+		DUST_NS.fetch_add(t_dust.elapsed().as_nanos() as u64, Ordering::Relaxed);
+
+		let count = TX_COUNTER.load(Ordering::Relaxed);
+		if count % 1000 < txs.len() as u64 {
+			let wallets = self.wallets.lock().expect("lock").len();
+			log::info!(
+				"[perf] replay tx #{count} ({wallets} wallets): \
+				clone={:.1}ms, well_formed+apply={:.1}ms, offers={:.1}ms, dust={:.1}ms, post_block={:.1}ms",
+				CLONE_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
+				WELLFORMED_APPLY_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
+				OFFERS_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
+				DUST_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
+				POST_BLOCK_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
+			);
 		}
 
 		// Only when done processing txs for the same block, it's time to call `post_block_update`
+		let t_post = Instant::now();
 		let mut latest_ledger_state =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
 		let block_limits = latest_ledger_state.parameters.limits.block_limits;
@@ -147,6 +183,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 				.post_block_update(block_context.tblock, normalized_fullness, overall_fullness)
 				.expect("Error applying block updates"),
 		);
+		POST_BLOCK_NS.fetch_add(t_post.elapsed().as_nanos() as u64, Ordering::Relaxed);
 	}
 
 	pub fn update_ledger_state_from_bytes(&self, state: &[u8]) {
@@ -239,13 +276,35 @@ impl<D: DB + Clone> LedgerContext<D> {
 	where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
+		use std::sync::atomic::AtomicU64;
+		static DUMMY: AtomicU64 = AtomicU64::new(0);
+		self.update_from_tx_instrumented(tx, block_context, &DUMMY, &DUMMY, &DUMMY)
+	}
+
+	fn update_from_tx_instrumented<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
+		&self,
+		tx: &SerdeTransaction<S, P, D>,
+		block_context: &BlockContext,
+		clone_ns: &std::sync::atomic::AtomicU64,
+		wellformed_apply_ns: &std::sync::atomic::AtomicU64,
+		offers_ns: &std::sync::atomic::AtomicU64,
+	) -> (Vec<Event<D>>, SyntheticCost)
+	where
+		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
+	{
+		use std::time::Instant;
+		use std::sync::atomic::Ordering;
+
 		let mut ledger_state_guard =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
+
+		let t_clone = Instant::now();
 		let tx_context = TransactionContext {
 			ref_state: (**ledger_state_guard).clone(),
 			block_context: block_context.clone(),
 			whitelist: None,
 		};
+		clone_ns.fetch_add(t_clone.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
 		let strictness: WellFormedStrictness =
 			if block_context.parent_block_hash == Default::default() {
@@ -257,6 +316,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 			};
 
 		// Update Ledger State
+		let t_wf = Instant::now();
 		let (new_ledger_state, offers, events, cost) = match &tx {
 			SerdeTransaction::Midnight(tx) => {
 				let valid_tx: VerifiedTransaction<_> = tx
@@ -300,13 +360,21 @@ impl<D: DB + Clone> LedgerContext<D> {
 				}
 			},
 		};
+		wellformed_apply_ns.fetch_add(t_wf.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
 		// Update Local Wallets
-		for wallet in
-			self.wallets.lock().expect("Error locking `LedgerContext` wallets").values_mut()
+		let t_offers = Instant::now();
 		{
-			wallet.update_state_from_offers(&offers);
+			use rayon::prelude::*;
+			self.wallets
+				.lock()
+				.expect("Error locking `LedgerContext` wallets")
+				.par_iter_mut()
+				.for_each(|(_, wallet)| {
+					wallet.update_state_from_offers(&offers);
+				});
 		}
+		offers_ns.fetch_add(t_offers.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
 		*ledger_state_guard = Sp::new(new_ledger_state);
 		(events, cost)

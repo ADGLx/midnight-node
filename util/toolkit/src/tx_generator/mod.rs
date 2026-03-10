@@ -192,18 +192,24 @@ impl TxGenerator {
 			None
 		} else {
 			let wallet_cache = create_file_wallet_cache(&self.ledger_state_db, &self.fetch_cache_config);
-			Some(
-				build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
-					.await,
-			)
+			let t = std::time::Instant::now();
+			let ctx = build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
+				.await;
+			log::info!("[perf] build_fork_aware_context_cached took {:?}", t.elapsed());
+			Some(ctx)
 		};
 
+		let t = std::time::Instant::now();
 		let builder = self.builder_config.clone().to_versioned_builder(
 			fork_ctx,
 			&self.prover_config,
 			self.dry_run,
 		)?;
+		log::info!("[perf] to_versioned_builder took {:?}", t.elapsed());
 
-		builder.build_txs_from(received_txs.clone()).await
+		let t = std::time::Instant::now();
+		let result = builder.build_txs_from(received_txs.clone()).await;
+		log::info!("[perf] build_txs_from took {:?}", t.elapsed());
+		result
 	}
 }

@@ -18,7 +18,8 @@ use midnight_node_ledger_helpers::fork::{
 	fork_aware_context::ForkAwareLedgerContext, raw_block_data::LedgerVersion,
 };
 use midnight_node_ledger_helpers::*;
-use std::{path::PathBuf, sync::Arc};
+use serde::Deserialize;
+use std::{collections::HashSet, path::PathBuf, sync::Arc};
 
 use crate::{
 	cli_parsers as cli,
@@ -290,6 +291,29 @@ pub struct DeregisterDustAddressArgs {
 	pub rng_seed: Option<[u8; 32]>,
 }
 
+#[derive(Clone, Debug, Deserialize)]
+pub struct TransferSpec {
+	pub source_seed: String,
+	pub destination_address: String,
+	pub unshielded_amount: Option<u128>,
+	pub unshielded_token_type: Option<String>,
+	pub shielded_amount: Option<u128>,
+	pub shielded_token_type: Option<String>,
+	pub funding_seed: Option<String>,
+	pub dest_file: String,
+	pub rng_seed: Option<String>,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct BatchSingleTxArgs {
+	/// Path to JSON file with transfer specifications
+	#[arg(long)]
+	pub transfers_file: String,
+	/// Number of concurrent tx generation tasks (default: available CPUs)
+	#[arg(long)]
+	pub concurrency: Option<usize>,
+}
+
 #[derive(Subcommand, Clone, Debug)]
 pub enum ContractCall {
 	Deploy(ContractDeployArgs),
@@ -314,6 +338,8 @@ pub enum Builder {
 	RegisterDustAddress(RegisterDustAddressArgs),
 	/// Deregister (unlink) a DUST address for the wallet
 	DeregisterDustAddress(DeregisterDustAddressArgs),
+	/// Build multiple single-output txs from a JSON transfer spec file (one process, shared context)
+	BatchSingleTx(BatchSingleTxArgs),
 	/// Send is a no-op here (source is sent directly to destination)
 	Send,
 }
@@ -435,6 +461,28 @@ impl Builder {
 				let funding_seed = Wallet::<DefaultDB>::wallet_seed_decode(&args.funding_seed);
 				vec![seed, funding_seed]
 			},
+			Builder::BatchSingleTx(args) => {
+				let file_content = std::fs::read_to_string(&args.transfers_file)
+					.unwrap_or_else(|e| {
+						panic!("failed to read transfers file '{}': {}", args.transfers_file, e)
+					});
+				let specs: Vec<TransferSpec> = serde_json::from_str(&file_content)
+					.unwrap_or_else(|e| panic!("failed to parse transfers JSON: {}", e));
+
+				let mut seen = HashSet::new();
+				let mut seeds = Vec::new();
+				for spec in &specs {
+					if seen.insert(spec.source_seed.clone()) {
+						seeds.push(Wallet::<DefaultDB>::wallet_seed_decode(&spec.source_seed));
+					}
+					if let Some(ref fs) = spec.funding_seed {
+						if seen.insert(fs.clone()) {
+							seeds.push(Wallet::<DefaultDB>::wallet_seed_decode(fs));
+						}
+					}
+				}
+				seeds
+			},
 			Builder::Send => vec![],
 		}
 	}
@@ -531,6 +579,9 @@ impl Builder {
 			Builder::DeregisterDustAddress(args) => {
 				constr(v8::DeregisterDustAddressBuilder::new(args, context, prover))
 			},
+			Builder::BatchSingleTx(args) => {
+				constr(v8::batch_single_tx::BatchSingleTxBuilder::new(args, context, prover))
+			},
 			Builder::Send => constr(v8::DoNothingBuilder::new()),
 		}
 	}
@@ -571,6 +622,9 @@ impl Builder {
 			},
 			Builder::ContractCustom(_) => {
 				return Err(BuilderConstructionError::NotSupportedForLedger7("contract-custom"));
+			},
+			Builder::BatchSingleTx(_) => {
+				return Err(BuilderConstructionError::NotSupportedForLedger7("batch-single-tx"));
 			},
 			Builder::ClaimRewards(args) => {
 				constr(v7::ClaimRewardsBuilder::new(args, context, prover))
@@ -638,7 +692,9 @@ pub async fn build_fork_aware_context_cached(
 	};
 
 	let seed_hashes: Vec<H256> = wallet_seeds.iter().map(wallet_state_cache::hash_seed).collect();
+	let t = std::time::Instant::now();
 	let raw_cached = storage.get_wallet_states(chain_id, &seed_hashes).await;
+	log::info!("[perf] storage.get_wallet_states took {:?}", t.elapsed());
 
 	// Split into uncached seeds (need genesis) and cached (seed, state) pairs.
 	let mut uncached_seeds: Vec<WalletSeed> = Vec::new();
@@ -658,12 +714,16 @@ pub async fn build_fork_aware_context_cached(
 	};
 
 	let mut fork_ctx = if start_height == 0 {
-		ForkAwareLedgerContext::new_from_wallet_seeds(
+		let t = std::time::Instant::now();
+		let ctx = ForkAwareLedgerContext::new_from_wallet_seeds(
 			received_tx.ledger_version(),
 			&received_tx.network_id,
 			&uncached_seeds,
-		)
+		);
+		log::info!("[perf] new_from_wallet_seeds (cold) took {:?}", t.elapsed());
+		ctx
 	} else {
+		let t = std::time::Instant::now();
 		let snapshot =
 			storage.get_ledger_snapshot(chain_id, start_height).await.unwrap_or_else(|| {
 				panic!(
@@ -671,6 +731,9 @@ pub async fn build_fork_aware_context_cached(
 					start_height
 				)
 			});
+		log::info!("[perf] storage.get_ledger_snapshot took {:?}", t.elapsed());
+
+		let t = std::time::Instant::now();
 		let (ctx, ledger_state, _) = wallet_state_cache::restore_context_from_ledger_snapshot(
 			&snapshot,
 		)
@@ -680,7 +743,10 @@ pub async fn build_fork_aware_context_cached(
 				start_height, e
 			)
 		});
+		log::info!("[perf] restore_context_from_ledger_snapshot took {:?}", t.elapsed());
 
+		let t = std::time::Instant::now();
+		let mut injected = 0;
 		for (seed, state) in &cached {
 			if state.block_height != start_height {
 				break;
@@ -692,7 +758,9 @@ pub async fn build_fork_aware_context_cached(
 						start_height, e
 					)
 				});
+			injected += 1;
 		}
+		log::info!("[perf] inject wallets at start_height: {} wallets in {:?}", injected, t.elapsed());
 
 		ForkAwareLedgerContext::Ledger8(ctx)
 	};
@@ -716,8 +784,19 @@ pub async fn build_fork_aware_context_cached(
 		);
 	}
 
-	for block in &blocks_to_replay {
+	let t_replay = std::time::Instant::now();
+	let total_blocks = blocks_to_replay.len();
+	for (i, block) in blocks_to_replay.iter().enumerate() {
 		fork_ctx = fork_ctx.update_from_block(block);
+		if (i + 1) % 1000 == 0 || i + 1 == total_blocks {
+			log::info!(
+				"[perf] replay progress: {}/{} blocks ({:.1}%) in {:?}",
+				i + 1,
+				total_blocks,
+				(i + 1) as f64 / total_blocks as f64 * 100.0,
+				t_replay.elapsed()
+			);
+		}
 
 		let inject_end =
 			cached[ptr..].partition_point(|(_, ws)| ws.block_height <= block.number) + ptr;
@@ -736,6 +815,10 @@ pub async fn build_fork_aware_context_cached(
 			}
 			ptr = inject_end;
 		}
+	}
+
+	if !blocks_to_replay.is_empty() {
+		log::info!("[perf] block replay: {} blocks in {:?}", blocks_to_replay.len(), t_replay.elapsed());
 	}
 
 	assert!(
@@ -774,6 +857,7 @@ async fn try_save_cache_v2(
 	};
 
 	// Save ledger snapshot
+	let t = std::time::Instant::now();
 	let snapshot = match wallet_state_cache::create_ledger_snapshot(ctx, block_height) {
 		Ok(s) => s,
 		Err(e) => {
@@ -781,9 +865,14 @@ async fn try_save_cache_v2(
 			return;
 		},
 	};
+	log::info!("[perf] create_ledger_snapshot took {:?}", t.elapsed());
+
+	let t = std::time::Instant::now();
 	storage.set_ledger_snapshot(chain_id, snapshot).await;
+	log::info!("[perf] storage.set_ledger_snapshot took {:?}", t.elapsed());
 
 	// Save individual wallet snapshots
+	let t = std::time::Instant::now();
 	let wallet_snapshots: Vec<_> = wallet_seeds
 		.iter()
 		.filter_map(|seed| {
@@ -796,17 +885,24 @@ async fn try_save_cache_v2(
 			}
 		})
 		.collect();
+	log::info!("[perf] create wallet snapshots: {} wallets in {:?}", wallet_snapshots.len(), t.elapsed());
 
 	if !wallet_snapshots.is_empty() {
+		let t = std::time::Instant::now();
 		storage.set_wallet_states(chain_id, &wallet_snapshots).await;
+		log::info!("[perf] storage.set_wallet_states took {:?}", t.elapsed());
 	}
 
 	// GC: keep heights referenced by all cached wallets (cross-process safe)
+	let t = std::time::Instant::now();
 	let mut keep_heights = storage.get_all_cached_wallet_heights(chain_id).await;
+	log::info!("[perf] storage.get_all_cached_wallet_heights took {:?}", t.elapsed());
 	if !keep_heights.contains(&block_height) {
 		keep_heights.push(block_height);
 	}
+	let t = std::time::Instant::now();
 	storage.gc_ledger_snapshots(chain_id, &keep_heights).await;
+	log::info!("[perf] storage.gc_ledger_snapshots took {:?}", t.elapsed());
 
 	log::info!(
 		"Saved per-wallet cache at block {} ({} wallets, 1 ledger snapshot)",
@@ -832,11 +928,16 @@ pub fn build_fork_aware_context_raw(
 		.map(|b| b.ledger_version())
 		.unwrap_or(LedgerVersion::Ledger8);
 
+	let t = std::time::Instant::now();
 	let mut ctx =
 		ForkAwareLedgerContext::new_from_wallet_seeds(initial_version, network_id, wallet_seeds);
+	log::info!("[perf] new_from_wallet_seeds (raw) took {:?}", t.elapsed());
+
+	let t = std::time::Instant::now();
 	for block in &received_tx.blocks {
 		ctx = ctx.update_from_block(block);
 	}
+	log::info!("[perf] block replay (raw): {} blocks in {:?}", received_tx.blocks.len(), t.elapsed());
 
 	ctx
 }

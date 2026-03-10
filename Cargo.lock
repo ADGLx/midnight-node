@@ -7848,6 +7848,7 @@ dependencies = [
  "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1)",
  "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
  "rand 0.8.5",
+ "rayon",
  "serde",
  "serde_json",
  "subxt 0.44.0",
