@@ -120,8 +120,8 @@ pub async fn generate_cnight_genesis(
 	let registered_addresses: BTreeSet<CardanoRewardAddressBytes> = all_utxos
 		.iter()
 		.filter_map(|utxo| match &utxo.data {
-			ObservedUtxoData::Registration(d) => Some(d.cardano_reward_address.clone()),
-			ObservedUtxoData::Deregistration(d) => Some(d.cardano_reward_address.clone()),
+			ObservedUtxoData::Registration(d) => Some(d.cardano_reward_address),
+			ObservedUtxoData::Deregistration(d) => Some(d.cardano_reward_address),
 			_ => None,
 		})
 		.collect();
