@@ -3,6 +3,24 @@ load("@rules_rust//rust:defs.bzl", "rust_library")
 
 exports_files(["Cargo.toml"])
 
+filegroup(
+    name = "cfg_files",
+    srcs = glob(["cfg/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "test_contract_files",
+    srcs = glob(["test-contract/**"]),
+    visibility = ["//visibility:public"],
+)
+
+filegroup(
+    name = "test_data_files",
+    srcs = glob(["test-contract/**", "test-tx-deserialize/**", "genesis/**", "dev/**"]),
+    visibility = ["//visibility:public"],
+)
+
 cargo_build_script(
     name = "build_script",
     srcs = ["build.rs"],
@@ -20,6 +38,38 @@ rust_library(
     crate_features = [
         "std",
         "chain-spec",
+    ],
+    edition = "2024",
+    deps = [
+        ":build_script",
+        "//pallets/cnight-observation:pallet-cnight-observation",
+        "//primitives/federated-authority-observation:midnight-primitives-federated-authority-observation",
+        "//primitives/ics-observation:midnight-primitives-ics-observation",
+        "//primitives/reserve-observation:midnight-primitives-reserve-observation",
+        "//primitives/system-parameters:midnight-primitives-system-parameters",
+        "@crates//:hex-literal",
+        "@crates//:midnight-serialize",
+        "@crates//:sc-service",
+        "@crates//:serde",
+        "@crates//:serde_json",
+        "@crates//:sidechain-domain",
+        "@crates//:sp-core",
+        "@crates//:sp-session-validator-management",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+# Test variant with "test" feature — exposes test contract fixtures via include_bytes!
+rust_library(
+    name = "midnight-node-res-test",
+    srcs = glob(["src/**/*.rs"]),
+    crate_name = "midnight_node_res",
+    compile_data = glob(["cfg/**"]) + glob(["dev/**"]) + glob(["genesis/**"]) +
+                   glob(["test-contract/**"]) + glob(["test-zswap/**"]) + glob(["test-claim-mint/**"]),
+    crate_features = [
+        "std",
+        "chain-spec",
+        "test",
     ],
     edition = "2024",
     deps = [

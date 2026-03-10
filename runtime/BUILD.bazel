@@ -1,5 +1,5 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_rust//rust:defs.bzl", "rust_library", "rust_shared_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_shared_library", "rust_test")
 load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 load(":wasm_transition.bzl", "transitioned_wasm")
 
@@ -98,6 +98,20 @@ rust_library(
     compile_data = ["Cargo.toml"],
     deps = [":build_script"] + _RUNTIME_LOCAL_DEPS + wasm_aware_crates(_RUNTIME_EXTERNAL_CRATE_NAMES),
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "midnight-node-runtime-test",
+    size = "small",
+    crate = ":midnight-node-runtime",
+    compile_data = ["Cargo.toml"],
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:plutus",
+        "@crates//:serde",
+        "@crates//:sp-io",
+    ],
 )
 
 # === WASM runtime blob (no_std) ===

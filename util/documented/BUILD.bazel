@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 exports_files(["Cargo.toml"])
 
@@ -13,4 +13,18 @@ rust_library(
         "//util/documented/documented_proc_macro",
     ],
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "documented-test",
+    size = "small",
+    srcs = ["tests/simple.rs"],
+    edition = "2024",
+    deps = [
+        ":documented",
+        "//util/documented/documented_types",
+    ],
+    proc_macro_deps = [
+        "//util/documented/documented_proc_macro",
+    ],
 )

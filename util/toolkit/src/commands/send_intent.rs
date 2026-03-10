@@ -77,8 +77,10 @@ mod test {
 		}
 
 		let rng_seed = "0000000000000000000000000000000000000000000000000000000000000037";
-		let src_files = "../../res/genesis/genesis_block_undeployed.mn";
-		let compiled_contract_dir = "../../static/contracts/simple-merkle-tree";
+		let manifest_dir = env!("CARGO_MANIFEST_DIR");
+		let src_files = &format!("{manifest_dir}/../../res/genesis/genesis_block_undeployed.mn");
+		let compiled_contract_dir =
+			&format!("{manifest_dir}/../../static/contracts/simple-merkle-tree");
 
 		let out_dir = tempdir().expect("failed to create tempdir");
 		let out_dir_str = out_dir.path().to_string_lossy().to_string();

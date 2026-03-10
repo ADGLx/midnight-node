@@ -1,5 +1,5 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "native_only_crates", "wasm_aware_crates")
 
 exports_files(["Cargo.toml"])
@@ -63,6 +63,10 @@ rust_library(
     name = "midnight-node-ledger-helpers",
     srcs = glob(["src/**/*.rs"]),
     compile_data = glob(["static/**"]) + ["//:Cargo.toml", "Cargo.toml"],
+    crate_features = [
+        "can-panic",
+        "test-utils",
+    ],
     edition = "2024",
     aliases = select({
         "//:wasm32": {},
@@ -134,4 +138,28 @@ rust_library(
         "@crates//:derive-where",
     ],
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "midnight-node-ledger-helpers-test",
+    size = "small",
+    crate = ":midnight-node-ledger-helpers",
+    compile_data = glob(["static/**"]) + ["//:Cargo.toml", "Cargo.toml"],
+    edition = "2024",
+    aliases = {
+        "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
+        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+        "@crates//:midnight-storage-1.1.1": "ledger_storage",
+        "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
+        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
+        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+        "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
+        "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
+        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
+        "@crates//:zkir_ledger_8": "zkir_ledger_8",
+    },
+    proc_macro_deps = [
+        "@crates//:async-trait",
+        "@crates//:derive-where",
+    ],
 )

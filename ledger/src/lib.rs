@@ -127,6 +127,7 @@ pub mod types {
 #[cfg(test)]
 mod tests {
 	use frame_support::assert_ok;
+	#[cfg(feature = "hardfork")]
 	use ledger_storage_hf::{
 		Storage as StorageHF, db::ParityDb as ParityDbHF,
 		storage::set_default_storage as set_default_storage_hf,
@@ -162,12 +163,15 @@ mod tests {
 		unsafe_drop_default_storage::<ParityDb>();
 		assert!(try_get_default_storage::<ParityDb>().is_none());
 
-		// Reset default storage reusing the same `db_path`
-		let res = set_default_storage_hf(|| {
-			let db = ParityDbHF::<sha2::Sha256>::open(&db_path);
-			StorageHF::new(0, db)
-		});
+		// Reset default storage reusing the same `db_path` (hardfork variant)
+		#[cfg(feature = "hardfork")]
+		{
+			let res = set_default_storage_hf(|| {
+				let db = ParityDbHF::<sha2::Sha256>::open(&db_path);
+				StorageHF::new(0, db)
+			});
 
-		assert_ok!(res);
+			assert_ok!(res);
+		}
 	}
 }

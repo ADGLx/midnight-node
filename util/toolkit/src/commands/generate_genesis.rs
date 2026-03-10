@@ -229,6 +229,10 @@ mod test {
 			.expect("failed to open seed file as writer");
 		serde_json::to_writer(&mut dest, &seed_map).expect("failed to write seed file");
 
+		let res_dir = format!("{}/../../res/dev", env!("CARGO_MANIFEST_DIR"));
+		let cnight_config = format!("{res_dir}/cnight-config.json");
+		let ics_config = format!("{res_dir}/ics-config.json");
+		let ledger_params_config = format!("{res_dir}/ledger-parameters-config.json");
 		let args = vec![
 			"midnight-node-toolkit",
 			"generate-genesis",
@@ -237,11 +241,11 @@ mod test {
 			"--seeds-file",
 			path.to_str().unwrap(),
 			"--cnight-generates-dust-config",
-			"../../res/dev/cnight-config.json",
+			&cnight_config,
 			"--ics-config",
-			"../../res/dev/ics-config.json",
+			&ics_config,
 			"--ledger-parameters-config",
-			"../../res/dev/ledger-parameters-config.json",
+			&ledger_params_config,
 		];
 
 		let cli = Cli::parse_from(args);
@@ -263,8 +267,11 @@ mod test {
 
 	#[test]
 	fn test_deserialize_ledger_parameters_config() {
-		let json_str =
-			std::fs::read_to_string("../../res/dev/ledger-parameters-config.json").unwrap();
+		let json_str = std::fs::read_to_string(format!(
+			"{}/../../res/dev/ledger-parameters-config.json",
+			env!("CARGO_MANIFEST_DIR")
+		))
+		.unwrap();
 		let _params: super::LedgerParameters = serde_json::from_str(&json_str)
 			.expect("failed to deserialize ledger parameters config");
 	}

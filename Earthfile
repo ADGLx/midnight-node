@@ -1104,6 +1104,43 @@ build-bazel-local:
         //runtime:midnight-node-runtime \
         //node:midnight-node
 
+# test-bazel-local runs Bazel tests using the persistent Docker container
+test-bazel-local:
+    LOCALLY
+    ARG CONTAINER_NAME=midnight-bazel
+    ARG WORKSPACE_DIR=$(pwd)
+    RUN if ! docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then \
+            echo "Starting persistent Bazel container..." && \
+            docker run -d --name "$CONTAINER_NAME" \
+                -v "$WORKSPACE_DIR":/workspace \
+                -v midnight-bazel-cache:/root/.cache/bazel \
+                -w /workspace \
+                midnight-bazel-builder:latest \
+                sleep infinity; \
+        elif [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != "true" ]; then \
+            echo "Restarting Bazel container..." && \
+            docker start "$CONTAINER_NAME"; \
+        fi
+    RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
+        docker exec "$CONTAINER_NAME" bazel test \
+        //pallets/version:pallet-version-test \
+        //pallets/throttle:pallet-throttle-test \
+        //pallets/system-parameters:pallet-system-parameters-test \
+        //pallets/federated-authority:pallet-federated-authority-test \
+        //pallets/federated-authority-observation:pallet-federated-authority-observation-test \
+        //pallets/cnight-observation:pallet-cnight-observation-test \
+        //pallets/midnight:pallet-midnight-test \
+        //primitives/ics-observation:midnight-primitives-ics-observation-test \
+        //primitives/reserve-observation:midnight-primitives-reserve-observation-test \
+        //util/documented:documented-test \
+        //util/aiken-contracts-lib:aiken-contracts-lib-test \
+        //runtime:midnight-node-runtime-test \
+        //node:midnight-node-test \
+        //ledger:midnight-node-ledger-test \
+        //ledger/helpers:midnight-node-ledger-helpers-test \
+        //relay:midnight-beefy-relay-test \
+        //util/toolkit:midnight-node-toolkit-test
+
 # build-bazel creates production ready binaries using Bazel
 build-bazel:
     FROM +build-prepare

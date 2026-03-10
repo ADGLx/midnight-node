@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
@@ -17,4 +17,17 @@ rust_library(
         "sp-runtime",
     ]),
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "pallet-throttle-test",
+    size = "small",
+    crate = ":pallet-throttle",
+    compile_data = ["Cargo.toml"],
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:sp-core",
+        "@crates//:sp-io",
+    ],
 )

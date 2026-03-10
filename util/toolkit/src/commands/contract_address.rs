@@ -78,23 +78,30 @@ pub fn execute(args: ContractAddressArgs) -> Result<String, ContractAddressError
 mod test {
 	use super::{ContractAddressArgs, execute};
 
+	fn res_path(path: &str) -> String {
+		format!("{}/../../res/{path}", env!("CARGO_MANIFEST_DIR"))
+	}
+
 	// todo: need more samples
 	#[test_case::test_case(
-		"../../res/test-contract/contract_tx_1_deploy_undeployed.mn",
-		"../../res/test-contract/contract_address_undeployed.mn";
+		"test-contract/contract_tx_1_deploy_undeployed.mn",
+		"test-contract/contract_address_undeployed.mn";
 		"undeployed case"
 	)]
 	fn test_contract_address(src_file: &str, untagged_address_file: &str) {
-		let args =
-			ContractAddressArgs { src_file: src_file.to_string(), tagged: false, untagged: false };
+		let args = ContractAddressArgs {
+			src_file: res_path(src_file),
+			tagged: false,
+			untagged: false,
+		};
 		let res = execute(args).expect("execution failed");
 
 		let untagged =
-			std::fs::read_to_string(untagged_address_file).expect("failed to read address file");
+			std::fs::read_to_string(res_path(untagged_address_file)).expect("failed to read address file");
 		assert_eq!(res, untagged.trim());
 
 		let args =
-			ContractAddressArgs { src_file: src_file.to_string(), tagged: true, untagged: true };
+			ContractAddressArgs { src_file: res_path(src_file), tagged: true, untagged: true };
 		let res = execute(args).expect("execution failed");
 		assert!(res.len() > untagged.trim().len());
 	}

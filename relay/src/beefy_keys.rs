@@ -76,7 +76,7 @@ mod test {
 	#[test]
 	fn test_beefy_keys_file() {
 		// get sample data
-		let beefy_keys_file = "test-data/beefy-keys.json";
+		let beefy_keys_file = concat!(env!("CARGO_MANIFEST_DIR"), "/test-data/beefy-keys.json");
 
 		let beefy_keys: Vec<crate::beefy_keys::BeefyKeyInfo> =
 			keys_from_file(beefy_keys_file).expect("Failed to get beefykeyinfo");

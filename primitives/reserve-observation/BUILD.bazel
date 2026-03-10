@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 exports_files(["Cargo.toml"])
 
@@ -13,4 +13,12 @@ rust_library(
         "@crates//:thiserror",
     ],
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "midnight-primitives-reserve-observation-test",
+    size = "small",
+    crate = ":midnight-primitives-reserve-observation",
+    crate_features = ["std"],
+    edition = "2024",
 )

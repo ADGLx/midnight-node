@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
@@ -31,4 +31,17 @@ rust_library(
         "@crates//:derive-new",
     ],
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "pallet-cnight-observation-test",
+    size = "small",
+    crate = ":pallet-cnight-observation",
+    compile_data = ["Cargo.toml"],
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:serde_json",
+        "@crates//:serde_valid",
+    ],
 )

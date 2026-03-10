@@ -1,48 +1,92 @@
-load("@rules_rust//rust:defs.bzl", "rust_binary")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 exports_files(["Cargo.toml"])
 
+_TOOLKIT_DEPS = [
+    "//ledger/helpers:midnight-node-ledger-helpers",
+    "//metadata:midnight-node-metadata",
+    "//primitives/ics-observation:midnight-primitives-ics-observation",
+    "//primitives/reserve-observation:midnight-primitives-reserve-observation",
+    "@crates//:async-channel",
+    "@crates//:backoff",
+    "@crates//:bson",
+    "@crates//:chrono",
+    "@crates//:clap",
+    "@crates//:console",
+    "@crates//:futures",
+    "@crates//:hex",
+    "@crates//:indicatif",
+    "@crates//:log",
+    "@crates//:num_cpus",
+    "@crates//:parity-scale-codec",
+    "@crates//:rand-0.8.5",
+    "@crates//:redb",
+    "@crates//:serde",
+    "@crates//:serde_json",
+    "@crates//:sha2",
+    "@crates//:sp-crypto-hashing",
+    "@crates//:sqlx",
+    "@crates//:structured-logger",
+    "@crates//:strum",
+    "@crates//:subxt",
+    "@crates//:subxt-signer",
+    "@crates//:tempfile",
+    "@crates//:thiserror",
+    "@crates//:tokio",
+    "@crates//:toml",
+    "@crates//:tracing",
+    "@crates//:tracing-subscriber",
+    "@crates//:zstd",
+]
+
+_TOOLKIT_PROC_MACRO_DEPS = [
+    "@crates//:async-trait",
+]
+
+rust_library(
+    name = "midnight-node-toolkit-lib",
+    crate_name = "midnight_node_toolkit",
+    srcs = glob(
+        ["src/**/*.rs"],
+        exclude = ["src/main.rs"],
+    ),
+    compile_data = [
+        "//node:Cargo.toml",
+        "//:COMPACTC_VERSION",
+        "//res:test_contract_files",
+    ],
+    edition = "2024",
+    deps = _TOOLKIT_DEPS,
+    proc_macro_deps = _TOOLKIT_PROC_MACRO_DEPS,
+    visibility = ["//visibility:public"],
+)
+
 rust_binary(
     name = "midnight-node-toolkit",
-    srcs = glob(["src/**/*.rs"]),
+    srcs = ["src/main.rs"],
     edition = "2024",
+    deps = [":midnight-node-toolkit-lib"] + _TOOLKIT_DEPS,
+    proc_macro_deps = _TOOLKIT_PROC_MACRO_DEPS,
+)
+
+rust_test(
+    name = "midnight-node-toolkit-test",
+    size = "small",
+    crate = ":midnight-node-toolkit-lib",
+    data = [
+        "//res:test_data_files",
+    ] + glob(["test-data/**"]),
+    edition = "2024",
+    env = {
+        "CARGO_MANIFEST_DIR": "util/toolkit",
+        "HOME": "/tmp",
+    },
+    rustc_env = {
+        "CARGO_MANIFEST_DIR": "util/toolkit",
+    },
     deps = [
-        "//ledger/helpers:midnight-node-ledger-helpers",
-        "//metadata:midnight-node-metadata",
-        "//primitives/ics-observation:midnight-primitives-ics-observation",
-        "//primitives/reserve-observation:midnight-primitives-reserve-observation",
-        "@crates//:async-channel",
-        "@crates//:backoff",
-        "@crates//:bson",
-        "@crates//:chrono",
-        "@crates//:clap",
-        "@crates//:console",
-        "@crates//:futures",
-        "@crates//:hex",
-        "@crates//:indicatif",
-        "@crates//:log",
-        "@crates//:num_cpus",
-        "@crates//:parity-scale-codec",
-        "@crates//:rand-0.8.5",
-        "@crates//:redb",
-        "@crates//:serde",
-        "@crates//:serde_json",
-        "@crates//:sha2",
-        "@crates//:sp-crypto-hashing",
-        "@crates//:sqlx",
-        "@crates//:structured-logger",
-        "@crates//:strum",
-        "@crates//:subxt",
-        "@crates//:subxt-signer",
-        "@crates//:tempfile",
-        "@crates//:thiserror",
-        "@crates//:tokio",
-        "@crates//:toml",
-        "@crates//:tracing",
-        "@crates//:tracing-subscriber",
-        "@crates//:zstd",
-    ],
-    proc_macro_deps = [
-        "@crates//:async-trait",
+        "@crates//:hex-literal",
+        "@crates//:test-case",
+        "@crates//:test-log",
     ],
 )

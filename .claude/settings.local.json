@@ -21,7 +21,9 @@
       "Bash(docker exec:*)",
       "Read(//private/var/tmp/_bazel_gilescope/177814e3708f59fcc08f674210ae39c7/external/rules_rust~~crate~crates/**)",
       "Bash(clang:*)",
-      "Bash(chmod +x:*)"
+      "Bash(chmod +x:*)",
+      "Bash(cargo generate-lockfile:*)",
+      "Bash(git stash:*)"
     ]
   }
 }

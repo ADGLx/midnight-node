@@ -1,7 +1,7 @@
 #[cfg(feature = "can-panic")]
 use crate::fork::raw_block_data::{RawTransaction, SerializedTx};
 
-#[cfg(feature = "can-panic")]
+#[cfg(all(feature = "can-panic", feature = "hardfork"))]
 pub fn extract_tx_with_context_ledger_hf(
 	bytes: &[u8],
 ) -> (Vec<u8>, crate::hard_fork_test::BlockContext) {

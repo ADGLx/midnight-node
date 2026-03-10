@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
@@ -21,4 +21,22 @@ rust_library(
         "@crates//:impl-trait-for-tuples",
     ],
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "pallet-federated-authority-test",
+    size = "small",
+    crate = ":pallet-federated-authority",
+    compile_data = ["Cargo.toml"],
+    crate_features = ["std"],
+    edition = "2024",
+    deps = [
+        "@crates//:pallet-collective",
+        "@crates//:pallet-membership",
+        "@crates//:sp-core",
+        "@crates//:sp-io",
+    ],
+    proc_macro_deps = [
+        "@crates//:impl-trait-for-tuples",
+    ],
 )

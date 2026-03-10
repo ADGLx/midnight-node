@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 
 exports_files(["Cargo.toml"])
 
@@ -15,4 +15,11 @@ rust_library(
         "@crates//:whisky",
     ],
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "aiken-contracts-lib-test",
+    size = "small",
+    crate = ":aiken-contracts-lib",
+    edition = "2021",
 )

@@ -1,5 +1,5 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features", "wasm_rustc_flags")
 
 exports_files(["Cargo.toml"])
@@ -98,4 +98,35 @@ rust_library(
         "//conditions:default": ["@crates//:derive-where"],
     }),
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "midnight-node-ledger-test",
+    size = "small",
+    crate = ":midnight-node-ledger",
+    compile_data = ["Cargo.toml", "//:Cargo.toml"] + glob(["test-data/**"]),
+    crate_features = ["std", "test-utils"],
+    edition = "2024",
+    aliases = {
+        "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
+        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+        "@crates//:midnight-storage-1.1.1": "ledger_storage",
+        "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
+        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
+        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+        "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
+        "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
+        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
+        "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
+    },
+    deps = [
+        "//res:midnight-node-res-test",
+    ],
+    env = {
+        "HOME": "/tmp",
+    },
+    proc_macro_deps = [
+        "@crates//:scale-info-derive",
+        "@crates//:derive-where",
+    ],
 )

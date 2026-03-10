@@ -1,5 +1,5 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
@@ -33,4 +33,26 @@ rust_library(
         "sp-tracing",
     ]),
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "pallet-midnight-test",
+    size = "small",
+    crate = ":pallet-midnight",
+    compile_data = ["Cargo.toml"],
+    crate_features = ["std"],
+    edition = "2024",
+    env = {
+        "HOME": "/tmp",
+    },
+    deps = [
+        "//ledger/helpers:midnight-node-ledger-helpers",
+        "//res:midnight-node-res-test",
+        "@crates//:assert_matches",
+        "@crates//:hex",
+        "@crates//:sp-core",
+        "@crates//:sp-io",
+        "@crates//:tempfile",
+        "@crates//:test-log",
+    ],
 )

@@ -170,7 +170,8 @@ mod test {
 		}
 
 		let rng_seed = "0000000000000000000000000000000000000000000000000000000000000037";
-		let src_files = "../../res/genesis/genesis_block_undeployed.mn";
+		let src_files =
+			&format!("{}/../../res/genesis/genesis_block_undeployed.mn", env!("CARGO_MANIFEST_DIR"));
 
 		let rng_seed = hex_str_decode::<[u8; 32]>(rng_seed).expect("rng_seed failed");
 		let deploy_args = ContractDeployArgs {

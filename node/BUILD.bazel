@@ -1,5 +1,5 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_binary", "rust_library", "rust_test")
 
 exports_files(["Cargo.toml"])
 
@@ -155,5 +155,22 @@ rust_binary(
     aliases = _NODE_ALIASES,
     compile_data = ["Cargo.toml"],
     deps = [":midnight-node-lib"] + _NODE_DEPS,
+    proc_macro_deps = _NODE_PROC_MACRO_DEPS,
+)
+
+rust_test(
+    name = "midnight-node-test",
+    size = "small",
+    crate = ":midnight-node-lib",
+    aliases = _NODE_ALIASES,
+    compile_data = ["Cargo.toml"],
+    data = [
+        "//res:cfg_files",
+        "//res:test_data_files",
+    ],
+    edition = "2024",
+    deps = [
+        "@crates//:tempfile",
+    ],
     proc_macro_deps = _NODE_PROC_MACRO_DEPS,
 )

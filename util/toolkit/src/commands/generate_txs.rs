@@ -96,7 +96,7 @@ mod tests {
 	use test_case::test_case;
 
 	fn resource_file(path: &str) -> String {
-		format!("../../res/{path}")
+		format!("{}/../../res/{path}", env!("CARGO_MANIFEST_DIR"))
 	}
 
 	// TODO: we need to consider using `proptest` here.
