@@ -1,0 +1,9 @@
+load("@rules_rust//rust:defs.bzl", "rust_binary")
+
+rust_binary(
+    name = "wasm-compress",
+    srcs = ["src/main.rs"],
+    edition = "2024",
+    deps = ["@crates//:zstd"],
+    visibility = ["//visibility:public"],
+)

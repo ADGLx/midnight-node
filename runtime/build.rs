@@ -40,16 +40,34 @@ fn main() {
 	}
 
 	// When std is not enabled (e.g. Bazel builds that skip wasm-builder to avoid
-	// the wasm-opt-sys/scratch/cxx sandbox symlink issue), generate a stub so the
-	// runtime crate's `include!(…"/wasm_binary.rs")` still resolves.
+	// the wasm-opt-sys/scratch/cxx sandbox symlink issue), check if a pre-built
+	// WASM blob is available via WASM_BINARY_PATH, otherwise generate a stub.
 	#[cfg(not(feature = "std"))]
 	{
 		let out = std::env::var("OUT_DIR").unwrap();
-		std::fs::write(
-			std::path::Path::new(&out).join("wasm_binary.rs"),
-			"pub const WASM_BINARY: Option<&[u8]> = None;\n\
-			 pub const WASM_BINARY_BLOATY: Option<&[u8]> = None;\n",
-		)
-		.unwrap();
+		let out_path = std::path::Path::new(&out);
+
+		if let Ok(wasm_path) = std::env::var("WASM_BINARY_PATH") {
+			println!("cargo:rerun-if-env-changed=WASM_BINARY_PATH");
+			let wasm = std::fs::read(&wasm_path)
+				.unwrap_or_else(|e| panic!("Failed to read WASM at {wasm_path}: {e}"));
+			let dest = out_path.join("wasm_binary.wasm");
+			std::fs::write(&dest, &wasm).unwrap();
+			std::fs::write(
+				out_path.join("wasm_binary.rs"),
+				"pub const WASM_BINARY: Option<&[u8]> = \
+				 Some(include_bytes!(\"wasm_binary.wasm\"));\n\
+				 pub const WASM_BINARY_BLOATY: Option<&[u8]> = \
+				 Some(include_bytes!(\"wasm_binary.wasm\"));\n",
+			)
+			.unwrap();
+		} else {
+			std::fs::write(
+				out_path.join("wasm_binary.rs"),
+				"pub const WASM_BINARY: Option<&[u8]> = None;\n\
+				 pub const WASM_BINARY_BLOATY: Option<&[u8]> = None;\n",
+			)
+			.unwrap();
+		}
 	}
 }

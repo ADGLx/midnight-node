@@ -3,6 +3,7 @@ resolver = "2"
 exclude = [
     "target",
     "scripts",
+    "wasm-deps",
 ]
 members = [
     "ledger",

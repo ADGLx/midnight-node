@@ -1,11 +1,12 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
 
 rust_library(
     name = "pallet-cnight-observation",
     srcs = glob(["src/**/*.rs"]),
-    crate_features = ["std"],
+    crate_features = wasm_aware_features(["std"]),
     edition = "2024",
     compile_data = ["Cargo.toml"],
     deps = [
@@ -13,17 +14,19 @@ rust_library(
         "//primitives/cnight-observation:midnight-primitives-cnight-observation",
         "//primitives/mainchain-follower:midnight-primitives-mainchain-follower",
         "//primitives/midnight:midnight-primitives",
-        "@crates//:frame-support",
-        "@crates//:frame-system",
-        "@crates//:hex",
-        "@crates//:log",
-        "@crates//:parity-scale-codec",
-        "@crates//:scale-info",
-        "@crates//:serde",
-        "@crates//:serde_valid",
-        "@crates//:sidechain-domain",
-        "@crates//:sp-core",
-    ],
+    ] + wasm_aware_crates([
+        "frame-support",
+        "frame-system",
+        "hex",
+        "log",
+        "parity-scale-codec",
+        "scale-info",
+        "serde",
+        "sidechain-domain",
+        "sp-core",
+    ]) + native_only_crates([
+        "serde_valid",
+    ]),
     proc_macro_deps = [
         "@crates//:derive-new",
     ],

@@ -1,23 +1,25 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
 
 rust_library(
     name = "midnight-primitives-federated-authority-observation",
     srcs = glob(["src/**/*.rs"]),
-    crate_features = ["std"],
+    crate_features = wasm_aware_features(["std"]),
     edition = "2024",
-    deps = [
-        "@crates//:hex",
-        "@crates//:parity-scale-codec",
-        "@crates//:scale-info",
-        "@crates//:serde",
-        "@crates//:serde_valid",
-        "@crates//:sidechain-domain",
-        "@crates//:sp-api",
-        "@crates//:sp-core",
-        "@crates//:sp-inherents",
-        "@crates//:sp-runtime",
-    ],
+    deps = wasm_aware_crates([
+        "hex",
+        "parity-scale-codec",
+        "scale-info",
+        "serde",
+        "sidechain-domain",
+        "sp-api",
+        "sp-core",
+        "sp-inherents",
+        "sp-runtime",
+    ]) + native_only_crates([
+        "serde_valid",
+    ]),
     visibility = ["//visibility:public"],
 )

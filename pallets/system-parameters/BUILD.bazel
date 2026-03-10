@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
 
@@ -6,18 +7,18 @@ rust_library(
     name = "pallet-system-parameters",
     srcs = glob(["src/**/*.rs"]),
     compile_data = ["Cargo.toml"],
-    crate_features = ["std"],
+    crate_features = wasm_aware_features(["std"]),
     edition = "2024",
-    deps = [
-        "@crates//:frame-support",
-        "@crates//:frame-system",
-        "@crates//:parity-scale-codec",
-        "@crates//:scale-info",
-        "@crates//:serde",
-        "@crates//:sidechain-domain",
-        "@crates//:sp-api",
-        "@crates//:sp-core",
-        "@crates//:sp-runtime",
-    ],
+    deps = wasm_aware_crates([
+        "frame-support",
+        "frame-system",
+        "parity-scale-codec",
+        "scale-info",
+        "serde",
+        "sidechain-domain",
+        "sp-api",
+        "sp-core",
+        "sp-runtime",
+    ]),
     visibility = ["//visibility:public"],
 )

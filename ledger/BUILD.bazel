@@ -1,5 +1,6 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features", "wasm_rustc_flags")
 
 exports_files(["Cargo.toml"])
 
@@ -13,72 +14,88 @@ rust_library(
     name = "midnight-node-ledger",
     srcs = glob(["src/**/*.rs"]),
     compile_data = ["Cargo.toml", "//:Cargo.toml"],
-    crate_features = [
+    crate_features = wasm_aware_features([
         "std",
         "test-utils",
         # "hardfork" excluded — avoids midnight_storage_core version conflict
         # (see docs/bazel-notes.md Bug 3)
-    ],
+    ]),
     edition = "2024",
-    aliases = {
-        # L7 aliases (non-colliding only)
-        "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
-        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
-        "@crates//:midnight-storage-1.1.1": "ledger_storage",
-        "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
-        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
-        "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
-        # L8 aliases (non-colliding only)
-        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
-        "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
-        "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
-        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
-        # HF deps excluded (see crate_features comment above)
-    },
+    rustc_flags = wasm_rustc_flags(),
+    aliases = select({
+        "//:wasm32": {},
+        "//conditions:default": {
+            # L7 aliases (non-colliding only)
+            "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
+            "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+            "@crates//:midnight-storage-1.1.1": "ledger_storage",
+            "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
+            "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
+            "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
+            # L8 aliases (non-colliding only)
+            "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+            "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
+            "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
+            "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
+            # HF deps excluded (see crate_features comment above)
+        },
+    }),
     deps = [
         ":build_script",
-        "//ledger/helpers:midnight-node-ledger-helpers",
-        "//primitives/ledger:midnight-primitives-ledger",
+    ] + wasm_aware_crates([
+        # no_std core deps (unconditional in Cargo.toml)
+        "frame-support",
+        "parity-scale-codec",
+        "scale-info",
+        "sp-externalities",
+        "sp-runtime",
+        "sp-runtime-interface",
+        "sp-tracing",
+    ]) + native_only_crates([
+        # std-only deps (optional = true, enabled by std feature)
+        "hex",
+        "log",
+        "serde",
+        # midnight-primitives-ledger is optional, behind std
         # L7 midnight deps (colliding use bridges from helpers)
-        "@crates//:midnight-base-crypto-1.0.0",
-        "//ledger/helpers:_coin_structure_bridge",
-        "@crates//:midnight-ledger-7.0.3-rc.1",
-        "@crates//:midnight-onchain-runtime-2.0.1",
-        "@crates//:midnight-serialize",
-        "@crates//:midnight-storage-1.1.1",
-        "@crates//:midnight-storage-core",
-        "//ledger/helpers:_transient_crypto_bridge",
-        "@crates//:midnight-zswap-7.0.3-rc.1",
-        # L8 midnight deps (colliding use bridges from helpers)
-        "//ledger/helpers:_mn_ledger_8_bridge",
-        "@crates//:coin_structure_ledger_8",
-        "@crates//:onchain_runtime_ledger_8",
-        "@crates//:ledger_storage_ledger_8",
-        "@crates//:transient_crypto_ledger_8",
-        "//ledger/helpers:_zswap_ledger_8_bridge",
-        # HF deps excluded (see crate_features comment above)
-        # Substrate/framework deps
-        "@crates//:frame-support",
-        "@crates//:parity-scale-codec",
-        "@crates//:scale-info",
-        "@crates//:sp-externalities",
-        "@crates//:sp-runtime",
-        "@crates//:sp-runtime-interface",
-        "@crates//:sp-tracing",
-        "@crates//:substrate-prometheus-endpoint-0.17.7",
-        # Other deps
-        "@crates//:hex",
-        "@crates//:lazy_static",
-        "@crates//:log",
-        "@crates//:moka",
-        "@crates//:serde",
-        "@crates//:serde_json",
-        "@crates//:sha2",
-        "@crates//:toml",
-    ],
+        "midnight-base-crypto-1.0.0",
+        "midnight-ledger-7.0.3-rc.1",
+        "midnight-onchain-runtime-2.0.1",
+        "midnight-serialize",
+        "midnight-storage-1.1.1",
+        "midnight-storage-core",
+        "midnight-zswap-7.0.3-rc.1",
+        # L8 midnight deps
+        "coin_structure_ledger_8",
+        "onchain_runtime_ledger_8",
+        "ledger_storage_ledger_8",
+        "transient_crypto_ledger_8",
+        # Host-only substrate/utility
+        "substrate-prometheus-endpoint-0.17.7",
+        "lazy_static",
+        "moka",
+        "serde_json",
+        "sha2",
+        "toml",
+    ]) + select({
+        # Helpers + bridge deps only needed in native builds
+        "//:wasm32": [],
+        "//conditions:default": [
+            "//primitives/ledger:midnight-primitives-ledger",
+            "//ledger/helpers:midnight-node-ledger-helpers",
+            "//ledger/helpers:_coin_structure_bridge",
+            "//ledger/helpers:_transient_crypto_bridge",
+            "//ledger/helpers:_mn_ledger_8_bridge",
+            "//ledger/helpers:_zswap_ledger_8_bridge",
+        ],
+    }),
     proc_macro_deps = [
-        "@crates//:derive-where",
+        # scale-info-derive is unconditional (proc macros run on host)
         "@crates//:scale-info-derive",
-    ],
+    ] + select({
+        # derive-where is optional, behind std feature in Cargo.toml
+        "//:wasm32": [],
+        "//conditions:default": ["@crates//:derive-where"],
+    }),
     visibility = ["//visibility:public"],
 )

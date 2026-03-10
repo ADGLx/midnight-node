@@ -1,17 +1,18 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
 
 rust_library(
     name = "midnight-primitives-beefy",
     srcs = glob(["src/**/*.rs"]),
-    crate_features = ["std"],
+    crate_features = wasm_aware_features(["std"]),
     edition = "2024",
-    deps = [
-        "@crates//:parity-scale-codec",
-        "@crates//:sp-api",
-        "@crates//:sp-consensus-beefy",
-        "@crates//:sp-runtime",
-    ],
+    deps = wasm_aware_crates([
+        "parity-scale-codec",
+        "sp-api",
+        "sp-consensus-beefy",
+        "sp-runtime",
+    ]),
     visibility = ["//visibility:public"],
 )

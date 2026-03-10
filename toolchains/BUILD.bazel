@@ -1,0 +1,34 @@
+load("@rules_cc//cc:defs.bzl", "cc_toolchain")
+load(":wasm_cc.bzl", "wasm_cc_toolchain_config")
+
+filegroup(
+    name = "wasm_cc_tools",
+    srcs = [
+        "noop_cc.sh",
+        "wasm32_ar.sh",
+        "wasm32_cc.sh",
+    ],
+)
+
+wasm_cc_toolchain_config(name = "wasm_cc_config")
+
+cc_toolchain(
+    name = "wasm_cc_toolchain_impl",
+    all_files = ":wasm_cc_tools",
+    compiler_files = ":wasm_cc_tools",
+    dwp_files = ":wasm_cc_tools",
+    linker_files = ":wasm_cc_tools",
+    objcopy_files = ":wasm_cc_tools",
+    strip_files = ":wasm_cc_tools",
+    toolchain_config = ":wasm_cc_config",
+)
+
+toolchain(
+    name = "wasm_cc_toolchain",
+    toolchain = ":wasm_cc_toolchain_impl",
+    toolchain_type = "@bazel_tools//tools/cpp:toolchain_type",
+    target_compatible_with = [
+        "@platforms//cpu:wasm32",
+        "@platforms//os:none",
+    ],
+)

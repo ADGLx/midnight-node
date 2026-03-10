@@ -1,0 +1,79 @@
+# Standalone manifest for resolving a no_std dependency tree.
+# Used by Bazel's crate_universe (crates_wasm) to build the WASM runtime
+# natively without Cargo. Excluded from the main workspace so Cargo
+# resolves features independently — no unification with std-requiring members.
+#
+# Keep in sync with runtime/Cargo.toml + pallets' external deps.
+[package]
+name = "wasm-deps-resolver"
+version = "0.0.0"
+edition = "2024"
+publish = false
+
+[dependencies]
+# === Substrate / polkadot-sdk ===
+binary-merkle-tree = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+frame-executive = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+frame-support = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+frame-system = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+frame-system-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-aura = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-beefy = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-beefy-mmr = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-collective = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-grandpa = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-membership = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-migrations = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-mmr = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-preimage = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-scheduler = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-session = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-timestamp = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+pallet-tx-pause = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-block-builder = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-consensus-aura = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-consensus-beefy = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-consensus-grandpa = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-consensus-slots = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-core = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-externalities = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-genesis-builder = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-inherents = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-offchain = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-runtime = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-runtime-interface = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-session = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-staking = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-storage = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-tracing = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-transaction-pool = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+sp-version = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2509" }
+
+# === Partner chains ===
+authority-selection-inherents = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
+pallet-partner-chains-bridge = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
+pallet-partner-chains-session = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1", features = ["pallet-session-compat"] }
+pallet-session-validator-management = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
+pallet-sidechain = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
+sidechain-domain = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1", features = ["serde"] }
+sidechain-slots = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
+sp-partner-chains-bridge = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
+sp-session-validator-management = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1", features = ["serde"] }
+sp-sidechain = { default-features = false, git = "https://github.com/input-output-hk/partner-chains", tag = "v1.8.1" }
+
+# === Common utility crates ===
+hex = { default-features = false, version = "0.4.3", features = ["serde"] }
+hex-literal = { default-features = false, version = "0.4.1" }
+log = { default-features = false, version = "0.4.17" }
+parity-scale-codec = { default-features = false, version = "3.7.5" }
+scale-info = { default-features = false, version = "2.1.1" }
+serde = { default-features = false, version = "1.0.188" }
+
+# Patches must match the main workspace for consistent dep versions.
+[patch.crates-io]
+cardano-serialization-lib = { git = "https://github.com/SupernaviX/cardano-serialization-lib", branch = "sg/patch-wasm-bindgen" }
+midnight-storage-core = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "storage-core-1.1.0-rc.1" }
+midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "storage-core-1.1.0-rc.1" }
+midnight-base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "storage-core-1.1.0-rc.1" }
+midnight-storage-macros = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "storage-core-1.1.0-rc.1" }

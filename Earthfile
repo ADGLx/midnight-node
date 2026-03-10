@@ -1100,7 +1100,9 @@ build-bazel-local:
         //pallets/system-parameters:pallet-system-parameters \
         //pallets/federated-authority-observation:pallet-federated-authority-observation \
         //runtime/common:runtime-common \
-        //metadata:midnight-node-metadata
+        //metadata:midnight-node-metadata \
+        //runtime:midnight-node-runtime \
+        //node:midnight-node
 
 # build-bazel creates production ready binaries using Bazel
 build-bazel:
@@ -1119,8 +1121,8 @@ build-bazel:
 
     # Copy source files AFTER tool installation so tool layers stay cached
     COPY --keep-ts --dir Cargo.lock Cargo.toml .sqlx \
-    ledger node pallets primitives metadata res runtime util tests relay COMPACTC_VERSION \
-    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel scripts docs patches .
+    ledger node pallets primitives metadata res runtime util tools toolchains wasm-deps tests relay COMPACTC_VERSION \
+    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel defs.bzl scripts docs patches .
 
     # Remove base image's .cargo/config.toml — cargo-bazel rejects parent-dir cargo configs
     RUN rm -f /.cargo/config.toml
@@ -1152,11 +1154,15 @@ build-bazel:
         //pallets/system-parameters:pallet-system-parameters \
         //pallets/federated-authority-observation:pallet-federated-authority-observation \
         //runtime/common:runtime-common \
-        //metadata:midnight-node-metadata && \
+        //metadata:midnight-node-metadata \
+        //runtime:midnight-node-runtime \
+        //node:midnight-node && \
         mkdir -p /bazel-artifacts && \
+        cp -L bazel-bin/node/midnight-node /bazel-artifacts/ && \
         cp -L bazel-bin/util/upgrader/upgrader /bazel-artifacts/ && \
         cp -L bazel-bin/util/aiken-deployer/aiken-deployer /bazel-artifacts/
 
+    SAVE ARTIFACT /bazel-artifacts/midnight-node AS LOCAL artifacts/midnight-node
     SAVE ARTIFACT /bazel-artifacts/upgrader AS LOCAL artifacts/upgrader
     SAVE ARTIFACT /bazel-artifacts/aiken-deployer AS LOCAL artifacts/aiken-deployer
 

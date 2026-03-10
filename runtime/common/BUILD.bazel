@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
 
@@ -6,14 +7,14 @@ rust_library(
     name = "runtime-common",
     srcs = glob(["src/**/*.rs"]),
     compile_data = ["Cargo.toml"],
-    crate_features = ["std"],
+    crate_features = wasm_aware_features(["std"]),
     edition = "2021",
-    deps = [
-        "@crates//:frame-support",
-        "@crates//:frame-system",
-        "@crates//:pallet-collective",
-        "@crates//:pallet-membership",
-        "@crates//:sp-runtime",
-    ],
+    deps = wasm_aware_crates([
+        "frame-support",
+        "frame-system",
+        "pallet-collective",
+        "pallet-membership",
+        "sp-runtime",
+    ]),
     visibility = ["//visibility:public"],
 )

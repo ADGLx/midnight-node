@@ -10,6 +10,8 @@ git_override(
     module_name = "rules_rust",
     remote = "https://github.com/bazelbuild/rules_rust",
     commit = "e37a71f614ef5ffab38ac482abfc6782d11ba144",
+    patches = ["//patches:rules-rust-wasm-none-dylib-ext.patch"],
+    patch_strip = 1,
 )
 
 rust = use_extension("@rules_rust//rust:extensions.bzl", "rust")
@@ -23,12 +25,25 @@ use_repo(rust, "rust_toolchains")
 
 register_toolchains("@rust_toolchains//:all")
 
+# Stub CC toolchain for wasm32 — Bazel requires one even for pure Rust targets
+register_toolchains("//toolchains:wasm_cc_toolchain")
+
 crate = use_extension("@rules_rust//crate_universe:extension.bzl", "crate")
 
 crate.from_cargo(
     name = "crates",
     cargo_lockfile = "//:Cargo.lock",
     manifests = ["//:Cargo.toml"],
+)
+
+# Second dep graph for the WASM runtime build (no_std).
+# Uses a standalone manifest (wasm-deps/) that declares runtime deps with
+# default-features = false. Resolved independently from the main workspace,
+# so no feature unification with std-requiring members (node, toolkit, etc.).
+crate.from_cargo(
+    name = "crates_wasm",
+    cargo_lockfile = "//wasm-deps:Cargo.lock",
+    manifests = ["//wasm-deps:Cargo.toml"],
 )
 
 # Patch proc-macro-crate to fall back to scanning Cargo.toml for
@@ -45,27 +60,39 @@ crate.annotation(
 # Ensure Cargo.toml is available in the sandbox during compilation.
 # Proc macros (via proc-macro-crate) read $CARGO_MANIFEST_DIR/Cargo.toml
 # to discover dependency aliases (e.g. codec → parity-scale-codec).
-# Without this, Cargo.toml is not a declared input and the read fails,
-# causing derive macros to generate wrong crate paths.
+# Split by repo: crates_wasm also gets --cfg substrate_runtime (equivalent
+# to Cargo's RUSTFLAGS="--cfg substrate_runtime") which enables wasm stubs
+# in #[runtime_interface] and the wasm module in sp-runtime-interface.
 crate.annotation(
     crate = "*",
     compile_data_glob = ["Cargo.toml"],
+    repositories = ["crates"],
 )
 
-# Force std feature on Substrate crates that have no_std support.
+crate.annotation(
+    crate = "*",
+    compile_data_glob = ["Cargo.toml"],
+    rustc_flags = ["--cfg", "substrate_runtime"],
+    repositories = ["crates_wasm"],
+)
+
+# Force std feature on Substrate crates for native builds only.
 # crate_universe resolves features from workspace Cargo.toml where deps use
 # default-features = false. The std feature chain (our crate std → dep/std)
 # isn't followed by crate_universe, so these crates compile in no_std mode
 # causing missing Debug impls and std module errors.
+# Scoped to "crates" only — "crates_wasm" intentionally stays no_std.
 crate.annotation(
     crate = "frame-support",
     crate_features = ["std"],
+    repositories = ["crates"],
 )
 
 # Expose spoke repos for crates that lack hub aliases due to duplicate versions
 use_repo(
     crate,
     "crates",
+    "crates_wasm",
     "crates__midnight-coin-structure-2.0.1",
     "crates__midnight-transient-crypto-2.0.1",
     "crates__midnight-ledger-8.0.0-rc.4",

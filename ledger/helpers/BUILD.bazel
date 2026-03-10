@@ -1,5 +1,6 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "native_only_crates", "wasm_aware_crates")
 
 exports_files(["Cargo.toml"])
 
@@ -63,61 +64,71 @@ rust_library(
     srcs = glob(["src/**/*.rs"]),
     compile_data = glob(["static/**"]) + ["//:Cargo.toml", "Cargo.toml"],
     edition = "2024",
-    aliases = {
-        # L7 aliases (only for deps that DON'T collide with L8)
-        "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
-        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
-        "@crates//:midnight-storage-1.1.1": "ledger_storage",
-        "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
-        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
-        # L8 aliases (only for deps that DON'T collide with L7)
-        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
-        "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
-        "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
-        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
-        "@crates//:zkir_ledger_8": "zkir_ledger_8",
-        # HF deps excluded — hardfork feature not enabled in Bazel to avoid
-        # midnight_storage_core version conflict (see docs/bazel-notes.md Bug 3)
-    },
+    aliases = select({
+        "//:wasm32": {},
+        "//conditions:default": {
+            # L7 aliases (only for deps that DON'T collide with L8)
+            "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
+            "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+            "@crates//:midnight-storage-1.1.1": "ledger_storage",
+            "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
+            "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
+            # L8 aliases (only for deps that DON'T collide with L7)
+            "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+            "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
+            "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
+            "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
+            "@crates//:zkir_ledger_8": "zkir_ledger_8",
+            # HF deps excluded — hardfork feature not enabled in Bazel to avoid
+            # midnight_storage_core version conflict (see docs/bazel-notes.md Bug 3)
+        },
+    }),
     deps = [
         ":build_script",
+    ] + wasm_aware_crates([
+        "hex",
+        "log",
+        "serde",
+    ]) + native_only_crates([
         # L7 midnight deps (non-colliding use aliases, colliding use bridges)
-        "@crates//:midnight-base-crypto-1.0.0",
-        ":_coin_structure_bridge",
-        "@crates//:midnight-ledger-7.0.3-rc.1",
-        "@crates//:midnight-onchain-runtime-2.0.1",
-        "@crates//:midnight-serialize",
-        "@crates//:midnight-storage-1.1.1",
-        ":_transient_crypto_bridge",
-        ":_zkir_bridge",
-        "@crates//:midnight-zswap-7.0.3-rc.1",
-        # L8 midnight deps (non-colliding use aliases, colliding use bridges)
-        ":_mn_ledger_8_bridge",
-        "@crates//:coin_structure_ledger_8",
-        "@crates//:onchain_runtime_ledger_8",
-        "@crates//:ledger_storage_ledger_8",
-        "@crates//:transient_crypto_ledger_8",
-        "@crates//:zkir_ledger_8",
-        ":_zswap_ledger_8_bridge",
+        "midnight-base-crypto-1.0.0",
+        "midnight-ledger-7.0.3-rc.1",
+        "midnight-onchain-runtime-2.0.1",
+        "midnight-serialize",
+        "midnight-storage-1.1.1",
+        "midnight-zswap-7.0.3-rc.1",
+        # L8 midnight deps
+        "coin_structure_ledger_8",
+        "onchain_runtime_ledger_8",
+        "ledger_storage_ledger_8",
+        "transient_crypto_ledger_8",
+        "zkir_ledger_8",
         # HF deps excluded (see aliases comment above)
         # Other deps
-        "@crates//:bech32",
-        "@crates//:bip32",
-        "@crates//:bip39",
-        "@crates//:futures",
-        "@crates//:hex",
-        "@crates//:itertools",
-        "@crates//:lazy_static",
-        "@crates//:log",
-        "@crates//:rand-0.8.5",
-        "@crates//:serde",
-        "@crates//:serde_json",
-        "@crates//:subxt",
-        "@crates//:subxt-signer",
-        "@crates//:thiserror",
-        "@crates//:tokio",
-        "@crates//:toml",
-    ],
+        "bech32",
+        "bip32",
+        "bip39",
+        "futures",
+        "itertools",
+        "lazy_static",
+        "rand-0.8.5",
+        "serde_json",
+        "subxt",
+        "subxt-signer",
+        "thiserror",
+        "tokio",
+        "toml",
+    ]) + select({
+        # Bridge deps and midnight-zkir only needed in native builds
+        "//:wasm32": [],
+        "//conditions:default": [
+            ":_coin_structure_bridge",
+            ":_transient_crypto_bridge",
+            ":_zkir_bridge",
+            ":_mn_ledger_8_bridge",
+            ":_zswap_ledger_8_bridge",
+        ],
+    }),
     proc_macro_deps = [
         "@crates//:async-trait",
         "@crates//:derive-where",

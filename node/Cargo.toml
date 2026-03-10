@@ -152,7 +152,8 @@ tempfile = "3"
 substrate-build-script-utils.workspace = true
 
 [features]
-default = []
+default = ["hardfork"]
+hardfork = ["midnight-node-ledger/hardfork"]
 
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [

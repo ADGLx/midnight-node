@@ -1,43 +1,55 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features", "wasm_rustc_flags")
 
 exports_files(["Cargo.toml"])
 
 rust_library(
     name = "midnight-primitives-mainchain-follower",
     srcs = glob(["src/**/*.rs"]),
-    compile_data = ["Cargo.toml", ".env", "//:sqlx_offline"],
-    crate_features = ["std"],
+    compile_data = ["Cargo.toml"] + select({
+        "//:wasm32": [],
+        "//conditions:default": [".env", "//:sqlx_offline"],
+    }),
+    crate_features = wasm_aware_features(["std"]),
     edition = "2024",
+    rustc_flags = wasm_rustc_flags(),
     deps = [
         "//primitives/cnight-observation:midnight-primitives-cnight-observation",
         "//primitives/federated-authority-observation:midnight-primitives-federated-authority-observation",
-        "@crates//:authority-selection-inherents",
-        "@crates//:cardano-serialization-lib",
-        "@crates//:db-sync-sqlx",
-        "@crates//:figment",
-        "@crates//:itertools",
-        "@crates//:log",
-        "@crates//:lru",
-        "@crates//:parity-scale-codec",
-        "@crates//:partner-chains-db-sync-data-sources",
-        "@crates//:partner-chains-plutus-data",
-        "@crates//:rand-0.9.2",
-        "@crates//:scale-info",
-        "@crates//:serde",
-        "@crates//:sidechain-domain",
-        "@crates//:sp-api",
-        "@crates//:sp-blockchain",
-        "@crates//:sp-core",
-        "@crates//:sp-inherents",
-        "@crates//:sp-keyring",
-        "@crates//:sp-runtime",
-        "@crates//:sqlx",
-        "@crates//:thiserror",
-        "@crates//:tokio",
-    ],
+    ] + wasm_aware_crates([
+        # no_std core deps (unconditional in Cargo.toml)
+        "parity-scale-codec",
+        "scale-info",
+        "sidechain-domain",
+        "sp-api",
+        "sp-core",
+        "sp-inherents",
+        "sp-runtime",
+        "log",
+    ]) + native_only_crates([
+        # std-only deps (optional = true, enabled by std feature)
+        "authority-selection-inherents",
+        "cardano-serialization-lib",
+        "db-sync-sqlx",
+        "figment",
+        "itertools",
+        "lru",
+        "partner-chains-db-sync-data-sources",
+        "partner-chains-plutus-data",
+        "rand-0.9.2",
+        "serde",
+        "sp-blockchain",
+        "sp-keyring",
+        "sqlx",
+        "thiserror",
+        "tokio",
+    ]),
     proc_macro_deps = [
-        "@crates//:async-trait",
         "@crates//:derive-new",
-    ],
+    ] + select({
+        # async-trait is only used in std modules
+        "//:wasm32": [],
+        "//conditions:default": ["@crates//:async-trait"],
+    }),
     visibility = ["//visibility:public"],
 )

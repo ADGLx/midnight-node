@@ -15,7 +15,13 @@
       "Bash(grep:*)",
       "Bash(bazel query:*)",
       "Bash(xcrun:*)",
-      "Read(//opt/homebrew/opt/llvm/bin/**)"
+      "Read(//opt/homebrew/opt/llvm/bin/**)",
+      "WebSearch",
+      "Bash(bazel help:*)",
+      "Bash(docker exec:*)",
+      "Read(//private/var/tmp/_bazel_gilescope/177814e3708f59fcc08f674210ae39c7/external/rules_rust~~crate~crates/**)",
+      "Bash(clang:*)",
+      "Bash(chmod +x:*)"
     ]
   }
 }

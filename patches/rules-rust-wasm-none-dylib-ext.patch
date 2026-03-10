@@ -1,0 +1,13 @@
+diff --git a/rust/platform/triple_mappings.bzl b/rust/platform/triple_mappings.bzl
+index 1234567..abcdefg 100644
+--- a/rust/platform/triple_mappings.bzl
++++ b/rust/platform/triple_mappings.bzl
+@@ -233,7 +233,7 @@
+     "linux": ".so",
+     "macos": ".dylib",
+     "nixos": ".so",
+-    "none": ".so",
++    "none": ".wasm",
+     "nto": ".a",
+     "uefi": "",  # UEFI doesn't have dynamic linking
+     "unknown": ".wasm",

@@ -210,7 +210,7 @@ pub fn construct_genesis_block<Block: BlockT>(
 }
 
 /// Only enable the benchmarking host functions when we actually want to benchmark.
-#[cfg(feature = "runtime-benchmarks")]
+#[cfg(all(feature = "runtime-benchmarks", feature = "hardfork"))]
 pub type HostFunctions = (
 	sp_io::SubstrateHostFunctions,
 	frame_benchmarking::benchmarking::HostFunctions,
@@ -218,13 +218,26 @@ pub type HostFunctions = (
 	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
 	midnight_node_ledger::host_api::ledger_hf::ledger_bridge_hf::HostFunctions,
 );
+#[cfg(all(feature = "runtime-benchmarks", not(feature = "hardfork")))]
+pub type HostFunctions = (
+	sp_io::SubstrateHostFunctions,
+	frame_benchmarking::benchmarking::HostFunctions,
+	midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
+	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
+);
 /// Otherwise we only use the default Substrate host functions.
-#[cfg(not(feature = "runtime-benchmarks"))]
+#[cfg(all(not(feature = "runtime-benchmarks"), feature = "hardfork"))]
 pub type HostFunctions = (
 	sp_io::SubstrateHostFunctions,
 	midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
 	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
 	midnight_node_ledger::host_api::ledger_hf::ledger_bridge_hf::HostFunctions,
+);
+#[cfg(all(not(feature = "runtime-benchmarks"), not(feature = "hardfork")))]
+pub type HostFunctions = (
+	sp_io::SubstrateHostFunctions,
+	midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
+	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
 );
 
 /// A specialized `WasmExecutor` intended to use across the substrate node. It provides all the

@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "native_only_crates", "wasm_aware_crates")
 
 exports_files(["Cargo.toml"])
 
@@ -6,13 +7,17 @@ rust_library(
     name = "midnight-primitives-ledger",
     srcs = glob(["src/**/*.rs"]),
     edition = "2024",
-    aliases = {
-        "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
-    },
-    deps = [
-        "@crates//:log",
-        "@crates//:sp-externalities",
-        "@crates//:substrate-prometheus-endpoint-0.17.7",
-    ],
+    aliases = select({
+        "//:wasm32": {},
+        "//conditions:default": {
+            "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
+        },
+    }),
+    deps = wasm_aware_crates([
+        "log",
+        "sp-externalities",
+    ]) + native_only_crates([
+        "substrate-prometheus-endpoint-0.17.7",
+    ]),
     visibility = ["//visibility:public"],
 )

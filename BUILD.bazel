@@ -8,3 +8,20 @@ filegroup(
     srcs = glob([".sqlx/**"]),
     visibility = ["//visibility:public"],
 )
+
+# Platform constraint: true when targeting wasm32 (used by select() in BUILD files)
+config_setting(
+    name = "wasm32",
+    constraint_values = ["@platforms//cpu:wasm32"],
+    visibility = ["//visibility:public"],
+)
+
+# Target platform for the on-chain WASM runtime
+platform(
+    name = "wasm32v1-none",
+    constraint_values = [
+        "@platforms//cpu:wasm32",
+        "@platforms//os:none",
+    ],
+    visibility = ["//visibility:public"],
+)

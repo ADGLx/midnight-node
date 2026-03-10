@@ -1,4 +1,5 @@
 load("@rules_rust//rust:defs.bzl", "rust_library")
+load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
 
@@ -6,20 +7,21 @@ rust_library(
     name = "midnight-primitives-cnight-observation",
     srcs = glob(["src/**/*.rs"]),
     compile_data = ["Cargo.toml"],
-    crate_features = ["std"],
+    crate_features = wasm_aware_features(["std"]),
     edition = "2024",
-    deps = [
-        "@crates//:frame-support",
-        "@crates//:hex",
-        "@crates//:parity-scale-codec",
-        "@crates//:scale-info",
-        "@crates//:serde",
-        "@crates//:serde_valid",
-        "@crates//:sidechain-domain",
-        "@crates//:sp-api",
-        "@crates//:sp-inherents",
-        "@crates//:sqlx",
-        "@crates//:thiserror",
-    ],
+    deps = wasm_aware_crates([
+        "frame-support",
+        "hex",
+        "parity-scale-codec",
+        "scale-info",
+        "serde",
+        "sidechain-domain",
+        "sp-api",
+        "sp-inherents",
+    ]) + native_only_crates([
+        "serde_valid",
+        "sqlx",
+        "thiserror",
+    ]),
     visibility = ["//visibility:public"],
 )

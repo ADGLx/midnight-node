@@ -1,5 +1,7 @@
 load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_shared_library")
+load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
+load(":wasm_transition.bzl", "transitioned_wasm")
 
 exports_files(["Cargo.toml"])
 
@@ -10,8 +12,11 @@ cargo_build_script(
     # Do NOT enable "std" feature — it pulls in substrate-wasm-builder which
     # transitively depends on wasm-opt-sys → scratch → cxx, causing dangling
     # symlinks in Bazel's sandbox (tree artifact validation failure).
-    # Without "std" the build script generates a stub wasm_binary.rs instead.
-    data = glob(["src/**/*.rs"]),
+    # Without "std" the build script embeds the pre-built WASM blob instead.
+    build_script_env = {
+        "WASM_BINARY_PATH": "$(execpath :runtime-wasm)",
+    },
+    data = glob(["src/**/*.rs"]) + [":runtime-wasm"],
 )
 
 _RUNTIME_SRCS = glob(["src/**/*.rs"])
@@ -33,54 +38,55 @@ _RUNTIME_LOCAL_DEPS = [
     "//runtime/common:runtime-common",
 ]
 
-_RUNTIME_EXTERNAL_DEPS = [
-    "@crates//:authority-selection-inherents",
-    "@crates//:binary-merkle-tree",
-    "@crates//:frame-executive",
-    "@crates//:frame-support",
-    "@crates//:frame-system",
-    "@crates//:frame-system-rpc-runtime-api",
-    "@crates//:log",
-    "@crates//:pallet-aura",
-    "@crates//:pallet-beefy",
-    "@crates//:pallet-beefy-mmr",
-    "@crates//:pallet-collective",
-    "@crates//:pallet-grandpa",
-    "@crates//:pallet-membership",
-    "@crates//:pallet-migrations",
-    "@crates//:pallet-mmr",
-    "@crates//:pallet-partner-chains-bridge",
-    "@crates//:pallet-partner-chains-session",
-    "@crates//:pallet-preimage",
-    "@crates//:pallet-scheduler",
-    "@crates//:pallet-session",
-    "@crates//:pallet-session-validator-management",
-    "@crates//:pallet-sidechain",
-    "@crates//:pallet-timestamp",
-    "@crates//:pallet-tx-pause",
-    "@crates//:parity-scale-codec",
-    "@crates//:scale-info",
-    "@crates//:sidechain-domain",
-    "@crates//:sidechain-slots",
-    "@crates//:sp-api",
-    "@crates//:sp-block-builder",
-    "@crates//:sp-consensus-aura",
-    "@crates//:sp-consensus-beefy",
-    "@crates//:sp-consensus-grandpa",
-    "@crates//:sp-consensus-slots",
-    "@crates//:sp-core",
-    "@crates//:sp-genesis-builder",
-    "@crates//:sp-inherents",
-    "@crates//:sp-offchain",
-    "@crates//:sp-partner-chains-bridge",
-    "@crates//:sp-runtime",
-    "@crates//:sp-session",
-    "@crates//:sp-session-validator-management",
-    "@crates//:sp-sidechain",
-    "@crates//:sp-staking",
-    "@crates//:sp-storage",
-    "@crates//:sp-transaction-pool",
-    "@crates//:sp-version",
+# All runtime external deps exist in both @crates// and @crates_wasm//
+_RUNTIME_EXTERNAL_CRATE_NAMES = [
+    "authority-selection-inherents",
+    "binary-merkle-tree",
+    "frame-executive",
+    "frame-support",
+    "frame-system",
+    "frame-system-rpc-runtime-api",
+    "log",
+    "pallet-aura",
+    "pallet-beefy",
+    "pallet-beefy-mmr",
+    "pallet-collective",
+    "pallet-grandpa",
+    "pallet-membership",
+    "pallet-migrations",
+    "pallet-mmr",
+    "pallet-partner-chains-bridge",
+    "pallet-partner-chains-session",
+    "pallet-preimage",
+    "pallet-scheduler",
+    "pallet-session",
+    "pallet-session-validator-management",
+    "pallet-sidechain",
+    "pallet-timestamp",
+    "pallet-tx-pause",
+    "parity-scale-codec",
+    "scale-info",
+    "sidechain-domain",
+    "sidechain-slots",
+    "sp-api",
+    "sp-block-builder",
+    "sp-consensus-aura",
+    "sp-consensus-beefy",
+    "sp-consensus-grandpa",
+    "sp-consensus-slots",
+    "sp-core",
+    "sp-genesis-builder",
+    "sp-inherents",
+    "sp-offchain",
+    "sp-partner-chains-bridge",
+    "sp-runtime",
+    "sp-session",
+    "sp-session-validator-management",
+    "sp-sidechain",
+    "sp-staking",
+    "sp-storage",
+    "sp-transaction-pool",
+    "sp-version",
 ]
 
 # Native build (std) — used by the node binary
@@ -88,20 +94,48 @@ rust_library(
     name = "midnight-node-runtime",
     srcs = _RUNTIME_SRCS,
     edition = "2024",
-    crate_features = ["std"],
+    crate_features = wasm_aware_features(["std"]),
     compile_data = ["Cargo.toml"],
-    deps = [":build_script"] + _RUNTIME_LOCAL_DEPS + _RUNTIME_EXTERNAL_DEPS,
+    deps = [":build_script"] + _RUNTIME_LOCAL_DEPS + wasm_aware_crates(_RUNTIME_EXTERNAL_CRATE_NAMES),
     visibility = ["//visibility:public"],
 )
 
-# WASM build (no_std) — the on-chain runtime blob
-# TODO: wire up via rust_wasm_library or platform transition once
-#       the wasm-opt-sys sandbox issue is resolved
-# rust_library(
-#     name = "midnight-node-runtime-wasm",
-#     srcs = _RUNTIME_SRCS,
-#     edition = "2024",
-#     compile_data = ["Cargo.toml"],
-#     deps = [":build_script"] + _RUNTIME_LOCAL_DEPS + _RUNTIME_EXTERNAL_DEPS,
-#     visibility = ["//visibility:public"],
-# )
+# === WASM runtime blob (no_std) ===
+# Built entirely in Bazel: rust_shared_library (cdylib) → platform transition
+# to wasm32v1-none → wasm-opt compact → zstd compress.
+# --cfg substrate_runtime tells #[runtime_interface] to generate wasm extern
+# stubs instead of host function bodies.
+
+rust_shared_library(
+    name = "_runtime_wasm_raw",
+    srcs = _RUNTIME_SRCS,
+    edition = "2024",
+    crate_name = "midnight_node_runtime",
+    crate_features = wasm_aware_features(["std"]),
+    compile_data = ["Cargo.toml"],
+    rustc_flags = ["--cfg", "substrate_runtime"],
+    deps = _RUNTIME_LOCAL_DEPS + wasm_aware_crates(_RUNTIME_EXTERNAL_CRATE_NAMES),
+)
+
+# Platform transition: builds _runtime_wasm_raw for wasm32v1-none
+transitioned_wasm(
+    name = "_runtime_wasm_transitioned",
+    wasm_lib = ":_runtime_wasm_raw",
+)
+
+# Post-process: wasm-opt compact + zstd compress
+genrule(
+    name = "runtime-wasm",
+    srcs = [":_runtime_wasm_transitioned"],
+    outs = ["midnight_node_runtime.wasm"],
+    tools = ["//tools/wasm-compress"],
+    cmd = """
+        BLOATY=$(location :_runtime_wasm_transitioned) && \
+        COMPACT=$(@D)/midnight_node_runtime.compact.wasm && \
+        wasm-opt -O0 --mvp-features --strip-dwarf --signext-lowering \
+            -o $$COMPACT $$BLOATY && \
+        $(execpath //tools/wasm-compress) $$COMPACT $@
+    """,
+    tags = ["local", "no-sandbox"],
+    visibility = ["//visibility:public"],
+)
