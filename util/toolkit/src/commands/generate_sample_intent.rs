@@ -108,7 +108,10 @@ async fn execute_with_builders_v8(
 		ContractCall::Maintenance(_) => unimplemented!("not implemented for Maintenance"),
 	};
 
-	builder.generate_intent_file(dest_dir, partial_file_name).await;
+	builder
+		.generate_intent_file(dest_dir, partial_file_name)
+		.await
+		.expect("failed to generate intent file");
 }
 
 async fn execute_with_builders_v7(
@@ -137,7 +140,10 @@ async fn execute_with_builders_v7(
 		ContractCall::Maintenance(_) => unimplemented!("not implemented for Maintenance"),
 	};
 
-	builder.generate_intent_file(dest_dir, partial_file_name).await;
+	builder
+		.generate_intent_file(dest_dir, partial_file_name)
+		.await
+		.expect("failed to generate intent file");
 }
 
 #[cfg(test)]
