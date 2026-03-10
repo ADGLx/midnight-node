@@ -480,11 +480,7 @@ mod tests {
 
 		assert!(bytes.len() >= 26, "BSON too short: {} bytes", bytes.len());
 		assert_eq!(bytes[4], 0x12, "first field must be BSON int64 (0x12)");
-		assert_eq!(
-			&bytes[5..18],
-			b"block_height\0",
-			"first field name must be \"block_height\""
-		);
+		assert_eq!(&bytes[5..18], b"block_height\0", "first field name must be \"block_height\"");
 	}
 
 	#[test]
@@ -498,13 +494,11 @@ mod tests {
 			};
 
 			let bytes = wallet.to_value_bytes().expect("serialize failed");
-			let from_full =
-				bson::deserialize_from_slice::<CachedWalletState>(&bytes).ok().map(|w| w.block_height);
+			let from_full = bson::deserialize_from_slice::<CachedWalletState>(&bytes)
+				.ok()
+				.map(|w| w.block_height);
 			let from_header = CachedWalletState::block_height_from_bson_header(&bytes);
-			assert_eq!(
-				from_header, from_full,
-				"header extraction mismatch at height {height}"
-			);
+			assert_eq!(from_header, from_full, "header extraction mismatch at height {height}");
 		}
 
 		assert_eq!(CachedWalletState::block_height_from_bson_header(&[]), None);
@@ -731,8 +725,7 @@ mod tests {
 
 		let default_bytes =
 			midnight_node_ledger_helpers::serialize(&**state).expect("default serialize failed");
-		let fast_bytes =
-			serialize_ledger_state_fast(&**state).expect("fast serialize failed");
+		let fast_bytes = serialize_ledger_state_fast(&**state).expect("fast serialize failed");
 
 		assert_eq!(
 			default_bytes.len(),
@@ -751,8 +744,7 @@ mod tests {
 	#[test]
 	#[ignore]
 	fn serialize_benchmark() {
-		let fixture_path =
-			format!("{}/test-data/ledger_snapshot.zstd", env!("CARGO_MANIFEST_DIR"));
+		let fixture_path = format!("{}/test-data/ledger_snapshot.zstd", env!("CARGO_MANIFEST_DIR"));
 		let compressed = std::fs::read(&fixture_path).unwrap_or_else(|e| {
 			panic!(
 				"Failed to read fixture {fixture_path}: {e}\n\
@@ -761,8 +753,8 @@ mod tests {
 		});
 
 		let t = std::time::Instant::now();
-		let snapshot = LedgerSnapshot::from_value_bytes(&compressed, 0)
-			.expect("failed to decode snapshot");
+		let snapshot =
+			LedgerSnapshot::from_value_bytes(&compressed, 0).expect("failed to decode snapshot");
 		println!("Decode snapshot from zstd: {:?}", t.elapsed());
 		println!(
 			"  ledger_state_bytes: {} bytes ({:.1} MB)",
@@ -786,8 +778,7 @@ mod tests {
 
 		// Benchmark B: single-pass serialize (1x topo sort)
 		let t = std::time::Instant::now();
-		let fast_bytes =
-			serialize_ledger_state_fast(&ledger_state).expect("fast serialize failed");
+		let fast_bytes = serialize_ledger_state_fast(&ledger_state).expect("fast serialize failed");
 		let fast_time = t.elapsed();
 		println!("Fast serialize:    {:?} ({} bytes)", fast_time, fast_bytes.len());
 

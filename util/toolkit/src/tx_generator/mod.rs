@@ -191,10 +191,12 @@ impl TxGenerator {
 		let fork_ctx = if seeds.is_empty() {
 			None
 		} else {
-			let wallet_cache = create_file_wallet_cache(&self.ledger_state_db, &self.fetch_cache_config);
+			let wallet_cache =
+				create_file_wallet_cache(&self.ledger_state_db, &self.fetch_cache_config);
 			let t = std::time::Instant::now();
-			let ctx = build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
-				.await;
+			let ctx =
+				build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
+					.await;
 			log::info!("[perf] build_fork_aware_context_cached took {:?}", t.elapsed());
 			Some(ctx)
 		};

@@ -77,20 +77,10 @@ impl ForkAwareLedgerContext {
 	///
 	/// If the context is currently Ledger7 and the block is Ledger8,
 	/// the context is automatically forked to Ledger8 first.
-	pub fn update_from_block(mut self, block: &RawBlockData) -> Self {
-		let block_version = block.ledger_version();
-
-		// Handle fork transition: Ledger7 context + Ledger8 block
-		if self.version() == LedgerVersion::Ledger7 && block_version == LedgerVersion::Ledger8 {
-			self = self.next_fork();
-		}
-
-		match &self {
-			Self::Ledger7(ctx) => update_context_7(ctx, block),
-			Self::Ledger8(ctx) => update_context_8(ctx, block),
-		}
-
-		self
+	pub fn update_from_block(self, block: &RawBlockData) -> Self {
+		let (ctx, events) = self.update_from_block_deferred_dust(block);
+		ctx.flush_deferred_dust(&[events], block);
+		ctx
 	}
 
 	/// Fork the context from Ledger7 to Ledger8.
@@ -139,10 +129,79 @@ impl ForkAwareLedgerContext {
 			Self::Ledger7(_) => None,
 		}
 	}
+
+	/// Like `update_from_block` but defers wallet dust processing.
+	/// Returns accumulated events that must be flushed via `flush_deferred_dust`.
+	///
+	/// Safety: only use during cold-start replay where no concurrent `spend()`
+	/// calls are active.
+	pub fn update_from_block_deferred_dust(
+		mut self,
+		block: &RawBlockData,
+	) -> (Self, DeferredDustEvents) {
+		let block_version = block.ledger_version();
+
+		if self.version() == LedgerVersion::Ledger7 && block_version == LedgerVersion::Ledger8 {
+			self = self.next_fork();
+		}
+
+		let events = match &self {
+			Self::Ledger7(ctx) => DeferredDustEvents::Ledger7(apply_block_7(ctx, block)),
+			Self::Ledger8(ctx) => DeferredDustEvents::Ledger8(apply_block_8(ctx, block)),
+		};
+
+		(self, events)
+	}
+
+	/// Flush accumulated dust events to all wallets in parallel.
+	/// `last_block` is the final block in the batch (for TTL processing).
+	pub fn flush_deferred_dust(&self, events: &[DeferredDustEvents], last_block: &RawBlockData) {
+		match self {
+			Self::Ledger7(ctx) => {
+				let event_vecs: Vec<&Vec<crate::ledger_7::Event<Db7>>> = events
+					.iter()
+					.filter_map(|e| match e {
+						DeferredDustEvents::Ledger7(evts) => Some(evts),
+						DeferredDustEvents::Ledger8(_) => None,
+					})
+					.collect();
+				let block_context = crate::ledger_7::make_block_context(
+					crate::ledger_7::Timestamp::from_secs(last_block.tblock_secs),
+					crate::ledger_7::HashOutput(last_block.parent_block_hash),
+					crate::ledger_7::Timestamp::from_secs(last_block.last_block_time_secs),
+				);
+				ctx.flush_deferred_dust(&event_vecs, &block_context);
+			},
+			Self::Ledger8(ctx) => {
+				let event_vecs: Vec<&Vec<crate::ledger_8::Event<Db8>>> = events
+					.iter()
+					.filter_map(|e| match e {
+						DeferredDustEvents::Ledger8(evts) => Some(evts),
+						DeferredDustEvents::Ledger7(_) => None,
+					})
+					.collect();
+				let block_context = crate::ledger_8::make_block_context(
+					crate::ledger_8::Timestamp::from_secs(last_block.tblock_secs),
+					crate::ledger_8::HashOutput(last_block.parent_block_hash),
+					crate::ledger_8::Timestamp::from_secs(last_block.last_block_time_secs),
+				);
+				ctx.flush_deferred_dust(&event_vecs, &block_context);
+			},
+		}
+	}
 }
 
-/// Deserialize raw transactions and update a Ledger7 context.
-fn update_context_7(ctx: &crate::ledger_7::context::LedgerContext<Db7>, block: &RawBlockData) {
+/// Accumulated dust events from deferred block processing.
+pub enum DeferredDustEvents {
+	Ledger7(Vec<crate::ledger_7::Event<Db7>>),
+	Ledger8(Vec<crate::ledger_8::Event<Db8>>),
+}
+
+/// Deserialize raw transactions and apply to a Ledger7 context, returning dust events.
+fn apply_block_7(
+	ctx: &crate::ledger_7::context::LedgerContext<Db7>,
+	block: &RawBlockData,
+) -> Vec<crate::ledger_7::Event<Db7>> {
 	use crate::ledger_7::{
 		HashOutput, SerdeTransaction, SystemTransaction, Timestamp,
 		midnight_serialize::tagged_deserialize,
@@ -178,16 +237,19 @@ fn update_context_7(ctx: &crate::ledger_7::context::LedgerContext<Db7>, block: &
 		Timestamp::from_secs(block.last_block_time_secs),
 	);
 
-	ctx.update_from_block(
+	ctx.update_from_block_deferred_dust(
 		&transactions,
 		&block_context,
 		block.state_root.as_ref(),
 		block.state.as_ref(),
-	);
+	)
 }
 
-/// Deserialize raw transactions and update a Ledger8 context.
-fn update_context_8(ctx: &crate::ledger_8::context::LedgerContext<Db8>, block: &RawBlockData) {
+/// Deserialize raw transactions and apply to a Ledger8 context, returning dust events.
+fn apply_block_8(
+	ctx: &crate::ledger_8::context::LedgerContext<Db8>,
+	block: &RawBlockData,
+) -> Vec<crate::ledger_8::Event<Db8>> {
 	use crate::ledger_8::{
 		HashOutput, SerdeTransaction, SystemTransaction, Timestamp,
 		midnight_serialize::tagged_deserialize,
@@ -223,10 +285,10 @@ fn update_context_8(ctx: &crate::ledger_8::context::LedgerContext<Db8>, block: &
 		Timestamp::from_secs(block.last_block_time_secs),
 	);
 
-	ctx.update_from_block(
+	ctx.update_from_block_deferred_dust(
 		&transactions,
 		&block_context,
 		block.state_root.as_ref(),
 		block.state.as_ref(),
-	);
+	)
 }

@@ -462,8 +462,8 @@ impl Builder {
 				vec![seed, funding_seed]
 			},
 			Builder::BatchSingleTx(args) => {
-				let file_content = std::fs::read_to_string(&args.transfers_file)
-					.unwrap_or_else(|e| {
+				let file_content =
+					std::fs::read_to_string(&args.transfers_file).unwrap_or_else(|e| {
 						panic!("failed to read transfers file '{}': {}", args.transfers_file, e)
 					});
 				let specs: Vec<TransferSpec> = serde_json::from_str(&file_content)
@@ -760,7 +760,11 @@ pub async fn build_fork_aware_context_cached(
 				});
 			injected += 1;
 		}
-		log::info!("[perf] inject wallets at start_height: {} wallets in {:?}", injected, t.elapsed());
+		log::info!(
+			"[perf] inject wallets at start_height: {} wallets in {:?}",
+			injected,
+			t.elapsed()
+		);
 
 		ForkAwareLedgerContext::Ledger8(ctx)
 	};
@@ -786,39 +790,72 @@ pub async fn build_fork_aware_context_cached(
 
 	let t_replay = std::time::Instant::now();
 	let total_blocks = blocks_to_replay.len();
-	for (i, block) in blocks_to_replay.iter().enumerate() {
-		fork_ctx = fork_ctx.update_from_block(block);
-		if (i + 1) % 1000 == 0 || i + 1 == total_blocks {
-			log::info!(
-				"[perf] replay progress: {}/{} blocks ({:.1}%) in {:?}",
-				i + 1,
-				total_blocks,
-				(i + 1) as f64 / total_blocks as f64 * 100.0,
-				t_replay.elapsed()
-			);
+	{
+		use midnight_node_ledger_helpers::fork::fork_aware_context::DeferredDustEvents;
+		const DUST_BATCH_SIZE: usize = 1000;
+		let mut deferred_chunk: Vec<DeferredDustEvents> = Vec::new();
+		let mut dust_flushes = 0usize;
+
+		for (i, block) in blocks_to_replay.iter().enumerate() {
+			let (ctx, events) = fork_ctx.update_from_block_deferred_dust(block);
+			fork_ctx = ctx;
+			deferred_chunk.push(events);
+
+			if (i + 1) % 1000 == 0 || i + 1 == total_blocks {
+				log::info!(
+					"[perf] replay progress: {}/{} blocks ({:.1}%) in {:?}",
+					i + 1,
+					total_blocks,
+					(i + 1) as f64 / total_blocks as f64 * 100.0,
+					t_replay.elapsed()
+				);
+			}
+
+			// Inject cached wallets AFTER processing the block at their cached
+			// height. This ensures the block's events are flushed to existing
+			// wallets only, avoiding double-processing for injected wallets
+			// whose cached state already includes this block's events.
+			let inject_end =
+				cached[ptr..].partition_point(|(_, ws)| ws.block_height <= block.number) + ptr;
+			if inject_end > ptr {
+				// Flush events (including current block) to existing wallets
+				fork_ctx.flush_deferred_dust(&deferred_chunk, block);
+				dust_flushes += 1;
+				deferred_chunk.clear();
+
+				if let ForkAwareLedgerContext::Ledger8(ref ctx) = fork_ctx {
+					let ls = ctx.ledger_state.lock().expect("ledger_state lock poisoned").clone();
+					for (seed, state) in &cached[ptr..inject_end] {
+						wallet_state_cache::inject_wallet_from_cache(ctx, state, seed, &ls)
+							.unwrap_or_else(|e| {
+								panic!(
+									"failed to inject wallet at block {}: {} — clear caches and retry",
+									block.number, e
+								)
+							});
+					}
+				}
+				ptr = inject_end;
+			}
+
+			if !deferred_chunk.is_empty()
+				&& (deferred_chunk.len() >= DUST_BATCH_SIZE || i + 1 == total_blocks)
+			{
+				fork_ctx.flush_deferred_dust(&deferred_chunk, block);
+				dust_flushes += 1;
+				deferred_chunk.clear();
+			}
 		}
 
-		let inject_end =
-			cached[ptr..].partition_point(|(_, ws)| ws.block_height <= block.number) + ptr;
-		if inject_end > ptr {
-			if let ForkAwareLedgerContext::Ledger8(ref ctx) = fork_ctx {
-				let ls = ctx.ledger_state.lock().expect("ledger_state lock poisoned").clone();
-				for (seed, state) in &cached[ptr..inject_end] {
-					wallet_state_cache::inject_wallet_from_cache(ctx, state, seed, &ls)
-						.unwrap_or_else(|e| {
-							panic!(
-								"failed to inject wallet at block {}: {} — clear caches and retry",
-								block.number, e
-							)
-						});
-				}
-			}
-			ptr = inject_end;
-		}
+		log::info!("[perf] deferred dust: {} flushes for {} blocks", dust_flushes, total_blocks);
 	}
 
 	if !blocks_to_replay.is_empty() {
-		log::info!("[perf] block replay: {} blocks in {:?}", blocks_to_replay.len(), t_replay.elapsed());
+		log::info!(
+			"[perf] block replay: {} blocks in {:?}",
+			blocks_to_replay.len(),
+			t_replay.elapsed()
+		);
 	}
 
 	assert!(
@@ -885,7 +922,11 @@ async fn try_save_cache_v2(
 			}
 		})
 		.collect();
-	log::info!("[perf] create wallet snapshots: {} wallets in {:?}", wallet_snapshots.len(), t.elapsed());
+	log::info!(
+		"[perf] create wallet snapshots: {} wallets in {:?}",
+		wallet_snapshots.len(),
+		t.elapsed()
+	);
 
 	if !wallet_snapshots.is_empty() {
 		let t = std::time::Instant::now();
@@ -937,7 +978,11 @@ pub fn build_fork_aware_context_raw(
 	for block in &received_tx.blocks {
 		ctx = ctx.update_from_block(block);
 	}
-	log::info!("[perf] block replay (raw): {} blocks in {:?}", received_tx.blocks.len(), t.elapsed());
+	log::info!(
+		"[perf] block replay (raw): {} blocks in {:?}",
+		received_tx.blocks.len(),
+		t.elapsed()
+	);
 
 	ctx
 }

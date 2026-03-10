@@ -119,29 +119,9 @@ impl<D: DB + Clone> LedgerContext<D> {
 	) where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
-		use std::time::Instant;
-		use std::sync::atomic::{AtomicU64, Ordering};
+		let events = self.update_ledger_state_from_txs_collect_events(txs, block_context);
 
-		static TX_COUNTER: AtomicU64 = AtomicU64::new(0);
-		static CLONE_NS: AtomicU64 = AtomicU64::new(0);
-		static WELLFORMED_APPLY_NS: AtomicU64 = AtomicU64::new(0);
-		static OFFERS_NS: AtomicU64 = AtomicU64::new(0);
-		static DUST_NS: AtomicU64 = AtomicU64::new(0);
-		static POST_BLOCK_NS: AtomicU64 = AtomicU64::new(0);
-
-		let mut total_cost = SyntheticCost::ZERO;
-		let mut all_events: Vec<Event<D>> = Vec::new();
-		for tx in txs {
-			let (events, cost) = self.update_from_tx_instrumented(
-				tx, block_context, &CLONE_NS, &WELLFORMED_APPLY_NS, &OFFERS_NS,
-			);
-			all_events.extend(events);
-			total_cost = total_cost + cost;
-			TX_COUNTER.fetch_add(1, Ordering::Relaxed);
-		}
-
-		// Batch dust update: one clone + one rehash per wallet per block instead of per-tx
-		let t_dust = Instant::now();
+		// Batch dust update per block
 		{
 			use rayon::prelude::*;
 			self.wallets
@@ -149,29 +129,39 @@ impl<D: DB + Clone> LedgerContext<D> {
 				.expect("Error locking `LedgerContext` wallets")
 				.par_iter_mut()
 				.for_each(|(_, wallet)| {
-					wallet.update_dust_from_tx(&all_events).unwrap_or_else(|e| {
-						panic!("failed to replay dust events: {e}")
-					});
+					wallet
+						.update_dust_from_tx(&events)
+						.unwrap_or_else(|e| panic!("failed to replay dust events: {e}"));
 				});
 		}
-		DUST_NS.fetch_add(t_dust.elapsed().as_nanos() as u64, Ordering::Relaxed);
+	}
 
-		let count = TX_COUNTER.load(Ordering::Relaxed);
-		if count % 1000 < txs.len() as u64 {
-			let wallets = self.wallets.lock().expect("lock").len();
-			log::info!(
-				"[perf] replay tx #{count} ({wallets} wallets): \
-				clone={:.1}ms, well_formed+apply={:.1}ms, offers={:.1}ms, dust={:.1}ms, post_block={:.1}ms",
-				CLONE_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
-				WELLFORMED_APPLY_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
-				OFFERS_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
-				DUST_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
-				POST_BLOCK_NS.load(Ordering::Relaxed) as f64 / 1_000_000.0,
-			);
+	/// Updates ledger state from txs but returns events instead of processing wallets.
+	/// Use with `flush_deferred_dust` for bulk replay across many blocks.
+	pub fn update_ledger_state_from_txs_collect_events<
+		S: SignatureKind<D>,
+		P: ProofKind<D> + std::fmt::Debug,
+	>(
+		&self,
+		txs: &[SerdeTransaction<S, P, D>],
+		block_context: &BlockContext,
+	) -> Vec<Event<D>>
+	where
+		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
+	{
+		use std::sync::atomic::AtomicU64;
+
+		static DUMMY: AtomicU64 = AtomicU64::new(0);
+
+		let mut total_cost = SyntheticCost::ZERO;
+		let mut all_events: Vec<Event<D>> = Vec::new();
+		for tx in txs {
+			let (events, cost) =
+				self.update_from_tx_instrumented(tx, block_context, &DUMMY, &DUMMY, &DUMMY);
+			all_events.extend(events);
+			total_cost = total_cost + cost;
 		}
 
-		// Only when done processing txs for the same block, it's time to call `post_block_update`
-		let t_post = Instant::now();
 		let mut latest_ledger_state =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
 		let block_limits = latest_ledger_state.parameters.limits.block_limits;
@@ -183,7 +173,36 @@ impl<D: DB + Clone> LedgerContext<D> {
 				.post_block_update(block_context.tblock, normalized_fullness, overall_fullness)
 				.expect("Error applying block updates"),
 		);
-		POST_BLOCK_NS.fetch_add(t_post.elapsed().as_nanos() as u64, Ordering::Relaxed);
+
+		all_events
+	}
+
+	/// Process accumulated dust events and TTLs for all wallets in parallel.
+	pub fn flush_deferred_dust(
+		&self,
+		event_batches: &[&Vec<Event<D>>],
+		block_context: &BlockContext,
+	) where
+		D: Sync,
+	{
+		use rayon::prelude::*;
+		let total_events: usize = event_batches.iter().map(|b| b.len()).sum();
+		log::info!(
+			"[perf] flushing {} event batches ({} total events) for {} wallets",
+			event_batches.len(),
+			total_events,
+			self.wallets.lock().expect("lock").len(),
+		);
+		self.wallets
+			.lock()
+			.expect("Error locking `LedgerContext` wallets")
+			.par_iter_mut()
+			.for_each(|(_, wallet)| {
+				wallet
+					.update_dust_from_tx(event_batches.iter().flat_map(|b| b.iter()))
+					.unwrap_or_else(|e| panic!("failed to replay dust events: {e}"));
+				wallet.update_dust_from_block(block_context);
+			});
 	}
 
 	pub fn update_ledger_state_from_bytes(&self, state: &[u8]) {
@@ -202,46 +221,52 @@ impl<D: DB + Clone> LedgerContext<D> {
 		state: Option<&Vec<u8>>,
 	) where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
+		D: Sync,
 	{
-		self.update_ledger_state_from_txs(txs, block_context);
+		let events = self.update_from_block_deferred_dust(txs, block_context, state_root, state);
+		use rayon::prelude::*;
+		self.wallets
+			.lock()
+			.expect("Error locking `LedgerContext` wallets")
+			.par_iter_mut()
+			.for_each(|(_, wallet)| {
+				wallet
+					.update_dust_from_tx(&events)
+					.unwrap_or_else(|e| panic!("failed to replay dust events: {e}"));
+				wallet.update_dust_from_block(block_context);
+			});
+	}
 
-		// This case is hit for the genesis block - in this case, we still need to process the txs
-		// to set dust info correctly for all the wallets, but we want the final ledger state for
-		// this block to == the final state in the genesis block
-		//
-		// Values used in the ledger state constructor are not directly observable in the genesis
-		// block, so it's no possible to reconstruct the ledger state by applying the genesis
-		// transactions to an empty state.
+	/// Like `update_from_block` but skips wallet dust updates, returning events instead.
+	/// Caller must eventually call `flush_deferred_dust` with accumulated events.
+	///
+	/// Safety: only use during cold-start replay where no concurrent `spend()`/`mark_spent()`
+	/// calls are active — `pending_until` and `spent_utxos` clearing depend on per-block
+	/// `process_ttls` which is deferred.
+	pub fn update_from_block_deferred_dust<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
+		&self,
+		txs: &[SerdeTransaction<S, P, D>],
+		block_context: &BlockContext,
+		state_root: Option<&Vec<u8>>,
+		state: Option<&Vec<u8>>,
+	) -> Vec<Event<D>>
+	where
+		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
+	{
+		let events = self.update_ledger_state_from_txs_collect_events(txs, block_context);
+
+		// Genesis block: overwrite ledger state with the canonical genesis state,
+		// since constructor params aren't directly observable from genesis txs.
 		if let Some(state) = state {
 			self.update_ledger_state_from_bytes(state);
 		}
 
-		// Only when done processing txs for the same block, it's time to call `post_block_update`
-		let latest_ledger_state =
-			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
-		if let Some(expected_root) = state_root {
-			match Self::compute_state_root(&*latest_ledger_state) {
-				Some(actual_root) if actual_root != *expected_root => {
-					panic!(
-						"Ledger state root mismatch: expected {}, actual {}. Parent block hash: {}",
-						hex_encode(expected_root),
-						hex_encode(&actual_root),
-						hex_encode(block_context.parent_block_hash.0),
-					);
-				},
-				Some(_) => {},
-				None => println!("Failed to compute local ledger state root for comparison"),
-			}
-		}
-		// Update Local Wallets
-		for wallet in
-			self.wallets.lock().expect("Error locking `LedgerContext` wallets").values_mut()
-		{
-			wallet.update_dust_from_block(block_context);
-		}
-		// Update latest block context
+		self.verify_state_root(block_context, state_root);
+
 		*self.latest_block_context.lock().expect("error locking latest_block_context") =
 			Some(block_context.clone());
+
+		events
 	}
 
 	pub fn latest_block_context(&self) -> BlockContext {
@@ -259,6 +284,25 @@ impl<D: DB + Clone> LedgerContext<D> {
 				);
 				super::make_block_context(now, Default::default(), Default::default())
 			})
+	}
+
+	fn verify_state_root(&self, block_context: &BlockContext, state_root: Option<&Vec<u8>>) {
+		let latest_ledger_state =
+			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
+		if let Some(expected_root) = state_root {
+			match Self::compute_state_root(&*latest_ledger_state) {
+				Some(actual_root) if actual_root != *expected_root => {
+					panic!(
+						"Ledger state root mismatch: expected {}, actual {}. Parent block hash: {}",
+						hex_encode(expected_root),
+						hex_encode(&actual_root),
+						hex_encode(block_context.parent_block_hash.0),
+					);
+				},
+				Some(_) => {},
+				None => println!("Failed to compute local ledger state root for comparison"),
+			}
+		}
 	}
 
 	fn compute_state_root(state: &LedgerState<D>) -> Option<Vec<u8>> {
@@ -292,8 +336,8 @@ impl<D: DB + Clone> LedgerContext<D> {
 	where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
-		use std::time::Instant;
 		use std::sync::atomic::Ordering;
+		use std::time::Instant;
 
 		let mut ledger_state_guard =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");

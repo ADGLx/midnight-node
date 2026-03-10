@@ -22,9 +22,7 @@ use super::ledger_helpers_local::{
 use async_trait::async_trait;
 use tokio::sync::Semaphore;
 
-use crate::{
-	Progress, serde_def::SourceTransactions, tx_generator::builder::BatchSingleTxArgs,
-};
+use crate::{Progress, serde_def::SourceTransactions, tx_generator::builder::BatchSingleTxArgs};
 use midnight_node_ledger_helpers::fork::raw_block_data::SerializedTxBatches;
 
 use crate::tx_generator::builder::{BuildTxs, TransferSpec};
@@ -43,8 +41,9 @@ impl BatchSingleTxBuilder {
 		prover: Arc<dyn ProofProvider<DefaultDB>>,
 	) -> Self {
 		let transfers: Vec<TransferSpec> = {
-			let file_content = std::fs::read_to_string(&args.transfers_file)
-				.unwrap_or_else(|e| panic!("failed to read transfers file '{}': {}", args.transfers_file, e));
+			let file_content = std::fs::read_to_string(&args.transfers_file).unwrap_or_else(|e| {
+				panic!("failed to read transfers file '{}': {}", args.transfers_file, e)
+			});
 			serde_json::from_str(&file_content)
 				.unwrap_or_else(|e| panic!("failed to parse transfers JSON: {}", e))
 		};
@@ -67,9 +66,8 @@ impl BatchSingleTxBuilder {
 	> {
 		use super::type_convert::*;
 
-		let source_seed = convert_wallet_seed(
-			spec.source_seed.parse().expect("invalid source_seed hex"),
-		);
+		let source_seed =
+			convert_wallet_seed(spec.source_seed.parse().expect("invalid source_seed hex"));
 		let funding_seed = spec
 			.funding_seed
 			.as_ref()
@@ -82,19 +80,17 @@ impl BatchSingleTxBuilder {
 		});
 
 		let dest_address: WalletAddress = convert_wallet_address(
-			&spec
-				.destination_address
-				.parse()
-				.expect("invalid destination_address"),
+			&spec.destination_address.parse().expect("invalid destination_address"),
 		);
 
 		let mut tx_info =
 			StandardTrasactionInfo::new_from_context(context.clone(), prover, rng_seed);
 
 		if let Some(amount) = spec.unshielded_amount {
-			let token_type_str = spec.unshielded_token_type.as_deref().unwrap_or(
-				"0000000000000000000000000000000000000000000000000000000000000000",
-			);
+			let token_type_str = spec
+				.unshielded_token_type
+				.as_deref()
+				.unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
 			let token_type: midnight_node_ledger_helpers::UnshieldedTokenType =
 				midnight_node_ledger_helpers::UnshieldedTokenType(
 					midnight_node_ledger_helpers::HashOutput(
@@ -106,8 +102,9 @@ impl BatchSingleTxBuilder {
 				);
 			let token_type: UnshieldedTokenType = convert_unshielded_token_type(token_type);
 
-			let dest_wallet: UnshieldedWallet =
-				(&dest_address).try_into().expect("destination is not a valid unshielded address");
+			let dest_wallet: UnshieldedWallet = (&dest_address)
+				.try_into()
+				.expect("destination is not a valid unshielded address");
 
 			let intents = build_unshielded_intents(
 				context.clone(),
@@ -125,9 +122,10 @@ impl BatchSingleTxBuilder {
 				ShieldedWallet,
 			};
 
-			let token_type_str = spec.shielded_token_type.as_deref().unwrap_or(
-				"0000000000000000000000000000000000000000000000000000000000000000",
-			);
+			let token_type_str = spec
+				.shielded_token_type
+				.as_deref()
+				.unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
 			let token_type: midnight_node_ledger_helpers::ShieldedTokenType =
 				midnight_node_ledger_helpers::ShieldedTokenType(
 					midnight_node_ledger_helpers::HashOutput(
@@ -142,19 +140,12 @@ impl BatchSingleTxBuilder {
 			let dest_wallet: ShieldedWallet<DefaultDB> =
 				(&dest_address).try_into().expect("destination is not a valid shielded address");
 
-			let input_info = InputInfo {
-				origin: source_seed,
-				token_type,
-				value: amount,
-			};
+			let input_info = InputInfo { origin: source_seed, token_type, value: amount };
 
 			let inputs_info: Vec<Box<dyn BuildInput<DefaultDB>>> = vec![Box::new(input_info)];
 
-			let output_info: Box<dyn BuildOutput<DefaultDB>> = Box::new(OutputInfo {
-				destination: dest_wallet,
-				token_type,
-				value: amount,
-			});
+			let output_info: Box<dyn BuildOutput<DefaultDB>> =
+				Box::new(OutputInfo { destination: dest_wallet, token_type, value: amount });
 
 			let funding_wallet = context.clone().wallet_from_seed(source_seed);
 			let input_amount = input_info.min_match_coin(&funding_wallet.shielded.state).value;
@@ -167,11 +158,8 @@ impl BatchSingleTxBuilder {
 				value: remaining,
 			}));
 
-			let offer = OfferInfo {
-				inputs: inputs_info,
-				outputs: outputs_info,
-				transients: vec![],
-			};
+			let offer =
+				OfferInfo { inputs: inputs_info, outputs: outputs_info, transients: vec![] };
 
 			if offer.outputs.len() > 2 {
 				tx_info.set_fallible_offers(HashMap::from([(1, offer)]));
@@ -211,12 +199,8 @@ fn build_unshielded_intents(
 		.checked_mul(output_wallets.len() as u128)
 		.expect("unshielded amount overflow");
 
-	let (inputs_info, remaining) = UtxoSpendInfo::utxos_to_cover_value(
-		context,
-		source_seed,
-		total_required,
-		token_type,
-	);
+	let (inputs_info, remaining) =
+		UtxoSpendInfo::utxos_to_cover_value(context, source_seed, total_required, token_type);
 
 	let inputs_info: Vec<Box<dyn BuildUtxoSpend<DefaultDB>>> = inputs_info
 		.into_iter()
@@ -264,7 +248,8 @@ fn build_unshielded_intents(
 	};
 
 	let mut intents = HashMap::new();
-	intents.insert(Segment::Fallible.into(), Box::new(intent_info) as Box<dyn BuildIntent<DefaultDB>>);
+	intents
+		.insert(Segment::Fallible.into(), Box::new(intent_info) as Box<dyn BuildIntent<DefaultDB>>);
 	intents
 }
 
