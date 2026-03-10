@@ -112,36 +112,9 @@ impl<D: DB + Clone> LedgerContext<D> {
 		}
 	}
 
-	pub fn update_ledger_state_from_txs<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
-		&self,
-		txs: &[SerdeTransaction<S, P, D>],
-		block_context: &BlockContext,
-	) where
-		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
-	{
-		let events = self.update_ledger_state_from_txs_collect_events(txs, block_context);
-
-		// Batch dust update per block
-		{
-			use rayon::prelude::*;
-			self.wallets
-				.lock()
-				.expect("Error locking `LedgerContext` wallets")
-				.par_iter_mut()
-				.for_each(|(_, wallet)| {
-					wallet
-						.update_dust_from_tx(&events)
-						.unwrap_or_else(|e| panic!("failed to replay dust events: {e}"));
-				});
-		}
-	}
-
-	/// Updates ledger state from txs but returns events instead of processing wallets.
-	/// Use with `flush_deferred_dust` for bulk replay across many blocks.
-	pub fn update_ledger_state_from_txs_collect_events<
-		S: SignatureKind<D>,
-		P: ProofKind<D> + std::fmt::Debug,
-	>(
+	/// Apply all transactions in a block to the ledger, returning events without
+	/// processing wallets. Also applies `post_block_update` (fee adjustments).
+	fn apply_txs_collect_events<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
 		&self,
 		txs: &[SerdeTransaction<S, P, D>],
 		block_context: &BlockContext,
@@ -149,15 +122,10 @@ impl<D: DB + Clone> LedgerContext<D> {
 	where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
-		use std::sync::atomic::AtomicU64;
-
-		static DUMMY: AtomicU64 = AtomicU64::new(0);
-
 		let mut total_cost = SyntheticCost::ZERO;
 		let mut all_events: Vec<Event<D>> = Vec::new();
 		for tx in txs {
-			let (events, cost) =
-				self.update_from_tx_instrumented(tx, block_context, &DUMMY, &DUMMY, &DUMMY);
+			let (events, cost) = self.update_from_tx(tx, block_context);
 			all_events.extend(events);
 			total_cost = total_cost + cost;
 		}
@@ -253,7 +221,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 	where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
-		let events = self.update_ledger_state_from_txs_collect_events(txs, block_context);
+		let events = self.apply_txs_collect_events(txs, block_context);
 
 		// Genesis block: overwrite ledger state with the canonical genesis state,
 		// since constructor params aren't directly observable from genesis txs.
@@ -320,35 +288,14 @@ impl<D: DB + Clone> LedgerContext<D> {
 	where
 		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
 	{
-		use std::sync::atomic::AtomicU64;
-		static DUMMY: AtomicU64 = AtomicU64::new(0);
-		self.update_from_tx_instrumented(tx, block_context, &DUMMY, &DUMMY, &DUMMY)
-	}
-
-	fn update_from_tx_instrumented<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
-		&self,
-		tx: &SerdeTransaction<S, P, D>,
-		block_context: &BlockContext,
-		clone_ns: &std::sync::atomic::AtomicU64,
-		wellformed_apply_ns: &std::sync::atomic::AtomicU64,
-		offers_ns: &std::sync::atomic::AtomicU64,
-	) -> (Vec<Event<D>>, SyntheticCost)
-	where
-		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
-	{
-		use std::sync::atomic::Ordering;
-		use std::time::Instant;
-
 		let mut ledger_state_guard =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
 
-		let t_clone = Instant::now();
 		let tx_context = TransactionContext {
 			ref_state: (**ledger_state_guard).clone(),
 			block_context: block_context.clone(),
 			whitelist: None,
 		};
-		clone_ns.fetch_add(t_clone.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
 		let strictness: WellFormedStrictness =
 			if block_context.parent_block_hash == Default::default() {
@@ -359,8 +306,6 @@ impl<D: DB + Clone> LedgerContext<D> {
 				Default::default()
 			};
 
-		// Update Ledger State
-		let t_wf = Instant::now();
 		let (new_ledger_state, offers, events, cost) = match &tx {
 			SerdeTransaction::Midnight(tx) => {
 				let valid_tx: VerifiedTransaction<_> = tx
@@ -404,10 +349,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 				}
 			},
 		};
-		wellformed_apply_ns.fetch_add(t_wf.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
-		// Update Local Wallets
-		let t_offers = Instant::now();
 		{
 			use rayon::prelude::*;
 			self.wallets
@@ -418,7 +360,6 @@ impl<D: DB + Clone> LedgerContext<D> {
 					wallet.update_state_from_offers(&offers);
 				});
 		}
-		offers_ns.fetch_add(t_offers.elapsed().as_nanos() as u64, Ordering::Relaxed);
 
 		*ledger_state_guard = Sp::new(new_ledger_state);
 		(events, cost)
