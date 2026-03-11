@@ -941,6 +941,113 @@ build-test-toolkit:
     ENTRYPOINT ["/test-toolkit.sh"]
     SAVE IMAGE
 
+# Bazel variant of build-test-toolkit — pre-compiles integration test binaries
+# with Bazel, then packages them into a lightweight image for DinD execution.
+build-test-toolkit-bazel:
+    FROM +build-prepare
+    ARG NATIVEARCH
+
+    # Install lld for faster linking, docker CLI for testcontainers
+    RUN microdnf -y install lld docker && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
+
+    # Install Bazelisk
+    ARG BAZELISK_VERSION=1.25.0
+    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
+        curl -fsSL -o /usr/local/bin/bazel \
+        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
+        chmod 0755 /usr/local/bin/bazel
+
+    # Install Node.js 22
+    ARG NODE_VERSION=22.13.1
+    ARG TARGETARCH
+    RUN if [ "$TARGETARCH" = "arm64" ]; then \
+            NODE_ARCH="arm64"; \
+        else \
+            NODE_ARCH="x64"; \
+        fi && \
+        curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz -o node.tar.xz && \
+        tar -xJf node.tar.xz -C /usr/local --strip-components=1 && \
+        rm node.tar.xz
+
+    # Copy source
+    COPY --keep-ts --dir Cargo.lock Cargo.toml .sqlx \
+    ledger node pallets primitives metadata res runtime util tools toolchains wasm-deps tests relay COMPACTC_VERSION \
+    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel defs.bzl scripts docs patches .
+
+    RUN rm -f /.cargo/config.toml
+
+    CACHE --sharing shared --id bazelisk /root/.cache/bazelisk
+    CACHE --sharing shared --id bazel-output /root/.cache/bazel
+
+    # Build integration test binaries (bazel build compiles but doesn't run)
+    # toolkit-cli-test excluded: it's a trycmd snapshot test that needs the source tree,
+    # not Docker, and runs fine via `bazel test //util/toolkit:toolkit-cli-test`
+    RUN bazel build \
+        //util/toolkit:toolkit-hardfork-e2e-test \
+        //util/toolkit:toolkit-e2e-test \
+        //util/toolkit:toolkit-single-tx-test \
+        //util/toolkit:toolkit-postgres-backend-test
+
+    # Copy built test binaries to a known location
+    # Bazel puts rust_test outputs in test-<hash>/ subdirectories
+    RUN mkdir -p /test-bins && \
+        for name in toolkit-hardfork-e2e-test toolkit-e2e-test toolkit-single-tx-test \
+                    toolkit-postgres-backend-test; do \
+            find bazel-bin/util/toolkit -name "$name" -type f | head -1 | \
+                xargs -I{} cp -L {} /test-bins/; \
+        done && \
+        ls -la /test-bins/
+
+    # Extract Node Toolkit (JS)
+    COPY +toolkit-js-prep/toolkit-js util/toolkit-js
+
+    COPY .envrc ./bin/.envrc
+    COPY static/contracts/simple-merkle-tree /test-static/simple-merkle-tree
+    ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
+
+    COPY scripts/test-toolkit-bazel.sh /test-toolkit-bazel.sh
+    ENTRYPOINT ["/test-toolkit-bazel.sh"]
+    SAVE IMAGE
+
+test-toolkit-bazel:
+    ARG NATIVEARCH
+    ARG NODE_IMAGE
+    ARG FORK_FROM_NODE_IMAGE
+    FROM earthly/dind:alpine
+    RUN mkdir -p /artifacts
+
+    LET EXTRA_DOCKER_ENV=""
+    IF [ -n "$NODE_IMAGE" ]
+        SET EXTRA_DOCKER_ENV="-e NODE_IMAGE=$NODE_IMAGE"
+    END
+    IF [ -n "$FORK_FROM_NODE_IMAGE" ]
+        SET EXTRA_DOCKER_ENV="$EXTRA_DOCKER_ENV -e FORK_FROM_NODE_IMAGE=$FORK_FROM_NODE_IMAGE"
+    END
+
+    IF [ -n "$NODE_IMAGE" ]
+        WITH DOCKER \
+                --load test-toolkit-bazel:latest=+build-test-toolkit-bazel \
+                --pull $NODE_IMAGE
+            RUN docker run \
+                --network=host \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                -v /artifacts:/test-artifacts-toolkit-$NATIVEARCH \
+                -e TESTCONTAINERS_HOST_OVERRIDE=localhost \
+                $EXTRA_DOCKER_ENV \
+                test-toolkit-bazel:latest
+        END
+    ELSE
+        WITH DOCKER --load test-toolkit-bazel:latest=+build-test-toolkit-bazel
+            RUN docker run \
+                --network=host \
+                -v /var/run/docker.sock:/var/run/docker.sock \
+                -v /artifacts:/test-artifacts-toolkit-$NATIVEARCH \
+                -e TESTCONTAINERS_HOST_OVERRIDE=localhost \
+                test-toolkit-bazel:latest
+        END
+    END
+    SAVE ARTIFACT /artifacts AS LOCAL ./test-artifacts-toolkit-bazel
+
 test-toolkit:
     ARG NATIVEARCH
     ARG NODE_IMAGE
@@ -1079,30 +1186,7 @@ build-bazel-local:
             docker start "$CONTAINER_NAME"; \
         fi
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
-        docker exec "$CONTAINER_NAME" bazel build \
-        //util/upgrader:upgrader \
-        //util/aiken-deployer:aiken-deployer \
-        //util/documented/documented_proc_macro \
-        //util/documented/documented_types \
-        //util/documented \
-        //primitives/ledger:midnight-primitives-ledger \
-        //primitives/beefy:midnight-primitives-beefy \
-        //primitives/midnight:midnight-primitives \
-        //primitives/system-parameters:midnight-primitives-system-parameters \
-        //primitives/ics-observation:midnight-primitives-ics-observation \
-        //primitives/reserve-observation:midnight-primitives-reserve-observation \
-        //primitives/cnight-observation:midnight-primitives-cnight-observation \
-        //primitives/federated-authority-observation:midnight-primitives-federated-authority-observation \
-        //primitives/mainchain-follower:midnight-primitives-mainchain-follower \
-        //pallets/throttle:pallet-throttle \
-        //pallets/version:pallet-version \
-        //pallets/federated-authority:pallet-federated-authority \
-        //pallets/system-parameters:pallet-system-parameters \
-        //pallets/federated-authority-observation:pallet-federated-authority-observation \
-        //runtime/common:runtime-common \
-        //metadata:midnight-node-metadata \
-        //runtime:midnight-node-runtime \
-        //node:midnight-node
+        docker exec "$CONTAINER_NAME" bazel build //...
 
 # test-bazel-local runs Bazel tests using the persistent Docker container
 test-bazel-local:
@@ -1122,24 +1206,7 @@ test-bazel-local:
             docker start "$CONTAINER_NAME"; \
         fi
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
-        docker exec "$CONTAINER_NAME" bazel test \
-        //pallets/version:pallet-version-test \
-        //pallets/throttle:pallet-throttle-test \
-        //pallets/system-parameters:pallet-system-parameters-test \
-        //pallets/federated-authority:pallet-federated-authority-test \
-        //pallets/federated-authority-observation:pallet-federated-authority-observation-test \
-        //pallets/cnight-observation:pallet-cnight-observation-test \
-        //pallets/midnight:pallet-midnight-test \
-        //primitives/ics-observation:midnight-primitives-ics-observation-test \
-        //primitives/reserve-observation:midnight-primitives-reserve-observation-test \
-        //util/documented:documented-test \
-        //util/aiken-contracts-lib:aiken-contracts-lib-test \
-        //runtime:midnight-node-runtime-test \
-        //node:midnight-node-test \
-        //ledger:midnight-node-ledger-test \
-        //ledger/helpers:midnight-node-ledger-helpers-test \
-        //relay:midnight-beefy-relay-test \
-        //util/toolkit:midnight-node-toolkit-test
+        docker exec "$CONTAINER_NAME" bazel test //...
 
 # build-bazel creates production ready binaries using Bazel
 build-bazel:
@@ -1148,6 +1215,15 @@ build-bazel:
 
     # Install lld for faster linking (cached — only re-runs when base image changes)
     RUN microdnf -y install lld && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
+
+    # Install wasm-opt binary — the runtime-wasm genrule calls it directly.
+    # Building wasm-opt-sys from source in Bazel is broken (cxx/scratch crate
+    # symlinks dangle across sandbox boundaries). Pre-installing avoids this.
+    ARG BINARYEN_VERSION=116
+    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") && \
+        curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-${ARCH}-linux.tar.gz" \
+        | tar -xz --strip-components=2 -C /usr/local/bin "binaryen-version_${BINARYEN_VERSION}/bin/wasm-opt" && \
+        chmod 0755 /usr/local/bin/wasm-opt
 
     # Install Bazelisk (cached — only re-runs when BAZELISK_VERSION changes)
     ARG BAZELISK_VERSION=1.25.0
@@ -1171,37 +1247,20 @@ build-bazel:
     CACHE --sharing shared --id bazel-output /root/.cache/bazel
 
     RUN bazel build \
+        //node:midnight-node \
+        //util/toolkit:midnight-node-toolkit \
         //util/upgrader:upgrader \
         //util/aiken-deployer:aiken-deployer \
-        //util/documented/documented_proc_macro \
-        //util/documented/documented_types \
-        //util/documented \
-        //primitives/ledger:midnight-primitives-ledger \
-        //primitives/beefy:midnight-primitives-beefy \
-        //primitives/midnight:midnight-primitives \
-        //primitives/system-parameters:midnight-primitives-system-parameters \
-        //primitives/ics-observation:midnight-primitives-ics-observation \
-        //primitives/reserve-observation:midnight-primitives-reserve-observation \
-        //primitives/cnight-observation:midnight-primitives-cnight-observation \
-        //primitives/federated-authority-observation:midnight-primitives-federated-authority-observation \
-        //primitives/mainchain-follower:midnight-primitives-mainchain-follower \
-        //pallets/throttle:pallet-throttle \
-        //pallets/version:pallet-version \
-        //pallets/federated-authority:pallet-federated-authority \
-        //pallets/system-parameters:pallet-system-parameters \
-        //pallets/federated-authority-observation:pallet-federated-authority-observation \
-        //runtime/common:runtime-common \
-        //metadata:midnight-node-metadata \
-        //runtime:midnight-node-runtime \
-        //node:midnight-node && \
-        mkdir -p /bazel-artifacts && \
-        cp -L bazel-bin/node/midnight-node /bazel-artifacts/ && \
-        cp -L bazel-bin/util/upgrader/upgrader /bazel-artifacts/ && \
-        cp -L bazel-bin/util/aiken-deployer/aiken-deployer /bazel-artifacts/
+        //runtime:runtime-wasm && \
+        mkdir -p /artifacts-$NATIVEARCH/midnight-node-runtime && \
+        cp -L bazel-bin/node/midnight-node /artifacts-$NATIVEARCH/ && \
+        cp -L bazel-bin/util/toolkit/midnight-node-toolkit /artifacts-$NATIVEARCH/ && \
+        cp -L bazel-bin/util/upgrader/upgrader /artifacts-$NATIVEARCH/ && \
+        cp -L bazel-bin/util/aiken-deployer/aiken-deployer /artifacts-$NATIVEARCH/ && \
+        cp -L bazel-bin/runtime/midnight_node_runtime.wasm \
+            /artifacts-$NATIVEARCH/midnight-node-runtime/midnight_node_runtime.compact.compressed.wasm
 
-    SAVE ARTIFACT /bazel-artifacts/midnight-node AS LOCAL artifacts/midnight-node
-    SAVE ARTIFACT /bazel-artifacts/upgrader AS LOCAL artifacts/upgrader
-    SAVE ARTIFACT /bazel-artifacts/aiken-deployer AS LOCAL artifacts/aiken-deployer
+    SAVE ARTIFACT /artifacts-$NATIVEARCH AS LOCAL artifacts
 
 build-fork:
     FROM +prep
@@ -1314,9 +1373,15 @@ node-image:
     RUN mkdir -p /artifacts-$NATIVEARCH
     RUN mkdir -p node
 
-    COPY +build/artifacts-$NATIVEARCH/midnight-node /
-    COPY +build/artifacts-$NATIVEARCH/aiken-deployer /
-    COPY +build/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
+    # --- Build source toggle (comment one, uncomment the other) ---
+    # Cargo build:
+    # COPY +build/artifacts-$NATIVEARCH/midnight-node /
+    # COPY +build/artifacts-$NATIVEARCH/aiken-deployer /
+    # COPY +build/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
+    # Bazel build:
+    COPY +build-bazel/artifacts-$NATIVEARCH/midnight-node /
+    COPY +build-bazel/artifacts-$NATIVEARCH/aiken-deployer /
+    COPY +build-bazel/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
 
     # Extract version from Cargo.toml to preserve semver pre-release suffix (e.g., 0.19.0-rc.1)
     COPY node/Cargo.toml /node/
@@ -1340,7 +1405,10 @@ node-image:
     # Re-export build artifacts which contain wasm
     COPY .envrc /artifacts-$NATIVEARCH/.envrc
     COPY res/ /artifacts-$NATIVEARCH/res/
-    COPY +build/artifacts-$NATIVEARCH /artifacts-$NATIVEARCH
+    # Cargo build:
+    # COPY +build/artifacts-$NATIVEARCH /artifacts-$NATIVEARCH
+    # Bazel build:
+    COPY +build-bazel/artifacts-$NATIVEARCH /artifacts-$NATIVEARCH
     SAVE ARTIFACT /artifacts-$NATIVEARCH/* AS LOCAL artifacts-$NATIVEARCH/
 
 # node-benchmarks-image creates the Midnight Substrate Node's image with runtime-benchmarks feature

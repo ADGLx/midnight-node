@@ -128,6 +128,7 @@ rust_shared_library(
     crate_features = wasm_aware_features(["std"]),
     compile_data = ["Cargo.toml"],
     rustc_flags = ["--cfg", "substrate_runtime"],
+    tags = ["manual"],
     deps = _RUNTIME_LOCAL_DEPS + wasm_aware_crates(_RUNTIME_EXTERNAL_CRATE_NAMES),
 )
 

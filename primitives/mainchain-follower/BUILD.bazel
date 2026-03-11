@@ -1,4 +1,4 @@
-load("@rules_rust//rust:defs.bzl", "rust_library")
+load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features", "wasm_rustc_flags")
 
 exports_files(["Cargo.toml"])
@@ -52,4 +52,15 @@ rust_library(
         "//conditions:default": ["@crates//:async-trait"],
     }),
     visibility = ["//visibility:public"],
+)
+
+rust_test(
+    name = "midnight-primitives-mainchain-follower-test",
+    size = "small",
+    crate = ":midnight-primitives-mainchain-follower",
+    compile_data = ["Cargo.toml", ".env", "//:sqlx_offline"],
+    edition = "2024",
+    proc_macro_deps = [
+        "@crates//:async-trait",
+    ],
 )

@@ -90,3 +90,106 @@ rust_test(
         "@crates//:test-log",
     ],
 )
+
+# --- Integration tests (require Docker / testcontainers) ---
+# Tagged "manual" so bazel test //... won't run them;
+# they are built (not run) by the build-test-toolkit-bazel Earthly target
+# and executed inside DinD by test-toolkit-bazel.
+
+_INTEGRATION_TEST_DEPS = [
+    ":midnight-node-toolkit-lib",
+    "@crates//:serde",
+    "@crates//:serde_yaml",
+    "@crates//:shellexpand",
+    "@crates//:testcontainers",
+    "@crates//:tokio",
+]
+
+_INTEGRATION_TEST_DATA = ["test-images.docker-compose.yml"] + glob(["test-data/**"])
+
+_INTEGRATION_TEST_ENV = {
+    "CARGO_MANIFEST_DIR": "util/toolkit",
+    "HOME": "/tmp",
+}
+
+rust_test(
+    name = "toolkit-hardfork-e2e-test",
+    size = "large",
+    srcs = ["tests/hardfork_e2e.rs", "tests/common/mod.rs"],
+    crate_root = "tests/hardfork_e2e.rs",
+    data = _INTEGRATION_TEST_DATA,
+    edition = "2024",
+    env = _INTEGRATION_TEST_ENV,
+    rustc_env = {"CARGO_MANIFEST_DIR": "util/toolkit"},
+    tags = ["manual"],
+    deps = _INTEGRATION_TEST_DEPS + [
+        "@crates//:clap",
+        "@crates//:tempfile",
+        "@crates//:test-log",
+    ],
+)
+
+rust_test(
+    name = "toolkit-e2e-test",
+    size = "large",
+    srcs = ["tests/toolkit_e2e.rs", "tests/common/mod.rs"],
+    crate_root = "tests/toolkit_e2e.rs",
+    data = _INTEGRATION_TEST_DATA + [
+        "//res:test_data_files",
+    ],
+    edition = "2024",
+    env = _INTEGRATION_TEST_ENV,
+    rustc_env = {"CARGO_MANIFEST_DIR": "util/toolkit"},
+    tags = ["manual"],
+    deps = _INTEGRATION_TEST_DEPS + [
+        "@crates//:clap",
+        "@crates//:rand-0.8.5",
+        "@crates//:tempfile",
+    ],
+)
+
+rust_test(
+    name = "toolkit-single-tx-test",
+    size = "large",
+    srcs = ["tests/single_tx.rs", "tests/common/mod.rs"],
+    crate_root = "tests/single_tx.rs",
+    data = _INTEGRATION_TEST_DATA + glob(["examples/**"]),
+    edition = "2024",
+    env = _INTEGRATION_TEST_ENV,
+    rustc_env = {"CARGO_MANIFEST_DIR": "util/toolkit"},
+    tags = ["manual"],
+    deps = _INTEGRATION_TEST_DEPS + [
+        "@crates//:trycmd",
+    ],
+)
+
+rust_test(
+    name = "toolkit-postgres-backend-test",
+    size = "large",
+    srcs = ["tests/postgres_backend.rs", "tests/common/mod.rs"],
+    crate_root = "tests/postgres_backend.rs",
+    data = _INTEGRATION_TEST_DATA,
+    edition = "2024",
+    env = _INTEGRATION_TEST_ENV,
+    rustc_env = {"CARGO_MANIFEST_DIR": "util/toolkit"},
+    tags = ["manual"],
+    deps = _INTEGRATION_TEST_DEPS + [
+        "@crates//:rand-0.8.5",
+        "@crates//:subxt",
+    ],
+)
+
+rust_test(
+    name = "toolkit-cli-test",
+    size = "small",
+    srcs = ["tests/cli_tests.rs"],
+    crate_root = "tests/cli_tests.rs",
+    data = glob(["tests/cmd/**"]) + [":midnight-node-toolkit"],
+    edition = "2024",
+    env = _INTEGRATION_TEST_ENV,
+    rustc_env = {"CARGO_MANIFEST_DIR": "util/toolkit"},
+    tags = ["manual"],
+    deps = [
+        "@crates//:trycmd",
+    ],
+)
