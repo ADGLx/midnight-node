@@ -22,7 +22,7 @@ set -euxo pipefail
 ./midnight-node \
   --chain=/shared/chain-spec.json \
   --node-key=0000000000000000000000000000000000000000000000000000000000000005 \
-  --bootnodes="/dns/midnight-node-1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
+  --bootnodes="/dns/midnight-node-4/tcp/30336/p2p/12D3KooWSsChzF81YDUKpe9Uk5AHV5oqAaXAcWNSPYgoLauUk4st" \
   --base-path=/data \
   --keystore-path=/keystore \
   --unsafe-rpc-external \
@@ -33,6 +33,7 @@ set -euxo pipefail
   --prometheus-external \
   --state-pruning=archive \
   --blocks-pruning=archive \
+  --pool-limit=10 \
   --enable-offchain-indexing true &
 
   touch /shared/midnight-node-5.ready

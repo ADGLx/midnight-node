@@ -25,6 +25,8 @@ set -euxo pipefail
   --bootnodes="/dns/midnight-node-1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
   --base-path=/data \
   --keystore-path=/keystore \
+  --listen-addr=/ip4/0.0.0.0/tcp/30336 \
+  --public-addr=/dns/midnight-node-4/tcp/30336 \
   --unsafe-rpc-external \
   --rpc-methods=Unsafe \
   --rpc-port=9936 \
@@ -33,6 +35,8 @@ set -euxo pipefail
   --prometheus-external \
   --state-pruning=archive \
   --blocks-pruning=archive \
+  -l filtering_pool=debug \
+  --pool-limit=10 \
   --enable-offchain-indexing true &
 
   touch /shared/midnight-node-4.ready

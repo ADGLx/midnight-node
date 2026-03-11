@@ -40,6 +40,9 @@ services:
     entrypoint: ["/bin/bash", "/entrypoint.sh"]
     ports:
       - "32000:32000"
+    networks:
+      - producer-net
+      - public-net
 
   cardano-node-socat:
     container_name: cardano-node-1-socat
@@ -51,6 +54,9 @@ services:
       - cardano-node-1-data:/data
     ports:
       - "30000:30000"
+    networks:
+      - producer-net
+      - public-net
 
   contract-compiler:
     container_name: contract-compiler
@@ -78,6 +84,9 @@ services:
       timeout: 5s
       retries: 120
       start_period: 10s
+    networks:
+      - producer-net
+      - public-net
 
   kupo:
     container_name: kupo
@@ -100,6 +109,9 @@ services:
       - ./configurations/busybox:/busybox
     ports:
       - "${KUPO_PORT}:${KUPO_PORT}"
+    networks:
+      - producer-net
+      - public-net
 
   ogmios:
     container_name: ogmios
@@ -131,6 +143,9 @@ services:
         limits:
           cpus: ${CPU_OGMIOS:-}
           memory: ${MEM_OGMIOS:-}
+    networks:
+      - producer-net
+      - public-net
 
   db-sync:
     container_name: db-sync
@@ -165,6 +180,9 @@ services:
         limits:
           cpus: ${CPU_DBSYNC:-}
           memory: ${MEM_DBSYNC:-}
+    networks:
+      - producer-net
+      - public-net
 
   postgres:
     container_name: postgres
@@ -193,6 +211,9 @@ services:
         limits:
           cpus: ${CPU_POSTGRES:-}
           memory: ${MEM_POSTGRES:-}
+    networks:
+      - producer-net
+      - public-net
 
   chain-indexer:
     profiles: ["withindexer"]
@@ -316,8 +337,7 @@ services:
 
   midnight-node-1:
     container_name: midnight-node-1
-    image: ${MIDNIGHT_NODE_IMAGE}
-    platform: ${ARCHITECTURE}
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-rc.7
     depends_on:
       midnight-setup:
         condition: service_completed_successfully
@@ -335,6 +355,8 @@ services:
       - "9933:9933"
       - "9615:9615"
     restart: always
+    networks:
+      - producer-net
     deploy:
       resources:
         limits:
@@ -343,8 +365,7 @@ services:
 
   midnight-node-2:
     container_name: midnight-node-2
-    image: ${MIDNIGHT_NODE_IMAGE}
-    platform: ${ARCHITECTURE}
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-rc.7
     depends_on:
       midnight-setup:
         condition: service_completed_successfully
@@ -362,6 +383,8 @@ services:
       - "9934:9934"
       - "9616:9616"
     restart: always
+    networks:
+      - producer-net
     deploy:
       resources:
         limits:
@@ -370,8 +393,7 @@ services:
 
   midnight-node-3:
     container_name: midnight-node-3
-    image: ${MIDNIGHT_NODE_IMAGE}
-    platform: ${ARCHITECTURE}
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-rc.7
     depends_on:
       midnight-setup:
         condition: service_completed_successfully
@@ -389,6 +411,8 @@ services:
       - "9935:9935"
       - "9617:9617"
     restart: always
+    networks:
+      - producer-net
     deploy:
       resources:
         limits:
@@ -397,8 +421,7 @@ services:
 
   midnight-node-4:
     container_name: midnight-node-4
-    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-77e80bba-arm64
-    pull_policy: never
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-d0bb2d54-arm64
     depends_on:
       midnight-setup:
         condition: service_completed_successfully
@@ -418,6 +441,9 @@ services:
       - "9936:9936"
       - "9618:9618"
     restart: always
+    networks:
+      - producer-net
+      - public-net
     deploy:
       resources:
         limits:
@@ -426,8 +452,8 @@ services:
 
   midnight-node-5:
     container_name: midnight-node-5
-    image: ${MIDNIGHT_NODE_IMAGE}
-    platform: ${ARCHITECTURE}
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-77e80bba-arm64
+    pull_policy: never
     depends_on:
       midnight-setup:
         condition: service_completed_successfully
@@ -447,6 +473,8 @@ services:
       - "9944:9944"
       - "9619:9619"
     restart: always
+    networks:
+      - public-net
     deploy:
       resources:
         limits:
@@ -483,6 +511,9 @@ services:
       - GOVERNANCE_AUTHORITY=e8c300330fe315531ca89d4a2e7d0c80211bc70b473b1ed4979dff2b
       - OGMIOS_PORT=${OGMIOS_PORT}
     entrypoint: ["/bin/bash", "/entrypoint.sh"]
+    networks:
+      - producer-net
+
 
 volumes:
   cardano-node-1-data: {}
@@ -498,3 +529,7 @@ volumes:
   ogmios-data: {}
   kupo-data: {}
   ipc: {}
+
+networks:
+  producer-net:
+  public-net:

@@ -33,6 +33,7 @@ set -euxo pipefail
   --prometheus-external \
   --state-pruning=archive \
   --blocks-pruning=archive \
+  --pool-limit=10 \
   --enable-offchain-indexing true &
 
   touch /shared/midnight-node-3.ready
