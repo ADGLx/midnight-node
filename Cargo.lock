@@ -3074,7 +3074,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8d162beedaa69905488a8da94f5ac3edb4dd4788b732fadb7bd120b2625c1976"
 dependencies = [
  "data-encoding",
- "syn 1.0.109",
+ "syn 2.0.104",
 ]
 
 [[package]]
@@ -7278,7 +7278,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto"
 version = "1.0.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "anyhow",
  "atomic-write-file",
@@ -7310,7 +7310,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto"
 version = "1.0.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "anyhow",
  "atomic-write-file",
@@ -7324,7 +7324,7 @@ dependencies = [
  "indicatif",
  "k256",
  "lazy_static",
- "midnight-base-crypto-derive 1.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-base-crypto-derive 1.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-serialize 1.0.0",
  "pastey",
  "rand 0.8.5",
@@ -7342,7 +7342,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto-derive"
 version = "1.0.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -7363,7 +7363,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto-derive"
 version = "1.0.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -7418,7 +7418,7 @@ dependencies = [
 [[package]]
 name = "midnight-coin-structure"
 version = "2.0.1-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "fake",
  "lazy_static",
@@ -7451,14 +7451,14 @@ dependencies = [
 [[package]]
 name = "midnight-coin-structure"
 version = "2.0.1"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "fake",
  "lazy_static",
  "midnight-base-crypto 1.0.0",
  "midnight-serialize 1.0.0",
  "midnight-storage-core 1.1.0",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "rand 0.8.5",
  "serde",
  "zeroize",
@@ -7493,9 +7493,9 @@ dependencies = [
 
 [[package]]
 name = "midnight-ledger"
-version = "7.0.3-rc.1"
+version = "7.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e21a49f0b61b9279443f9a67f6758dbaf384a13a3ee692f6754c69f8622506b9"
+checksum = "4fc8b6b6c9d55af6c8852092eb76e72a52d227be435bfa1bd0be158bc2ac7b28"
 dependencies = [
  "anyhow",
  "derive-where",
@@ -7514,7 +7514,7 @@ dependencies = [
  "midnight-storage 1.1.1",
  "midnight-transient-crypto 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
  "midnight-zkir 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "midnight-zswap 7.0.3-rc.1",
+ "midnight-zswap 7.0.3",
  "rand 0.8.5",
  "rayon",
  "reqwest 0.12.22",
@@ -7528,8 +7528,8 @@ dependencies = [
 
 [[package]]
 name = "midnight-ledger"
-version = "8.0.0-rc.4"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+version = "8.0.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "anyhow",
  "derive-where",
@@ -7543,12 +7543,12 @@ dependencies = [
  "midnight-base-crypto 1.0.0-hard-fork-test",
  "midnight-coin-structure 2.0.1-hard-fork-test",
  "midnight-ledger-static 9.0.0-hard-fork-test",
- "midnight-onchain-runtime 3.0.0-rc.1-hard-fork-test",
+ "midnight-onchain-runtime 3.0.0-hard-fork-test",
  "midnight-serialize 1.0.0-hard-fork-test",
  "midnight-storage 2.0.1-hard-fork-test",
  "midnight-transient-crypto 2.0.1-hard-fork-test",
  "midnight-zkir 2.1.0-hard-fork-test",
- "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1)",
+ "midnight-zswap 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0)",
  "rand 0.8.5",
  "rayon",
  "reqwest 0.12.22",
@@ -7562,8 +7562,8 @@ dependencies = [
 
 [[package]]
 name = "midnight-ledger"
-version = "8.0.0-rc.4"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+version = "8.0.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "anyhow",
  "derive-where",
@@ -7575,14 +7575,14 @@ dependencies = [
  "itertools 0.14.0",
  "lazy_static",
  "midnight-base-crypto 1.0.0",
- "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-ledger-static 9.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-onchain-runtime 3.0.0-rc.1",
+ "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-ledger-static 9.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-onchain-runtime 3.0.0",
  "midnight-serialize 1.0.0",
  "midnight-storage 2.0.1",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-zkir 2.1.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-zkir 2.1.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-zswap 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "rand 0.8.5",
  "rayon",
  "reqwest 0.12.22",
@@ -7597,7 +7597,7 @@ dependencies = [
 [[package]]
 name = "midnight-ledger-static"
 version = "9.0.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -7616,7 +7616,7 @@ dependencies = [
 [[package]]
 name = "midnight-ledger-static"
 version = "9.0.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -7771,16 +7771,16 @@ dependencies = [
  "midnight-base-crypto 1.0.0",
  "midnight-base-crypto 1.0.0-hard-fork-test",
  "midnight-coin-structure 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-coin-structure 2.0.1-hard-fork-test",
- "midnight-ledger 7.0.3-rc.1",
- "midnight-ledger 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1)",
- "midnight-ledger 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-ledger 7.0.3",
+ "midnight-ledger 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0)",
+ "midnight-ledger 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-node-ledger-helpers",
  "midnight-node-res",
  "midnight-onchain-runtime 2.0.1",
- "midnight-onchain-runtime 3.0.0-rc.1",
- "midnight-onchain-runtime 3.0.0-rc.1-hard-fork-test",
+ "midnight-onchain-runtime 3.0.0",
+ "midnight-onchain-runtime 3.0.0-hard-fork-test",
  "midnight-primitives-ledger",
  "midnight-serialize 1.0.0",
  "midnight-serialize 1.0.0-hard-fork-test",
@@ -7789,11 +7789,11 @@ dependencies = [
  "midnight-storage 2.0.1-hard-fork-test",
  "midnight-storage-core 1.1.0",
  "midnight-transient-crypto 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-transient-crypto 2.0.1-hard-fork-test",
- "midnight-zswap 7.0.3-rc.1",
- "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1)",
- "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-zswap 7.0.3",
+ "midnight-zswap 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0)",
+ "midnight-zswap 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "moka 0.11.3",
  "parity-scale-codec",
  "scale-info",
@@ -7825,28 +7825,28 @@ dependencies = [
  "midnight-base-crypto 1.0.0",
  "midnight-base-crypto 1.0.0-hard-fork-test",
  "midnight-coin-structure 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-coin-structure 2.0.1-hard-fork-test",
- "midnight-ledger 7.0.3-rc.1",
- "midnight-ledger 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1)",
- "midnight-ledger 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-ledger 7.0.3",
+ "midnight-ledger 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0)",
+ "midnight-ledger 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-onchain-runtime 2.0.1",
- "midnight-onchain-runtime 3.0.0-rc.1",
- "midnight-onchain-runtime 3.0.0-rc.1-hard-fork-test",
+ "midnight-onchain-runtime 3.0.0",
+ "midnight-onchain-runtime 3.0.0-hard-fork-test",
  "midnight-serialize 1.0.0",
  "midnight-serialize 1.0.0-hard-fork-test",
  "midnight-storage 1.1.1",
  "midnight-storage 2.0.1",
  "midnight-storage 2.0.1-hard-fork-test",
  "midnight-transient-crypto 2.0.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-transient-crypto 2.0.1-hard-fork-test",
  "midnight-zkir 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "midnight-zkir 2.1.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-zkir 2.1.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-zkir 2.1.0-hard-fork-test",
- "midnight-zswap 7.0.3-rc.1",
- "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1)",
- "midnight-zswap 8.0.0-rc.4 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-zswap 7.0.3",
+ "midnight-zswap 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0)",
+ "midnight-zswap 8.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "rand 0.8.5",
  "serde",
  "serde_json",
@@ -8033,33 +8033,8 @@ dependencies = [
 
 [[package]]
 name = "midnight-onchain-runtime"
-version = "3.0.0-rc.1"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
-dependencies = [
- "derive-where",
- "enum_index",
- "enum_index_derive",
- "fake",
- "hex",
- "konst",
- "lazy_static",
- "midnight-base-crypto 1.0.0",
- "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-onchain-state 3.0.0-rc.1",
- "midnight-onchain-vm 3.0.0-rc.1",
- "midnight-serialize 1.0.0",
- "midnight-storage 2.0.1",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "rand 0.8.5",
- "serde",
- "serde_bytes",
- "tracing",
-]
-
-[[package]]
-name = "midnight-onchain-runtime"
-version = "3.0.0-rc.1-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+version = "3.0.0-hard-fork-test"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "derive-where",
  "enum_index",
@@ -8070,11 +8045,36 @@ dependencies = [
  "lazy_static",
  "midnight-base-crypto 1.0.0-hard-fork-test",
  "midnight-coin-structure 2.0.1-hard-fork-test",
- "midnight-onchain-state 3.0.0-rc.1-hard-fork-test",
- "midnight-onchain-vm 3.0.0-rc.1-hard-fork-test",
+ "midnight-onchain-state 3.0.0-hard-fork-test",
+ "midnight-onchain-vm 3.0.0-hard-fork-test",
  "midnight-serialize 1.0.0-hard-fork-test",
  "midnight-storage 2.0.1-hard-fork-test",
  "midnight-transient-crypto 2.0.1-hard-fork-test",
+ "rand 0.8.5",
+ "serde",
+ "serde_bytes",
+ "tracing",
+]
+
+[[package]]
+name = "midnight-onchain-runtime"
+version = "3.0.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
+dependencies = [
+ "derive-where",
+ "enum_index",
+ "enum_index_derive",
+ "fake",
+ "hex",
+ "konst",
+ "lazy_static",
+ "midnight-base-crypto 1.0.0",
+ "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-onchain-state 3.0.0",
+ "midnight-onchain-vm 3.0.0",
+ "midnight-serialize 1.0.0",
+ "midnight-storage 2.0.1",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "rand 0.8.5",
  "serde",
  "serde_bytes",
@@ -8102,26 +8102,8 @@ dependencies = [
 
 [[package]]
 name = "midnight-onchain-state"
-version = "3.0.0-rc.1"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
-dependencies = [
- "derive-where",
- "fake",
- "hex",
- "midnight-base-crypto 1.0.0",
- "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-serialize 1.0.0",
- "midnight-storage 2.0.1",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "rand 0.8.5",
- "serde",
- "serde_bytes",
-]
-
-[[package]]
-name = "midnight-onchain-state"
-version = "3.0.0-rc.1-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+version = "3.0.0-hard-fork-test"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "derive-where",
  "fake",
@@ -8131,6 +8113,24 @@ dependencies = [
  "midnight-serialize 1.0.0-hard-fork-test",
  "midnight-storage 2.0.1-hard-fork-test",
  "midnight-transient-crypto 2.0.1-hard-fork-test",
+ "rand 0.8.5",
+ "serde",
+ "serde_bytes",
+]
+
+[[package]]
+name = "midnight-onchain-state"
+version = "3.0.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
+dependencies = [
+ "derive-where",
+ "fake",
+ "hex",
+ "midnight-base-crypto 1.0.0",
+ "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-serialize 1.0.0",
+ "midnight-storage 2.0.1",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "rand 0.8.5",
  "serde",
  "serde_bytes",
@@ -8160,19 +8160,19 @@ dependencies = [
 
 [[package]]
 name = "midnight-onchain-vm"
-version = "3.0.0-rc.1"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+version = "3.0.0-hard-fork-test"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "derive-where",
  "fake",
  "hex",
  "konst",
- "midnight-base-crypto 1.0.0",
- "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-onchain-state 3.0.0-rc.1",
- "midnight-serialize 1.0.0",
- "midnight-storage 2.0.1",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-base-crypto 1.0.0-hard-fork-test",
+ "midnight-coin-structure 2.0.1-hard-fork-test",
+ "midnight-onchain-state 3.0.0-hard-fork-test",
+ "midnight-serialize 1.0.0-hard-fork-test",
+ "midnight-storage 2.0.1-hard-fork-test",
+ "midnight-transient-crypto 2.0.1-hard-fork-test",
  "rand 0.8.5",
  "rpds",
  "serde",
@@ -8181,19 +8181,19 @@ dependencies = [
 
 [[package]]
 name = "midnight-onchain-vm"
-version = "3.0.0-rc.1-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+version = "3.0.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "derive-where",
  "fake",
  "hex",
  "konst",
- "midnight-base-crypto 1.0.0-hard-fork-test",
- "midnight-coin-structure 2.0.1-hard-fork-test",
- "midnight-onchain-state 3.0.0-rc.1-hard-fork-test",
- "midnight-serialize 1.0.0-hard-fork-test",
- "midnight-storage 2.0.1-hard-fork-test",
- "midnight-transient-crypto 2.0.1-hard-fork-test",
+ "midnight-base-crypto 1.0.0",
+ "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-onchain-state 3.0.0",
+ "midnight-serialize 1.0.0",
+ "midnight-storage 2.0.1",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "rand 0.8.5",
  "rpds",
  "serde",
@@ -8347,7 +8347,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize"
 version = "1.0.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "crypto",
  "konst",
@@ -8360,7 +8360,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize"
 version = "1.0.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "crypto",
  "konst",
@@ -8373,7 +8373,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize-macros"
 version = "1.0.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -8383,7 +8383,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize-macros"
 version = "1.0.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -8411,7 +8411,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage"
 version = "2.0.1-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "crypto",
  "derive-where",
@@ -8429,7 +8429,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage"
 version = "2.0.1"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "crypto",
  "derive-where",
@@ -8447,7 +8447,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-core"
 version = "1.1.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "archery",
  "crypto",
@@ -8472,7 +8472,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-core"
 version = "1.1.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "archery",
  "crypto",
@@ -8497,7 +8497,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-macros"
 version = "1.0.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "midnight-serialize-macros 1.0.0-hard-fork-test",
  "proc-macro2",
@@ -8508,7 +8508,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-macros"
 version = "1.0.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "midnight-serialize-macros 1.0.0",
  "proc-macro2",
@@ -8519,7 +8519,7 @@ dependencies = [
 [[package]]
 name = "midnight-transient-crypto"
 version = "2.0.1-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -8592,7 +8592,7 @@ dependencies = [
 [[package]]
 name = "midnight-transient-crypto"
 version = "2.0.1"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -8607,7 +8607,7 @@ dependencies = [
  "lazy_static",
  "lru 0.16.3",
  "midnight-base-crypto 1.0.0",
- "midnight-base-crypto-derive 1.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-base-crypto-derive 1.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-circuits",
  "midnight-curves",
  "midnight-proofs",
@@ -8650,7 +8650,7 @@ dependencies = [
 [[package]]
 name = "midnight-zkir"
 version = "2.1.0-hard-fork-test"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "anyhow",
  "const-hex",
@@ -8697,7 +8697,7 @@ dependencies = [
 [[package]]
 name = "midnight-zkir"
 version = "2.1.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "anyhow",
  "const-hex",
@@ -8707,7 +8707,7 @@ dependencies = [
  "midnight-circuits",
  "midnight-proofs",
  "midnight-serialize 1.0.0",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "midnight-zk-stdlib",
  "rand 0.8.5",
  "rand_chacha 0.3.1",
@@ -8719,9 +8719,9 @@ dependencies = [
 
 [[package]]
 name = "midnight-zswap"
-version = "7.0.3-rc.1"
+version = "7.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a62d99e3ef07c77584ce9846b9bed1a81a10b90a4d95778c7f5e84a7d7669c70"
+checksum = "56bc2635ed2de0cb18c8ca3aafcbb4910d42cd50cc7c73b5ae7dd31a6f5b5b1f"
 dependencies = [
  "derive-where",
  "fake",
@@ -8744,8 +8744,8 @@ dependencies = [
 
 [[package]]
 name = "midnight-zswap"
-version = "8.0.0-rc.4"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-storage-core-1.1.0-rc.1#b88826bf1e615edeeceb904ada4000f00a342c78"
+version = "8.0.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=hard-fork-test-ledger-8.0.0#a2cc75aa5f3f5e2560362f9c96b7dba5376c6709"
 dependencies = [
  "derive-where",
  "fake",
@@ -8756,7 +8756,7 @@ dependencies = [
  "midnight-base-crypto 1.0.0-hard-fork-test",
  "midnight-coin-structure 2.0.1-hard-fork-test",
  "midnight-ledger-static 9.0.0-hard-fork-test",
- "midnight-onchain-runtime 3.0.0-rc.1-hard-fork-test",
+ "midnight-onchain-runtime 3.0.0-hard-fork-test",
  "midnight-serialize 1.0.0-hard-fork-test",
  "midnight-storage 2.0.1-hard-fork-test",
  "midnight-transient-crypto 2.0.1-hard-fork-test",
@@ -8768,8 +8768,8 @@ dependencies = [
 
 [[package]]
 name = "midnight-zswap"
-version = "8.0.0-rc.4"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1#99e7c010b6bc2db4061398e239a5e52f3acca6e4"
+version = "8.0.0"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0#3e72c13160328368ade84fb4b73fb944caeeb781"
 dependencies = [
  "derive-where",
  "fake",
@@ -8778,12 +8778,12 @@ dependencies = [
  "itertools 0.14.0",
  "lazy_static",
  "midnight-base-crypto 1.0.0",
- "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-ledger-static 9.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
- "midnight-onchain-runtime 3.0.0-rc.1",
+ "midnight-coin-structure 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-ledger-static 9.0.0 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
+ "midnight-onchain-runtime 3.0.0",
  "midnight-serialize 1.0.0",
  "midnight-storage 2.0.1",
- "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.1.0-rc.1)",
+ "midnight-transient-crypto 2.0.1 (git+https://github.com/midnightntwrk/midnight-ledger?tag=ledger-8.0.0)",
  "rand 0.8.5",
  "serde",
  "tracing",
