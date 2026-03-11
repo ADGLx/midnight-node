@@ -89,19 +89,30 @@ Wallet state is cached across runs via `wallet_state_cache.rs`.
 
 ## Dual Compilation
 
-The `ledger-helpers` crate (`util/ledger-helpers/`) defines the transaction building primitives (wallet, ledger context, proof providers) used by the builders. It is itself dual-compiled -- `ledger_7` and `ledger_8` modules expose the same interface against different ledger versions.
+The toolkit must support multiple ledger versions (currently Ledger 7 and Ledger 8) which have incompatible type hierarchies -- different `Transaction`, `Wallet`, `LedgerState` types, etc. Rather than abstracting over them with generics (which would require a shared trait boundary that doesn't exist), the builder code is written once in `common/` and compiled twice with different type aliases.
 
-Both `builders/ledger_7.rs` and `builders/ledger_8.rs` use the same `common/` source files, compiled twice with different type aliases:
+The `ledger-helpers` crate (`util/ledger-helpers/`) defines the transaction building primitives (wallet, ledger context, proof providers). It uses the same pattern -- `ledger_7` and `ledger_8` modules expose the same interface against different ledger versions.
 
-```rust
-#[path = "common"]
-pub mod inner {
-    pub use midnight_node_ledger_helpers::ledger_N as ledger_helpers_local;
-    // ... mod declarations for each builder
-}
+In the toolkit builders, `ledger_7.rs` and `ledger_8.rs` each re-root the `common/` directory as a module, aliasing the correct ledger version before the module declarations:
+
 ```
-
-The `common/*.rs` files reference `ledger_helpers_local` for all ledger types. Because the alias resolves to the version-specific module before compilation, each file compiles against the correct ledger version's types.
+  builders/ledger_7.rs                    builders/ledger_8.rs
+  ┌────────────────────────────────┐      ┌────────────────────────────────┐
+  │ #[path = "common"]             │      │ #[path = "common"]             │
+  │ pub mod inner {                │      │ pub mod inner {                │
+  │   use ...::ledger_7            │      │   use ...::ledger_8            │
+  │     as ledger_helpers_local;   │      │     as ledger_helpers_local;   │
+  │   mod batches;                 │      │   mod batches;                 │
+  │   mod contract_deploy;         │      │   mod contract_deploy;         │
+  │   ...                          │      │   ...                          │
+  │ }                              │      │ }                              │
+  └────────────────────────────────┘      └────────────────────────────────┘
+                    │                                   │
+                    └──────────┬────────────────────────┘
+                               ▼
+                    builders/common/batches.rs
+                    (references ledger_helpers_local)
+```
 
 The same pattern is used in `commands/fork/` for fork-aware read-only commands.
 
