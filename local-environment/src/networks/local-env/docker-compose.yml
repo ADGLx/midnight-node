@@ -397,8 +397,8 @@ services:
 
   midnight-node-4:
     container_name: midnight-node-4
-    image: ${MIDNIGHT_NODE_IMAGE}
-    platform: ${ARCHITECTURE}
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-77e80bba-arm64
+    pull_policy: never
     depends_on:
       midnight-setup:
         condition: service_completed_successfully

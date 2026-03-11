@@ -21,7 +21,6 @@ set -euxo pipefail
 
 ./midnight-node \
   --chain=/shared/chain-spec.json \
-  --validator \
   --node-key=0000000000000000000000000000000000000000000000000000000000000004 \
   --bootnodes="/dns/midnight-node-1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp" \
   --base-path=/data \
