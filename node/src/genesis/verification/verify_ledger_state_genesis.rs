@@ -469,11 +469,56 @@ fn verify_ledger_parameters(
 			// Compare key fields
 			let mut issues = Vec::new();
 
-			// NOTE: We skip comparing fee_prices because they are dynamically adjusted
-			// during genesis generation. The post_block_update() function calls
-			// fee_prices.update_from_fullness() which modifies the fee prices based on
-			// block fullness. The config file contains the initial fee prices, while
-			// the genesis state contains the adjusted values after post_block_update.
+			// NOTE: fee_prices are dynamically adjusted during genesis generation.
+			// The post_block_update() function calls fee_prices.update_from_fullness()
+			// which modifies the fee prices based on block fullness. The config file
+			// contains the initial fee prices, while the genesis state contains the
+			// adjusted values after post_block_update. We allow up to 5% deviation.
+			{
+				const MAX_DEVIATION_PCT: f64 = 5.0;
+				let fee_fields: &[(&str, f64, f64)] = &[
+					(
+						"overall_price",
+						f64::from(state_params.fee_prices.overall_price),
+						f64::from(expected_params.fee_prices.overall_price),
+					),
+					(
+						"read_factor",
+						f64::from(state_params.fee_prices.read_factor),
+						f64::from(expected_params.fee_prices.read_factor),
+					),
+					(
+						"compute_factor",
+						f64::from(state_params.fee_prices.compute_factor),
+						f64::from(expected_params.fee_prices.compute_factor),
+					),
+					(
+						"block_usage_factor",
+						f64::from(state_params.fee_prices.block_usage_factor),
+						f64::from(expected_params.fee_prices.block_usage_factor),
+					),
+					(
+						"write_factor",
+						f64::from(state_params.fee_prices.write_factor),
+						f64::from(expected_params.fee_prices.write_factor),
+					),
+				];
+
+				for (name, actual, expected) in fee_fields {
+					let deviation_pct = if *expected == 0.0 {
+						if *actual == 0.0 { 0.0 } else { f64::INFINITY }
+					} else {
+						((actual - expected) / expected).abs() * 100.0
+					};
+
+					if deviation_pct > MAX_DEVIATION_PCT {
+						issues.push(format!(
+							"fee_prices.{} deviation {:.2}% exceeds {}% threshold:\n  state:    {}\n  expected: {}",
+							name, deviation_pct, MAX_DEVIATION_PCT, actual, expected
+						));
+					}
+				}
+			}
 
 			// Compare limits
 			if state_params.limits != expected_params.limits {

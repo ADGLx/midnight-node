@@ -223,8 +223,6 @@ impl GenesisGenerator {
 
 			// Restore fees now that we've finished.
 			self.set_parameters(original_parameters, &genesis_block_context)?;
-		} else {
-			self.set_parameters(original_parameters, &genesis_block_context)?;
 		}
 
 		if let Some(system_tx) = cnight_system_tx {
