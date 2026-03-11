@@ -227,7 +227,8 @@ impl SingleTxBuilder {
 			source_seed,
 			total_required,
 			self.unshielded_token_type,
-		);
+		)
+		.expect("insufficient UTXOs for transfer");
 
 		let inputs_info: Vec<Box<dyn BuildUtxoSpend<DefaultDB>>> = inputs_info
 			.into_iter()

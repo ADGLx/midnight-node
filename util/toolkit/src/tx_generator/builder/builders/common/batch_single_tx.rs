@@ -16,8 +16,8 @@ use std::{collections::HashMap, io::Write, sync::Arc};
 use super::ledger_helpers_local::{
 	BuildIntent, BuildUtxoOutput, BuildUtxoSpend, DefaultDB, FromContext as _, IntentInfo,
 	LedgerContext, ProofProvider, Segment, StandardTrasactionInfo, TransactionWithContext,
-	UnshieldedOfferInfo, UnshieldedTokenType, UnshieldedWallet, UtxoOutputInfo, UtxoSpendInfo,
-	WalletAddress, WalletSeed,
+	UnshieldedOfferInfo, UnshieldedTokenType, UnshieldedWallet, UtxoOutputInfo, UtxoSelectionError,
+	UtxoSpendInfo, WalletAddress, WalletSeed,
 };
 use async_trait::async_trait;
 use tokio::sync::Semaphore;
@@ -26,6 +26,14 @@ use crate::{Progress, serde_def::SourceTransactions, tx_generator::builder::Batc
 use midnight_node_ledger_helpers::fork::raw_block_data::SerializedTxBatches;
 
 use crate::tx_generator::builder::{BuildTxs, TransferSpec};
+
+#[derive(Debug, thiserror::Error)]
+enum BatchTransferError {
+	#[error("{0}")]
+	UtxoSelection(#[from] UtxoSelectionError),
+	#[error("proving failed: {0}")]
+	ProvingFailed(String),
+}
 
 pub struct BatchSingleTxBuilder {
 	context: Arc<LedgerContext<DefaultDB>>,
@@ -59,10 +67,13 @@ impl BatchSingleTxBuilder {
 		context: Arc<LedgerContext<DefaultDB>>,
 		prover: Arc<dyn ProofProvider<DefaultDB>>,
 		spec: &TransferSpec,
-	) -> TransactionWithContext<
-		super::ledger_helpers_local::Signature,
-		super::ledger_helpers_local::ProofMarker,
-		DefaultDB,
+	) -> Result<
+		TransactionWithContext<
+			super::ledger_helpers_local::Signature,
+			super::ledger_helpers_local::ProofMarker,
+			DefaultDB,
+		>,
+		BatchTransferError,
 	> {
 		use super::type_convert::*;
 
@@ -112,7 +123,7 @@ impl BatchSingleTxBuilder {
 				vec![dest_wallet],
 				amount,
 				token_type,
-			);
+			)?;
 			tx_info.set_intents(intents);
 		}
 
@@ -180,9 +191,9 @@ impl BatchSingleTxBuilder {
 
 		let tx = tokio::runtime::Handle::current()
 			.block_on(tx_info.prove())
-			.expect("Balancing TX failed");
+			.map_err(|e| BatchTransferError::ProvingFailed(format!("{e}")))?;
 
-		TransactionWithContext::new(tx, None)
+		Ok(TransactionWithContext::new(tx, None))
 	}
 }
 
@@ -194,13 +205,13 @@ fn build_unshielded_intents(
 	output_wallets: Vec<UnshieldedWallet>,
 	amount_per_output: u128,
 	token_type: UnshieldedTokenType,
-) -> HashMap<u16, Box<dyn BuildIntent<DefaultDB>>> {
+) -> Result<HashMap<u16, Box<dyn BuildIntent<DefaultDB>>>, UtxoSelectionError> {
 	let total_required = amount_per_output
 		.checked_mul(output_wallets.len() as u128)
 		.expect("unshielded amount overflow");
 
 	let (inputs_info, remaining) =
-		UtxoSpendInfo::utxos_to_cover_value(context, source_seed, total_required, token_type);
+		UtxoSpendInfo::utxos_to_cover_value(context, source_seed, total_required, token_type)?;
 
 	let inputs_info: Vec<Box<dyn BuildUtxoSpend<DefaultDB>>> = inputs_info
 		.into_iter()
@@ -250,7 +261,7 @@ fn build_unshielded_intents(
 	let mut intents = HashMap::new();
 	intents
 		.insert(Segment::Fallible.into(), Box::new(intent_info) as Box<dyn BuildIntent<DefaultDB>>);
-	intents
+	Ok(intents)
 }
 
 #[async_trait]
@@ -279,7 +290,7 @@ impl BuildTxs for BatchSingleTxBuilder {
 				tokio::task::spawn_blocking(move || {
 					let rt = tokio::runtime::Handle::current();
 					let _permit = rt.block_on(async { sema.acquire().await.unwrap() });
-					let tx_with_ctx = Self::build_single_transfer(context, prover, &spec);
+					let tx_with_ctx = Self::build_single_transfer(context, prover, &spec)?;
 					let serialized = super::tx_serialization::build_single(tx_with_ctx);
 					let tx = serialized
 						.batches
@@ -301,7 +312,7 @@ impl BuildTxs for BatchSingleTxBuilder {
 							panic!("failed to write to '{}': {}", spec.dest_file, e)
 						});
 
-					spec.dest_file.clone()
+					Ok::<_, BatchTransferError>(spec.dest_file.clone())
 				})
 			})
 			.collect();
@@ -311,12 +322,16 @@ impl BuildTxs for BatchSingleTxBuilder {
 
 		for task in tasks {
 			match task.await {
-				Ok(dest_file) => {
+				Ok(Ok(dest_file)) => {
 					log::info!("Wrote tx to {}", dest_file);
 					succeeded += 1;
 				},
-				Err(e) => {
+				Ok(Err(e)) => {
 					log::error!("Transfer failed: {}", e);
+					failed += 1;
+				},
+				Err(e) => {
+					log::error!("Transfer task panicked: {}", e);
 					failed += 1;
 				},
 			}
