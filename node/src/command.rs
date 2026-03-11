@@ -15,7 +15,8 @@
 
 use crate::{
 	cfg::Cfg,
-	cli::{self, Cli, Subcommand},
+	cli::{self, Cli, RunMidnight, Subcommand},
+	filtering_pool::TxFilterConfig,
 	genesis::creation::{
 		cnight_genesis::generate_cnight_genesis,
 		federated_authority_genesis::generate_federated_authority_genesis,
@@ -146,7 +147,14 @@ fn decode_genesis_state(
 }
 
 fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
-	let run_cmd: RunCmd = cfg.substrate_cfg.clone().try_into()?;
+	let run_midnight = RunMidnight::try_parse_from(cfg.substrate_cfg.clone().argv())
+		.map_err(|e| sc_cli::Error::Input(format!("invalid node run arguments: {e}")))?;
+	let tx_filter_config = if run_midnight.filter_deploy_txs {
+		TxFilterConfig::enabled()
+	} else {
+		TxFilterConfig::disabled()
+	};
+	let run_cmd: RunCmd = run_midnight.run;
 	if cfg.midnight_cfg.wipe_chain_state
 		&& let Some(base_path) = run_cmd.base_path()?
 	{
@@ -258,6 +266,7 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			cfg.memory_monitor_cfg.into(),
 			storage_config,
 			metrics_push_config,
+			tx_filter_config,
 		)
 		.await
 		.map_err(sc_cli::Error::Service)
@@ -308,6 +317,7 @@ fn storage_init_from_chain_spec(
 fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 	let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 	let cache_size = cfg.midnight_cfg.storage_cache_size;
+	let tx_filter_config = TxFilterConfig::disabled();
 
 	match subcommand {
 		Subcommand::Key(ref cmd) => cmd.run(&cfg),
@@ -316,8 +326,13 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 			let make_dependencies = |config: sc_service::Configuration| {
 				let storage_config =
 					storage_init_from_chain_spec(&config, cache_size).map_err(|e| e.to_string())?;
-				let PartialComponents { client, task_manager, other, .. } =
-					service::new_partial(&config, epoch_config, midnight_cfg, storage_config)?;
+				let PartialComponents { client, task_manager, other, .. } = service::new_partial(
+					&config,
+					epoch_config,
+					midnight_cfg,
+					storage_config,
+					tx_filter_config,
+				)?;
 				Ok((client, task_manager, other.5.authority_selection))
 			};
 
@@ -341,6 +356,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						epoch_config,
 						cfg.midnight_cfg.clone(),
 						storage_config,
+						tx_filter_config,
 					)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
@@ -354,6 +370,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					epoch_config,
 					cfg.midnight_cfg.clone(),
 					storage_config,
+					tx_filter_config,
 				)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
@@ -367,6 +384,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					epoch_config,
 					cfg.midnight_cfg.clone(),
 					storage_config,
+					tx_filter_config,
 				)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
@@ -381,6 +399,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						epoch_config,
 						cfg.midnight_cfg.clone(),
 						storage_config,
+						tx_filter_config,
 					)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
@@ -398,6 +417,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					epoch_config,
 					cfg.midnight_cfg.clone(),
 					storage_config,
+					tx_filter_config,
 				)?;
 				let aux_revert = Box::new(|client, _, blocks| {
 					sc_consensus_grandpa::revert(client, blocks)?;
@@ -436,6 +456,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 							epoch_config,
 							cfg.midnight_cfg.clone(),
 							storage_config,
+							tx_filter_config,
 						)?;
 
 						cmd.run(partial.client)
@@ -454,6 +475,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 							epoch_config,
 							cfg.midnight_cfg.clone(),
 							storage_config,
+							tx_filter_config,
 						)?;
 						let db = partial.backend.expose_db();
 						let storage = partial.backend.expose_storage();
@@ -468,6 +490,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 							epoch_config,
 							cfg.midnight_cfg.clone(),
 							storage_config,
+							tx_filter_config,
 						)?;
 						let ext_builder = RemarkBuilder::new(partial.client.clone());
 
@@ -488,6 +511,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 							epoch_config,
 							cfg.midnight_cfg.clone(),
 							storage_config,
+							tx_filter_config,
 						)?;
 						// Register the *Remark* and *TKA* builders.
 						let ext_factory = ExtrinsicFactory(vec![Box::new(RemarkBuilder::new(
@@ -965,11 +989,34 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
 
+			// Parse genesis timestamp from cardano-tip.json (if provided)
+			let genesis_timestamp: Option<u64> = if let Some(ref path) = cmd.cardano_tip_config {
+				#[derive(serde::Deserialize)]
+				struct CardanoTipConfig {
+					timestamp: String,
+				}
+				let json_str = std::fs::read_to_string(path).map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"Failed to read cardano-tip config {:?}: {}",
+						path, e
+					))
+				})?;
+				let config: CardanoTipConfig = serde_json::from_str(&json_str).map_err(|e| {
+					sc_cli::Error::Input(format!("Failed to parse cardano-tip config: {}", e))
+				})?;
+				Some(config.timestamp.parse::<u64>().map_err(|e| {
+					sc_cli::Error::Input(format!("Invalid timestamp in cardano-tip config: {}", e))
+				})?)
+			} else {
+				None
+			};
+
 			let result = verify_ledger_state_genesis::verify_ledger_state_genesis(
 				&cmd.chain_spec,
 				cmd.cnight_config.as_deref(),
 				cmd.ledger_parameters_config.as_deref(),
 				cmd.network.as_deref(),
+				genesis_timestamp,
 			)
 			.map_err(|e| sc_cli::Error::Input(format!("Genesis verification failed: {e}")))?;
 
