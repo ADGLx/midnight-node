@@ -647,14 +647,14 @@ node-ci-image-single-platform:
         mv "gh_2.62.0_linux_${GH_ARCH}/bin/gh" /usr/local/bin/ && \
         rm -rf gh_2.62.0_linux_${GH_ARCH}* gh.tar.gz
 
-    # Download compactc compiler from public midnightntwrk/compact releases
+    # Download compactc compiler from LFDT-Minokawa/compact releases
     COPY COMPACTC_VERSION .
     RUN set -e && \
         ARCH=$(uname -m) && \
         if [ "$ARCH" = "aarch64" ]; then COMPACTC_ARCH="aarch64"; else COMPACTC_ARCH="x86_64"; fi && \
         VERSION=$(cat COMPACTC_VERSION) && \
         ASSET="compactc_v${VERSION}_${COMPACTC_ARCH}-unknown-linux-musl.zip" && \
-        URL="https://github.com/midnightntwrk/compact/releases/download/compactc-v${VERSION}/${ASSET}" && \
+        URL="https://github.com/LFDT-Minokawa/compact/releases/download/v${VERSION}/${ASSET}" && \
         mkdir -p /compactc-bin && \
         echo "Downloading compactc: ${URL}" && \
         curl -fsSL "${URL}" -o /tmp/compactc.zip && \
@@ -697,8 +697,8 @@ prep-no-copy:
     ARG COMPACTC_VER=$(cat COMPACTC_VERSION)
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
-    # FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
+    FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
+    # FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
 
     # ca-certificates and curl-minimal already present in the CI base image
 

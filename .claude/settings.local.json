@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:www.npmjs.com)",
+      "Bash(gh release:*)",
+      "Bash(npm view:*)",
+      "Bash(curl -s \"https://registry.npmjs.org/@midnight-ntwrk/compact-js-command/2.5.0-rc.1\" 2>&1 | python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('dependencies',{}\\), indent=2\\)\\)\")"
+    ]
+  }
+}
