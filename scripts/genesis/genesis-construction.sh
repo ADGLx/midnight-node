@@ -959,33 +959,58 @@ main() {
 
         # Collect bootnodes
         local bootnodes=()
+        local bootnodes_config="$REPO_ROOT/res/$network/bootnodes-config.json"
         echo -e "${BOLD}Bootnodes are the initial peers that new nodes connect to when joining the network.${NC}"
         echo -e "Format: ${CYAN}/dns/hostname/tcp/30333/p2p/<peer-id>${NC}"
         echo -e "        ${CYAN}/ip4/1.2.3.4/tcp/30333/p2p/<peer-id>${NC}"
         echo ""
-        if confirm "Add bootnodes to the chain specification?" "n"; then
-            echo ""
-            print_info "Enter bootnode multiaddresses one per line. Press Enter on an empty line to finish."
-            echo ""
-            while true; do
-                local bootnode
-                echo -en "${BOLD}Bootnode: ${NC}"
-                read -r bootnode
-                if [[ -z "$bootnode" ]]; then
-                    break
-                fi
-                # Basic validation: must start with /
-                if [[ "$bootnode" != /* ]]; then
-                    print_warning "Invalid multiaddress (must start with /). Skipping: $bootnode"
-                    continue
-                fi
-                bootnodes+=("$bootnode")
-                print_success "Added: $bootnode"
-            done
-            if [[ ${#bootnodes[@]} -gt 0 ]]; then
+
+        # Pre-populate bootnodes from bootnodes-config.json if it exists
+        if [[ -f "$bootnodes_config" ]] && command -v jq &>/dev/null; then
+            local default_bootnodes
+            default_bootnodes=$(jq -r '.bootnodes[]' "$bootnodes_config" 2>/dev/null)
+            if [[ -n "$default_bootnodes" ]]; then
+                print_info "Found bootnodes in res/$network/bootnodes-config.json:"
+                while IFS= read -r bn; do
+                    bootnodes+=("$bn")
+                    print_file "$bn"
+                done <<< "$default_bootnodes"
+                echo ""
+            fi
+        fi
+
+        if [[ ${#bootnodes[@]} -gt 0 ]]; then
+            if confirm "Add bootnodes to the chain specification?" "y"; then
                 print_info "${#bootnodes[@]} bootnode(s) will be added after chain-spec generation."
             else
-                print_info "No bootnodes added."
+                bootnodes=()
+                print_info "No bootnodes will be added."
+            fi
+        else
+            if confirm "Add bootnodes to the chain specification?" "n"; then
+                echo ""
+                print_info "Enter bootnode multiaddresses one per line. Press Enter on an empty line to finish."
+                echo ""
+                while true; do
+                    local bootnode
+                    echo -en "${BOLD}Bootnode: ${NC}"
+                    read -r bootnode
+                    if [[ -z "$bootnode" ]]; then
+                        break
+                    fi
+                    # Basic validation: must start with /
+                    if [[ "$bootnode" != /* ]]; then
+                        print_warning "Invalid multiaddress (must start with /). Skipping: $bootnode"
+                        continue
+                    fi
+                    bootnodes+=("$bootnode")
+                    print_success "Added: $bootnode"
+                done
+                if [[ ${#bootnodes[@]} -gt 0 ]]; then
+                    print_info "${#bootnodes[@]} bootnode(s) will be added after chain-spec generation."
+                else
+                    print_info "No bootnodes added."
+                fi
             fi
         fi
         echo ""
