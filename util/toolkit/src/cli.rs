@@ -111,6 +111,11 @@ pub struct Cli {
 	#[arg(long, global = true, env = "MN_LOG_JSON")]
 	pub log_json: bool,
 
+	/// Number of threads for parallel wallet updates during block replay.
+	/// Defaults to number of CPU cores.
+	#[arg(long, global = true, env = "MN_REPLAY_CONCURRENCY")]
+	pub replay_concurrency: Option<usize>,
+
 	#[command(subcommand)]
 	pub command: Commands,
 }

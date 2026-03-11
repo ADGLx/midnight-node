@@ -7985,6 +7985,7 @@ dependencies = [
  "num_cpus",
  "parity-scale-codec",
  "rand 0.8.5",
+ "rayon",
  "redb",
  "serde",
  "serde_json",

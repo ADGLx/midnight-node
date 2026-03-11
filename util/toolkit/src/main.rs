@@ -75,6 +75,14 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 					tracing_subscriber::fmt().with_max_level(tracing::Level::WARN).finish();
 				tracing::subscriber::set_global_default(subscriber)?;
 
+				if let Some(n) = cli.replay_concurrency {
+					rayon::ThreadPoolBuilder::new()
+						.num_threads(n)
+						.build_global()
+						.expect("failed to configure global rayon thread pool");
+					log::info!("Rayon global pool set to {} threads", n);
+				}
+
 				let res = run_command(cli.command).await;
 
 				if let Err(ref e) = res {
