@@ -21,7 +21,7 @@ The toolkit is a transaction generator and testing tool for Midnight. It fetches
             │                  │
             │                  ▼
             │         Node.js child process
-            │         toolkit.js -> compact.js → compact-runtime
+            │         toolkit.js -> compact.js -> compact-runtime
             │         Deploy | Circuit | Maintain
             │
             ▼
