@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025-2026 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -23,9 +23,8 @@ use subxt::{
 use crate::fetcher::{
 	fetch_storage::{FetchStorage, FetchedBlock},
 	runtimes::{
-		MidnightMetadata, MidnightMetadata0_17_0, MidnightMetadata0_17_1, MidnightMetadata0_18_0,
-		MidnightMetadata0_18_1, MidnightMetadata0_19_0, MidnightMetadata0_20_0,
-		MidnightMetadata0_21_0, MidnightMetadata0_22_0, RuntimeVersion, RuntimeVersionError,
+		MidnightMetadata, MidnightMetadata0_21_0, MidnightMetadata0_22_0, RuntimeVersion,
+		RuntimeVersionError,
 	},
 };
 
@@ -53,25 +52,21 @@ pub enum ComputeTask {
 }
 
 impl ComputeTask {
-	pub async fn work(
-		self,
-		chain_id: H256,
-		storage: impl FetchStorage + Send + Sync,
-	) -> ComputeResult {
+	pub async fn work(self, chain_id: H256, storage: impl FetchStorage) -> ComputeResult {
 		match self {
 			ComputeTask::ExtractBlockData { min, max, blocks } => {
-				log::info!("extracting block data {min}..{max}");
+				log::debug!("extracting block data {min}..{max}");
 				let mut blocks_to_insert = Vec::new();
 				for b in blocks {
 					let block_data = Self::extract_data(&b).await?;
 					blocks_to_insert.push((b.block.number() as u64, block_data));
 				}
 				storage.insert_block_data_range(chain_id, blocks_to_insert.into_iter()).await;
-				log::info!("extracting block data {min}..{max}: complete");
+				log::debug!("extracting block data {min}..{max}: complete");
 				Ok(ComputeTask::Verify { min, max })
 			},
 			ComputeTask::Verify { min, max } => {
-				log::info!("verifying {min}..{max}");
+				log::debug!("verifying {min}..{max}");
 				let blocks = storage.get_block_data_range(chain_id, (min..max).into_iter()).await;
 				let blocks: Result<Vec<RawBlockData>, ComputeError> = (min..max)
 					.into_iter()
@@ -88,12 +83,12 @@ impl ComputeTask {
 					return Err(ComputeError::ChildBlockVerificationFailed(child.number));
 				}
 
-				log::info!("verifying {min}..{max}: complete");
+				log::debug!("verifying {min}..{max}: complete");
 
 				Ok(ComputeTask::FinalVerify { min, max })
 			},
 			ComputeTask::FinalVerify { min, max } => {
-				log::info!("final verify {min} and {max}");
+				log::debug!("final verify {min} and {max}");
 
 				// Check min - only for genesis block
 				if min == 0 {
@@ -117,7 +112,7 @@ impl ComputeTask {
 				}
 				// If child (block `max`) doesn't exist, we're at the last batch - no forward check needed
 
-				log::info!("final verify {min} and {max}: complete");
+				log::debug!("final verify {min} and {max}: complete");
 				Ok(ComputeTask::NoOp)
 			},
 			ComputeTask::NoOp => Ok(ComputeTask::NoOp),
@@ -141,30 +136,6 @@ impl ComputeTask {
 			})
 			.expect("no runtime version found")?;
 		match spec_version {
-			RuntimeVersion::V0_17_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_17_0>(block, spec_version)
-					.await
-			},
-			RuntimeVersion::V0_17_1 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_17_1>(block, spec_version)
-					.await
-			},
-			RuntimeVersion::V0_18_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_18_0>(block, spec_version)
-					.await
-			},
-			RuntimeVersion::V0_18_1 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_18_1>(block, spec_version)
-					.await
-			},
-			RuntimeVersion::V0_19_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_19_0>(block, spec_version)
-					.await
-			},
-			RuntimeVersion::V0_20_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_20_0>(block, spec_version)
-					.await
-			},
 			RuntimeVersion::V0_21_0 => {
 				Self::process_block_with_protocol::<MidnightMetadata0_21_0>(block, spec_version)
 					.await

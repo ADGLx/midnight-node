@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025-2026 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -24,6 +24,7 @@ use sp_runtime::DispatchError;
 #[benchmarks]
 mod benchmarks {
 	use super::*;
+	use alloc::vec;
 
 	// Helper function to create a motion with a specific number of approvals
 	fn create_motion_with_approvals<T: Config>(num_approvals: u32) -> (T::Hash, T::MotionCall) {

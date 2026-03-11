@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025-2026 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -356,6 +356,7 @@ pub mod pallet {
 
 		#[cfg(feature = "runtime-benchmarks")]
 		fn motion_call() -> (T::Hash, T::MotionCall) {
+			use alloc::vec;
 			let call: T::MotionCall =
 				frame_system::Call::<T>::remark { remark: vec![1, 2, 3] }.into();
 			let motion_hash = T::Hashing::hash_of(&call);

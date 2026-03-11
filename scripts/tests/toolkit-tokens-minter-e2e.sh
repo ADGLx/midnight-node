@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This file is part of midnight-node.
-# Copyright (C) 2025-2026 Midnight Foundation
+# Copyright (C) Midnight Foundation
 # SPDX-License-Identifier: Apache-2.0
 # Licensed under the Apache License, Version 2.0 (the "License");
 # You may not use this file except in compliance with the License.
@@ -189,7 +189,7 @@ docker run --rm -e RUST_BACKTRACE=1 --network container:midnight-node-contracts 
     "$domain_sep" \
     1000
 
-echo "Generate intent to send unshielded intent"
+echo "Generate intent to send unshielded token"
 docker run --rm -e RUST_BACKTRACE=1 --network container:midnight-node-contracts \
     -e RESTORE_OWNER="$(id -u):$(id -g)" \
     -v $tempdir:/out -v $tempdir/$contract_dir:/toolkit-js/contract \

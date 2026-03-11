@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025-2026 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -58,7 +58,7 @@ impl TxGenerator {
 		let source = Self::source(src, dry_run).await?;
 		let destinations = Self::destinations(dest, dry_run).await?;
 		if dry_run {
-			println!("Dry-run: Builder type: {:?}", &builder);
+			log::info!("Dry-run: Builder type: {:?}", &builder);
 		}
 		let prover_config = Self::prover_config(proof_server, dry_run);
 
@@ -68,7 +68,7 @@ impl TxGenerator {
 	pub async fn source(src: Source, dry_run: bool) -> Result<Box<dyn GetTxs>, SourceError> {
 		if let Some(ref src_files) = src.src_files {
 			if dry_run {
-				println!("Dry-run: Source transactions from file(s): {:?}", &src_files);
+				log::info!("Dry-run: Source transactions from file(s): {:?}", &src_files);
 				return Ok(Box::new(()));
 			}
 			let source: Box<dyn GetTxs> = Box::new(GetTxsFromFile::new(
@@ -79,13 +79,14 @@ impl TxGenerator {
 			Ok(source)
 		} else if let Some(url) = src.src_url {
 			if dry_run {
-				println!("Dry-run: Source transactions from url: {:?}", &url);
+				log::info!("Dry-run: Source transactions from url: {:?}", &url);
 				return Ok(Box::new(()));
 			}
 			let source: Box<dyn GetTxs> = Box::new(GetTxsFromUrl::new(
 				&url,
 				src.fetch_concurrency,
-				src.fetch_compute_concurrency.unwrap_or_else(num_cpus::get),
+				src.fetch_compute_concurrency
+					.unwrap_or_else(|| std::thread::available_parallelism().map_or(1, |n| n.get())),
 				src.dust_warp,
 				src.fetch_only_cached,
 				src.fetch_cache,
@@ -102,7 +103,7 @@ impl TxGenerator {
 	) -> Result<Vec<Box<dyn SendTxs>>, DestinationError> {
 		if let Some(ref dest_file) = dest.dest_file {
 			if dry_run {
-				println!("Dry-run: Destination file: {:?}", &dest_file);
+				log::info!("Dry-run: Destination file: {:?}", &dest_file);
 				return Ok(vec![Box::new(())]);
 			}
 			let destination: Box<dyn SendTxs> = Box::new(SendTxsToFile::new(dest_file.clone()));
@@ -113,8 +114,8 @@ impl TxGenerator {
 		// ------ accept multiple urls ------
 		let mut dests = vec![];
 		if dry_run {
-			println!("Dry-run: Destination RPC(s): {:?}", &dest.dest_urls);
-			println!("Dry-run: Destination rate: {:?} TPS", &dest.rate);
+			log::info!("Dry-run: Destination RPC(s): {:?}", &dest.dest_urls);
+			log::info!("Dry-run: Destination rate: {:?} TPS", &dest.rate);
 		}
 
 		let destination: Box<dyn SendTxs> =
@@ -128,12 +129,12 @@ impl TxGenerator {
 	pub fn prover_config(proof_server: Option<String>, dry_run: bool) -> ProverConfig {
 		if let Some(url) = proof_server {
 			if dry_run {
-				println!("Dry-run: remote prover: {url}");
+				log::info!("Dry-run: remote prover: {url}");
 			}
 			ProverConfig::Remote(url)
 		} else {
 			if dry_run {
-				println!("Dry-run: local prover (no proof server)");
+				log::info!("Dry-run: local prover (no proof server)");
 			}
 			ProverConfig::Local
 		}
@@ -157,7 +158,7 @@ impl TxGenerator {
 		let mut any_failed = false;
 		for result in results {
 			if let Err(e) = result {
-				println!("ERROR: {e}");
+				eprintln!("ERROR: {e}");
 				any_failed = true;
 			}
 		}

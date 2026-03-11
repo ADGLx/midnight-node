@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025-2026 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -222,7 +222,7 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		log::info!("CROSS_CHAIN pubkey: {}", &keypair.public())
 	}
 
-	runner.run_node_until_exit(|config| async move {
+	let run_result = runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 		let midnight_cfg = cfg.midnight_cfg.clone();
 
@@ -261,7 +261,12 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		)
 		.await
 		.map_err(sc_cli::Error::Service)
-	})
+	});
+
+	// Explicitly release global ledger storage on shutdown.
+	midnight_node_ledger::drop_all_default_storage();
+
+	run_result
 }
 
 /// Returns the CFG_PRESET from environment, defaulting to "dev"
