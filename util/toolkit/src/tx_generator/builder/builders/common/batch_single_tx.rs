@@ -20,7 +20,7 @@ use super::ledger_helpers_local::{
 	UtxoSpendInfo, WalletAddress, WalletSeed,
 };
 use async_trait::async_trait;
-use tokio::sync::Semaphore;
+use futures::stream::StreamExt;
 
 use crate::{Progress, serde_def::SourceTransactions, tx_generator::builder::BatchSingleTxArgs};
 use midnight_node_ledger_helpers::fork::raw_block_data::SerializedTxBatches;
@@ -63,7 +63,7 @@ impl BatchSingleTxBuilder {
 		Self { context, prover, transfers, concurrency }
 	}
 
-	fn build_single_transfer(
+	async fn build_single_transfer(
 		context: Arc<LedgerContext<DefaultDB>>,
 		prover: Arc<dyn ProofProvider<DefaultDB>>,
 		spec: &TransferSpec,
@@ -189,9 +189,12 @@ impl BatchSingleTxBuilder {
 			);
 		}
 
-		let tx = tokio::runtime::Handle::current()
-			.block_on(tx_info.prove())
-			.map_err(|e| BatchTransferError::ProvingFailed(format!("{e}")))?;
+		let tx = tokio::task::spawn_blocking(move || {
+			tokio::runtime::Handle::current().block_on(tx_info.prove())
+		})
+		.await
+		.expect("proving task panicked")
+		.map_err(|e| BatchTransferError::ProvingFailed(format!("{e}")))?;
 
 		Ok(TransactionWithContext::new(tx, None))
 	}
@@ -264,6 +267,20 @@ fn build_unshielded_intents(
 	Ok(intents)
 }
 
+fn write_tx_file(
+	path: &str,
+	tx: &midnight_node_ledger_helpers::fork::raw_block_data::SerializedTx,
+) {
+	if let Some(parent) = std::path::Path::new(path).parent() {
+		std::fs::create_dir_all(parent)
+			.unwrap_or_else(|e| panic!("failed to create directory for '{}': {}", path, e));
+	}
+	let mut file = std::fs::File::create(path)
+		.unwrap_or_else(|e| panic!("failed to create dest_file '{}': {}", path, e));
+	file.write_all(&serde_json::to_vec(tx).expect("serialization error"))
+		.unwrap_or_else(|e| panic!("failed to write to '{}': {}", path, e));
+}
+
 #[async_trait]
 impl BuildTxs for BatchSingleTxBuilder {
 	type Error = BatchSingleTxError;
@@ -276,62 +293,44 @@ impl BuildTxs for BatchSingleTxBuilder {
 		log::info!("Building {} transfers from batch spec...", total);
 
 		let progress = Progress::new(total, "generating batch-single-tx transfers");
-		let sema = Arc::new(Semaphore::new(self.concurrency));
 
-		let tasks: Vec<_> = self
+		let mut succeeded = 0usize;
+		let mut failed = 0usize;
+
+		let futures: Vec<_> = self
 			.transfers
 			.iter()
 			.map(|spec| {
 				let context = self.context.clone();
 				let prover = self.prover.clone();
 				let spec = spec.clone();
-				let sema = sema.clone();
-
-				tokio::task::spawn_blocking(move || {
-					let rt = tokio::runtime::Handle::current();
-					let _permit = rt.block_on(async { sema.acquire().await.unwrap() });
-					let tx_with_ctx = Self::build_single_transfer(context, prover, &spec)?;
-					let serialized = super::tx_serialization::build_single(tx_with_ctx);
-					let tx = serialized
-						.batches
-						.into_iter()
-						.next()
-						.and_then(|b| b.into_iter().next())
-						.expect("build_single should produce exactly one tx");
-
-					if let Some(parent) = std::path::Path::new(&spec.dest_file).parent() {
-						std::fs::create_dir_all(parent).unwrap_or_else(|e| {
-							panic!("failed to create directory for '{}': {}", spec.dest_file, e)
+				async move {
+					let result = Self::build_single_transfer(context, prover, &spec)
+						.await
+						.map(|tx_with_ctx| {
+							let serialized = super::tx_serialization::build_single(tx_with_ctx);
+							let tx = serialized
+								.batches
+								.into_iter()
+								.next()
+								.and_then(|b| b.into_iter().next())
+								.expect("build_single should produce exactly one tx");
+							write_tx_file(&spec.dest_file, &tx);
 						});
-					}
-					let mut file = std::fs::File::create(&spec.dest_file).unwrap_or_else(|e| {
-						panic!("failed to create dest_file '{}': {}", spec.dest_file, e)
-					});
-					file.write_all(&serde_json::to_vec(&tx).expect("serialization error"))
-						.unwrap_or_else(|e| {
-							panic!("failed to write to '{}': {}", spec.dest_file, e)
-						});
-
-					Ok::<_, BatchTransferError>(spec.dest_file.clone())
-				})
+					(spec.dest_file, result)
+				}
 			})
 			.collect();
+		let mut stream = futures::stream::iter(futures).buffer_unordered(self.concurrency);
 
-		let mut succeeded = 0usize;
-		let mut failed = 0usize;
-
-		for task in tasks {
-			match task.await {
-				Ok(Ok(dest_file)) => {
+		while let Some((dest_file, result)) = stream.next().await {
+			match result {
+				Ok(()) => {
 					log::info!("Wrote tx to {}", dest_file);
 					succeeded += 1;
 				},
-				Ok(Err(e)) => {
-					log::error!("Transfer failed: {}", e);
-					failed += 1;
-				},
 				Err(e) => {
-					log::error!("Transfer task panicked: {}", e);
+					log::error!("Transfer to '{}' failed: {}", dest_file, e);
 					failed += 1;
 				},
 			}
