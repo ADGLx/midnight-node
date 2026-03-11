@@ -2,6 +2,8 @@
 
 CLI tool for interacting with the Midnight blockchain. Supports transaction generation, wallet management, contract deployment, and testing.
 
+See [Architecture](docs/architecture.md) for a high-level overview of the toolkit's components and data flow.
+
 ---
 
 ## 🚀 **Quick Start: See Usage Examples**
