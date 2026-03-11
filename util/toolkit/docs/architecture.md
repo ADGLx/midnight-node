@@ -13,10 +13,11 @@ The toolkit is a transaction generator and testing tool for Midnight. It fetches
                     │   cli.rs, commands/  │
                     └──────────────────────┘
                                │
-            ┌──────────────────┼──────────────────┐
+            ┌──────────────────┼───────────────────┐
             ▼                  ▼                   ▼
      TxGenerator           toolkit_js           Genesis
   (tx_generator/mod.rs)  (toolkit_js/mod.rs)  (genesis_generator.rs)
+            |                  │               Ledger 8 only
             │                  │
             │                  ▼
             │         Node.js child process
@@ -57,9 +58,9 @@ The toolkit is a transaction generator and testing tool for Midnight. It fetches
                        │
                        ▼
  ┌───────────────────────────────────────────┐
- │  Midnight Node (RPC :9944)               │
- │  MidnightNodeClient (client.rs)          │
- │  Rate-limited by Sender (sender.rs)      │
+ │  Midnight Node (RPC :9944)                │
+ │  MidnightNodeClient (client.rs)           │
+ │  Rate-limited by Sender (sender.rs)       │
  └───────────────────────────────────────────┘
 ```
 
