@@ -4,6 +4,7 @@
 
 Implementation of the Midnight blockchain node, providing consensus, transaction processing, and privacy-preserving smart contract execution. The node enables participants to maintain both public blockchain state and private user state through zero-knowledge proofs.
 
+
 ## Architecture
 
 ```
