@@ -5,27 +5,27 @@
 The toolkit is a transaction generator and testing tool for Midnight. It fetches chain state, builds transactions against a local ledger context, and submits them to a node.
 
 ```
-                              User
-                               │
-                               ▼
-                    ┌──────────────────────┐
-                    │   CLI                │
-                    │   cli.rs, commands/  │
-                    └──────────────────────┘
-                               │
-            ┌──────────────────┼───────────────────┐
-            ▼                  ▼                   ▼
-     TxGenerator           toolkit_js           Genesis
-  (tx_generator/mod.rs)  (toolkit_js/mod.rs)  (genesis_generator.rs)
-            |                  │               Ledger 8 only
-            │                  │
-            │                  ▼
-            │         Node.js child process
-            │         toolkit.js -> compact.js -> compact-runtime
-            │         Deploy | Circuit | Maintain
-            │
-            ▼
- ┌───────────────────────────────────────────┐
+                                          User
+                                           │
+                                           ▼
+                                ┌──────────────────────┐
+                                │   CLI                │
+                                │   cli.rs, commands/  │
+                                └──────────────────────┘
+                                           │
+            ┌──────────────────┬───────────┴───────────┬────────────────────┐
+            ▼                  ▼                       ▼                    ▼
+       TxGenerator          toolkit_js              Genesis         Standalone Commands
+    (tx_generator/mod.rs)  (toolkit_js/mod.rs)  (genesis_generator.rs)  (commands/)
+            │                  │                 Ledger 8 only              │
+            │                  ▼                                            ▼
+            │         Node.js child process                            show-wallet
+            │         toolkit.js -> compact.js                         show-address
+            │           -> compact-runtime                             dust-balance
+            │         Deploy | Circuit | Maintain                      show-transaction
+            │                                                          root-call
+            ▼                                                          runtime-upgrade
+ ┌───────────────────────────────────────────┐                         ...
  │  Source (source.rs)                       │
  │  GetTxsFromFile (.mn)  GetTxsFromUrl      │
  └───────────────────────────────────────────┘
