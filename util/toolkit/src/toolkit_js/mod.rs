@@ -23,6 +23,9 @@ pub struct ToolkitJs {
 	/// location of the toolkit-js.
 	#[arg(long = "toolkit-js-path", env = "TOOLKIT_JS_PATH")]
 	pub path: String,
+	/// Compact compiler version to use (passed to toolkit-js --compact-version)
+	#[arg(long = "compact-version", env = "COMPACTC_VERSION")]
+	pub compact_version: Option<String>,
 }
 
 /// Adds some protection against accidentally passing relative types to toolkit-js
@@ -375,11 +378,18 @@ impl ToolkitJs {
 	fn execute_js(&self, args: &[&str]) -> Result<(), ToolkitJsError> {
 		let cmd = PathBuf::from(&self.path).join(BUILD_DIST).to_string_lossy().to_string();
 		log::info!("Executing {cmd}...");
-		log::debug!("Executing {cmd} with arguments: {args:?}...");
+
+		let mut full_args: Vec<&str> = Vec::new();
+		if let Some(ref version) = self.compact_version {
+			full_args.extend_from_slice(&["--compact-version", version]);
+		}
+		full_args.extend_from_slice(args);
+
+		log::debug!("Executing {cmd} with arguments: {full_args:?}...");
 
 		let output = std::process::Command::new(cmd)
 			.current_dir(&self.path)
-			.args(args)
+			.args(&full_args)
 			.output()
 			.map_err(ToolkitJsError::ExecutionError)?;
 
