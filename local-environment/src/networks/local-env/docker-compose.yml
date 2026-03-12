@@ -421,7 +421,7 @@ services:
 
   midnight-node-4:
     container_name: midnight-node-4
-    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-d0bb2d54-arm64
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-5feef03a-arm64
     depends_on:
       midnight-setup:
         condition: service_completed_successfully
@@ -452,7 +452,7 @@ services:
 
   midnight-node-5:
     container_name: midnight-node-5
-    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-77e80bba-arm64
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-5feef03a-arm64
     pull_policy: never
     depends_on:
       midnight-setup:
@@ -483,7 +483,7 @@ services:
 
   midnight-setup:
     container_name: midnight-setup
-    image: ${MIDNIGHT_NODE_IMAGE}
+    image: ghcr.io/midnight-ntwrk/midnight-node:0.22.0-rc.7
     platform: ${ARCHITECTURE}
     depends_on:
       ogmios:

@@ -34,6 +34,7 @@ set -euxo pipefail
   --state-pruning=archive \
   --blocks-pruning=archive \
   --pool-limit=10 \
+  --filter-deploy-txs \
   --enable-offchain-indexing true &
 
   touch /shared/midnight-node-5.ready

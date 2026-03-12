@@ -36,6 +36,7 @@ set -euxo pipefail
   --state-pruning=archive \
   --blocks-pruning=archive \
   -l filtering_pool=debug \
+  --filter-deploy-txs \
   --pool-limit=10 \
   --enable-offchain-indexing true &
 
