@@ -5,5 +5,5 @@ Runtime `--filter-deploy-txs` switch has been added along with a TransactionPool
 When the switch is used, then the node transaction pool won’t accept extrinsics that contain
 Midnight `Op::Deploy` or `Op::Maintain` operations.
 
-PR:  https://github.com/midnightntwrk/midnight-node/pull/894
+PR:  https://github.com/midnightntwrk/midnight-node/pull/913
 JIRA: https://shielded.atlassian.net/browse/PM-22280
