@@ -36,6 +36,12 @@
       "grandpa_pub_key": "0x8c33977f732733a752143cf6b805afec19f644a8f6a954aa3d7c097a039c1168",
       "sidechain_pub_key": "0x02e7d8abfd5b3b6b49cdc1a2bab81d3f7e2499ae92a4462796dfe34f9ca4488a9f",
       "beefy_pub_key": "0x02e7d8abfd5b3b6b49cdc1a2bab81d3f7e2499ae92a4462796dfe34f9ca4488a9f"
+    },
+    {
+      "aura_pub_key": "0x88b8c75b01ff5679ee8e25b982cbdc7bcae25fda7607a2839fbf4ecd6cd9ab8e",
+      "grandpa_pub_key": "0xa9f6498101f8c7d606a0eb2f7b3585fcb8d48299b7542564fc1e7dd741c37a38",
+      "sidechain_pub_key": "0x812526dbb4be21f3be14b9ec909fc6bd4f8ef8a4e826f42a538da6f558c8d24c",
+      "beefy_pub_key": "0x812526dbb4be21f3be14b9ec909fc6bd4f8ef8a4e826f42a538da6f558c8d24c"
     }
   ]
 }
