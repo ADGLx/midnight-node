@@ -48,7 +48,11 @@ pub struct SubstrateCfg {
 
 impl SubstrateCfg {
 	pub fn argv(&self) -> Vec<String> {
-		[&["midnight-node".to_string()], &self.args[..], &self.append_args[..]].concat()
+		let chain_args: Vec<String> = match &self.chain {
+			Some(chain) => vec!["--chain".to_string(), chain.clone()],
+			None => vec![],
+		};
+		[&["midnight-node".to_string()], &chain_args[..], &self.args[..], &self.append_args[..]].concat()
 	}
 }
 
