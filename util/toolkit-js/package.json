@@ -31,6 +31,9 @@
     "@midnight-ntwrk/compact-js": "2.4.3",
     "@midnight-ntwrk/compact-js-command": "2.4.3",
     "@midnight-ntwrk/compact-js-node": "2.4.3",
+    "@midnight-ntwrk/compact-js-v2-5-0": "npm:@midnight-ntwrk/compact-js@2.5.0-rc.1",
+    "@midnight-ntwrk/compact-js-command-v2-5-0": "npm:@midnight-ntwrk/compact-js-command@2.5.0-rc.1",
+    "@midnight-ntwrk/compact-js-node-v2-5-0": "npm:@midnight-ntwrk/compact-js-node@2.5.0-rc.1",
     "effect": "^3.19.19"
   },
   "devDependencies": {

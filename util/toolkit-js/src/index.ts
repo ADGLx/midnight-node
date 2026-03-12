@@ -12,24 +12,58 @@
 // limitations under the License.
 
 import {Effect, Layer, Logger, LogLevel} from 'effect';
-import {Command, CliConfig} from '@effect/cli';
+import {Command, CliConfig, Options} from '@effect/cli';
 import {NodeContext, NodeRuntime} from "@effect/platform-node";
-import {
-    ConfigCompiler,
-    deployCommand,
-    circuitCommand,
-    maintainCommand
-} from '@midnight-ntwrk/compact-js-command/effect';
 import Package from '@midnight-ntwrk/node-toolkit/package.json' with {type: 'json'};
+import {getDefaultVersion, getSupportedVersions} from './version-registry.js';
+
+// Pre-parse --compact-version from argv before Effect CLI runs,
+// since the value determines which commands to dynamically import.
+function parseCompactVersion(argv: string[]): string {
+    const idx = argv.indexOf('--compact-version');
+    if (idx !== -1 && idx + 1 < argv.length) {
+        return argv[idx + 1];
+    }
+    return getDefaultVersion();
+}
+
+async function loadCommands(version: string) {
+    switch (version) {
+        case '0.29.0': {
+            const {deployCommand, circuitCommand, maintainCommand, ConfigCompiler} =
+                await import('@midnight-ntwrk/compact-js-command/effect');
+            return {
+                subcommands: [deployCommand, circuitCommand, maintainCommand] as const,
+                configCompilerLayer: ConfigCompiler.layer,
+            };
+        }
+        case '0.30.0-rc.0': {
+            const {deployCommand, circuitCommand, maintainCommand, ConfigCompiler} =
+                await import('@midnight-ntwrk/compact-js-command-v2-5-0/effect');
+            return {
+                subcommands: [deployCommand, circuitCommand, maintainCommand] as const,
+                configCompilerLayer: ConfigCompiler.layer,
+            };
+        }
+        default:
+            throw new Error(
+                `Unsupported compact version: ${version}. Supported versions: ${getSupportedVersions().join(', ')}`
+            );
+    }
+}
+
+const compactVersion = parseCompactVersion(process.argv);
+const {subcommands, configCompilerLayer} = await loadCommands(compactVersion);
+
+const compactVersionOption = Options.text('compact-version').pipe(
+    Options.withDescription(`CompactC compiler version (supported: ${getSupportedVersions().join(', ')})`),
+    Options.withDefault(getDefaultVersion()),
+);
 
 const cli = Command.run(
-    Command.make('midnight-node-toolkit-js').pipe(
+    Command.make('midnight-node-toolkit-js', {compactVersion: compactVersionOption}).pipe(
         Command.withDescription('Provides utilities to execute Compact compiled contracts from the command line.'),
-        Command.withSubcommands([
-            deployCommand,
-            circuitCommand,
-            maintainCommand
-        ])
+        Command.withSubcommands([...subcommands])
     ),
     {
         name: 'Midnight Node Toolkit',
@@ -38,11 +72,15 @@ const cli = Command.run(
     }
 );
 
-cli(process.argv).pipe(
+// configCompilerLayer is a union of version-specific Layer types that are
+// structurally compatible but nominally distinct; cast to unify them.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const program = cli(process.argv).pipe(
     Logger.withMinimumLogLevel(LogLevel.None),
     Effect.provide(Layer.mergeAll(
-        ConfigCompiler.layer.pipe(Layer.provideMerge(NodeContext.layer)),
+        (configCompilerLayer as any).pipe(Layer.provideMerge(NodeContext.layer)),
         CliConfig.layer({showBuiltIns: false})
     )),
-    NodeRuntime.runMain({disableErrorReporting: false})
-);
+) as Effect.Effect<void>;
+
+program.pipe(NodeRuntime.runMain({disableErrorReporting: false}));
