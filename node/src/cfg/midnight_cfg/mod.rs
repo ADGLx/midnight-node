@@ -26,6 +26,10 @@ pub struct MidnightCfg {
 	/// On start-up, wipe the chain
 	pub wipe_chain_state: bool,
 
+	/// Reject transactions containing Deploy and Maintain Operations from entering the transaction pool.
+	#[serde(default)]
+	pub filter_deploy_txs: bool,
+
 	/// Path to file containing a secret string to use as the AURA seed (32 bytes)
 	/// Seed should be either a Phrase, hexadecimal string, or ss58-compatible string.
 	/// Docs: https://paritytech.github.io/polkadot-sdk/master/sp_core/crypto/struct.AddressUri.html#structfield.phrase

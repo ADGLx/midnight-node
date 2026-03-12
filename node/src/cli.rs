@@ -27,10 +27,6 @@ use sidechain_domain::McBlockHash;
 pub struct RunMidnight {
 	#[clap(flatten)]
 	pub run: sc_cli::RunCmd,
-
-	/// Rejects transactions that contain Deploy and Maintain Operations from being accepted to the transaction pool.
-	#[arg(long)]
-	pub filter_deploy_txs: bool,
 }
 
 #[derive(Debug, clap::Parser)]

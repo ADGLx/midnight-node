@@ -15,7 +15,7 @@
 
 use crate::{
 	cfg::Cfg,
-	cli::{self, Cli, RunMidnight, Subcommand},
+	cli::{self, Cli, Subcommand},
 	filtering_pool::TxFilterConfig,
 	genesis::creation::{
 		cnight_genesis::generate_cnight_genesis,
@@ -147,14 +147,16 @@ fn decode_genesis_state(
 }
 
 fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
-	let run_midnight = RunMidnight::try_parse_from(cfg.substrate_cfg.clone().argv())
-		.map_err(|e| sc_cli::Error::Input(format!("invalid node run arguments: {e}")))?;
-	let tx_filter_config = if run_midnight.filter_deploy_txs {
+	let tx_filter_config = if cfg.midnight_cfg.filter_deploy_txs {
 		TxFilterConfig::enabled()
 	} else {
 		TxFilterConfig::disabled()
 	};
-	let run_cmd: RunCmd = run_midnight.run;
+
+	let run_cmd: RunCmd = cfg.substrate_cfg.clone().try_into()?;
+
+	dbg!(&tx_filter_config);
+
 	if cfg.midnight_cfg.wipe_chain_state
 		&& let Some(base_path) = run_cmd.base_path()?
 	{
