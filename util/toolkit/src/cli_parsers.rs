@@ -67,11 +67,18 @@ pub fn hex_ledger_decode<T: Deserializable + Tagged>(input: &str) -> Result<T, c
 }
 
 pub fn coin_public_decode(input: &str) -> Result<CoinPublicKey, clap::error::Error> {
-	hex_ledger_untagged_decode(input)
+	hex_ledger_prefer_tagged_decode(input)
 }
 
 pub fn contract_address_decode(input: &str) -> Result<ContractAddress, clap::error::Error> {
-	hex_ledger_untagged_decode(input)
+	hex_ledger_prefer_tagged_decode(input)
+}
+
+pub fn hex_ledger_prefer_tagged_decode<T>(input: &str) -> Result<T, clap::error::Error>
+where
+	T: Deserializable + Tagged,
+{
+	hex_ledger_tagged_decode::<T>(input).or_else(|_| hex_ledger_untagged_decode(input))
 }
 
 pub fn hex_ledger_untagged_decode<T>(input: &str) -> Result<T, clap::error::Error>
@@ -82,12 +89,13 @@ where
 		let mut err = clap::Error::new(clap::error::ErrorKind::ValueValidation);
 		err.insert(
 			clap::error::ContextKind::Custom,
-			clap::error::ContextValue::String(format!("failed to parse seed: {}", e)),
+			clap::error::ContextValue::String(format!("failed to parse hex input: {}", e)),
 		);
 		err
 	})?;
 
-	let res = <T as Deserializable>::deserialize(&mut &bytes[..], 0).map_err(|e| {
+	let mut cursor = &bytes[..];
+	let res = <T as Deserializable>::deserialize(&mut cursor, 0).map_err(|e| {
 		let mut err = clap::Error::new(clap::error::ErrorKind::ValueValidation);
 		err.insert(
 			clap::error::ContextKind::Custom,
@@ -95,6 +103,18 @@ where
 		);
 		err
 	})?;
+
+	if !cursor.is_empty() {
+		let mut err = clap::Error::new(clap::error::ErrorKind::ValueValidation);
+		err.insert(
+			clap::error::ContextKind::Custom,
+			clap::error::ContextValue::String(format!(
+				"unexpected trailing data: {} extra byte(s) after deserialization",
+				cursor.len()
+			)),
+		);
+		return Err(err);
+	}
 
 	Ok(res)
 }
