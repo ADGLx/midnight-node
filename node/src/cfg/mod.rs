@@ -545,7 +545,8 @@ mod tests {
 	fn load_all_presets() {
 		*midnight_node_res::CFG_ROOT.lock().unwrap() = Some(format!(
 			"{}/..",
-			std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
+			std::env::var("CARGO_MANIFEST_DIR")
+				.unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
 		));
 		for config in midnight_node_res::list_configs() {
 			println!("loading {config}...");
@@ -564,7 +565,8 @@ mod tests {
 	fn dev_cfg_preset_deserializes_without_errors() {
 		*midnight_node_res::CFG_ROOT.lock().unwrap() = Some(format!(
 			"{}/..",
-			std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
+			std::env::var("CARGO_MANIFEST_DIR")
+				.unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
 		));
 		let preset_cfg = Config::builder()
 			.add_source(File::from_str(&default_cfg(), FileFormat::Toml))
@@ -582,7 +584,8 @@ mod tests {
 	fn get_unused(preset_keys: &[String]) -> Vec<String> {
 		*midnight_node_res::CFG_ROOT.lock().unwrap() = Some(format!(
 			"{}/..",
-			std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
+			std::env::var("CARGO_MANIFEST_DIR")
+				.unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
 		));
 		let cfg_keys = [
 			get_keys(ChainSpecCfg::default()).unwrap(),
@@ -603,7 +606,8 @@ mod tests {
 	fn assert_no_ignored_defaults() {
 		*midnight_node_res::CFG_ROOT.lock().unwrap() = Some(format!(
 			"{}/..",
-			std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
+			std::env::var("CARGO_MANIFEST_DIR")
+				.unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
 		));
 		let default_cfg = Cfg::get_default_config().unwrap();
 		let default_value: serde_json::Value = default_cfg.try_deserialize().unwrap();
@@ -622,7 +626,8 @@ mod tests {
 	fn assert_no_ignored_cfg_presets() {
 		*midnight_node_res::CFG_ROOT.lock().unwrap() = Some(format!(
 			"{}/..",
-			std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
+			std::env::var("CARGO_MANIFEST_DIR")
+				.unwrap_or_else(|_| env!("CARGO_MANIFEST_DIR").to_string())
 		));
 		for config in midnight_node_res::list_configs() {
 			let cfg = CfgPreset(config.clone());

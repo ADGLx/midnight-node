@@ -282,5 +282,5 @@ pub async fn execute(args: UpdateLedgerParametersArgs) -> Result<(), LedgerParam
 		encoded_call_file: None,
 	})
 	.await
-	.map_err(|e| LedgerParametersError::RootCallError(e))
+	.map_err(LedgerParametersError::RootCallError)
 }

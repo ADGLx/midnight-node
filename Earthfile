@@ -774,7 +774,6 @@ check-deps:
     # shear
     RUN cargo shear
 
-# check-rust runs cargo fmt and clippy.
 planner:
     FROM +prep
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
@@ -783,43 +782,51 @@ planner:
     RUN cargo chef prepare --recipe-path recipe.json
     SAVE ARTIFACT recipe.json /recipe.json
 
-check-rust-prepare:
-    # NOTE: This just uses recipe.json - no src files!
-    FROM +prep-no-copy
-    # COPY +planner/recipe.json /recipe.json
-    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-
-    # Build dependencies - this is the caching Docker layer!
-    # RUN SKIP_WASM_BUILD=1 cargo chef cook --clippy --workspace --all-targets  --features runtime-benchmarks --recipe-path /recipe.json
-
+# check-rust runs clippy and rustfmt via Bazel aspects.
 check-rust:
-    FROM +check-rust-prepare
-    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-    COPY --keep-ts --dir \
-        Cargo.lock Cargo.toml .config .sqlx deny.toml docs \
-        ledger LICENSE node pallets primitives README.md res runtime \
-    	metadata rustfmt.toml util tests relay COMPACTC_VERSION .
+    FROM +build-prepare
+    ARG NATIVEARCH
 
-    RUN cargo fmt --all -- --check
+    # Install lld for linking
+    RUN microdnf -y install lld && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
-    ENV SKIP_WASM_BUILD=1
-    ENV CARGO_INCREMENTAL=0
+    # Install wasm-opt — the runtime-wasm genrule calls it directly.
+    # Built from source so it works on any architecture (aarch64/x86_64).
+    RUN cargo install wasm-opt --version 0.116.0
 
-    # ensure runtime benchmark feature enable to check they compile.
-    RUN cargo clippy --workspace --all-targets --features runtime-benchmarks -- -D warnings
+    # Install Bazelisk
+    ARG BAZELISK_VERSION=1.25.0
+    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
+        curl -fsSL -o /usr/local/bin/bazel \
+        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
+        chmod 0755 /usr/local/bin/bazel
 
-    RUN status=0; \
-        for pkg in $(cargo metadata --no-deps --format-version 1 \
-            | jq -r '.packages[].name'); do \
-            echo "===> Checking $pkg"; \
-            if ! cargo check -p "$pkg"; then \
-                echo "Failed: $pkg"; \
-                status=1; \
-            fi; \
-        done; \
-        exit $status
+    COPY --keep-ts --dir Cargo.lock Cargo.toml .sqlx \
+    ledger node pallets primitives metadata res runtime util tools toolchains wasm-deps tests relay COMPACTC_VERSION \
+    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel defs.bzl scripts docs patches rustfmt.toml .
+
+    RUN rm -f /.cargo/config.toml
+
+    # WORKDIR is / — exclude system dirs so //... doesn't traverse /proc, /dev, etc.
+    RUN printf 'proc\ndev\nsys\nrun\ntmp\nboot\netc\nmnt\nopt\nsrv\nvar\nusr\nroot\nlib\nlib64\nsbin\nbin\nmedia\nhome\n' >> .bazelignore
+
+    CACHE --sharing shared --id bazelisk /root/.cache/bazelisk
+    CACHE --sharing shared --id bazel-output /root/.cache/bazel
+    # Rustfmt: check formatting on all targets
+    RUN bazel build \
+        --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect \
+        --output_groups=rustfmt_checks \
+        //...
+
+    # Clippy: lint flags derived from [workspace.lints.clippy] in Cargo.toml
+    RUN CLIPPY_FLAGS=$(scripts/cargo-clippy-flags.sh) && \
+        bazel build \
+        --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect \
+        --output_groups=clippy_checks \
+        "--@rules_rust//rust/settings:clippy_flags=${CLIPPY_FLAGS}" \
+        --@rules_rust//rust/settings:clippy_flag=-Dwarnings \
+        //...
+
 
 # check-metadata confirms that metadata in the repo matches a given node image
 check-metadata:
@@ -900,50 +907,9 @@ test-pallet-fixtures:
     # SAVE ARTIFACT ./test-artifacts-pallet-fixtures-$NATIVEARCH AS LOCAL ./test-artifacts-pallet-fixtures
 
 # Midnight Node Toolkit tests - requires Node Toolkit (JS) which depends on midnight-js npm packages
+# build-test-toolkit pre-compiles integration test binaries with Bazel,
+# then packages them into a lightweight image for DinD execution.
 build-test-toolkit:
-    ARG NATIVEARCH
-    FROM +prep
-    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-    CACHE /target
-
-    # Install dependencies for Node.js and docker CLI (for hardfork e2e tests)
-    RUN microdnf -y install tar gzip xz docker && \
-        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-
-    # Install Node.js 22 for native platform (AL2023's nodejs is v18, which lacks File API needed by undici)
-    # Use native architecture since tests run on native platform, even though toolkit-js is from amd64
-    ARG NODE_VERSION=22.13.1
-    ARG TARGETARCH
-    RUN if [ "$TARGETARCH" = "arm64" ]; then \
-            NODE_ARCH="arm64"; \
-        else \
-            NODE_ARCH="x64"; \
-        fi && \
-        curl -fsSL https://nodejs.org/dist/v${NODE_VERSION}/node-v${NODE_VERSION}-linux-${NODE_ARCH}.tar.xz -o node.tar.xz && \
-        tar -xJf node.tar.xz -C /usr/local --strip-components=1 && \
-        rm node.tar.xz && \
-        node --version && npm --version
-
-    # Test
-    RUN mkdir /test-artifacts-toolkit
-    # Compile the tests to go as fast as possible on this machine:
-    ENV RUSTFLAGS="-C target-cpu=native"
-    COPY .envrc ./bin/.envrc
-    COPY static/contracts/simple-merkle-tree /test-static/simple-merkle-tree
-    ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
-
-    # Extract Node Toolkit (JS)
-    COPY +toolkit-js-prep/toolkit-js util/toolkit-js
-
-    # Run Midnight Node Toolkit package tests only (requires toolkit-js)
-    COPY scripts/test-toolkit.sh /test-toolkit.sh
-    ENTRYPOINT ["/test-toolkit.sh"]
-    SAVE IMAGE
-
-# Bazel variant of build-test-toolkit — pre-compiles integration test binaries
-# with Bazel, then packages them into a lightweight image for DinD execution.
-build-test-toolkit-bazel:
     FROM +build-prepare
     ARG NATIVEARCH
 
@@ -1009,45 +975,6 @@ build-test-toolkit-bazel:
     ENTRYPOINT ["/test-toolkit-bazel.sh"]
     SAVE IMAGE
 
-test-toolkit-bazel:
-    ARG NATIVEARCH
-    ARG NODE_IMAGE
-    ARG FORK_FROM_NODE_IMAGE
-    FROM earthly/dind:alpine
-    RUN mkdir -p /artifacts
-
-    LET EXTRA_DOCKER_ENV=""
-    IF [ -n "$NODE_IMAGE" ]
-        SET EXTRA_DOCKER_ENV="-e NODE_IMAGE=$NODE_IMAGE"
-    END
-    IF [ -n "$FORK_FROM_NODE_IMAGE" ]
-        SET EXTRA_DOCKER_ENV="$EXTRA_DOCKER_ENV -e FORK_FROM_NODE_IMAGE=$FORK_FROM_NODE_IMAGE"
-    END
-
-    IF [ -n "$NODE_IMAGE" ]
-        WITH DOCKER \
-                --load test-toolkit-bazel:latest=+build-test-toolkit-bazel \
-                --pull $NODE_IMAGE
-            RUN docker run \
-                --network=host \
-                -v /var/run/docker.sock:/var/run/docker.sock \
-                -v /artifacts:/test-artifacts-toolkit-$NATIVEARCH \
-                -e TESTCONTAINERS_HOST_OVERRIDE=localhost \
-                $EXTRA_DOCKER_ENV \
-                test-toolkit-bazel:latest
-        END
-    ELSE
-        WITH DOCKER --load test-toolkit-bazel:latest=+build-test-toolkit-bazel
-            RUN docker run \
-                --network=host \
-                -v /var/run/docker.sock:/var/run/docker.sock \
-                -v /artifacts:/test-artifacts-toolkit-$NATIVEARCH \
-                -e TESTCONTAINERS_HOST_OVERRIDE=localhost \
-                test-toolkit-bazel:latest
-        END
-    END
-    SAVE ARTIFACT /artifacts AS LOCAL ./test-artifacts-toolkit-bazel
-
 test-toolkit:
     ARG NATIVEARCH
     ARG NODE_IMAGE
@@ -1108,41 +1035,8 @@ build-prepare:
     # TODO: re-enable when chef is improved.
     # RUN SKIP_WASM_BUILD=1 cargo chef cook --release --workspace --all-targets --recipe-path /recipe.json
 
-# build creates production ready binaries
-build:
-    FROM +build-prepare
-    # CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    # CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-    # CACHE /target
-    COPY --keep-ts --dir Cargo.lock Cargo.toml docs .sqlx \
-    ledger node pallets primitives metadata res runtime util tests relay COMPACTC_VERSION .
-
-    ARG NATIVEARCH
-
-    # Should we need to cross compile again, these need to be set:
-    # ENV CC_aarch64_unknown_linux_gnu=aarch64-linux-gnu-gcc
-    # ENV CXX_aarch64_unknown_linux_gnu=aarch64-linux-gnu-g++
-    # ENV CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
-    # ENV CC_x86_64_unknown_linux_gnu=x86_64-linux-gnu-gcc
-    # ENV CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=x86_64-linux-gnu-gcc
-    # ENV AR_X86_64_UNKNOWN_LINUX_GNU=ar
-    # ENV CXX_X86_64_UNKNOWN_LINUX_GNU=x86_64-unknown-linux-gnu-g++=g++
-
-    # Default build (no hardfork)
-    RUN \
-        cargo auditable build --workspace --locked --release
-
-    RUN mkdir -p /artifacts-$NATIVEARCH/midnight-node-runtime/ \
-        && mv /target/release/midnight-node /artifacts-$NATIVEARCH \
-        && mv /target/release/midnight-node-toolkit /artifacts-$NATIVEARCH \
-        && mv /target/release/upgrader /artifacts-$NATIVEARCH \
-        && mv /target/release/aiken-deployer /artifacts-$NATIVEARCH \
-        && cp /target/release/wbuild/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/midnight-node-runtime/
-
-    SAVE ARTIFACT /artifacts-$NATIVEARCH AS LOCAL artifacts
-
-# build-bazel-image creates a Docker image with Bazel tooling for persistent container builds
-build-bazel-image:
+# bazel-image creates a Docker image with Bazel tooling for persistent container builds
+bazel-image:
     FROM +build-prepare
     ARG NATIVEARCH
 
@@ -1167,9 +1061,9 @@ build-bazel-image:
 
     SAVE IMAGE midnight-bazel-builder:latest
 
-# build-bazel-local uses a persistent Docker container to keep the Bazel server alive
+# build-local uses a persistent Docker container to keep the Bazel server alive
 # between builds, avoiding the ~100s analysis phase on incremental builds
-build-bazel-local:
+build-local:
     LOCALLY
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
@@ -1188,8 +1082,8 @@ build-bazel-local:
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
         docker exec "$CONTAINER_NAME" bazel build //...
 
-# test-bazel-local runs Bazel tests using the persistent Docker container
-test-bazel-local:
+# test-local runs Bazel tests using the persistent Docker container
+test-local:
     LOCALLY
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
@@ -1208,8 +1102,8 @@ test-bazel-local:
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
         docker exec "$CONTAINER_NAME" bazel test //...
 
-# build-bazel creates production ready binaries using Bazel
-build-bazel:
+# build creates production ready binaries using Bazel
+build:
     FROM +build-prepare
     ARG NATIVEARCH
 
@@ -1373,15 +1267,9 @@ node-image:
     RUN mkdir -p /artifacts-$NATIVEARCH
     RUN mkdir -p node
 
-    # --- Build source toggle (comment one, uncomment the other) ---
-    # Cargo build:
-    # COPY +build/artifacts-$NATIVEARCH/midnight-node /
-    # COPY +build/artifacts-$NATIVEARCH/aiken-deployer /
-    # COPY +build/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
-    # Bazel build:
-    COPY +build-bazel/artifacts-$NATIVEARCH/midnight-node /
-    COPY +build-bazel/artifacts-$NATIVEARCH/aiken-deployer /
-    COPY +build-bazel/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
+    COPY +build/artifacts-$NATIVEARCH/midnight-node /
+    COPY +build/artifacts-$NATIVEARCH/aiken-deployer /
+    COPY +build/artifacts-$NATIVEARCH/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/
 
     # Extract version from Cargo.toml to preserve semver pre-release suffix (e.g., 0.19.0-rc.1)
     COPY node/Cargo.toml /node/
@@ -1405,10 +1293,7 @@ node-image:
     # Re-export build artifacts which contain wasm
     COPY .envrc /artifacts-$NATIVEARCH/.envrc
     COPY res/ /artifacts-$NATIVEARCH/res/
-    # Cargo build:
-    # COPY +build/artifacts-$NATIVEARCH /artifacts-$NATIVEARCH
-    # Bazel build:
-    COPY +build-bazel/artifacts-$NATIVEARCH /artifacts-$NATIVEARCH
+    COPY +build/artifacts-$NATIVEARCH /artifacts-$NATIVEARCH
     SAVE ARTIFACT /artifacts-$NATIVEARCH/* AS LOCAL artifacts-$NATIVEARCH/
 
 # node-benchmarks-image creates the Midnight Substrate Node's image with runtime-benchmarks feature

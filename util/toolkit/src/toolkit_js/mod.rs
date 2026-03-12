@@ -381,7 +381,7 @@ impl ToolkitJs {
 			.map_err(ToolkitJsError::ExecutionError)?;
 
 		for line in output.stdout.lines() {
-			let line = line.map_err(|e| ToolkitJsError::ToolkitJsOutputReadError(e))?;
+			let line = line.map_err(ToolkitJsError::ToolkitJsOutputReadError)?;
 			let line = line.trim_end();
 			if line.is_empty() {
 				println!("toolkit-js>");
@@ -391,7 +391,7 @@ impl ToolkitJs {
 		}
 
 		for line in output.stderr.lines() {
-			let line = line.map_err(|e| ToolkitJsError::ToolkitJsOutputReadError(e))?;
+			let line = line.map_err(ToolkitJsError::ToolkitJsOutputReadError)?;
 			let line = line.trim_end();
 			if line.is_empty() {
 				eprintln!("toolkit-js>");

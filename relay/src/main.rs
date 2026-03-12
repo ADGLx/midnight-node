@@ -36,8 +36,12 @@ struct Cli {
 	keys_path: Option<String>,
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+	let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+	rt.block_on(async_main())
+}
+
+async fn async_main() -> Result<(), Box<dyn std::error::Error>> {
 	env_logger::init();
 
 	let cli = Cli::parse();

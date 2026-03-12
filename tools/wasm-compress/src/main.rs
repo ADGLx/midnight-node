@@ -44,11 +44,8 @@ fn main() {
 
 	let mut buf = ZSTD_PREFIX.to_vec();
 	{
-		let mut encoder = zstd::Encoder::new(&mut buf, 3)
-			.expect("zstd encoder creation failed");
-		encoder
-			.write_all(&blob)
-			.expect("zstd compression failed");
+		let mut encoder = zstd::Encoder::new(&mut buf, 3).expect("zstd encoder creation failed");
+		encoder.write_all(&blob).expect("zstd compression failed");
 		encoder.finish().expect("zstd finish failed");
 	}
 

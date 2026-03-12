@@ -89,15 +89,12 @@ mod test {
 		"undeployed case"
 	)]
 	fn test_contract_address(src_file: &str, untagged_address_file: &str) {
-		let args = ContractAddressArgs {
-			src_file: res_path(src_file),
-			tagged: false,
-			untagged: false,
-		};
+		let args =
+			ContractAddressArgs { src_file: res_path(src_file), tagged: false, untagged: false };
 		let res = execute(args).expect("execution failed");
 
-		let untagged =
-			std::fs::read_to_string(res_path(untagged_address_file)).expect("failed to read address file");
+		let untagged = std::fs::read_to_string(res_path(untagged_address_file))
+			.expect("failed to read address file");
 		assert_eq!(res, untagged.trim());
 
 		let args =

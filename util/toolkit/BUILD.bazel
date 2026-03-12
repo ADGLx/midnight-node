@@ -93,8 +93,8 @@ rust_test(
 
 # --- Integration tests (require Docker / testcontainers) ---
 # Tagged "manual" so bazel test //... won't run them;
-# they are built (not run) by the build-test-toolkit-bazel Earthly target
-# and executed inside DinD by test-toolkit-bazel.
+# they are built (not run) by the build-test-toolkit Earthly target
+# and executed inside DinD by test-toolkit.
 
 _INTEGRATION_TEST_DEPS = [
     ":midnight-node-toolkit-lib",

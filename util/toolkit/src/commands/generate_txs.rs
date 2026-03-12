@@ -50,8 +50,7 @@ pub async fn execute(args: GenerateTxsArgs) -> Result<(), GenerateTxsError> {
 		return Ok(());
 	}
 
-	let received_txs =
-		generator.get_txs().await.map_err(|e| GenerateTxsError::GetTransactions(e))?;
+	let received_txs = generator.get_txs().await.map_err(GenerateTxsError::GetTransactions)?;
 
 	send_txs(&generator, generate_txs(&generator, received_txs).await?).await
 }
@@ -73,7 +72,7 @@ async fn send_txs(
 	generator
 		.send_txs(&generated_txs)
 		.await
-		.map_err(|e| GenerateTxsError::SendTransactions(e))
+		.map_err(GenerateTxsError::SendTransactions)
 }
 
 #[cfg(test)]
@@ -229,8 +228,7 @@ mod tests {
 			args.dry_run,
 		)
 		.await?;
-		let received_txs =
-			generator.get_txs().await.map_err(|e| GenerateTxsError::GetTransactions(e))?;
+		let received_txs = generator.get_txs().await.map_err(GenerateTxsError::GetTransactions)?;
 
 		super::generate_txs(&generator, received_txs).await
 	}

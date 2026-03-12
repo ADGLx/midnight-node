@@ -4,7 +4,7 @@ Branch: `giles-bazel`
 
 ## Status
 
-**All 21 Earthly targets build successfully.** `earthly -P +build-bazel` passes (3,015 actions).
+**All 21 Earthly targets build successfully.** `earthly -P +build` passes (3,015 actions).
 
 ### Building (21 targets)
 
@@ -366,7 +366,7 @@ which version each crate needs.
 
 ### Earthly CACHE for incremental Bazel builds
 
-The `+build-bazel` target uses Earthly `CACHE` to persist Bazel's output base between
+The `+build` target uses Earthly `CACHE` to persist Bazel's output base between
 runs. Two cache mounts:
 
 - `--id bazelisk` — Bazel binary downloaded by Bazelisk (~300MB)

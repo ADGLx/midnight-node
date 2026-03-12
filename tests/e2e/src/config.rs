@@ -3,16 +3,16 @@ use whisky::{LanguageVersion, Network as CardanoNetwork};
 
 #[derive(Clone)]
 pub struct Settings {
-    pub node_client: NodeClientSettings,
-    pub ogmios_client: OgmiosClientSettings,
-    pub constants: Constants,
+	pub node_client: NodeClientSettings,
+	pub ogmios_client: OgmiosClientSettings,
+	pub constants: Constants,
 }
 
 impl Settings {
-    pub fn new() -> Self {
-        {
-            let network_info = CardanoNetworkInfo::testnet_preview();
-            Self {
+	pub fn new() -> Self {
+		{
+			let network_info = CardanoNetworkInfo::testnet_preview();
+			Self {
                 node_client: NodeClientSettings {
                     #[cfg(feature="local")]
                     base_url: "ws://127.0.0.1:9933".into(),
@@ -113,133 +113,133 @@ impl Settings {
                     ],
                 },
             }
-        }
-    }
+		}
+	}
 }
 
 impl Default for Settings {
-    fn default() -> Self {
-        Self::new()
-    }
+	fn default() -> Self {
+		Self::new()
+	}
 }
 #[derive(Clone)]
 pub struct NodeClientSettings {
-    pub base_url: String,
+	pub base_url: String,
 }
 
 #[derive(Clone)]
 pub struct OgmiosClientSettings {
-    pub base_url: String,
-    pub timeout_seconds: u64,
-    pub network: CardanoNetwork,
-    pub network_info: CardanoNetworkInfo,
+	pub base_url: String,
+	pub timeout_seconds: u64,
+	pub network: CardanoNetwork,
+	pub network_info: CardanoNetworkInfo,
 }
 
 #[derive(Clone)]
 pub struct Constants {
-    pub payments: Payments,
-    pub policies: Policies,
-    pub cost_model: Vec<Vec<i64>>,
+	pub payments: Payments,
+	pub policies: Policies,
+	pub cost_model: Vec<Vec<i64>>,
 }
 #[derive(Clone)]
 pub struct Payments {
-    pub funded_address: String,
-    pub funded_address_skey_cbor: String,
-    pub funded_address_vkey_cbor: String,
+	pub funded_address: String,
+	pub funded_address_skey_cbor: String,
+	pub funded_address_vkey_cbor: String,
 }
 #[derive(Clone)]
 pub struct Policies {
-    pub network_info: CardanoNetworkInfo,
-    pub mapping_validator_cbor: String,
-    pub cnight_token_cbor: String,
-    pub council_forever_cbor: String,
-    pub tech_auth_forever_cbor: String,
-    pub federated_ops_forever_cbor: String,
+	pub network_info: CardanoNetworkInfo,
+	pub mapping_validator_cbor: String,
+	pub cnight_token_cbor: String,
+	pub council_forever_cbor: String,
+	pub tech_auth_forever_cbor: String,
+	pub federated_ops_forever_cbor: String,
 }
 
 impl Policies {
-    pub fn mapping_validator_address(&self) -> String {
-        let script_hash = whisky::get_script_hash(
-            &self.mapping_validator_cbor_double_encoding(),
-            LanguageVersion::V3,
-        );
-        whisky::script_to_address(self.network_info.network_id(), &script_hash.unwrap(), None)
-    }
+	pub fn mapping_validator_address(&self) -> String {
+		let script_hash = whisky::get_script_hash(
+			&self.mapping_validator_cbor_double_encoding(),
+			LanguageVersion::V3,
+		);
+		whisky::script_to_address(self.network_info.network_id(), &script_hash.unwrap(), None)
+	}
 
-    pub fn mapping_validator_policy_id(&self) -> String {
-        let script_hash = whisky::get_script_hash(
-            &self.mapping_validator_cbor_double_encoding(),
-            LanguageVersion::V3,
-        );
-        script_hash.expect("Error calculating `mapping_validator_policy_id`")
-    }
+	pub fn mapping_validator_policy_id(&self) -> String {
+		let script_hash = whisky::get_script_hash(
+			&self.mapping_validator_cbor_double_encoding(),
+			LanguageVersion::V3,
+		);
+		script_hash.expect("Error calculating `mapping_validator_policy_id`")
+	}
 
-    pub fn mapping_validator_cbor_double_encoding(&self) -> String {
-        // V3 scripts from Aiken need double CBOR encoding
-        whisky::apply_double_cbor_encoding(&self.mapping_validator_cbor)
-            .expect("Failed to encode mapping_validator script")
-    }
+	pub fn mapping_validator_cbor_double_encoding(&self) -> String {
+		// V3 scripts from Aiken need double CBOR encoding
+		whisky::apply_double_cbor_encoding(&self.mapping_validator_cbor)
+			.expect("Failed to encode mapping_validator script")
+	}
 
-    pub fn council_forever_cbor_double_encoding(&self) -> String {
-        // V3 scripts from Aiken need double CBOR encoding
-        whisky::apply_double_cbor_encoding(&self.council_forever_cbor)
-            .expect("Failed to encode council script")
-    }
+	pub fn council_forever_cbor_double_encoding(&self) -> String {
+		// V3 scripts from Aiken need double CBOR encoding
+		whisky::apply_double_cbor_encoding(&self.council_forever_cbor)
+			.expect("Failed to encode council script")
+	}
 
-    pub fn council_forever_policy_id(&self) -> String {
-        let cbor_hex = self.council_forever_cbor_double_encoding();
-        let script_hash = whisky::get_script_hash(&cbor_hex, LanguageVersion::V3);
-        script_hash.expect("Error calculating `council_forever_policy_id`")
-    }
+	pub fn council_forever_policy_id(&self) -> String {
+		let cbor_hex = self.council_forever_cbor_double_encoding();
+		let script_hash = whisky::get_script_hash(&cbor_hex, LanguageVersion::V3);
+		script_hash.expect("Error calculating `council_forever_policy_id`")
+	}
 
-    pub fn council_forever_address(&self) -> String {
-        let script_hash = self.council_forever_policy_id();
-        whisky::script_to_address(self.network_info.network_id(), &script_hash, None)
-    }
+	pub fn council_forever_address(&self) -> String {
+		let script_hash = self.council_forever_policy_id();
+		whisky::script_to_address(self.network_info.network_id(), &script_hash, None)
+	}
 
-    pub fn tech_auth_forever_cbor_double_encoding(&self) -> String {
-        // V3 scripts from Aiken need double CBOR encoding
-        whisky::apply_double_cbor_encoding(&self.tech_auth_forever_cbor)
-            .expect("Failed to encode tech auth script")
-    }
+	pub fn tech_auth_forever_cbor_double_encoding(&self) -> String {
+		// V3 scripts from Aiken need double CBOR encoding
+		whisky::apply_double_cbor_encoding(&self.tech_auth_forever_cbor)
+			.expect("Failed to encode tech auth script")
+	}
 
-    pub fn tech_auth_forever_policy_id(&self) -> String {
-        let cbor_hex = self.tech_auth_forever_cbor_double_encoding();
-        let script_hash = whisky::get_script_hash(&cbor_hex, LanguageVersion::V3);
-        script_hash.expect("Error calculating `tech_auth_forever_policy_id`")
-    }
+	pub fn tech_auth_forever_policy_id(&self) -> String {
+		let cbor_hex = self.tech_auth_forever_cbor_double_encoding();
+		let script_hash = whisky::get_script_hash(&cbor_hex, LanguageVersion::V3);
+		script_hash.expect("Error calculating `tech_auth_forever_policy_id`")
+	}
 
-    pub fn tech_auth_forever_address(&self) -> String {
-        let script_hash = self.tech_auth_forever_policy_id();
-        whisky::script_to_address(self.network_info.network_id(), &script_hash, None)
-    }
+	pub fn tech_auth_forever_address(&self) -> String {
+		let script_hash = self.tech_auth_forever_policy_id();
+		whisky::script_to_address(self.network_info.network_id(), &script_hash, None)
+	}
 
-    pub fn federated_ops_forever_cbor_double_encoding(&self) -> String {
-        // V3 scripts from Aiken need double CBOR encoding
-        whisky::apply_double_cbor_encoding(&self.federated_ops_forever_cbor)
-            .expect("Failed to encode federated ops script")
-    }
+	pub fn federated_ops_forever_cbor_double_encoding(&self) -> String {
+		// V3 scripts from Aiken need double CBOR encoding
+		whisky::apply_double_cbor_encoding(&self.federated_ops_forever_cbor)
+			.expect("Failed to encode federated ops script")
+	}
 
-    pub fn federated_ops_forever_policy_id(&self) -> String {
-        let cbor_hex = self.federated_ops_forever_cbor_double_encoding();
-        let script_hash = whisky::get_script_hash(&cbor_hex, LanguageVersion::V3);
-        script_hash.expect("Error calculating `federated_ops_forever_policy_id`")
-    }
+	pub fn federated_ops_forever_policy_id(&self) -> String {
+		let cbor_hex = self.federated_ops_forever_cbor_double_encoding();
+		let script_hash = whisky::get_script_hash(&cbor_hex, LanguageVersion::V3);
+		script_hash.expect("Error calculating `federated_ops_forever_policy_id`")
+	}
 
-    pub fn federated_ops_forever_address(&self) -> String {
-        let script_hash = self.federated_ops_forever_policy_id();
-        whisky::script_to_address(self.network_info.network_id(), &script_hash, None)
-    }
+	pub fn federated_ops_forever_address(&self) -> String {
+		let script_hash = self.federated_ops_forever_policy_id();
+		whisky::script_to_address(self.network_info.network_id(), &script_hash, None)
+	}
 
-    pub fn cnight_token_cbor_double_encoding(&self) -> String {
-        // V3 scripts from Aiken need double CBOR encoding
-        whisky::apply_double_cbor_encoding(&self.cnight_token_cbor)
-            .expect("Failed to encode cnight token script")
-    }
+	pub fn cnight_token_cbor_double_encoding(&self) -> String {
+		// V3 scripts from Aiken need double CBOR encoding
+		whisky::apply_double_cbor_encoding(&self.cnight_token_cbor)
+			.expect("Failed to encode cnight token script")
+	}
 
-    pub fn cnight_token_policy_id(&self) -> String {
-        let cbor_double_encoded = self.cnight_token_cbor_double_encoding();
-        let script_hash = whisky::get_script_hash(&cbor_double_encoded, LanguageVersion::V3);
-        script_hash.expect("Error calculating `cnight_token_policy_id`")
-    }
+	pub fn cnight_token_policy_id(&self) -> String {
+		let cbor_double_encoded = self.cnight_token_cbor_double_encoding();
+		let script_hash = whisky::get_script_hash(&cbor_double_encoded, LanguageVersion::V3);
+		script_hash.expect("Error calculating `cnight_token_policy_id`")
+	}
 }

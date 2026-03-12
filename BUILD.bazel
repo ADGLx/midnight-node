@@ -2,6 +2,7 @@ exports_files([
     "Cargo.toml",
     "Cargo.lock",
     "COMPACTC_VERSION",
+    "rustfmt.toml",
 ])
 
 filegroup(

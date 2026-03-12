@@ -69,12 +69,18 @@ pub fn block_context_7_to_8(ctx7: &crate::ledger_7::BlockContext) -> BlockContex
 pub fn fork_context_7_to_8(
 	context7: LedgerContext7<Db7>,
 ) -> Result<LedgerContext8<Db8>, std::io::Error> {
-	let ledger_state_7 = context7.ledger_state.lock().expect("failed to lock ledger state");
+	let ledger_state_7 =
+		context7.ledger_state.lock().map_err(|e| std::io::Error::other(e.to_string()))?;
 	let ledger_state: crate::ledger_8::Sp<LedgerState8<Db8>, Db8> =
 		old_to_new_sp(ledger_state_7.clone())?;
 
 	let mut wallets = HashMap::new();
-	for (k, v) in context7.wallets.lock().expect("failed to lock wallets").iter() {
+	for (k, v) in context7
+		.wallets
+		.lock()
+		.map_err(|e| std::io::Error::other(e.to_string()))?
+		.iter()
+	{
 		let new_secret_keys: Result<Option<SecretKeys>, _> = v
 			.shielded
 			.secret_keys

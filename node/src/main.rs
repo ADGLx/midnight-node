@@ -13,7 +13,7 @@
 
 //! Midnight Node CLI library.
 #![warn(missing_docs)]
-#![allow(clippy::result_large_err)]
+#![allow(clippy::result_large_err, clippy::unwrap_in_result)]
 
 use midnight_node::command;
 

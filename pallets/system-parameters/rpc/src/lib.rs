@@ -230,7 +230,7 @@ where
 			.query_api
 			.get_ariadne_parameters(epoch_number)
 			.await
-			.map_err(|e| SystemParametersRpcError::UnableToGetAriadneParameters(e))?;
+			.map_err(SystemParametersRpcError::UnableToGetAriadneParameters)?;
 
 		// Determine which block to query D Parameter from
 		let block_hash = d_parameter_at.unwrap_or_else(|| self.client.info().best_hash);

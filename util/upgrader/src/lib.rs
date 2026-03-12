@@ -11,6 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+#![allow(clippy::result_large_err)]
+
 use std::str::FromStr;
 
 use bip39::Mnemonic;
@@ -63,8 +65,7 @@ pub async fn execute_upgrade(
 
 	// Step 2: Create the authorize_upgrade call
 	let authorize_upgrade_call =
-		dynamic::tx("System", "authorize_upgrade", vec![Value::from_bytes(&code_hash)])
-			.into_value();
+		dynamic::tx("System", "authorize_upgrade", vec![Value::from_bytes(code_hash)]).into_value();
 
 	// Step 3: Wrap it in FederatedAuthority::motion_approve
 	let fed_auth_call =
@@ -174,7 +175,7 @@ pub async fn execute_upgrade(
 	// Step 10: Compute the motion hash for the authorize_upgrade call
 	// The motion hash is computed by hashing the call data
 	let authorize_upgrade_call_for_hash =
-		dynamic::tx("System", "authorize_upgrade", vec![Value::from_bytes(&code_hash)]);
+		dynamic::tx("System", "authorize_upgrade", vec![Value::from_bytes(code_hash)]);
 
 	let call_data = authorize_upgrade_call_for_hash
 		.encode_call_data(&api.metadata())
@@ -187,7 +188,7 @@ pub async fn execute_upgrade(
 	// Step 11: Close the federated motion to execute authorize_upgrade with Root origin
 	log::info!("Closing federated motion to execute authorize_upgrade...");
 	let close_motion_call =
-		dynamic::tx("FederatedAuthority", "motion_close", vec![Value::from_bytes(&motion_hash.0)]);
+		dynamic::tx("FederatedAuthority", "motion_close", vec![Value::from_bytes(motion_hash.0)]);
 
 	api.tx()
 		.sign_and_submit_then_watch_default(&close_motion_call, signer)
@@ -239,7 +240,7 @@ async fn vote_on_proposal(
 		pallet,
 		"vote",
 		vec![
-			Value::from_bytes(&proposal_hash.0),
+			Value::from_bytes(proposal_hash.0),
 			Value::u128(proposal_index as u128),
 			Value::bool(approve),
 		],
@@ -270,7 +271,7 @@ async fn close_proposal(
 		pallet,
 		"close",
 		vec![
-			Value::from_bytes(&proposal_hash.0),
+			Value::from_bytes(proposal_hash.0),
 			Value::u128(proposal_index as u128),
 			weight_value,
 			Value::u128(10000),

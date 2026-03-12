@@ -21,8 +21,8 @@ use ogmios_client::types::OgmiosUtxo;
 use thiserror::Error;
 use whisky::csl::NetworkInfo;
 use whisky::{
-	apply_double_cbor_encoding, get_script_hash, script_to_address, Asset, Budget, LanguageVersion,
-	Network, OfflineTxEvaluator, TxBuilder, WData, WRedeemer,
+	Asset, Budget, LanguageVersion, Network, OfflineTxEvaluator, TxBuilder, WData, WRedeemer,
+	apply_double_cbor_encoding, get_script_hash, script_to_address,
 };
 
 /// Errors that can occur during contract deployment.

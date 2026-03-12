@@ -29,5 +29,10 @@ build --compilation_mode=opt
 # Performance
 build --jobs=auto
 
+# Lint config
+# Clippy flags are generated from [workspace.lints.clippy] in Cargo.toml
+# by scripts/cargo-clippy-flags.sh — see check-rust Earthly target.
+build --@rules_rust//rust/settings:rustfmt.toml=//:rustfmt.toml
+
 # Test output
 test --test_output=errors

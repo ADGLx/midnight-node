@@ -20,9 +20,9 @@
 //! 3. Creates an output at the script address with a VersionedMultisig datum
 
 use aiken_contracts_lib::{
-	build_deploy_transaction, build_federated_ops_datum, build_federated_ops_redeemer,
-	build_governance_redeemer, build_versioned_multisig_datum, convert_cost_models,
-	prepare_contract, testnet_network_id, DeployParams, FederatedOpsCandidate, GovernanceMember,
+	DeployParams, FederatedOpsCandidate, GovernanceMember, build_deploy_transaction,
+	build_federated_ops_datum, build_federated_ops_redeemer, build_governance_redeemer,
+	build_versioned_multisig_datum, convert_cost_models, prepare_contract, testnet_network_id,
 };
 use clap::{Parser, ValueEnum};
 use ogmios_client::jsonrpsee::client_for_url;
@@ -115,8 +115,12 @@ fn parse_utxo_ref(s: &str) -> Result<(String, u32), CliError> {
 	Ok((parts[0].to_string(), index))
 }
 
-#[tokio::main]
-async fn main() -> Result<(), CliError> {
+fn main() -> Result<(), CliError> {
+	let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+	rt.block_on(async_main())
+}
+
+async fn async_main() -> Result<(), CliError> {
 	let args = Args::parse();
 
 	println!("=== Aiken Governance Contract Deployer ===");

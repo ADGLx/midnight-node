@@ -81,7 +81,7 @@ fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 					eprintln!("{e}");
 				}
 
-				return res;
+				res
 			})
 	}));
 
