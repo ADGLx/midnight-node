@@ -88,6 +88,13 @@ crate.annotation(
     repositories = ["crates"],
 )
 
+# Skip WASM build for frame-storage-access-test-runtime — its build.rs
+# invokes substrate-wasm-builder which shells out to cargo, unusable in Bazel.
+crate.annotation(
+    crate = "frame-storage-access-test-runtime",
+    build_script_env = {"SKIP_FRAME_STORAGE_ACCESS_TEST_RUNTIME_WASM_BUILD": "1"},
+)
+
 # Expose spoke repos for crates that lack hub aliases due to duplicate versions
 use_repo(
     crate,
