@@ -9,3 +9,8 @@ mint/mint.config.js
 mint/out
 test/minter_contract/minter.config.js
 test/minter_contract/out
+
+# Config directory local dependencies
+test/contract/node_modules/
+test/minter_contract/node_modules/
+mint/node_modules/
