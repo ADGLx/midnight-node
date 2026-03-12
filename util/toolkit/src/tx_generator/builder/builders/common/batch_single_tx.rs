@@ -305,9 +305,8 @@ impl BuildTxs for BatchSingleTxBuilder {
 				let prover = self.prover.clone();
 				let spec = spec.clone();
 				async move {
-					let result = Self::build_single_transfer(context, prover, &spec)
-						.await
-						.map(|tx_with_ctx| {
+					let result = Self::build_single_transfer(context, prover, &spec).await.map(
+						|tx_with_ctx| {
 							let serialized = super::tx_serialization::build_single(tx_with_ctx);
 							let tx = serialized
 								.batches
@@ -316,7 +315,8 @@ impl BuildTxs for BatchSingleTxBuilder {
 								.and_then(|b| b.into_iter().next())
 								.expect("build_single should produce exactly one tx");
 							write_tx_file(&spec.dest_file, &tx);
-						});
+						},
+					);
 					(spec.dest_file, result)
 				}
 			})

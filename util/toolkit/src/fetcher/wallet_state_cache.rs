@@ -31,7 +31,8 @@ use subxt::utils::H256;
 pub struct SerializableBlockContext {
 	pub tblock_secs: u64,
 	pub tblock_err: u32,
-	pub parent_block_hash: [u8; 32],
+	#[serde(with = "serde_bytes")]
+	pub parent_block_hash: Vec<u8>,
 	pub last_block_time: u64,
 }
 
@@ -40,7 +41,7 @@ impl From<&BlockContext> for SerializableBlockContext {
 		Self {
 			tblock_secs: ctx.tblock.to_secs(),
 			tblock_err: ctx.tblock_err,
-			parent_block_hash: ctx.parent_block_hash.0,
+			parent_block_hash: ctx.parent_block_hash.0.to_vec(),
 			last_block_time: ctx.last_block_time.to_secs(),
 		}
 	}
@@ -62,9 +63,11 @@ impl From<&BlockContext> for SerializableBlockContext {
 pub struct LedgerSnapshot {
 	#[serde(skip)]
 	pub block_height: u64,
+	#[serde(with = "serde_bytes")]
 	pub ledger_state_bytes: Vec<u8>,
 	pub latest_block_context: SerializableBlockContext,
-	pub state_root: [u8; 32],
+	#[serde(with = "serde_bytes")]
+	pub state_root: Vec<u8>,
 }
 
 /// Per-wallet cached state, keyed by (chain_id, seed_hash).
@@ -80,7 +83,9 @@ pub struct CachedWalletState {
 	#[serde(skip)]
 	pub seed_hash: H256,
 	pub block_height: u64,
+	#[serde(with = "serde_bytes")]
 	pub shielded_state_bytes: Vec<u8>,
+	#[serde(with = "serde_opt_bytes")]
 	pub dust_local_state_bytes: Option<Vec<u8>>,
 }
 
@@ -249,7 +254,7 @@ pub fn create_ledger_snapshot(
 	let ledger_state_bytes = serialize_ledger_state(&ledger_state)?;
 	drop(ledger_state);
 
-	let state_root = compute_state_root(&ledger_state_bytes);
+	let state_root = compute_state_root(&ledger_state_bytes).to_vec();
 	let latest_block_context = context.latest_block_context();
 	let serializable_context = SerializableBlockContext::from(&latest_block_context);
 
@@ -302,7 +307,7 @@ pub fn restore_context_from_ledger_snapshot(
 	snapshot: &LedgerSnapshot,
 ) -> Result<(LedgerContext<DefaultDB>, LedgerState<DefaultDB>, u64), CacheError> {
 	let computed_root = compute_state_root(&snapshot.ledger_state_bytes);
-	if snapshot.state_root != computed_root {
+	if snapshot.state_root.as_slice() != computed_root {
 		log::error!(
 			"State root mismatch: ledger snapshot may be corrupted (height {})",
 			snapshot.block_height
@@ -327,7 +332,12 @@ pub fn restore_context_from_ledger_snapshot(
 	let block_context = BlockContext {
 		tblock: Timestamp::from_secs(snapshot.latest_block_context.tblock_secs),
 		tblock_err: snapshot.latest_block_context.tblock_err,
-		parent_block_hash: HashOutput(snapshot.latest_block_context.parent_block_hash),
+		parent_block_hash: HashOutput(
+			<[u8; 32]>::try_from(snapshot.latest_block_context.parent_block_hash.as_slice())
+				.map_err(|_| {
+					CacheError::DeserializeLedgerState("invalid parent_block_hash length".into())
+				})?,
+		),
 		last_block_time: Timestamp::from_secs(snapshot.latest_block_context.last_block_time),
 	};
 	{
@@ -378,6 +388,21 @@ pub fn inject_wallet_from_cache(
 	Ok(())
 }
 
+mod serde_opt_bytes {
+	use serde::{Deserialize, Deserializer, Serializer};
+
+	pub fn serialize<S: Serializer>(v: &Option<Vec<u8>>, s: S) -> Result<S::Ok, S::Error> {
+		match v {
+			Some(bytes) => serde_bytes::serialize(bytes, s),
+			None => s.serialize_none(),
+		}
+	}
+
+	pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Option<Vec<u8>>, D::Error> {
+		Option::<serde_bytes::ByteBuf>::deserialize(d).map(|opt| opt.map(|bb| bb.into_vec()))
+	}
+}
+
 #[cfg(test)]
 mod tests {
 	use super::*;
@@ -390,10 +415,10 @@ mod tests {
 			latest_block_context: SerializableBlockContext {
 				tblock_secs: 1234567890,
 				tblock_err: 7,
-				parent_block_hash: [0xBB; 32],
+				parent_block_hash: vec![0xBB; 32],
 				last_block_time: 9876543210,
 			},
-			state_root: [0xCC; 32],
+			state_root: vec![0xCC; 32],
 		};
 
 		let bytes = snapshot.to_value_bytes().expect("serialize failed");
@@ -705,10 +730,10 @@ mod tests {
 			latest_block_context: SerializableBlockContext {
 				tblock_secs: 1234567890,
 				tblock_err: 0,
-				parent_block_hash: [0u8; 32],
+				parent_block_hash: vec![0u8; 32],
 				last_block_time: 1234567890,
 			},
-			state_root: valid_root,
+			state_root: valid_root.to_vec(),
 		};
 
 		// Corrupt ledger data
