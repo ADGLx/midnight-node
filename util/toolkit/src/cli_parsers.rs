@@ -214,3 +214,99 @@ pub fn utxo_id_decode(input: &str) -> Result<UtxoId, clap::Error> {
 		err
 	})
 }
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use hex::ToHex;
+
+	const VALID_32_BYTES_HEX: &str =
+		"dd76bcd08403b3a9af64485b1f3960437e7c5872c269d6d06d32b2f298d71577";
+
+	fn make_contract_address() -> ContractAddress {
+		let bytes = hex::decode(VALID_32_BYTES_HEX).unwrap();
+		<ContractAddress as Deserializable>::deserialize(&mut &bytes[..], 0).unwrap()
+	}
+
+	fn make_coin_public_key() -> CoinPublicKey {
+		let bytes = hex::decode(VALID_32_BYTES_HEX).unwrap();
+		<CoinPublicKey as Deserializable>::deserialize(&mut &bytes[..], 0).unwrap()
+	}
+
+	#[test]
+	fn coin_public_decode_accepts_untagged() {
+		let result = coin_public_decode(VALID_32_BYTES_HEX);
+		assert!(result.is_ok(), "expected untagged CoinPublicKey to be accepted");
+	}
+
+	#[test]
+	fn coin_public_decode_accepts_tagged() {
+		let key = make_coin_public_key();
+		let tagged_hex: String = serialize(&key).unwrap().encode_hex();
+		let result = coin_public_decode(&tagged_hex);
+		assert!(result.is_ok(), "expected tagged CoinPublicKey to be accepted");
+	}
+
+	#[test]
+	fn coin_public_decode_rejects_wrong_type_tag() {
+		let addr = make_contract_address();
+		let tagged_hex: String = serialize(&addr).unwrap().encode_hex();
+		let result = coin_public_decode(&tagged_hex);
+		assert!(result.is_err(), "expected wrong type tag to be rejected");
+	}
+
+	#[test]
+	fn coin_public_decode_rejects_trailing_bytes() {
+		let with_extra = format!("{}aabb", VALID_32_BYTES_HEX);
+		let result = coin_public_decode(&with_extra);
+		assert!(result.is_err(), "expected trailing bytes to be rejected");
+	}
+
+	#[test]
+	fn contract_address_decode_accepts_untagged() {
+		let result = contract_address_decode(VALID_32_BYTES_HEX);
+		assert!(result.is_ok(), "expected untagged ContractAddress to be accepted");
+	}
+
+	#[test]
+	fn contract_address_decode_accepts_tagged() {
+		let addr = make_contract_address();
+		let tagged_hex: String = serialize(&addr).unwrap().encode_hex();
+		let result = contract_address_decode(&tagged_hex);
+		assert!(result.is_ok(), "expected tagged ContractAddress to be accepted");
+	}
+
+	#[test]
+	fn contract_address_decode_rejects_trailing_bytes() {
+		let with_extra = format!("{}aabb", VALID_32_BYTES_HEX);
+		let result = contract_address_decode(&with_extra);
+		assert!(result.is_err(), "expected trailing bytes to be rejected");
+	}
+
+	#[test]
+	fn hash_output_decode_accepts_valid() {
+		let result = hex_ledger_untagged_decode::<HashOutput>(VALID_32_BYTES_HEX);
+		assert!(result.is_ok(), "expected valid HashOutput to be accepted");
+	}
+
+	#[test]
+	fn hash_output_decode_rejects_trailing_bytes() {
+		let with_extra = format!("{}ff", VALID_32_BYTES_HEX);
+		let result = hex_ledger_untagged_decode::<HashOutput>(&with_extra);
+		assert!(result.is_err(), "expected trailing bytes to be rejected for HashOutput");
+	}
+
+	#[test]
+	fn invalid_hex_rejected() {
+		assert!(coin_public_decode("zzzz").is_err());
+		assert!(contract_address_decode("zzzz").is_err());
+		assert!(hex_ledger_untagged_decode::<HashOutput>("zzzz").is_err());
+	}
+
+	#[test]
+	fn empty_input_rejected() {
+		assert!(coin_public_decode("").is_err());
+		assert!(contract_address_decode("").is_err());
+		assert!(hex_ledger_untagged_decode::<HashOutput>("").is_err());
+	}
+}
