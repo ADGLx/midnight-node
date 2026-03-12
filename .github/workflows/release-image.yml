@@ -115,13 +115,13 @@ jobs:
           echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Attest node release image (GHCR)
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ghcr.io/midnight-ntwrk/midnight-node
           subject-digest: ${{ steps.ghcr-digests.outputs.node }}
 
       - name: Attest toolkit release image (GHCR)
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ghcr.io/midnight-ntwrk/midnight-node-toolkit
           subject-digest: ${{ steps.ghcr-digests.outputs.toolkit }}
@@ -152,13 +152,13 @@ jobs:
           echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Attest node release image (GHCR midnightntwrk)
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ghcr.io/midnightntwrk/midnight-node
           subject-digest: ${{ steps.midnightntwrk-digests.outputs.node }}
 
       - name: Attest toolkit release image (GHCR midnightntwrk)
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: ghcr.io/midnightntwrk/midnight-node-toolkit
           subject-digest: ${{ steps.midnightntwrk-digests.outputs.toolkit }}
@@ -213,13 +213,13 @@ jobs:
           echo "toolkit=${TOOLKIT_DIGEST}" >> "$GITHUB_OUTPUT"
 
       - name: Attest node release image (Docker Hub)
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: index.docker.io/midnightntwrk/midnight-node
           subject-digest: ${{ steps.dockerhub-digests.outputs.node }}
 
       - name: Attest toolkit release image (Docker Hub)
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-name: index.docker.io/midnightntwrk/midnight-node-toolkit
           subject-digest: ${{ steps.dockerhub-digests.outputs.toolkit }}
@@ -393,12 +393,12 @@ jobs:
           cat "SHA256SUMS-${{ matrix.platform }}"
 
       - name: Attest node release binary
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: ${{ steps.extract.outputs.node_release }}
 
       - name: Attest toolkit release binary
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: ${{ steps.extract.outputs.toolkit_release }}
 
@@ -459,7 +459,7 @@ jobs:
           done
 
       - name: Attest checksums file
-        uses: actions/attest-build-provenance@96278af6caaf10aea03fd8d33a09a777ca52d62f # v3.2.0
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: SHA256SUMS
 
