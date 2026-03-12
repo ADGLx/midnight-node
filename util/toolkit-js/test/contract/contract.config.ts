@@ -11,7 +11,7 @@
  * @module
  */
 
-import { CompiledContract, ContractExecutable, type Contract } from '@midnight-ntwrk/compact-js/effect';
+import { CompiledContract, ContractExecutable, type Contract } from '@midnight-ntwrk/compact-js-v2-5-0/effect';
 import { Contract as C_ } from './managed/counter/contract/index.js';
 
 /**

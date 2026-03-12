@@ -26,18 +26,18 @@
     "dist"
   ],
   "dependencies": {
-    "@effect/platform-node": "^0.104.1",
     "@effect/cli": "^0.73.2",
+    "@effect/platform-node": "^0.104.1",
     "@midnight-ntwrk/compact-js": "2.4.3",
     "@midnight-ntwrk/compact-js-command": "2.4.3",
-    "@midnight-ntwrk/compact-js-node": "2.4.3",
-    "@midnight-ntwrk/compact-js-v2-5-0": "npm:@midnight-ntwrk/compact-js@2.5.0-rc.1",
     "@midnight-ntwrk/compact-js-command-v2-5-0": "npm:@midnight-ntwrk/compact-js-command@2.5.0-rc.1",
+    "@midnight-ntwrk/compact-js-node": "2.4.3",
     "@midnight-ntwrk/compact-js-node-v2-5-0": "npm:@midnight-ntwrk/compact-js-node@2.5.0-rc.1",
+    "@midnight-ntwrk/compact-js-v2-5-0": "npm:@midnight-ntwrk/compact-js@2.5.0-rc.1",
     "effect": "^3.19.19"
   },
   "devDependencies": {
-    "@midnight-ntwrk/midnight-js-compact": "3.1.1-0-pre.415e78b",
+    "@midnight-ntwrk/midnight-js-compact": "^3.2.0",
     "@tsconfig/node24": "24.0.0",
     "@types/node": "22.18.10",
     "shx": "0.4.0",

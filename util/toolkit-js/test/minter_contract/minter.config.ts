@@ -1,4 +1,4 @@
-import {CompiledContract, ContractExecutable, type Contract} from '@midnight-ntwrk/compact-js/effect';
+import {CompiledContract, ContractExecutable, type Contract} from '@midnight-ntwrk/compact-js-v2-5-0/effect';
 import {Contract as C_} from './out/contract/index.js';
 
 /**

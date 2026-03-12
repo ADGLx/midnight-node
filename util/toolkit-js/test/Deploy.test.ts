@@ -2,7 +2,7 @@ import { Effect, Layer } from 'effect';
 import { Command } from '@effect/cli';
 import { NodeContext } from '@effect/platform-node';
 import { describe, it, expect } from 'vitest';
-import { ConfigCompiler, deployCommand } from '@midnight-ntwrk/compact-js-command/effect';
+import { ConfigCompiler, deployCommand } from '@midnight-ntwrk/compact-js-command-v2-5-0/effect';
 import { resolve } from 'node:path';
 
 const COUNTER_CONFIG_FILEPATH = resolve(import.meta.dirname, 'contract/contract.config.ts');
