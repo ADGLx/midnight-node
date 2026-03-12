@@ -222,7 +222,7 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		log::info!("CROSS_CHAIN pubkey: {}", &keypair.public())
 	}
 
-	runner.run_node_until_exit(|config| async move {
+	let run_result = runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 		let midnight_cfg = cfg.midnight_cfg.clone();
 
@@ -261,7 +261,12 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		)
 		.await
 		.map_err(sc_cli::Error::Service)
-	})
+	});
+
+	// Explicitly release global ledger storage on shutdown.
+	midnight_node_ledger::drop_all_default_storage();
+
+	run_result
 }
 
 /// Returns the CFG_PRESET from environment, defaulting to "dev"
@@ -965,11 +970,34 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
 
+			// Parse genesis timestamp from cardano-tip.json (if provided)
+			let genesis_timestamp: Option<u64> = if let Some(ref path) = cmd.cardano_tip_config {
+				#[derive(serde::Deserialize)]
+				struct CardanoTipConfig {
+					timestamp: String,
+				}
+				let json_str = std::fs::read_to_string(path).map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"Failed to read cardano-tip config {:?}: {}",
+						path, e
+					))
+				})?;
+				let config: CardanoTipConfig = serde_json::from_str(&json_str).map_err(|e| {
+					sc_cli::Error::Input(format!("Failed to parse cardano-tip config: {}", e))
+				})?;
+				Some(config.timestamp.parse::<u64>().map_err(|e| {
+					sc_cli::Error::Input(format!("Invalid timestamp in cardano-tip config: {}", e))
+				})?)
+			} else {
+				None
+			};
+
 			let result = verify_ledger_state_genesis::verify_ledger_state_genesis(
 				&cmd.chain_spec,
 				cmd.cnight_config.as_deref(),
 				cmd.ledger_parameters_config.as_deref(),
 				cmd.network.as_deref(),
+				genesis_timestamp,
 			)
 			.map_err(|e| sc_cli::Error::Input(format!("Genesis verification failed: {e}")))?;
 
