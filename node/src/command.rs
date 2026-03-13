@@ -28,8 +28,10 @@ use crate::{
 		reserve_genesis::{ReserveAddresses, generate_reserve_genesis},
 	},
 	genesis::verification::{
-		verify_auth_script_common, verify_federated_authority_auth_script, verify_ics_auth_script,
-		verify_ledger_state_genesis, verify_permissioned_candidates_auth_script,
+		verify_auth_script_common, verify_federated_authority_auth_script,
+		verify_genesis_message, verify_genesis_timestamp, verify_ics_auth_script,
+		verify_ledger_state_genesis,
+		verify_permissioned_candidates_auth_script,
 	},
 	service::{self, StorageInit},
 };
@@ -1343,6 +1345,64 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					Err(sc_cli::Error::Input("Some verification checks failed".to_string()))
 				}
 			})
+		},
+		Subcommand::VerifyGenesisMessage(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default message-config path based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let message_config = cmd
+				.message_config
+				.clone()
+				.unwrap_or_else(|| res_dir.join("message-config.json"));
+
+			let result = verify_genesis_message::verify_genesis_message(
+				&cmd.chain_spec,
+				&message_config,
+			)
+			.map_err(|e| {
+				sc_cli::Error::Input(format!("Genesis message verification failed: {e}"))
+			})?;
+
+			result.print_summary();
+
+			if result.all_passed() {
+				Ok(())
+			} else {
+				Err(sc_cli::Error::Input(
+					"Genesis message verification failed".to_string(),
+				))
+			}
+		},
+		Subcommand::VerifyGenesisTimestamp(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default cardano-tip-config path based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let cardano_tip_config = cmd
+				.cardano_tip_config
+				.clone()
+				.unwrap_or_else(|| res_dir.join("cardano-tip.json"));
+
+			let result = verify_genesis_timestamp::verify_genesis_timestamp(
+				&cmd.chain_spec,
+				&cardano_tip_config,
+			)
+			.map_err(|e| {
+				sc_cli::Error::Input(format!("Genesis timestamp verification failed: {e}"))
+			})?;
+
+			result.print_summary();
+
+			if result.all_passed() {
+				Ok(())
+			} else {
+				Err(sc_cli::Error::Input(
+					"Genesis timestamp verification failed".to_string(),
+				))
+			}
 		},
 	}
 }

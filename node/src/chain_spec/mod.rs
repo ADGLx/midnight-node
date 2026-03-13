@@ -114,12 +114,10 @@ pub fn runtime_wasm() -> &'static [u8] {
 	WASM_BINARY.expect("Runtime wasm not available")
 }
 
-/// Message embedded in the genesis block as a System::remark extrinsic.
-const GENESIS_REMARK: &[u8] = b"The One remains, the many change and pass; Heaven's light forever shines, Earth's shadows fly; Life, like a dome of many-colour'd glass, Stains the white radiance of Eternity, Until Death tramples it to fragments.";
-
 pub fn get_chainspec_extrinsics(
 	genesis_block: &[u8],
 	observed_utxos_cnight: &ObservedUtxos,
+	genesis_remark: Option<&[u8]>,
 ) -> Vec<String> {
 	let genesis_block: SerializedTxBatches =
 		serde_json::from_slice(genesis_block).expect("failed to deseriailzed genesis block");
@@ -160,11 +158,14 @@ pub fn get_chainspec_extrinsics(
 		}));
 	extrinsics.push(hex::encode(timestamp_extrinsic.encode()));
 
-	// Add System::remark extrinsic with genesis message
-	let remark_extrinsic = UncheckedExtrinsic::new_bare(RuntimeCall::System(SystemCall::remark {
-		remark: GENESIS_REMARK.to_vec(),
-	}));
-	extrinsics.push(hex::encode(remark_extrinsic.encode()));
+	// Add System::remark extrinsic with genesis message (if configured)
+	if let Some(remark) = genesis_remark {
+		let remark_extrinsic =
+			UncheckedExtrinsic::new_bare(RuntimeCall::System(SystemCall::remark {
+				remark: remark.to_vec(),
+			}));
+		extrinsics.push(hex::encode(remark_extrinsic.encode()));
+	}
 
 	// Add CNight extrinsic
 	if !observed_utxos_cnight.utxos.is_empty() {
@@ -184,9 +185,10 @@ pub fn get_chainspec_properties(
 	genesis_block: &[u8],
 	genesis_state: &[u8],
 	observed_utxos_cnight: &ObservedUtxos,
+	genesis_remark: Option<&[u8]>,
 ) -> serde_json::map::Map<String, serde_json::Value> {
 	serde_json::json!({
-		"genesis_extrinsics": get_chainspec_extrinsics(genesis_block, observed_utxos_cnight),
+		"genesis_extrinsics": get_chainspec_extrinsics(genesis_block, observed_utxos_cnight, genesis_remark),
 		"genesis_state": hex::encode(genesis_state),
 	})
 	.as_object()
@@ -207,6 +209,7 @@ pub fn chain_config<T: MidnightNetwork>(genesis: T) -> Result<ChainSpec, ChainSp
 			genesis.genesis_block(),
 			genesis.genesis_state(),
 			&genesis.cnight_genesis().observed_utxos,
+			genesis.message_config().as_ref().map(|m| m.message.as_bytes()),
 		))
 		.with_genesis_config(genesis_config(genesis)?);
 

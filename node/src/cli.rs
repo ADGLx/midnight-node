@@ -282,6 +282,30 @@ pub struct VerifyIcsAuthScriptCmd {
 }
 
 #[derive(Debug, Parser)]
+pub struct VerifyGenesisMessageCmd {
+	/// Path to the chain-spec-raw.json file to inspect
+	#[arg(long)]
+	pub chain_spec: std::path::PathBuf,
+
+	/// Path to message-config.json containing the expected genesis remark message.
+	/// Defaults to res/<CFG_PRESET>/message-config.json
+	#[arg(long)]
+	pub message_config: Option<std::path::PathBuf>,
+}
+
+#[derive(Debug, Parser)]
+pub struct VerifyGenesisTimestampCmd {
+	/// Path to the chain-spec-raw.json file to inspect
+	#[arg(long)]
+	pub chain_spec: std::path::PathBuf,
+
+	/// Path to cardano-tip.json containing the expected genesis timestamp.
+	/// Defaults to res/<CFG_PRESET>/cardano-tip.json
+	#[arg(long)]
+	pub cardano_tip_config: Option<std::path::PathBuf>,
+}
+
+#[derive(Debug, Parser)]
 pub struct VerifyPermissionedCandidatesAuthScriptCmd {
 	/// The Cardano block hash assumed to be the latest for this query.
 	///
@@ -371,6 +395,18 @@ pub enum Subcommand {
 	/// 2. The two_stage_policy_id is embedded in the compiled_code
 	/// 3. The authorization script observed on Cardano matches the expected value
 	VerifyPermissionedCandidatesAuthScript(VerifyPermissionedCandidatesAuthScriptCmd),
+
+	/// Verify that the genesis remark message in chain-spec-raw.json matches the expected
+	/// message from message-config.json. This checks:
+	/// 1. A System::remark extrinsic exists in genesis_extrinsics
+	/// 2. The remark content matches the expected message
+	VerifyGenesisMessage(VerifyGenesisMessageCmd),
+
+	/// Verify that the genesis timestamp in chain-spec-raw.json matches the expected
+	/// timestamp from cardano-tip.json. This checks:
+	/// 1. A Timestamp::set extrinsic exists in genesis_extrinsics
+	/// 2. The timestamp value matches cardano-tip.json (seconds * 1000 = milliseconds)
+	VerifyGenesisTimestamp(VerifyGenesisTimestampCmd),
 
 	/// Export blocks.
 	ExportBlocks(sc_cli::ExportBlocksCmd),
