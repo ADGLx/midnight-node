@@ -95,7 +95,7 @@ jobs:
 
           # We don't use --ci as we want artifacts to be saved
           . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
-          . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --ci --push +toolkit-image
+          . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --use-inline-cache --save-inline-cache --ci --push +toolkit-image
 
           # Pass IMAGE_TAG to next step (must match definition in Earthfile):
           IMAGE_TAG="$(cat node/Cargo.toml | grep "version =" | head -1 | awk '{print $3}' | tr -d '"')-$(git rev-parse --short=8 HEAD)"
@@ -248,7 +248,7 @@ jobs:
 
           # We don't pass --ci to earthly here as we want the artifacts saved
           . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
-          . ./.envrc && earthly --secret "GITHUB_TOKEN=$GITHUB_TOKEN" -P --ci --push +toolkit-image
+          . ./.envrc && earthly --secret "GITHUB_TOKEN=$GITHUB_TOKEN" -P --use-inline-cache --save-inline-cache --ci --push +toolkit-image
 
           # Pass IMAGE_TAG to next steps (must match definition in Earthfile):
           IMAGE_TAG="$(cat node/Cargo.toml | grep "version =" | head -1 | awk '{print $3}' | tr -d '"')-$(git rev-parse --short=8 HEAD)"
