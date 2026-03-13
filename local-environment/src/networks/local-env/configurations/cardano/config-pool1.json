@@ -9,6 +9,7 @@
   "ConwayGenesisHash": "9cc5084f02e27210eacba47af0872e3dba8946ad9460b6072d793e1d2f3987ef",
   "ConsensusMode": "PraosMode",
   "EnableP2P": true,
+  "DijkstraGenesisFile": "/shared/intra/dijkstra-genesis.json",
   "ExperimentalHardForksEnabled": true,
   "ExperimentalProtocolsEnabled": true,
   "LastKnownBlockVersion-Alt": 0,
