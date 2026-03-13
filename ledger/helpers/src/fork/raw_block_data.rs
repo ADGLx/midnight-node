@@ -29,11 +29,7 @@ mod hex_or_bytes {
 	}
 
 	pub fn deserialize<'de, D: Deserializer<'de>>(d: D) -> Result<Vec<u8>, D::Error> {
-		if d.is_human_readable() {
-			hex::serde::deserialize(d)
-		} else {
-			serde_bytes::deserialize(d)
-		}
+		if d.is_human_readable() { hex::serde::deserialize(d) } else { serde_bytes::deserialize(d) }
 	}
 }
 

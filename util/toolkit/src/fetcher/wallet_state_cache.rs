@@ -481,8 +481,9 @@ mod tests {
 			};
 
 			let bytes = wallet.to_value_bytes().expect("serialize failed");
-			let from_full =
-				CachedWalletState::from_value_bytes(&bytes, H256::zero()).ok().map(|w| w.block_height);
+			let from_full = CachedWalletState::from_value_bytes(&bytes, H256::zero())
+				.ok()
+				.map(|w| w.block_height);
 			let from_header = CachedWalletState::block_height_from_header(&bytes);
 			assert_eq!(from_header, from_full, "header extraction mismatch at height {height}");
 
