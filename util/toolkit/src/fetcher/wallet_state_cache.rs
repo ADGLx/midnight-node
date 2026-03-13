@@ -32,7 +32,7 @@ pub struct SerializableBlockContext {
 	pub tblock_secs: u64,
 	pub tblock_err: u32,
 	#[serde(with = "serde_bytes")]
-	pub parent_block_hash: Vec<u8>,
+	pub parent_block_hash: [u8; 32],
 	pub last_block_time: u64,
 }
 
@@ -41,7 +41,7 @@ impl From<&BlockContext> for SerializableBlockContext {
 		Self {
 			tblock_secs: ctx.tblock.to_secs(),
 			tblock_err: ctx.tblock_err,
-			parent_block_hash: ctx.parent_block_hash.0.to_vec(),
+			parent_block_hash: ctx.parent_block_hash.0,
 			last_block_time: ctx.last_block_time.to_secs(),
 		}
 	}
@@ -67,7 +67,7 @@ pub struct LedgerSnapshot {
 	pub ledger_state_bytes: Vec<u8>,
 	pub latest_block_context: SerializableBlockContext,
 	#[serde(with = "serde_bytes")]
-	pub state_root: Vec<u8>,
+	pub state_root: [u8; 32],
 }
 
 /// Per-wallet cached state, keyed by (chain_id, seed_hash).
@@ -87,20 +87,6 @@ pub struct CachedWalletState {
 	pub shielded_state_bytes: Vec<u8>,
 	#[serde(with = "serde_opt_bytes")]
 	pub dust_local_state_bytes: Option<Vec<u8>>,
-}
-
-/// Key for looking up a ledger snapshot by chain and block height.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
-pub struct LedgerSnapshotKey {
-	pub chain_id: H256,
-	pub block_height: u64,
-}
-
-/// Key for looking up a single wallet's cache by chain and seed hash.
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, PartialOrd, Ord)]
-pub struct IndividualWalletKey {
-	pub chain_id: H256,
-	pub seed_hash: H256,
 }
 
 // =============================================================================
@@ -238,7 +224,7 @@ pub fn create_ledger_snapshot(
 	let ledger_state_bytes = serialize_ledger_state(&ledger_state)?;
 	drop(ledger_state);
 
-	let state_root = compute_state_root(&ledger_state_bytes).to_vec();
+	let state_root = compute_state_root(&ledger_state_bytes);
 	let latest_block_context = context.latest_block_context();
 	let serializable_context = SerializableBlockContext::from(&latest_block_context);
 
@@ -291,7 +277,7 @@ pub fn restore_context_from_ledger_snapshot(
 	snapshot: &LedgerSnapshot,
 ) -> Result<(LedgerContext<DefaultDB>, LedgerState<DefaultDB>, u64), CacheError> {
 	let computed_root = compute_state_root(&snapshot.ledger_state_bytes);
-	if snapshot.state_root.as_slice() != computed_root {
+	if snapshot.state_root != computed_root {
 		log::error!(
 			"State root mismatch: ledger snapshot may be corrupted (height {})",
 			snapshot.block_height
@@ -316,12 +302,7 @@ pub fn restore_context_from_ledger_snapshot(
 	let block_context = BlockContext {
 		tblock: Timestamp::from_secs(snapshot.latest_block_context.tblock_secs),
 		tblock_err: snapshot.latest_block_context.tblock_err,
-		parent_block_hash: HashOutput(
-			<[u8; 32]>::try_from(snapshot.latest_block_context.parent_block_hash.as_slice())
-				.map_err(|_| {
-					CacheError::DeserializeLedgerState("invalid parent_block_hash length".into())
-				})?,
-		),
+		parent_block_hash: HashOutput(snapshot.latest_block_context.parent_block_hash),
 		last_block_time: Timestamp::from_secs(snapshot.latest_block_context.last_block_time),
 	};
 	{
@@ -399,10 +380,10 @@ mod tests {
 			latest_block_context: SerializableBlockContext {
 				tblock_secs: 1234567890,
 				tblock_err: 7,
-				parent_block_hash: vec![0xBB; 32],
+				parent_block_hash: [0xBB; 32],
 				last_block_time: 9876543210,
 			},
-			state_root: vec![0xCC; 32],
+			state_root: [0xCC; 32],
 		};
 
 		let bytes = snapshot.to_value_bytes().expect("serialize failed");
@@ -691,10 +672,10 @@ mod tests {
 			latest_block_context: SerializableBlockContext {
 				tblock_secs: 1234567890,
 				tblock_err: 0,
-				parent_block_hash: vec![0u8; 32],
+				parent_block_hash: [0u8; 32],
 				last_block_time: 1234567890,
 			},
-			state_root: valid_root.to_vec(),
+			state_root: valid_root,
 		};
 
 		// Corrupt ledger data

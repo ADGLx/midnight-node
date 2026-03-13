@@ -306,10 +306,10 @@ mod tests {
 			latest_block_context: SerializableBlockContext {
 				tblock_secs: 1234567890,
 				tblock_err: 7,
-				parent_block_hash: vec![0xBB; 32],
+				parent_block_hash: [0xBB; 32],
 				last_block_time: 9876543210,
 			},
-			state_root: vec![0xCC; 32],
+			state_root: [0xCC; 32],
 		}
 	}
 

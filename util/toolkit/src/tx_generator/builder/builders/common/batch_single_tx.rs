@@ -91,20 +91,9 @@ impl BatchSingleTxBuilder {
 			StandardTrasactionInfo::new_from_context(context.clone(), prover, rng_seed);
 
 		if let Some(amount) = spec.unshielded_amount {
-			let token_type_str = spec
-				.unshielded_token_type
-				.as_deref()
-				.unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
-			let token_type: midnight_node_ledger_helpers::UnshieldedTokenType =
-				midnight_node_ledger_helpers::UnshieldedTokenType(
-					midnight_node_ledger_helpers::HashOutput(
-						hex::decode(token_type_str)
-							.expect("invalid unshielded_token_type hex")
-							.try_into()
-							.expect("unshielded_token_type must be 32 bytes"),
-					),
-				);
-			let token_type: UnshieldedTokenType = convert_unshielded_token_type(token_type);
+			let hash = parse_hash_output(spec.unshielded_token_type.as_deref());
+			let token_type: UnshieldedTokenType =
+				convert_unshielded_token_type(midnight_node_ledger_helpers::UnshieldedTokenType(hash));
 
 			let dest_wallet: UnshieldedWallet = (&dest_address)
 				.try_into()
@@ -126,20 +115,9 @@ impl BatchSingleTxBuilder {
 				ShieldedWallet,
 			};
 
-			let token_type_str = spec
-				.shielded_token_type
-				.as_deref()
-				.unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
-			let token_type: midnight_node_ledger_helpers::ShieldedTokenType =
-				midnight_node_ledger_helpers::ShieldedTokenType(
-					midnight_node_ledger_helpers::HashOutput(
-						hex::decode(token_type_str)
-							.expect("invalid shielded_token_type hex")
-							.try_into()
-							.expect("shielded_token_type must be 32 bytes"),
-					),
-				);
-			let token_type: ShieldedTokenType = convert_shielded_token_type(token_type);
+			let hash = parse_hash_output(spec.shielded_token_type.as_deref());
+			let token_type: ShieldedTokenType =
+				convert_shielded_token_type(midnight_node_ledger_helpers::ShieldedTokenType(hash));
 
 			let dest_wallet: ShieldedWallet<DefaultDB> =
 				(&dest_address).try_into().expect("destination is not a valid shielded address");
@@ -191,6 +169,17 @@ impl BatchSingleTxBuilder {
 
 		Ok(TransactionWithContext::new(tx, None))
 	}
+}
+
+fn parse_hash_output(hex_str: Option<&str>) -> midnight_node_ledger_helpers::HashOutput {
+	let hex_str = hex_str
+		.unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
+	midnight_node_ledger_helpers::HashOutput(
+		hex::decode(hex_str)
+			.expect("invalid token_type hex")
+			.try_into()
+			.expect("token_type must be 32 bytes"),
+	)
 }
 
 const MAX_GUARANTEED_INPUTS_OUTPUTS: usize = 3;
