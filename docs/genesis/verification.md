@@ -10,7 +10,7 @@ Genesis verification validates the chain specification before network launch. Th
 1. **Config File Regeneration** - Regenerates config files and compares with existing
 2. **LedgerState Verification** - Validates genesis state contents from chain-spec-raw.json
 3. **Dparameter Verification** - Checks system parameters consistency
-4. **Auth Script Verification** - Verifies upgradable contracts share the same authorization script
+4. **Auth Script Verification** - Verifies all upgradable contracts share the same authorization script
 5. **Genesis Message Verification** - Verifies the genesis remark message matches message-config.json
 6. **Genesis Timestamp Verification** - Verifies the genesis timestamp matches cardano-tip.json
 
@@ -94,15 +94,17 @@ Genesis verification validates the chain specification before network launch. Th
 │ federated-authority-│───────▶│ midnight-node        │────▶│ 4a. compiled_code   │
 │ addresses.json      │        │ verify-auth-script   │     │     hash = policy_id│
 ├─────────────────────┤        │                      │     ├─────────────────────┤
-│ ics-addresses.json  │───────▶│ (runs all 3 verify   │     │ 4b. two_stage_policy│
+│ ics-addresses.json  │───────▶│ (runs all 4 verify   │     │ 4b. two_stage_policy│
 ├─────────────────────┤        │ commands internally) │     │     embedded in code│
 │ permissioned-       │───────▶│                      │     ├─────────────────────┤
-│ candidates-         │        └──────────────────────┘     │ 4c. observed auth   │
-│ addresses.json      │                │                    │     matches expected│
-└─────────────────────┘                │                    ├─────────────────────┤
-                                       ▼                    │ 4d. all contracts   │
-┌─────────────────────┐        ┌──────────────────────┐     │     share same auth │
-│ Cardano db-sync     │───────▶│ Query observed       │     └─────────────────────┘
+│ candidates-         │        │                      │     │ 4c. observed auth   │
+│ addresses.json      │        │                      │     │     matches expected│
+├─────────────────────┤        └──────────────────────┘     ├─────────────────────┤
+│ reserve-addresses.  │───────▶        │                    │ 4d. all contracts   │
+│ json                │                │                    │     share same auth │
+└─────────────────────┘                ▼                    └─────────────────────┘
+┌─────────────────────┐        ┌──────────────────────┐
+│ Cardano db-sync     │───────▶│ Query observed       │
 │ (PostgreSQL)        │        │ auth scripts         │
 └─────────────────────┘        └──────────────────────┘
 
@@ -181,6 +183,7 @@ midnight-node verify-auth-script --cardano-tip <block_hash>
 midnight-node verify-federated-authority-auth-script --cardano-tip <block_hash>
 midnight-node verify-ics-auth-script --cardano-tip <block_hash>
 midnight-node verify-permissioned-candidates-auth-script --cardano-tip <block_hash>
+midnight-node verify-reserve-auth-script --cardano-tip <block_hash>
 ```
 
 For each contract, verification checks:
@@ -254,7 +257,7 @@ Outputs status markers:
 |------|---------|-------------|
 | `cnight-addresses.json` | Step 1 | cNIGHT contract addresses |
 | `ics-addresses.json` | Steps 1, 4 | ICS contract addresses with compiled code |
-| `reserve-addresses.json` | Step 1 | Reserve validator addresses |
+| `reserve-addresses.json` | Steps 1, 4 | Reserve validator addresses with compiled code |
 | `federated-authority-addresses.json` | Steps 1, 4 | Federated authority addresses with compiled code |
 | `permissioned-candidates-addresses.json` | Steps 1, 4 | Permissioned candidates addresses with compiled code |
 
@@ -325,7 +328,7 @@ The tool runs each step sequentially:
 - Verifies num_permissioned_candidates matches actual count
 
 **Step 4: Auth Script Verification**
-- Verifies all upgradable contracts
+- Verifies all upgradable contracts (Federated Authority, ICS, Permissioned Candidates, Reserve)
 - Checks compiled code hashes
 - Confirms authorization scripts match
 

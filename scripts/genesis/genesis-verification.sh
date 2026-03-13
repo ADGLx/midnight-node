@@ -186,6 +186,7 @@ show_input_files() {
     local files=(
         "cnight-addresses.json"
         "ics-addresses.json"
+        "reserve-addresses.json"
         "ledger-parameters-config.json"
         "federated-authority-addresses.json"
         "permissioned-candidates-addresses.json"
@@ -599,7 +600,7 @@ run_auth_script_verification() {
     print_step "Step 4: Verify Authorization Scripts for Upgradable Contracts"
 
     echo -e "${BOLD}This step verifies that all upgradable contracts (Federated Authority,${NC}"
-    echo -e "${BOLD}ICS, Permissioned Candidates) use the expected authorization script.${NC}"
+    echo -e "${BOLD}ICS, Permissioned Candidates, Reserve) use the expected authorization script.${NC}"
     echo ""
     echo -e "${BOLD}For each contract, it checks:${NC}"
     echo -e "  1. The compiled_code hash matches the policy_id"
@@ -775,7 +776,7 @@ main() {
     echo -e "     c. Total NIGHT supply invariance (24B)"
     echo -e "     d. LedgerParameters match config"
     echo -e "  3. ${BOLD}Dparameter Verification${NC} - Verifies system-parameters-config.json consistency"
-    echo -e "  4. ${BOLD}Auth Script Verification${NC} - Verifies upgradable contracts share the same auth script"
+    echo -e "  4. ${BOLD}Auth Script Verification${NC} - Verifies all upgradable contracts share the same auth script"
     echo -e "  5. ${BOLD}Genesis Message Verification${NC} - Verifies genesis remark matches message-config.json"
     echo -e "  6. ${BOLD}Genesis Timestamp Verification${NC} - Verifies genesis timestamp matches cardano-tip.json"
     echo ""
