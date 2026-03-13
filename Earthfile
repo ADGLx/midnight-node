@@ -705,9 +705,9 @@ prep-no-copy:
     # ca-certificates and curl-minimal already present in the CI base image
 
     RUN cargo --version
-    RUN cargo binstall --no-confirm cargo-auditable
 
     SAVE ARTIFACT /compactc-bin
+    SAVE IMAGE --cache-hint
 
 prep:
     FROM +prep-no-copy

@@ -59,7 +59,7 @@ jobs:
           echo "[net]" >> "$HOME"/.cargo/config
           echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
 
-          . ./.envrc && earthly -P --ci --use-inline-cache --push +images
+          . ./.envrc && earthly -P --ci --save-inline-cache --use-inline-cache --push +images
 
       - name: Export image tags
         id: image_tags
@@ -149,7 +149,7 @@ jobs:
           echo "[net]" >> "$HOME"/.cargo/config
           echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
 
-          . ./.envrc && earthly -P --ci --use-inline-cache --push +images
+          . ./.envrc && earthly -P --ci --save-inline-cache --use-inline-cache --push +images
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -205,7 +205,7 @@ jobs:
           echo "[net]" >> "$HOME/.cargo/config"
           echo "git-fetch-with-cli = true" >> "$HOME/.cargo/config"
 
-          . ./.envrc && earthly --use-inline-cache --push +hardfork-test-upgrader-image
+          . ./.envrc && earthly --save-inline-cache --use-inline-cache --push +hardfork-test-upgrader-image
 
   check-unused-deps:
     permissions:
