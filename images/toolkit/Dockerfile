@@ -20,7 +20,7 @@ ENV TOOLKIT_JS_PATH="/toolkit-js"
 ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
 ENV MIDNIGHT_PP=/.cache/midnight/zk-params
 ENV MN_FETCH_CACHE=redb:/.cache/toolkit_fetch_cache.db
-ENV MN_LEDGER_CACHE_DB=redb:/.cache/toolkit_ledger_cache_db
+ENV MN_LEDGER_CACHE_DB=/.cache/toolkit_ledger_cache_db
 
 # Get node version for the image tag
 COPY node/Cargo.toml /node/
