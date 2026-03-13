@@ -22,7 +22,7 @@ use super::FetchStorage;
 
 /// Persistent [`FetchStorage`] backend using PostgreSQL.
 ///
-/// Block data uses BSON serialization. Uses sqlx connection pooling.
+/// Block data uses postcard serialization. Uses sqlx connection pooling.
 #[derive(Clone)]
 pub struct PostgresBackend {
 	pool: PgPool,
@@ -66,7 +66,7 @@ impl PostgresBackend {
 
 		sqlx::query(
 			r#"
-            CREATE TABLE IF NOT EXISTS raw_block_data_v1 (
+            CREATE TABLE IF NOT EXISTS raw_block_data_v2 (
                 chain_id BYTEA NOT NULL,
                 block_number BIGINT NOT NULL,
                 data BYTEA NOT NULL,
@@ -76,7 +76,7 @@ impl PostgresBackend {
 		)
 		.execute(&mut *tx)
 		.await
-		.expect("failed to create raw_block_data_v1 table");
+		.expect("failed to create raw_block_data_v2 table");
 
 		sqlx::query(
 			r#"
@@ -94,11 +94,11 @@ impl PostgresBackend {
 	}
 
 	fn serialize_block_data(block: &RawBlockData) -> Vec<u8> {
-		bson::serialize_to_vec(block).expect("failed to serialize block data")
+		postcard::to_allocvec(block).expect("failed to serialize block data")
 	}
 
 	fn deserialize_block_data(data: &[u8]) -> RawBlockData {
-		bson::deserialize_from_slice(data).expect("failed to deserialize block data")
+		postcard::from_bytes(data).expect("failed to deserialize block data")
 	}
 }
 
@@ -106,7 +106,7 @@ impl FetchStorage for PostgresBackend {
 	async fn get_block_data(&self, chain_id: H256, block_number: u64) -> Option<RawBlockData> {
 		let result: Option<PgRow> = sqlx::query(
 			r#"
-            SELECT data FROM raw_block_data_v1
+            SELECT data FROM raw_block_data_v2
             WHERE chain_id = $1 AND block_number = $2
             "#,
 		)
@@ -139,7 +139,7 @@ impl FetchStorage for PostgresBackend {
 			r#"
             SELECT bd.data
             FROM UNNEST($2::BIGINT[]) WITH ORDINALITY AS bn(block_number, ord)
-            LEFT JOIN raw_block_data_v1 bd ON bd.chain_id = $1 AND bd.block_number = bn.block_number
+            LEFT JOIN raw_block_data_v2 bd ON bd.chain_id = $1 AND bd.block_number = bn.block_number
             ORDER BY bn.ord
             "#,
 		)
@@ -162,7 +162,7 @@ impl FetchStorage for PostgresBackend {
 
 		sqlx::query(
 			r#"
-            INSERT INTO raw_block_data_v1 (chain_id, block_number, data)
+            INSERT INTO raw_block_data_v2 (chain_id, block_number, data)
             VALUES ($1, $2, $3)
             ON CONFLICT (chain_id, block_number)
             DO UPDATE SET data = EXCLUDED.data
@@ -194,7 +194,7 @@ impl FetchStorage for PostgresBackend {
 
 			sqlx::query(
 				r#"
-                INSERT INTO raw_block_data_v1 (chain_id, block_number, data)
+                INSERT INTO raw_block_data_v2 (chain_id, block_number, data)
                 VALUES ($1, $2, $3)
                 ON CONFLICT (chain_id, block_number)
                 DO UPDATE SET data = EXCLUDED.data

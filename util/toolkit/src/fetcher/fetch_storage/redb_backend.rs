@@ -30,7 +30,7 @@ pub struct BlockKey {
 
 /// Persistent [`FetchStorage`] backend using [redb](https://github.com/cberner/redb).
 ///
-/// Block data keys/values use BSON via `Serde<T>` wrapper.
+/// Block data keys/values use postcard via `Serde<T>` wrapper.
 #[derive(Clone)]
 pub struct RedbBackend {
 	pub db: Arc<RwLock<Database>>,
@@ -50,7 +50,7 @@ impl RedbBackend {
 			db: Arc::new(RwLock::new(
 				Database::create(path).expect("failed to create database - is it already open?"),
 			)),
-			block_data_table: TableDefinition::new("raw_block_data_v1"),
+			block_data_table: TableDefinition::new("raw_block_data_v2"),
 			highest_verified_table: TableDefinition::new("highest_verified"),
 		}
 	}
@@ -132,7 +132,7 @@ impl FetchStorage for RedbBackend {
 	}
 }
 
-/// Wrapper type to handle keys and values using bincode serialization
+/// Wrapper type to handle keys and values using postcard serialization
 #[derive(Debug)]
 pub struct Serde<T>(pub T);
 
@@ -158,7 +158,7 @@ where
 	where
 		Self: 'a,
 	{
-		bson::deserialize_from_slice(&data).unwrap()
+		postcard::from_bytes(data).unwrap()
 	}
 
 	fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Self::AsBytes<'a>
@@ -166,7 +166,7 @@ where
 		Self: 'a,
 		Self: 'b,
 	{
-		bson::serialize_to_vec(&value).unwrap()
+		postcard::to_allocvec(&value).unwrap()
 	}
 
 	fn type_name() -> TypeName {
