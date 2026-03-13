@@ -475,12 +475,24 @@ rebuild-genesis-state-perfnet:
     BUILD +rebuild-genesis-state \
         --NETWORK=perfnet
 
+# rebuild-genesis-state-guardnet rebuilds the genesis ledger state for guardnet network - this MUST be followed by updating the chainspecs for CI to pass!
+rebuild-genesis-state-guardnet:
+    BUILD +rebuild-genesis-state \
+        --NETWORK=guardnet
+
+# rebuild-genesis-state-ddosnet rebuilds the genesis ledger state for ddosnet network - this MUST be followed by updating the chainspecs for CI to pass!
+rebuild-genesis-state-ddosnet:
+    BUILD +rebuild-genesis-state \
+        --NETWORK=ddosnet
+
 # rebuild-all-genesis-states rebuilds the genesis ledger state for all networks - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-all-genesis-states:
     BUILD +rebuild-genesis-state-undeployed
     BUILD +rebuild-genesis-state-devnet
     BUILD +rebuild-genesis-state-perfnet
     BUILD +rebuild-genesis-state-govnet
+    BUILD +rebuild-genesis-state-guardnet
+    BUILD +rebuild-genesis-state-ddosnet
     BUILD +rebuild-genesis-state-qanet
     # Preview is not meant to be reset
     #BUILD +rebuild-genesis-state-preview
@@ -539,6 +551,8 @@ rebuild-all-chainspecs:
     BUILD +rebuild-chainspec --NETWORK=govnet
     BUILD +rebuild-chainspec --NETWORK=qanet
     BUILD +rebuild-chainspec --NETWORK=perfnet
+    BUILD +rebuild-chainspec --NETWORK=guardnet
+    BUILD +rebuild-chainspec --NETWORK=ddosnet
     # Preview is not meant to be reset
     #BUILD +rebuild-chainspec --NETWORK=preview
     # Preprod is not meant to be reset
