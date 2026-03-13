@@ -90,6 +90,9 @@ Genesis generation creates the initial chain state for a Midnight network. The p
 │ candidates-         │  │
 │ config.json         │  │
 ├─────────────────────┤  │
+│ message-config.json │──┤
+│ (optional)          │  │
+├─────────────────────┤  │
 │ bootnodes-config.   │──┘
 │ json                │
 └─────────────────────┘
@@ -120,6 +123,7 @@ These files contain Cardano smart contract addresses and must be configured befo
 | `pc-chain-config.json` | Partner chain configuration (security parameter, etc.) |
 | `system-parameters-config.json` | System-level parameters |
 | `bootnodes-config.json` | Initial peer-to-peer bootnode multiaddresses injected into the chain spec |
+| `message-config.json` | Optional genesis remark message. If provided, a `System::remark` extrinsic with this message is embedded in the genesis block. If not provided, no remark extrinsic is added. |
 
 ### Generated Config Files (from Address Files)
 

@@ -18,8 +18,8 @@ BOLD='\033[1m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Available networks (excluding dev/undeployed which are for local development)
-AVAILABLE_NETWORKS=("mainnet" "qanet" "devnet" "govnet")
+# This verification script is only available for mainnet
+NETWORK="mainnet"
 
 # Function to print colored messages
 print_header() {
@@ -649,8 +649,8 @@ run_message_verification() {
     fi
 
     if [[ ! -f "$message_config" ]]; then
-        print_warning "message-config.json not found at $message_config - skipping"
-        return 0
+        print_error "message-config.json not found at $message_config"
+        return 1
     fi
 
     local all_passed=true
@@ -716,8 +716,8 @@ run_timestamp_verification() {
     fi
 
     if [[ ! -f "$cardano_tip_config" ]]; then
-        print_warning "cardano-tip.json not found at $cardano_tip_config - skipping"
-        return 0
+        print_error "cardano-tip.json not found at $cardano_tip_config"
+        return 1
     fi
 
     local all_passed=true
@@ -780,19 +780,9 @@ main() {
     echo -e "  6. ${BOLD}Genesis Timestamp Verification${NC} - Verifies genesis timestamp matches cardano-tip.json"
     echo ""
 
-    # Select network
-    print_step "Select Network"
-
-    echo -e "${BOLD}Available networks:${NC}"
-    echo ""
-    PS3=$'\n'"Select network (1-${#AVAILABLE_NETWORKS[@]}): "
-    select network in "${AVAILABLE_NETWORKS[@]}"; do
-        if [[ -n "$network" ]]; then
-            break
-        fi
-        echo "Invalid selection. Please try again."
-    done
-    print_success "Selected network: $network"
+    # Use mainnet
+    local network="$NETWORK"
+    print_info "Network: $network"
     echo ""
 
     # Show input files
