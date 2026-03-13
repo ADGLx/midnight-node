@@ -712,7 +712,7 @@ pub async fn build_fork_aware_context_cached(
 	let seed_hashes: Vec<H256> = wallet_seeds.iter().map(wallet_state_cache::hash_seed).collect();
 	let t = std::time::Instant::now();
 	let raw_cached = storage.get_wallet_states(chain_id, &seed_hashes).await;
-	log::info!("[perf] storage.get_wallet_states took {:?}", t.elapsed());
+	log::debug!("[perf] storage.get_wallet_states took {:?}", t.elapsed());
 
 	// Split into uncached seeds (need genesis) and cached (seed, state) pairs.
 	let mut uncached_seeds: Vec<WalletSeed> = Vec::new();
@@ -738,7 +738,7 @@ pub async fn build_fork_aware_context_cached(
 			&received_tx.network_id,
 			&uncached_seeds,
 		);
-		log::info!("[perf] new_from_wallet_seeds (cold) took {:?}", t.elapsed());
+		log::debug!("[perf] new_from_wallet_seeds (cold) took {:?}", t.elapsed());
 		ctx
 	} else {
 		let t = std::time::Instant::now();
@@ -749,7 +749,7 @@ pub async fn build_fork_aware_context_cached(
 					start_height
 				)
 			});
-		log::info!("[perf] storage.get_ledger_snapshot took {:?}", t.elapsed());
+		log::debug!("[perf] storage.get_ledger_snapshot took {:?}", t.elapsed());
 
 		let t = std::time::Instant::now();
 		let (ctx, ledger_state, _) = wallet_state_cache::restore_context_from_ledger_snapshot(
@@ -761,7 +761,7 @@ pub async fn build_fork_aware_context_cached(
 				start_height, e
 			)
 		});
-		log::info!("[perf] restore_context_from_ledger_snapshot took {:?}", t.elapsed());
+		log::debug!("[perf] restore_context_from_ledger_snapshot took {:?}", t.elapsed());
 
 		let t = std::time::Instant::now();
 		let mut injected = 0;
@@ -865,7 +865,7 @@ pub async fn build_fork_aware_context_cached(
 			}
 		}
 
-		log::info!("[perf] deferred dust: {} flushes for {} blocks", dust_flushes, total_blocks);
+		log::debug!("[perf] deferred dust: {} flushes for {} blocks", dust_flushes, total_blocks);
 	}
 
 	if !blocks_to_replay.is_empty() {
@@ -920,11 +920,11 @@ async fn try_save_cache_v2(
 			return;
 		},
 	};
-	log::info!("[perf] create_ledger_snapshot took {:?}", t.elapsed());
+	log::debug!("[perf] create_ledger_snapshot took {:?}", t.elapsed());
 
 	let t = std::time::Instant::now();
 	storage.set_ledger_snapshot(chain_id, snapshot).await;
-	log::info!("[perf] storage.set_ledger_snapshot took {:?}", t.elapsed());
+	log::debug!("[perf] storage.set_ledger_snapshot took {:?}", t.elapsed());
 
 	// Save individual wallet snapshots
 	let t = std::time::Instant::now();
@@ -949,19 +949,19 @@ async fn try_save_cache_v2(
 	if !wallet_snapshots.is_empty() {
 		let t = std::time::Instant::now();
 		storage.set_wallet_states(chain_id, &wallet_snapshots).await;
-		log::info!("[perf] storage.set_wallet_states took {:?}", t.elapsed());
+		log::debug!("[perf] storage.set_wallet_states took {:?}", t.elapsed());
 	}
 
 	// GC: keep heights referenced by all cached wallets (cross-process safe)
 	let t = std::time::Instant::now();
 	let mut keep_heights = storage.get_all_cached_wallet_heights(chain_id).await;
-	log::info!("[perf] storage.get_all_cached_wallet_heights took {:?}", t.elapsed());
+	log::debug!("[perf] storage.get_all_cached_wallet_heights took {:?}", t.elapsed());
 	if !keep_heights.contains(&block_height) {
 		keep_heights.push(block_height);
 	}
 	let t = std::time::Instant::now();
 	storage.gc_ledger_snapshots(chain_id, &keep_heights).await;
-	log::info!("[perf] storage.gc_ledger_snapshots took {:?}", t.elapsed());
+	log::debug!("[perf] storage.gc_ledger_snapshots took {:?}", t.elapsed());
 
 	log::info!(
 		"Saved per-wallet cache at block {} ({} wallets, 1 ledger snapshot)",
@@ -990,7 +990,7 @@ pub fn build_fork_aware_context_raw(
 	let t = std::time::Instant::now();
 	let mut ctx =
 		ForkAwareLedgerContext::new_from_wallet_seeds(initial_version, network_id, wallet_seeds);
-	log::info!("[perf] new_from_wallet_seeds (raw) took {:?}", t.elapsed());
+	log::debug!("[perf] new_from_wallet_seeds (raw) took {:?}", t.elapsed());
 
 	let t = std::time::Instant::now();
 	for block in &received_tx.blocks {

@@ -313,11 +313,11 @@ impl GetTxs for GetTxsFromUrl {
 				.await?
 			},
 		};
-		log::info!("[perf] fetch_all took {:?}", t.elapsed());
+		log::debug!("[perf] fetch_all took {:?}", t.elapsed());
 
 		let t = std::time::Instant::now();
 		let source_txs = SourceTransactions::from_blocks(blocks, self.dust_warp);
-		log::info!("[perf] SourceTransactions::from_blocks took {:?}", t.elapsed());
+		log::debug!("[perf] SourceTransactions::from_blocks took {:?}", t.elapsed());
 		Ok(source_txs)
 	}
 }

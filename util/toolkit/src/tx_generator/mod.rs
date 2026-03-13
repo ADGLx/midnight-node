@@ -198,7 +198,7 @@ impl TxGenerator {
 			let ctx =
 				build_fork_aware_context_cached(&seeds, received_txs, wallet_cache.as_deref())
 					.await;
-			log::info!("[perf] build_fork_aware_context_cached took {:?}", t.elapsed());
+			log::debug!("[perf] build_fork_aware_context_cached took {:?}", t.elapsed());
 			Some(ctx)
 		};
 
@@ -208,11 +208,11 @@ impl TxGenerator {
 			&self.prover_config,
 			self.dry_run,
 		)?;
-		log::info!("[perf] to_versioned_builder took {:?}", t.elapsed());
+		log::debug!("[perf] to_versioned_builder took {:?}", t.elapsed());
 
 		let t = std::time::Instant::now();
 		let result = builder.build_txs_from(received_txs.clone()).await;
-		log::info!("[perf] build_txs_from took {:?}", t.elapsed());
+		log::debug!("[perf] build_txs_from took {:?}", t.elapsed());
 		result
 	}
 }
