@@ -120,7 +120,7 @@ pub struct Source {
 		long,
 		global = true,
 		value_parser = cli::fetch_cache_config,
-		default_value = "redb:toolkit.db",
+		default_value = "redb:toolkit_cache/fetch_cache.db",
 		env = "MN_FETCH_CACHE"
 	)]
 	/// Fetch cache config. Caches block data fetched from the node.
@@ -132,7 +132,12 @@ pub struct Source {
 
 	/// Directory for file-based wallet state cache (ledger snapshots + per-wallet state).
 	/// Set to empty string to disable caching.
-	#[arg(long, global = true, default_value = "ledger_state_db", env = "MN_LEDGER_STATE_DB")]
+	#[arg(
+		long,
+		global = true,
+		default_value = "toolkit_cache/ledger_cache_db",
+		env = "MN_LEDGER_CACHE_DB"
+	)]
 	pub ledger_state_db: String,
 }
 

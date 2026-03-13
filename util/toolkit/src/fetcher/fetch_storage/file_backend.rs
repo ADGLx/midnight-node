@@ -37,7 +37,11 @@ pub struct FileBackend {
 
 impl FileBackend {
 	pub fn new(root: impl Into<PathBuf>) -> Self {
-		Self { root: root.into() }
+		let root = root.into();
+		fs::create_dir_all(&root).unwrap_or_else(|e| {
+			panic!("failed to create ledger_state_db directory '{}': {}", root.display(), e)
+		});
+		Self { root }
 	}
 
 	fn ledger_dir(&self, chain_id: H256) -> PathBuf {
