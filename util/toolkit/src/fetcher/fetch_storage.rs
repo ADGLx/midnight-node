@@ -11,15 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use async_trait::async_trait;
 use futures::stream::{self, StreamExt};
 use midnight_node_ledger_helpers::fork::raw_block_data::RawBlockData;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, future::Future, sync::Arc};
 use subxt::utils::H256;
 use tokio::sync::Mutex;
 
 use super::MidnightBlock;
 use super::wallet_state_cache::{CachedWalletState, LedgerSnapshot};
-use async_trait::async_trait;
 
 pub mod file_backend;
 pub mod postgres_backend;
@@ -79,39 +79,61 @@ pub struct FetchedBlock {
 ///
 /// Provides methods to store and retrieve [`RawBlockData`] by chain ID and block number,
 /// as well as tracking the highest verified block per chain.
-#[async_trait]
-pub trait FetchStorage {
+pub trait FetchStorage: Send + Sync {
 	// =========================================================================
 	// Block data methods
 	// =========================================================================
 
-	async fn get_block_data(&self, chain_id: H256, block_number: u64) -> Option<RawBlockData>;
-	async fn get_block_data_range(
+	fn get_block_data(
+		&self,
+		chain_id: H256,
+		block_number: u64,
+	) -> impl Future<Output = Option<RawBlockData>> + Send;
+
+	fn get_block_data_range(
 		&self,
 		chain_id: H256,
 		range: impl Iterator<Item = u64> + Send,
-	) -> Vec<Option<RawBlockData>> {
-		let block_stream = stream::iter(
-			range.map(async |block_number| self.get_block_data(chain_id, block_number).await),
-		);
-		let buffered = block_stream.buffered(10);
-		buffered.collect().await
+	) -> impl Future<Output = Vec<Option<RawBlockData>>> + Send {
+		async move {
+			let block_stream =
+				stream::iter(range.map(|block_number| self.get_block_data(chain_id, block_number)));
+			let buffered = block_stream.buffered(10);
+			buffered.collect().await
+		}
 	}
 
-	async fn insert_block_data(&self, chain_id: H256, block_number: u64, block: RawBlockData);
-	async fn insert_block_data_range(
+	fn insert_block_data(
+		&self,
+		chain_id: H256,
+		block_number: u64,
+		block: RawBlockData,
+	) -> impl Future<Output = ()> + Send;
+
+	fn insert_block_data_range(
 		&self,
 		chain_id: H256,
 		range: impl Iterator<Item = (u64, RawBlockData)> + Send,
-	) {
-		let block_stream = stream::iter(range.map(async |(block_number, block)| {
-			self.insert_block_data(chain_id, block_number, block).await
-		}));
-		let buffered = block_stream.buffer_unordered(10);
-		buffered.collect().await
+	) -> impl Future<Output = ()> + Send {
+		async move {
+			let block_stream = stream::iter(range.map(|(block_number, block)| {
+				self.insert_block_data(chain_id, block_number, block)
+			}));
+			let buffered = block_stream.buffer_unordered(10);
+			buffered.collect().await
+		}
 	}
-	async fn get_highest_verified_block(&self, chain_id: H256) -> Option<u64>;
-	async fn set_highest_verified_block(&self, chain_id: H256, height: u64);
+
+	fn get_highest_verified_block(
+		&self,
+		chain_id: H256,
+	) -> impl Future<Output = Option<u64>> + Send;
+
+	fn set_highest_verified_block(
+		&self,
+		chain_id: H256,
+		height: u64,
+	) -> impl Future<Output = ()> + Send;
 }
 
 #[derive(Clone, Default)]
@@ -126,7 +148,6 @@ impl InMemory {
 	}
 }
 
-#[async_trait]
 impl FetchStorage for InMemory {
 	async fn get_block_data(&self, chain_id: H256, block_number: u64) -> Option<RawBlockData> {
 		let k = Self::block_key(&chain_id.0, block_number);
