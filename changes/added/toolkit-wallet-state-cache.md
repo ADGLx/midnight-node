@@ -9,5 +9,7 @@ Stale snapshot garbage collection reads only the first 26 bytes of BSON headers 
 
 New CLI flags: `--ledger-state-db <path>` to set the cache directory (default: `ledger_state_db`), and `--fetch-only-cached` for offline operation from a pre-populated cache.
 
-PR: https://github.com/midnightntwrk/midnight-node/pull/820
+PR:
+- https://github.com/midnightntwrk/midnight-node/pull/820
+- https://github.com/midnightntwrk/midnight-node/pull/939
 JIRA: https://shielded.atlassian.net/browse/PM-22103

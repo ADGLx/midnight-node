@@ -5,5 +5,7 @@ Batches state-change events during block replay for wallet initialization, using
 
 Adds structured `[perf]` logging for timing instrumentation of key operations. Includes a fix for BSON encoding in wallet cache serialization and graceful failure when the wallet has insufficient DUST balance.
 
-PR: https://github.com/midnightntwrk/midnight-node/pull/820
+PRs:
+- https://github.com/midnightntwrk/midnight-node/pull/820
+- https://github.com/midnightntwrk/midnight-node/pull/939
 JIRA: https://shielded.atlassian.net/browse/PM-22103
