@@ -778,7 +778,7 @@ pub async fn build_fork_aware_context_cached(
 				});
 			injected += 1;
 		}
-		log::info!(
+		log::debug!(
 			"[perf] inject wallets at start_height: {} wallets in {:?}",
 			injected,
 			t.elapsed()
@@ -820,7 +820,7 @@ pub async fn build_fork_aware_context_cached(
 			deferred_chunk.push(events);
 
 			if (i + 1) % 1000 == 0 || i + 1 == total_blocks {
-				log::info!(
+				log::debug!(
 					"[perf] replay progress: {}/{} blocks ({:.1}%) in {:?}",
 					i + 1,
 					total_blocks,
@@ -869,7 +869,7 @@ pub async fn build_fork_aware_context_cached(
 	}
 
 	if !blocks_to_replay.is_empty() {
-		log::info!(
+		log::debug!(
 			"[perf] block replay: {} blocks in {:?}",
 			blocks_to_replay.len(),
 			t_replay.elapsed()
@@ -940,7 +940,7 @@ async fn try_save_cache_v2(
 			}
 		})
 		.collect();
-	log::info!(
+	log::debug!(
 		"[perf] create wallet snapshots: {} wallets in {:?}",
 		wallet_snapshots.len(),
 		t.elapsed()
@@ -996,7 +996,7 @@ pub fn build_fork_aware_context_raw(
 	for block in &received_tx.blocks {
 		ctx = ctx.update_from_block(block);
 	}
-	log::info!(
+	log::debug!(
 		"[perf] block replay (raw): {} blocks in {:?}",
 		received_tx.blocks.len(),
 		t.elapsed()

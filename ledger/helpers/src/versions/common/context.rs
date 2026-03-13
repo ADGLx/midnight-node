@@ -155,7 +155,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 	{
 		use rayon::prelude::*;
 		let total_events: usize = event_batches.iter().map(|b| b.len()).sum();
-		log::info!(
+		log::debug!(
 			"[perf] flushing {} event batches ({} total events) for {} wallets",
 			event_batches.len(),
 			total_events,

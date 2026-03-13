@@ -87,7 +87,7 @@ mod tests {
 		tx_generator::{
 			builder::{
 				BatchSingleTxArgs, BatchesArgs, ClaimRewardsArgs, ContractCall, ContractCallArgs,
-				ContractDeployArgs, SingleTxArgs,
+				ContractDeployArgs, SingleTxArgs, TransferArgs,
 			},
 			source::FetchCacheConfig,
 		},
@@ -240,19 +240,20 @@ mod tests {
 	async fn test_batch_single_tx() {
 		let dir = tempfile::tempdir().unwrap();
 		let transfers_file = dir.path().join("transfers.json");
-		let dest_file = dir.path().join("tx_out.mn");
 
 		let transfers_json = serde_json::json!([{
 			"source_seed": "0000000000000000000000000000000000000000000000000000000000000001",
 			"destination_address": "mn_addr_undeployed13h0e3c2m7rcfem6wvjljnyjmxy5rkg9kkwcldzt73ya5pv7c4p8skzgqwj",
 			"unshielded_amount": 100,
-			"dest_file": dest_file.to_str().unwrap(),
 		}]);
 		std::fs::write(&transfers_file, serde_json::to_string(&transfers_json).unwrap()).unwrap();
 
 		let args = test_fixture!(
 			Builder::BatchSingleTx(BatchSingleTxArgs {
-				transfers_file: transfers_file.to_str().unwrap().to_string(),
+				transfers: TransferArgs {
+					transfers_file: Some(transfers_file.to_str().unwrap().to_string()),
+					transfers: None,
+				},
 				concurrency: Some(1),
 			}),
 			["genesis/genesis_block_undeployed.mn"]
@@ -269,10 +270,11 @@ mod tests {
 		.unwrap();
 
 		let received_txs = generator.get_txs().await.unwrap();
-		super::generate_txs(&generator, received_txs).await.unwrap();
+		let serialized_tx_batches = super::generate_txs(&generator, received_txs).await.unwrap();
 
-		assert!(dest_file.exists(), "batch-single-tx should write tx to dest_file");
-		let content = std::fs::read(&dest_file).unwrap();
-		assert!(!content.is_empty(), "written tx file should not be empty");
+		assert!(
+			!serialized_tx_batches.batches.is_empty(),
+			"batch-single-tx should generate one batch"
+		);
 	}
 }
