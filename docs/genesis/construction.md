@@ -274,10 +274,10 @@ The `genesis-construction.sh` script provides an interactive wizard for genesis 
 ### Step 1: Select Network
 
 The tool presents available networks:
+- `mainnet`
 - `qanet`
 - `devnet`
 - `govnet`
-- `node-dev-01`
 - `preview`
 
 ### Step 2: Provide Configuration
@@ -359,13 +359,13 @@ It consists of three main steps:
 
 Available networks:
 
-1) qanet
-2) devnet
-3) govnet
-4) node-dev-01
+1) mainnet
+2) qanet
+3) devnet
+4) govnet
 5) preview
 
-Select network (1-5): 1
+Select network (1-5): 2
 ✓ Selected network: qanet
 
 ▶ Configuration
