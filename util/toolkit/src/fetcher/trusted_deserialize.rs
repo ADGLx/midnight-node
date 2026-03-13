@@ -212,4 +212,35 @@ mod tests {
 			roundtrip_bytes.len()
 		);
 	}
+
+	/// Verify trusted deserialization produces identical state to the standard
+	/// (upstream) deserializer. If upstream changes their hash function or
+	/// serialization format, this test fails immediately in CI.
+	#[test]
+	fn trusted_deser_matches_upstream() {
+		let state = LedgerState::<DefaultDB>::new("test");
+		let bytes =
+			midnight_node_ledger_helpers::serialize(&state).expect("serialize failed");
+
+		let standard: LedgerState<DefaultDB> =
+			midnight_node_ledger_helpers::deserialize(&bytes[..])
+				.expect("standard deserialize failed");
+		let trusted: LedgerState<DefaultDB> =
+			trusted_deserialize_tagged(&bytes).expect("trusted deserialize failed");
+
+		let standard_bytes =
+			midnight_node_ledger_helpers::serialize(&standard)
+				.expect("re-serialize standard failed");
+		let trusted_bytes =
+			midnight_node_ledger_helpers::serialize(&trusted)
+				.expect("re-serialize trusted failed");
+
+		assert_eq!(
+			standard_bytes, trusted_bytes,
+			"trusted and standard deserialization produce different state \
+			 (standard {} bytes vs trusted {} bytes)",
+			standard_bytes.len(),
+			trusted_bytes.len()
+		);
+	}
 }
