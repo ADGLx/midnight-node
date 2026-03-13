@@ -96,10 +96,8 @@ fn load_genesis_extrinsics(
 		.and_then(|e| e.as_array())
 		.ok_or(VerifyGenesisTimestampError::MissingGenesisExtrinsics)?;
 
-	let hex_strings: Vec<String> = extrinsics
-		.iter()
-		.filter_map(|v| v.as_str().map(String::from))
-		.collect();
+	let hex_strings: Vec<String> =
+		extrinsics.iter().filter_map(|v| v.as_str().map(String::from)).collect();
 
 	Ok(hex_strings)
 }
@@ -139,10 +137,7 @@ pub fn verify_genesis_timestamp(
 	log::info!("Loading genesis extrinsics from {}", chain_spec_path.display());
 	let extrinsic_hexes = load_genesis_extrinsics(chain_spec_path)?;
 
-	log::info!(
-		"Loading expected timestamp from {}",
-		cardano_tip_config_path.display()
-	);
+	log::info!("Loading expected timestamp from {}", cardano_tip_config_path.display());
 	let expected_timestamp_secs = load_expected_timestamp_secs(cardano_tip_config_path)?;
 	let expected_timestamp_millis = expected_timestamp_secs * 1000;
 
@@ -161,27 +156,20 @@ pub fn verify_genesis_timestamp(
 
 	let timestamp_found = !timestamps.is_empty();
 	let timestamp_found_detail = if timestamp_found {
-		format!(
-			"Found {} Timestamp::set extrinsic(s) in genesis_extrinsics",
-			timestamps.len()
-		)
+		format!("Found {} Timestamp::set extrinsic(s) in genesis_extrinsics", timestamps.len())
 	} else {
 		"No Timestamp::set extrinsic found in genesis_extrinsics".to_string()
 	};
 
-	let timestamp_matches = timestamps
-		.iter()
-		.any(|&ts| ts == expected_timestamp_millis);
+	let timestamp_matches = timestamps.iter().any(|&ts| ts == expected_timestamp_millis);
 	let timestamp_matches_detail = if timestamp_matches {
 		format!(
 			"Genesis timestamp matches: {} ms (cardano-tip: {} secs)",
 			expected_timestamp_millis, expected_timestamp_secs
 		)
 	} else if timestamp_found {
-		let found_values: Vec<String> = timestamps
-			.iter()
-			.map(|ts| format!("{} ms ({} secs)", ts, ts / 1000))
-			.collect();
+		let found_values: Vec<String> =
+			timestamps.iter().map(|ts| format!("{} ms ({} secs)", ts, ts / 1000)).collect();
 		format!(
 			"Genesis timestamp does not match. Expected {} ms (from cardano-tip {} secs). Found: {}",
 			expected_timestamp_millis,

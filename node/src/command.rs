@@ -28,9 +28,8 @@ use crate::{
 		reserve_genesis::{ReserveAddresses, generate_reserve_genesis},
 	},
 	genesis::verification::{
-		verify_auth_script_common, verify_federated_authority_auth_script,
-		verify_genesis_message, verify_genesis_timestamp, verify_ics_auth_script,
-		verify_ledger_state_genesis,
+		verify_auth_script_common, verify_federated_authority_auth_script, verify_genesis_message,
+		verify_genesis_timestamp, verify_ics_auth_script, verify_ledger_state_genesis,
 		verify_permissioned_candidates_auth_script, verify_reserve_auth_script,
 	},
 	service::{self, StorageInit},
@@ -1211,19 +1210,16 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				}
 
 				// 4. Verify Reserve
-				let reserve_result =
-					verify_reserve_auth_script::verify_reserve_auth_script(
-						&reserve_addresses,
-						Some(&authorization_addresses),
-						&pool,
-						&cmd.cardano_tip,
-					)
-					.await
-					.map_err(|e| {
-						sc_cli::Error::Input(format!(
-							"Reserve auth script verification failed: {e}"
-						))
-					})?;
+				let reserve_result = verify_reserve_auth_script::verify_reserve_auth_script(
+					&reserve_addresses,
+					Some(&authorization_addresses),
+					&pool,
+					&cmd.cardano_tip,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!("Reserve auth script verification failed: {e}"))
+				})?;
 				reserve_result.print_summary();
 				if !reserve_result.all_passed() {
 					all_passed = false;
@@ -1391,19 +1387,16 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					crate::main_chain_follower::create_ics_genesis_pool(cfg.midnight_cfg.clone())
 						.await?;
 
-				let result =
-					verify_reserve_auth_script::verify_reserve_auth_script(
-						&reserve_addresses,
-						Some(&authorization_addresses),
-						&pool,
-						&cmd.cardano_tip,
-					)
-					.await
-					.map_err(|e| {
-						sc_cli::Error::Input(format!(
-							"Reserve auth script verification failed: {e}"
-						))
-					})?;
+				let result = verify_reserve_auth_script::verify_reserve_auth_script(
+					&reserve_addresses,
+					Some(&authorization_addresses),
+					&pool,
+					&cmd.cardano_tip,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!("Reserve auth script verification failed: {e}"))
+				})?;
 
 				result.print_summary();
 
@@ -1425,22 +1418,18 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				.clone()
 				.unwrap_or_else(|| res_dir.join("message-config.json"));
 
-			let result = verify_genesis_message::verify_genesis_message(
-				&cmd.chain_spec,
-				&message_config,
-			)
-			.map_err(|e| {
-				sc_cli::Error::Input(format!("Genesis message verification failed: {e}"))
-			})?;
+			let result =
+				verify_genesis_message::verify_genesis_message(&cmd.chain_spec, &message_config)
+					.map_err(|e| {
+						sc_cli::Error::Input(format!("Genesis message verification failed: {e}"))
+					})?;
 
 			result.print_summary();
 
 			if result.all_passed() {
 				Ok(())
 			} else {
-				Err(sc_cli::Error::Input(
-					"Genesis message verification failed".to_string(),
-				))
+				Err(sc_cli::Error::Input("Genesis message verification failed".to_string()))
 			}
 		},
 		Subcommand::VerifyGenesisTimestamp(ref cmd) => {
@@ -1467,9 +1456,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 			if result.all_passed() {
 				Ok(())
 			} else {
-				Err(sc_cli::Error::Input(
-					"Genesis timestamp verification failed".to_string(),
-				))
+				Err(sc_cli::Error::Input("Genesis timestamp verification failed".to_string()))
 			}
 		},
 	}

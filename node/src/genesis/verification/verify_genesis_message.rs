@@ -89,10 +89,8 @@ fn load_genesis_extrinsics(
 		.and_then(|e| e.as_array())
 		.ok_or(VerifyGenesisMessageError::MissingGenesisExtrinsics)?;
 
-	let hex_strings: Vec<String> = extrinsics
-		.iter()
-		.filter_map(|v| v.as_str().map(String::from))
-		.collect();
+	let hex_strings: Vec<String> =
+		extrinsics.iter().filter_map(|v| v.as_str().map(String::from)).collect();
 
 	Ok(hex_strings)
 }
@@ -158,17 +156,10 @@ pub fn verify_genesis_message(
 			.iter()
 			.map(|r| {
 				let s = String::from_utf8_lossy(r);
-				if s.len() > 80 {
-					format!("\"{}...\"", &s[..80])
-				} else {
-					format!("\"{}\"", s)
-				}
+				if s.len() > 80 { format!("\"{}...\"", &s[..80]) } else { format!("\"{}\"", s) }
 			})
 			.collect();
-		format!(
-			"Genesis remark does not match expected message. Found: {}",
-			found_msgs.join(", ")
-		)
+		format!("Genesis remark does not match expected message. Found: {}", found_msgs.join(", "))
 	} else {
 		"No System::remark extrinsic found to compare".to_string()
 	};
