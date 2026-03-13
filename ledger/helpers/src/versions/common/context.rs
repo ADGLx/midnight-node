@@ -210,7 +210,8 @@ impl<D: DB + Clone> LedgerContext<D> {
 	///
 	/// Safety: only use during cold-start replay where no concurrent `spend()`/`mark_spent()`
 	/// calls are active — `pending_until` and `spent_utxos` clearing depend on per-block
-	/// `process_ttls` which is deferred.
+	/// `process_ttls` which is deferred. This is naturally satisfied by the toolkit, which
+	/// always replays all blocks to reconstruct state before building any transactions.
 	pub fn update_from_block_deferred_dust<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
 		&self,
 		txs: &[SerdeTransaction<S, P, D>],
