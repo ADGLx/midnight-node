@@ -295,7 +295,8 @@ Enter the following when prompted:
 
 3. **RNG seed for ledger state**
    - Default: `0000000000000000000000000000000000000000000000000000000000000037`
-   - Used for deterministic genesis generation
+   - Used for deterministic genesis generation (faucet wallet funding)
+   - N/A for `mainnet` (no faucet wallets are funded)
 
 ### Step 3: Genesis Config Generation
 
