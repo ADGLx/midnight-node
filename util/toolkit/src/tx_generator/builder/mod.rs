@@ -300,18 +300,42 @@ pub struct TransferSpec {
 	pub shielded_amount: Option<u128>,
 	pub shielded_token_type: Option<String>,
 	pub funding_seed: Option<String>,
-	pub dest_file: String,
 	pub rng_seed: Option<String>,
 }
 
 #[derive(Args, Clone, Debug)]
-pub struct BatchSingleTxArgs {
+#[group(required = true, multiple = false)]
+pub struct TransferArgs {
 	/// Path to JSON file with transfer specifications
 	#[arg(long)]
-	pub transfers_file: String,
+	pub transfers_file: Option<String>,
+	/// Transfer specifications, provided as in-line JSON
+	#[arg(long, value_parser = cli::serde_json_decode::<Vec<TransferSpec>>)]
+	pub transfers: Option<Vec<TransferSpec>>,
+}
+
+#[derive(Args, Clone, Debug)]
+pub struct BatchSingleTxArgs {
+	#[command(flatten)]
+	pub transfers: TransferArgs,
 	/// Number of concurrent tx generation tasks (default: available CPUs)
 	#[arg(long)]
 	pub concurrency: Option<usize>,
+}
+
+impl BatchSingleTxArgs {
+	pub fn get_transfer_specs(&self) -> Vec<TransferSpec> {
+		if let Some(ref transfers_file) = self.transfers.transfers_file {
+			let file_content = std::fs::read_to_string(&transfers_file).unwrap_or_else(|e| {
+				panic!("failed to read transfers file '{}': {}", transfers_file, e)
+			});
+			serde_json::from_str(&file_content)
+				.unwrap_or_else(|e| panic!("failed to parse transfers JSON: {}", e))
+		} else {
+			// unwrap() is safe here - must be Some(_) if transfers_file is None
+			self.transfers.transfers.clone().unwrap()
+		}
+	}
 }
 
 #[derive(Subcommand, Clone, Debug)]
@@ -462,13 +486,7 @@ impl Builder {
 				vec![seed, funding_seed]
 			},
 			Builder::BatchSingleTx(args) => {
-				let file_content =
-					std::fs::read_to_string(&args.transfers_file).unwrap_or_else(|e| {
-						panic!("failed to read transfers file '{}': {}", args.transfers_file, e)
-					});
-				let specs: Vec<TransferSpec> = serde_json::from_str(&file_content)
-					.unwrap_or_else(|e| panic!("failed to parse transfers JSON: {}", e));
-
+				let specs = args.get_transfer_specs();
 				let mut seen = HashSet::new();
 				let mut seeds = Vec::new();
 				for spec in &specs {

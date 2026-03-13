@@ -11,7 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::{collections::HashMap, io::Write, sync::Arc};
+use std::{collections::HashMap, sync::Arc};
 
 use super::ledger_helpers_local::{
 	BuildIntent, BuildUtxoOutput, BuildUtxoSpend, DefaultDB, FromContext as _, IntentInfo,
@@ -48,14 +48,7 @@ impl BatchSingleTxBuilder {
 		context: Arc<LedgerContext<DefaultDB>>,
 		prover: Arc<dyn ProofProvider<DefaultDB>>,
 	) -> Self {
-		let transfers: Vec<TransferSpec> = {
-			let file_content = std::fs::read_to_string(&args.transfers_file).unwrap_or_else(|e| {
-				panic!("failed to read transfers file '{}': {}", args.transfers_file, e)
-			});
-			serde_json::from_str(&file_content)
-				.unwrap_or_else(|e| panic!("failed to parse transfers JSON: {}", e))
-		};
-
+		let transfers = args.get_transfer_specs();
 		let concurrency = args
 			.concurrency
 			.unwrap_or_else(|| std::thread::available_parallelism().unwrap().into());
@@ -267,20 +260,6 @@ fn build_unshielded_intents(
 	Ok(intents)
 }
 
-fn write_tx_file(
-	path: &str,
-	tx: &midnight_node_ledger_helpers::fork::raw_block_data::SerializedTx,
-) {
-	if let Some(parent) = std::path::Path::new(path).parent() {
-		std::fs::create_dir_all(parent)
-			.unwrap_or_else(|e| panic!("failed to create directory for '{}': {}", path, e));
-	}
-	let mut file = std::fs::File::create(path)
-		.unwrap_or_else(|e| panic!("failed to create dest_file '{}': {}", path, e));
-	file.write_all(&serde_json::to_vec(tx).expect("serialization error"))
-		.unwrap_or_else(|e| panic!("failed to write to '{}': {}", path, e));
-}
-
 #[async_trait]
 impl BuildTxs for BatchSingleTxBuilder {
 	type Error = BatchSingleTxError;
@@ -297,6 +276,7 @@ impl BuildTxs for BatchSingleTxBuilder {
 		let mut succeeded = 0usize;
 		let mut failed = 0usize;
 
+		let num_transfers = self.transfers.len();
 		let futures: Vec<_> = self
 			.transfers
 			.iter()
@@ -308,29 +288,32 @@ impl BuildTxs for BatchSingleTxBuilder {
 					let result = Self::build_single_transfer(context, prover, &spec).await.map(
 						|tx_with_ctx| {
 							let serialized = super::tx_serialization::build_single(tx_with_ctx);
-							let tx = serialized
+							serialized
 								.batches
 								.into_iter()
 								.next()
 								.and_then(|b| b.into_iter().next())
-								.expect("build_single should produce exactly one tx");
-							write_tx_file(&spec.dest_file, &tx);
+								.expect("build_single should produce exactly one tx")
 						},
 					);
-					(spec.dest_file, result)
+					result
 				}
 			})
 			.collect();
-		let mut stream = futures::stream::iter(futures).buffer_unordered(self.concurrency);
+		let mut stream = futures::stream::iter(futures).buffered(self.concurrency);
 
-		while let Some((dest_file, result)) = stream.next().await {
+		let mut txs = Vec::with_capacity(num_transfers);
+		let mut index_iter = (1..=num_transfers).into_iter();
+		while let Some(result) = stream.next().await {
+			let index = index_iter.next().unwrap();
 			match result {
-				Ok(()) => {
-					log::info!("Wrote tx to {}", dest_file);
+				Ok(tx) => {
+					log::info!(index = index, total = num_transfers; "Built tx {} ", hex::encode(tx.tx_hash));
+					txs.push(tx);
 					succeeded += 1;
 				},
 				Err(e) => {
-					log::error!("Transfer to '{}' failed: {}", dest_file, e);
+					log::error!(index = index, total = num_transfers; "Failed to build tx: {}", e);
 					failed += 1;
 				},
 			}
@@ -343,8 +326,7 @@ impl BuildTxs for BatchSingleTxBuilder {
 			return Err(BatchSingleTxError::PartialFailure { succeeded, failed });
 		}
 
-		// Txs already written to individual files — return empty batches
-		Ok(SerializedTxBatches { batches: vec![] })
+		Ok(SerializedTxBatches { batches: vec![txs] })
 	}
 }
 
