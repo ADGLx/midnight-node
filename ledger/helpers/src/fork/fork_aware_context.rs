@@ -13,7 +13,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use crate::fork::fork_7_to_8::fork_context_7_to_8;
+pub use crate::fork::fork_7_to_8::fork_context_7_to_8;
 use crate::fork::raw_block_data::{LedgerVersion, RawBlockData, RawTransaction};
 
 type Db7 = crate::ledger_7::DefaultDB;
@@ -73,30 +73,6 @@ impl ForkAwareLedgerContext {
 		}
 	}
 
-	/// Process a raw block, handling fork transitions.
-	///
-	/// If the context is currently Ledger7 and the block is Ledger8,
-	/// the context is automatically forked to Ledger8 first.
-	pub fn update_from_block(self, block: &RawBlockData) -> Self {
-		let (ctx, events) = self.update_from_block_deferred_dust(block);
-		ctx.flush_deferred_dust(&[events], block);
-		ctx
-	}
-
-	/// Fork the context from Ledger7 to Ledger8.
-	fn next_fork(self) -> Self {
-		match self {
-			Self::Ledger7(ctx7) => {
-				let ctx8 = fork_context_7_to_8(ctx7)
-					.expect("failed to fork context from ledger 7 to ledger 8");
-				Self::Ledger8(ctx8)
-			},
-			Self::Ledger8(_) => {
-				panic!("next_fork called on Ledger8 context");
-			},
-		}
-	}
-
 	/// Dispatch on the ledger version, passing the inner context to the
 	/// appropriate closure.
 	pub fn dispatch<T>(
@@ -129,82 +105,33 @@ impl ForkAwareLedgerContext {
 			Self::Ledger7(_) => None,
 		}
 	}
-
-	/// Like `update_from_block` but defers wallet dust processing.
-	/// Returns accumulated events that must be flushed via `flush_deferred_dust`.
-	///
-	/// Safety: only use during cold-start replay where no concurrent `spend()`
-	/// calls are active.
-	pub fn update_from_block_deferred_dust(
-		mut self,
-		block: &RawBlockData,
-	) -> (Self, DeferredDustEvents) {
-		let block_version = block.ledger_version();
-
-		if self.version() == LedgerVersion::Ledger7 && block_version == LedgerVersion::Ledger8 {
-			self = self.next_fork();
-		}
-
-		let events = match &self {
-			Self::Ledger7(ctx) => DeferredDustEvents::Ledger7(apply_block_7(ctx, block)),
-			Self::Ledger8(ctx) => DeferredDustEvents::Ledger8(apply_block_8(ctx, block)),
-		};
-
-		(self, events)
-	}
-
-	/// Flush accumulated dust events to all wallets in parallel.
-	/// `last_block` is the final block in the batch (for TTL processing).
-	pub fn flush_deferred_dust(&self, events: &[DeferredDustEvents], last_block: &RawBlockData) {
-		match self {
-			Self::Ledger7(ctx) => {
-				let event_vecs: Vec<&Vec<crate::ledger_7::Event<Db7>>> = events
-					.iter()
-					.filter_map(|e| match e {
-						DeferredDustEvents::Ledger7(evts) => Some(evts),
-						DeferredDustEvents::Ledger8(_) => None,
-					})
-					.collect();
-				let block_context = crate::ledger_7::make_block_context(
-					crate::ledger_7::Timestamp::from_secs(last_block.tblock_secs),
-					crate::ledger_7::HashOutput(last_block.parent_block_hash),
-					crate::ledger_7::Timestamp::from_secs(last_block.last_block_time_secs),
-				);
-				ctx.flush_deferred_dust(&event_vecs, &block_context);
-			},
-			Self::Ledger8(ctx) => {
-				let event_vecs: Vec<&Vec<crate::ledger_8::Event<Db8>>> = events
-					.iter()
-					.filter_map(|e| match e {
-						DeferredDustEvents::Ledger8(evts) => Some(evts),
-						DeferredDustEvents::Ledger7(_) => None,
-					})
-					.collect();
-				let block_context = crate::ledger_8::make_block_context(
-					crate::ledger_8::Timestamp::from_secs(last_block.tblock_secs),
-					crate::ledger_8::HashOutput(last_block.parent_block_hash),
-					crate::ledger_8::Timestamp::from_secs(last_block.last_block_time_secs),
-				);
-				ctx.flush_deferred_dust(&event_vecs, &block_context);
-			},
-		}
-	}
 }
 
-/// Accumulated dust events from deferred block processing.
-pub enum DeferredDustEvents {
-	Ledger7(Vec<crate::ledger_7::Event<Db7>>),
-	Ledger8(Vec<crate::ledger_8::Event<Db8>>),
+/// Construct a Ledger7 `BlockContext` from `RawBlockData`.
+pub fn block_context_from_raw_7(block: &RawBlockData) -> crate::ledger_7::BlockContext {
+	crate::ledger_7::make_block_context(
+		crate::ledger_7::Timestamp::from_secs(block.tblock_secs),
+		crate::ledger_7::HashOutput(block.parent_block_hash),
+		crate::ledger_7::Timestamp::from_secs(block.last_block_time_secs),
+	)
+}
+
+/// Construct a Ledger8 `BlockContext` from `RawBlockData`.
+pub fn block_context_from_raw_8(block: &RawBlockData) -> crate::ledger_8::BlockContext {
+	crate::ledger_8::make_block_context(
+		crate::ledger_8::Timestamp::from_secs(block.tblock_secs),
+		crate::ledger_8::HashOutput(block.parent_block_hash),
+		crate::ledger_8::Timestamp::from_secs(block.last_block_time_secs),
+	)
 }
 
 /// Deserialize raw transactions and apply to a Ledger7 context, returning dust events.
-fn apply_block_7(
+pub fn apply_block_7(
 	ctx: &crate::ledger_7::context::LedgerContext<Db7>,
 	block: &RawBlockData,
 ) -> Vec<crate::ledger_7::Event<Db7>> {
 	use crate::ledger_7::{
-		HashOutput, SerdeTransaction, SystemTransaction, Timestamp,
-		midnight_serialize::tagged_deserialize,
+		SerdeTransaction, SystemTransaction, midnight_serialize::tagged_deserialize,
 	};
 
 	type MnTx7 = crate::ledger_7::Transaction<
@@ -231,11 +158,7 @@ fn apply_block_7(
 		}
 	}
 
-	let block_context = crate::ledger_7::make_block_context(
-		Timestamp::from_secs(block.tblock_secs),
-		HashOutput(block.parent_block_hash),
-		Timestamp::from_secs(block.last_block_time_secs),
-	);
+	let block_context = block_context_from_raw_7(block);
 
 	ctx.update_from_block_deferred_dust(
 		&transactions,
@@ -246,13 +169,12 @@ fn apply_block_7(
 }
 
 /// Deserialize raw transactions and apply to a Ledger8 context, returning dust events.
-fn apply_block_8(
+pub fn apply_block_8(
 	ctx: &crate::ledger_8::context::LedgerContext<Db8>,
 	block: &RawBlockData,
 ) -> Vec<crate::ledger_8::Event<Db8>> {
 	use crate::ledger_8::{
-		HashOutput, SerdeTransaction, SystemTransaction, Timestamp,
-		midnight_serialize::tagged_deserialize,
+		SerdeTransaction, SystemTransaction, midnight_serialize::tagged_deserialize,
 	};
 
 	type MnTx8 = crate::ledger_8::Transaction<
@@ -279,11 +201,7 @@ fn apply_block_8(
 		}
 	}
 
-	let block_context = crate::ledger_8::make_block_context(
-		Timestamp::from_secs(block.tblock_secs),
-		HashOutput(block.parent_block_hash),
-		Timestamp::from_secs(block.last_block_time_secs),
-	);
+	let block_context = block_context_from_raw_8(block);
 
 	ctx.update_from_block_deferred_dust(
 		&transactions,

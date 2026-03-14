@@ -84,8 +84,8 @@ impl RawTransaction {
 /// Version-agnostic block data that stores transactions as raw serialized bytes.
 ///
 /// Deserialization into version-specific ledger types happens lazily in
-/// `ForkAwareLedgerContext::update_from_block`, which knows the current
-/// ledger version and uses the correct types.
+/// `apply_block_7` / `apply_block_8`, which use the correct types for
+/// the respective ledger version.
 ///
 /// The `spec_version` field stores the raw runtime spec version number.
 /// Use `LedgerVersion::from_spec_version()` to convert at point of use.

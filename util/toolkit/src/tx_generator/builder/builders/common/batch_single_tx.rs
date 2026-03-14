@@ -92,8 +92,9 @@ impl BatchSingleTxBuilder {
 
 		if let Some(amount) = spec.unshielded_amount {
 			let hash = parse_hash_output(spec.unshielded_token_type.as_deref());
-			let token_type: UnshieldedTokenType =
-				convert_unshielded_token_type(midnight_node_ledger_helpers::UnshieldedTokenType(hash));
+			let token_type: UnshieldedTokenType = convert_unshielded_token_type(
+				midnight_node_ledger_helpers::UnshieldedTokenType(hash),
+			);
 
 			let dest_wallet: UnshieldedWallet = (&dest_address)
 				.try_into()
@@ -172,8 +173,8 @@ impl BatchSingleTxBuilder {
 }
 
 fn parse_hash_output(hex_str: Option<&str>) -> midnight_node_ledger_helpers::HashOutput {
-	let hex_str = hex_str
-		.unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
+	let hex_str =
+		hex_str.unwrap_or("0000000000000000000000000000000000000000000000000000000000000000");
 	midnight_node_ledger_helpers::HashOutput(
 		hex::decode(hex_str)
 			.expect("invalid token_type hex")

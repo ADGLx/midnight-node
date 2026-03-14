@@ -630,10 +630,10 @@ mod tests {
 			.expect("inject failed");
 
 		// Replay remaining blocks
-		let mut fork_ctx = ForkAwareLedgerContext::Ledger8(restored);
-		for block in second_half {
-			fork_ctx = fork_ctx.update_from_block(block);
-		}
+		use crate::tx_generator::builder::replay_blocks;
+		let fork_ctx = ForkAwareLedgerContext::Ledger8(restored);
+		let blocks: Vec<_> = second_half.iter().collect();
+		let fork_ctx = replay_blocks(fork_ctx, &blocks, &[]);
 		let incremental_context = fork_ctx.into_ledger8().expect("expected ledger 8 after replay");
 
 		// Compare ledger state

@@ -145,20 +145,15 @@ impl<D: DB + Clone> LedgerContext<D> {
 		all_events
 	}
 
-	/// Process accumulated dust events and TTLs for all wallets in parallel.
-	pub fn flush_deferred_dust(
-		&self,
-		event_batches: &[&Vec<Event<D>>],
-		block_context: &BlockContext,
-	) where
+	/// Replay accumulated dust events to all wallets in parallel (no TTL processing).
+	pub fn update_dust_from_events(&self, events: &[Event<D>])
+	where
 		D: Sync,
 	{
 		use rayon::prelude::*;
-		let total_events: usize = event_batches.iter().map(|b| b.len()).sum();
 		log::debug!(
-			"[perf] flushing {} event batches ({} total events) for {} wallets",
-			event_batches.len(),
-			total_events,
+			"[perf] flushing {} events for {} wallets",
+			events.len(),
 			self.wallets.lock().expect("lock").len(),
 		);
 		self.wallets
@@ -167,8 +162,21 @@ impl<D: DB + Clone> LedgerContext<D> {
 			.par_iter_mut()
 			.for_each(|(_, wallet)| {
 				wallet
-					.update_dust_from_tx(event_batches.iter().flat_map(|b| b.iter()))
+					.update_dust_from_tx(events)
 					.unwrap_or_else(|e| panic!("failed to replay dust events: {e}"));
+			});
+	}
+
+	pub fn update_dust_from_block(&self, block_context: &BlockContext)
+	where
+		D: Sync,
+	{
+		use rayon::prelude::*;
+		self.wallets
+			.lock()
+			.expect("Error locking `LedgerContext` wallets")
+			.par_iter_mut()
+			.for_each(|(_, wallet)| {
 				wallet.update_dust_from_block(block_context);
 			});
 	}
@@ -291,7 +299,6 @@ impl<D: DB + Clone> LedgerContext<D> {
 	{
 		let mut ledger_state_guard =
 			self.ledger_state.lock().expect("Error locking `LedgerContext` ledger_state");
-
 		let tx_context = TransactionContext {
 			ref_state: (**ledger_state_guard).clone(),
 			block_context: block_context.clone(),
