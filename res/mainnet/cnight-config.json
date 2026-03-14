@@ -1,6 +1,6 @@
 {
   "addresses": {
-    "mapping_validator_address": "addr1wyensq9q2cgvlmzvsp6lu0d2wth97xwc8nr4w3q5ekgkyhcpfkgkr",
+    "mapping_validator_address": "addr1w9e7ft4rrdd4rkdseguxr9hudfxyytm5ckh2qy0yhz7lfeg9lvhq7",
     "auth_token_asset_name": "",
     "cnight_policy_id": "0691b2fecca1ac4f53cb6dfb00b7013e561d1f34403b957cbb5af1fa",
     "cnight_asset_name": "NIGHT"
@@ -13,20 +13,20 @@
       "tx_index_in_block": 0
     },
     "end": {
-      "block_hash": "0x387c6da8bfa5666b61ec4deadce6a8f28971145ed1d21d648ee2effbbdda5fce",
-      "block_number": 13145713,
-      "block_timestamp": 1773243681000,
-      "tx_index_in_block": 1
+      "block_hash": "0xaab0afd0f165605e4bb3f8f23e4946ce161784891ccdbb0ed416288724377895",
+      "block_number": 13156382,
+      "block_timestamp": 1773459602000,
+      "tx_index_in_block": 2
     },
     "utxos": []
   },
   "mappings": {},
   "utxo_owners": {},
   "next_cardano_position": {
-    "block_hash": "0x387c6da8bfa5666b61ec4deadce6a8f28971145ed1d21d648ee2effbbdda5fce",
-    "block_number": 13145713,
-    "block_timestamp": 1773243681000,
-    "tx_index_in_block": 1
+    "block_hash": "0xaab0afd0f165605e4bb3f8f23e4946ce161784891ccdbb0ed416288724377895",
+    "block_number": 13156382,
+    "block_timestamp": 1773459602000,
+    "tx_index_in_block": 2
   },
   "system_tx": null
 }
