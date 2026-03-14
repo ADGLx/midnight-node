@@ -158,7 +158,7 @@ pub fn verify_genesis_timestamp(
 		"No Timestamp::set extrinsic found in genesis_extrinsics".to_string()
 	};
 
-	let timestamp_matches = timestamps.iter().any(|&ts| ts == expected_timestamp_millis);
+	let timestamp_matches = timestamps.contains(&expected_timestamp_millis);
 	let timestamp_matches_detail = if timestamp_matches {
 		format!(
 			"Genesis timestamp matches: {} ms (cardano-tip: {} secs)",
