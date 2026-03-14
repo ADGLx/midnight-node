@@ -39,10 +39,7 @@ pub enum VerifyGenesisTimestampError {
 	InvalidTimestamp(String),
 }
 
-#[derive(Debug, serde::Deserialize)]
-struct CardanoTipConfig {
-	timestamp: String,
-}
+use crate::genesis::CardanoTipConfig;
 
 #[derive(Debug, Clone)]
 pub struct VerificationResult {

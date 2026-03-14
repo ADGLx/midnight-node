@@ -516,6 +516,14 @@ run_ledger_state_verification() {
         all_passed=false
     fi
 
+    # 2e. Check genesis timestamp in state root histories
+    if echo "$inspect_result" | grep -q "GENESIS_TIMESTAMP_IN_STATE_OK"; then
+        print_success "2e. Genesis timestamp verified in LedgerState root histories"
+    else
+        print_error "2e. Genesis timestamp not found in LedgerState root histories"
+        all_passed=false
+    fi
+
     echo ""
     if [[ "$all_passed" == "true" ]]; then
         print_success "Step 2: LedgerState verification passed!"

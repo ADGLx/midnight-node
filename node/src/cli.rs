@@ -194,8 +194,8 @@ pub struct VerifyLedgerStateGenesisCmd {
 	#[arg(long)]
 	pub network: Option<String>,
 
-	/// Path to cardano-tip.json containing the genesis timestamp. If not provided,
-	/// defaults to the hardcoded Glacier Drop start timestamp.
+	/// Path to cardano-tip.json containing the genesis timestamp (required for timestamp
+	/// verification)
 	#[arg(long)]
 	pub cardano_tip_config: Option<std::path::PathBuf>,
 }

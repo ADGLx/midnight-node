@@ -152,9 +152,21 @@ pub fn get_chainspec_extrinsics(
 	}
 
 	// Add Timestamp Set extrinsic
+	let timestamp_millis = if let Some(ctx) = block_context {
+		ctx.tblock.to_secs() * 1000
+	} else {
+		// No txs in genesis block (mainnet case): read timestamp from cardano-tip.json
+		use crate::genesis::CardanoTipConfig;
+		let tip: CardanoTipConfig = serde_json::from_str(
+			&std::fs::read_to_string("res/mainnet/cardano-tip.json")
+				.expect("failed to read res/mainnet/cardano-tip.json for genesis timestamp"),
+		)
+		.expect("failed to parse res/mainnet/cardano-tip.json");
+		tip.timestamp.parse::<u64>().expect("invalid timestamp in cardano-tip.json") * 1000
+	};
 	let timestamp_extrinsic =
 		UncheckedExtrinsic::new_bare(RuntimeCall::Timestamp(TimestampCall::set {
-			now: block_context.expect("missing block context").tblock.to_secs() * 1000,
+			now: timestamp_millis,
 		}));
 	extrinsics.push(hex::encode(timestamp_extrinsic.encode()));
 

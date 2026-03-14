@@ -109,10 +109,6 @@ pub struct GenesisGenerator {
 const GLACIER_DROP_START_UNIX_EPOC: u64 = 1754395200;
 const BEGINNING: Timestamp = Timestamp::from_secs(GLACIER_DROP_START_UNIX_EPOC);
 
-// Provisional hardcoded expected values until transfers from iterim ICS to new ICS happens
-const EXPECTED_RESERVE_VALUE: u128 = 6_000_000_000_873_988; // STARS
-const EXPECTED_ICS_VALUE: u128 = 1_200_000_000_000_000; // STARS
-
 type Result<T, E = GenesisGeneratorError<DefaultDB>> = std::result::Result<T, E>;
 
 impl GenesisGenerator {
@@ -645,6 +641,9 @@ mod test {
 	use super::*;
 	use midnight_primitives_ics_observation::PolicyId;
 	use std::{collections::HashMap, str::FromStr};
+
+	const EXPECTED_RESERVE_VALUE: u128 = 6_000_000_000_873_988; // STARS
+	const EXPECTED_ICS_VALUE: u128 = 1_200_000_000_000_000; // STARS
 
 	#[tokio::test]
 	async fn test_genesis_with_ics_config() {
