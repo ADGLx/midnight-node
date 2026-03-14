@@ -65,10 +65,15 @@ Genesis verification validates the chain specification before network launch. Th
 ┌─────────────────────┐                │                    │     (mainnet only)  │
 │ cnight-config.json  │────────────────┤                    ├─────────────────────┤
 ├─────────────────────┤                │                    │ 2c. NIGHT supply    │
-│ ledger-parameters-  │────────────────┘                    │     = 24B invariant │
-│ config.json         │                                     ├─────────────────────┤
-└─────────────────────┘                                     │ 2d. LedgerParameters│
-                                                            │     match config    │
+│ ledger-parameters-  │────────────────┤                    │     = 24B invariant │
+│ config.json         │                │                    │     + reserve & ICS │
+├─────────────────────┤                │                    ├─────────────────────┤
+│ cardano-tip.json    │────────────────┘                    │ 2d. LedgerParameters│
+│ (timestamp)         │                                     │     match config    │
+└─────────────────────┘                                     ├─────────────────────┤
+                                                            │ 2e. Genesis         │
+                                                            │     timestamp in    │
+                                                            │     state histories │
                                                             └─────────────────────┘
 
 
@@ -162,14 +167,18 @@ midnight-node verify-ledger-state-genesis \
     --chain-spec <path/to/chain-spec-raw.json> \
     --cnight-config <path/to/cnight-config.json> \
     --ledger-parameters-config <path/to/ledger-parameters-config.json> \
+    --cardano-tip-config <path/to/cardano-tip.json> \
     --network <network_name>
 ```
+
+The `--cardano-tip-config` flag is required. It provides the genesis timestamp used for DustState replay and timestamp-in-state verification.
 
 Outputs status markers:
 - `DUST_STATE_OK` - DustState matches cnight-config.json
 - `EMPTY_STATE_OK` - State is empty (mainnet only)
-- `SUPPLY_INVARIANT_OK` - Total NIGHT supply equals 24B
+- `SUPPLY_INVARIANT_OK` - Total NIGHT supply equals 24B, reserve pool and treasury (ICS) match expected values
 - `LEDGER_PARAMETERS_OK` - LedgerParameters match config
+- `GENESIS_TIMESTAMP_IN_STATE_OK` - Genesis timestamp found in LedgerState root histories (`zswap.past_roots`, `dust.utxo.root_history`, `dust.generation.root_history`)
 
 ### Auth Script Verification
 
@@ -239,7 +248,7 @@ Outputs status markers:
 
 | File | Used By | Description |
 |------|---------|-------------|
-| `cardano-tip.json` | Steps 0, 6 | Cardano block hash reference point and genesis timestamp |
+| `cardano-tip.json` | Steps 0, 2, 6 | Cardano block hash reference point and genesis timestamp |
 | `pc-chain-config.json` | Step 0 | Contains `security_parameter` for finalization check |
 | `chain-spec-raw.json` | Steps 2, 5, 6 | Raw chain specification with genesis state and extrinsics |
 | `cnight-config.json` | Steps 1, 2 | cNIGHT genesis configuration |
@@ -320,7 +329,7 @@ The tool runs each step sequentially:
 
 **Step 2: LedgerState Verification**
 - Extracts genesis state from chain-spec-raw.json
-- Validates DustState, supply invariant, and parameters
+- Validates DustState, supply invariant (including reserve pool and treasury values), parameters, and genesis timestamp in state root histories
 
 **Step 3: Dparameter Verification**
 - Checks system-parameters-config.json consistency
@@ -356,8 +365,9 @@ It performs the following checks:
   2. LedgerState Verification - Verifies genesis_state contents from chain-spec-raw.json
      a. DustState matches cnight-config.json system_tx
      b. Empty state for mainnet (no faucet funding)
-     c. Total NIGHT supply invariance (24B)
+     c. Total NIGHT supply invariance (24B) + reserve pool and treasury (ICS) values
      d. LedgerParameters match config
+     e. Genesis timestamp in state root histories
   3. Dparameter Verification - Verifies system-parameters-config.json consistency
   4. Auth Script Verification - Verifies upgradable contracts share the same auth script
   5. Genesis Message Verification - Verifies genesis remark matches message-config.json

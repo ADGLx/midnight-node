@@ -144,7 +144,7 @@ The `cardano-tip.json` file stores the Cardano block hash and timestamp used for
 | Field | Description |
 |-------|-------------|
 | `cardano_tip` | Cardano block hash used as reference point for smart contract queries |
-| `timestamp` | Unix epoch seconds of the genesis block. Used as the block timestamp during ledger state generation and verification. If not provided, defaults to the hardcoded Glacier Drop start timestamp (`1754395200`, Aug 5, 2025). |
+| `timestamp` | Unix epoch seconds of the genesis block. Used as the block timestamp during ledger state generation and verification. Required for `verify-ledger-state-genesis`. |
 
 Example:
 ```json
