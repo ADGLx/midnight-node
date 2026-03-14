@@ -126,11 +126,10 @@ impl GenesisGenerator {
 		genesis_timestamp: Option<u64>,
 	) -> Result<Self> {
 		let treasury = ics_config.as_ref().map(|c| c.total_amount).unwrap_or(0);
-		// When no reserve config is provided, assign all remaining supply to the reserve pool.
-		// This ensures dev/test networks have funds available for faucet wallet distribution
-		// via DistributeReserve.
-		let reserve_pool =
-			reserve_config.as_ref().map(|c| c.total_amount).unwrap_or(MAX_SUPPLY - treasury);
+		let reserve_pool = reserve_config.as_ref().map(|c| c.total_amount).unwrap_or(0);
+		// When reserve is zero (no config or empty config), assign all remaining supply
+		// to the reserve pool so dev/test networks have funds for faucet wallet distribution.
+		let reserve_pool = if reserve_pool == 0 { MAX_SUPPLY - treasury } else { reserve_pool };
 
 		let locked_pool = MAX_SUPPLY - reserve_pool - treasury;
 
