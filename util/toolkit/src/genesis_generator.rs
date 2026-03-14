@@ -124,18 +124,14 @@ impl GenesisGenerator {
 		funding: FundingArgs,
 		seeds: Option<&[WalletSeed]>,
 		cnight_system_tx: Option<SystemTransaction>,
-		_ics_config: Option<IcsConfig>,
-		_reserve_config: Option<ReserveConfig>,
+		ics_config: Option<IcsConfig>,
+		reserve_config: Option<ReserveConfig>,
 		ledger_parameters: Option<LedgerParameters>,
 		genesis_timestamp: Option<u64>,
 	) -> Result<Self> {
-		// TODO: Uncomment after transfers from iterim ICS to new ICS happens
-		// let reserve_pool = reserve_config.as_ref().map(|c| c.total_amount).unwrap_or(0);
-		// let treasury = ics_config.as_ref().map(|c| c.total_amount).unwrap_or(0);
+		let reserve_pool = reserve_config.as_ref().map(|c| c.total_amount).unwrap_or(0);
+		let treasury = ics_config.as_ref().map(|c| c.total_amount).unwrap_or(0);
 
-		// Provisional hardcoded expected values until transfers from iterim ICS to new ICS happens
-		let reserve_pool = EXPECTED_RESERVE_VALUE;
-		let treasury = EXPECTED_ICS_VALUE;
 		let locked_pool = MAX_SUPPLY - reserve_pool - treasury;
 
 		// If custom ledger parameters are provided, apply them first
