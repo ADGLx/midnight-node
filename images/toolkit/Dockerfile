@@ -10,9 +10,9 @@ RUN microdnf -y install \
   gdb-16.3 \
   vim-enhanced-9.1.1591 \
   jq-1.7.1 \
-  tree-1.8.0 && \
-  tar-1.34 && \
-  gzip-1.12 && \
+  tree-1.8.0 \
+  tar-1.34 \
+  gzip-1.12 \
   xz-5.2.5 && \
   microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
