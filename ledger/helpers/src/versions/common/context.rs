@@ -189,38 +189,15 @@ impl<D: DB + Clone> LedgerContext<D> {
 		*latest_ledger_state = Sp::new(new_state);
 	}
 
-	pub fn update_from_block<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
-		&self,
-		txs: &[SerdeTransaction<S, P, D>],
-		block_context: &BlockContext,
-		state_root: Option<&Vec<u8>>,
-		state: Option<&Vec<u8>>,
-	) where
-		Transaction<S, P, PureGeneratorPedersen, D>: Tagged,
-		D: Sync,
-	{
-		let events = self.update_from_block_deferred_dust(txs, block_context, state_root, state);
-		use rayon::prelude::*;
-		self.wallets
-			.lock()
-			.expect("Error locking `LedgerContext` wallets")
-			.par_iter_mut()
-			.for_each(|(_, wallet)| {
-				wallet
-					.update_dust_from_tx(&events)
-					.unwrap_or_else(|e| panic!("failed to replay dust events: {e}"));
-				wallet.update_dust_from_block(block_context);
-			});
-	}
-
-	/// Like `update_from_block` but skips wallet dust updates, returning events instead.
-	/// Caller must eventually call `flush_deferred_dust` with accumulated events.
+	/// Updates ledger state with transactions from a block and produces events. Caller must
+	/// eventually call `update_dust_from_events` with accumulated events and `update_dust_from_block`
+	/// with last processed block if he needs `self.wallets` to be up to date.
 	///
 	/// Safety: only use during cold-start replay where no concurrent `spend()`/`mark_spent()`
 	/// calls are active — `pending_until` and `spent_utxos` clearing depend on per-block
 	/// `process_ttls` which is deferred. This is naturally satisfied by the toolkit, which
 	/// always replays all blocks to reconstruct state before building any transactions.
-	pub fn update_from_block_deferred_dust<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
+	pub fn update_from_block<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
 		&self,
 		txs: &[SerdeTransaction<S, P, D>],
 		block_context: &BlockContext,

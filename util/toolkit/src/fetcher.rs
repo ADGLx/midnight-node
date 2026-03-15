@@ -313,7 +313,7 @@ pub async fn fetch_from_rpc(
 
 	// Wait for all workers to fully exit so their Arc<Database> handles are dropped.
 	// Without this, the JoinSet drop aborts tasks but doesn't synchronously release
-	// resources, causing "DatabaseAlreadyOpen" when the DB is reopened for wallet caching.
+	// resources, causing "DatabaseAlreadyOpen" when the DB is reopened.
 	while let Some(result) = join_set.join_next().await {
 		if let Err(join_err) = result {
 			if join_err.is_panic() {

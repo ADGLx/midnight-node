@@ -160,7 +160,7 @@ pub fn apply_block_7(
 
 	let block_context = block_context_from_raw_7(block);
 
-	ctx.update_from_block_deferred_dust(
+	ctx.update_from_block(
 		&transactions,
 		&block_context,
 		block.state_root.as_ref(),
@@ -203,7 +203,7 @@ pub fn apply_block_8(
 
 	let block_context = block_context_from_raw_8(block);
 
-	ctx.update_from_block_deferred_dust(
+	ctx.update_from_block(
 		&transactions,
 		&block_context,
 		block.state_root.as_ref(),
