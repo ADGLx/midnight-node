@@ -746,8 +746,8 @@ prep-no-copy:
     ARG COMPACTC_VER=$(cat COMPACTC_VERSION)
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
-    FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    # FROM midnightntwrk/midnight-node-ci-bazel:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
+    # FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
+    FROM midnightntwrk/midnight-node-ci-bazel:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
 
     # ca-certificates and curl-minimal already present in the CI base image
 
@@ -833,7 +833,7 @@ check-rust:
     ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
     # Rustfmt: check formatting on all targets
     # Note: --@rules_rust//...rustfmt.toml must be passed explicitly here —
     # Bazel 9 does not apply label_flag values from .bazelrc (only CLI flags).
@@ -1060,7 +1060,7 @@ build:
     ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
     # Build and extract artifacts inside the container (bazel-bin symlinks
     # point to the container's cache volume, not resolvable from the host).
     # Writing to /workspace/ lands files on the host via the bind mount.
@@ -1093,7 +1093,7 @@ test:
     ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
         docker exec "$CONTAINER_NAME" bazel test //...
 
@@ -1104,7 +1104,7 @@ uber:
     ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
     RUN docker exec "$CONTAINER_NAME" bash -c '\
         rm -f /.cargo/config.toml && \
         CLIPPY_FLAGS=$(scripts/cargo-clippy-flags.sh) && \
