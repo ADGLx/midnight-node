@@ -6,8 +6,8 @@ ENSURE_BAZEL_CONTAINER:
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR
     # Recreate the container if the image has been updated
-    RUN LATEST_IMAGE=$(docker inspect -f '{{.Id}}' midnight-bazel-builder:latest 2>/dev/null) && \
-        CONTAINER_IMAGE=$(docker inspect -f '{{.Image}}' "$CONTAINER_NAME" 2>/dev/null) && \
+    RUN LATEST_IMAGE=$(docker inspect -f '{{.Id}}' midnight-bazel-builder:latest 2>/dev/null || true) && \
+        CONTAINER_IMAGE=$(docker inspect -f '{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true) && \
         if [ -n "$LATEST_IMAGE" ] && [ -n "$CONTAINER_IMAGE" ] && [ "$CONTAINER_IMAGE" != "$LATEST_IMAGE" ]; then \
             echo "Image updated, recreating Bazel container..." && \
             docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1; \
@@ -1099,6 +1099,39 @@ test:
     DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
         docker exec "$CONTAINER_NAME" bazel test //...
+
+# uber builds all binaries, runs all tests, and runs clippy+fmt in a single Bazel
+# invocation — one analysis phase, maximum parallelism across build/test/lint.
+uber:
+    BUILD +bazel-image
+    LOCALLY
+    ARG NATIVEARCH
+    ARG CONTAINER_NAME=midnight-bazel
+    ARG WORKSPACE_DIR=$(pwd)
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
+    RUN docker exec "$CONTAINER_NAME" bash -c '\
+        rm -f /.cargo/config.toml && \
+        CLIPPY_FLAGS=$(scripts/cargo-clippy-flags.sh) && \
+        bazel test //... \
+            --nobuild_tests_only \
+            --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect,@rules_rust//rust:defs.bzl%rustfmt_aspect \
+            --output_groups=+clippy_checks,+rustfmt_checks \
+            "--@rules_rust//rust/settings:clippy_flags=${CLIPPY_FLAGS}" \
+            --@rules_rust//rust/settings:clippy_flag=-Dwarnings \
+            --@rules_rust//rust/settings:rustfmt.toml=//:rustfmt.toml'
+    # Extract artifacts
+    RUN docker exec "$CONTAINER_NAME" bash -c '\
+        rm -rf /workspace/artifacts-'"$NATIVEARCH"' && \
+        mkdir -p /workspace/artifacts-'"$NATIVEARCH"'/midnight-node-runtime && \
+        cp -L bazel-bin/node/midnight-node /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/util/toolkit/midnight-node-toolkit /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/util/upgrader/upgrader /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/util/aiken-deployer/aiken-deployer /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/runtime/midnight_node_runtime.wasm \
+            /workspace/artifacts-'"$NATIVEARCH"'/midnight-node-runtime/midnight_node_runtime.compact.compressed.wasm'
+    FROM alpine:3.20
+    COPY --dir ./artifacts-$NATIVEARCH /
+    SAVE ARTIFACT /artifacts-$NATIVEARCH
 
 build-fork:
     FROM +prep
