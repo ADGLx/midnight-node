@@ -94,7 +94,7 @@ jobs:
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.run.outputs.node_image_tag }}
-      sbom-artifact-name: sbom-midnight-node-ci
+      sbom-artifact-name: sbom-midnight-node-ci-bazel
       skip-attestation: true
     secrets: inherit
 

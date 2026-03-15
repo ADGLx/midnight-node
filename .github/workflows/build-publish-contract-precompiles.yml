@@ -74,13 +74,13 @@ jobs:
           COMPACTC_VERSION=$(cat COMPACTC_VERSION)
           VERSION="${RUST_VERSION}-${COMPACTC_VERSION}"
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          docker pull "ghcr.io/midnight-ntwrk/midnight-node-ci:${VERSION}-${{ matrix.platform }}"
+          docker pull "ghcr.io/midnight-ntwrk/midnight-node-ci-bazel:${VERSION}-${{ matrix.platform }}"
 
           echo "Tag and push ${VERSION} images"
-          docker tag "ghcr.io/midnight-ntwrk/midnight-node-ci:${VERSION}-${{ matrix.platform }}" "midnightntwrk/midnight-node-ci:${VERSION}-${{ matrix.platform }}"
+          docker tag "ghcr.io/midnight-ntwrk/midnight-node-ci-bazel:${VERSION}-${{ matrix.platform }}" "midnightntwrk/midnight-node-ci-bazel:${VERSION}-${{ matrix.platform }}"
 
           echo "Push ${VERSION} images to Docker Hub"
-          docker push "midnightntwrk/midnight-node-ci:${VERSION}-${{ matrix.platform }}"
+          docker push "midnightntwrk/midnight-node-ci-bazel:${VERSION}-${{ matrix.platform }}"
 
   publish_to_dockerhub:
     # needed so forks can run ci jobs
@@ -101,6 +101,6 @@ jobs:
           VERSION: ${{ needs.build.outputs.version }}
         run: |
           docker buildx imagetools create \
-            -t "midnightntwrk/midnight-node-ci:${VERSION}" \
-            "midnightntwrk/midnight-node-ci:${VERSION}-amd64" \
-            "midnightntwrk/midnight-node-ci:${VERSION}-arm64"
+            -t "midnightntwrk/midnight-node-ci-bazel:${VERSION}" \
+            "midnightntwrk/midnight-node-ci-bazel:${VERSION}-amd64" \
+            "midnightntwrk/midnight-node-ci-bazel:${VERSION}-arm64"

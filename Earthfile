@@ -5,6 +5,18 @@ ENSURE_BAZEL_CONTAINER:
     FUNCTION
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR
+    ARG NATIVEARCH
+    # Pull the published CI image if it doesn't exist on the host.
+    # (Earthly's SAVE IMAGE only exports after the invocation completes, so
+    # images built in the same earthly run aren't available to LOCALLY targets.)
+    RUN if ! docker inspect midnight-bazel-builder:latest >/dev/null 2>&1; then \
+            RUST_VERSION=$(grep '^channel' "$WORKSPACE_DIR/rust-toolchain.toml" | sed 's/.*"\(.*\)".*/\1/') && \
+            COMPACTC_VER=$(cat "$WORKSPACE_DIR/COMPACTC_VERSION") && \
+            CI_IMAGE="ghcr.io/midnight-ntwrk/midnight-node-ci-bazel:${RUST_VERSION}-${COMPACTC_VER}-${NATIVEARCH}" && \
+            echo "midnight-bazel-builder:latest not found — pulling ${CI_IMAGE}..." && \
+            docker pull "$CI_IMAGE" && \
+            docker tag "$CI_IMAGE" midnight-bazel-builder:latest; \
+        fi
     # Recreate the container if the image has been updated
     RUN LATEST_IMAGE=$(docker inspect -f '{{.Id}}' midnight-bazel-builder:latest 2>/dev/null || true) && \
         CONTAINER_IMAGE=$(docker inspect -f '{{.Image}}' "$CONTAINER_NAME" 2>/dev/null || true) && \
@@ -722,7 +734,7 @@ node-ci-image-single-platform:
     LABEL org.opencontainers.image.title=node-ci
     LABEL org.opencontainers.image.description="Midnight Node CI Image"
     SAVE IMAGE --push \
-        ghcr.io/midnight-ntwrk/midnight-node-ci:$IMAGE_TAG-$NATIVEARCH
+        ghcr.io/midnight-ntwrk/midnight-node-ci-bazel:$IMAGE_TAG-$NATIVEARCH
 
 # a common setup of the build environment (not designed to be called directly)
 prep-no-copy:
@@ -735,7 +747,7 @@ prep-no-copy:
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
     FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    # FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
+    # FROM midnightntwrk/midnight-node-ci-bazel:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
 
     # ca-certificates and curl-minimal already present in the CI base image
 
@@ -817,11 +829,11 @@ planner:
 
 # check-rust runs clippy and rustfmt via Bazel aspects.
 check-rust:
-    BUILD +bazel-image
     LOCALLY
+    ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
     # Rustfmt: check formatting on all targets
     # Note: --@rules_rust//...rustfmt.toml must be passed explicitly here —
     # Bazel 9 does not apply label_flag values from .bazelrc (only CLI flags).
@@ -1041,30 +1053,14 @@ build-prepare:
     # TODO: re-enable when chef is improved.
     # RUN SKIP_WASM_BUILD=1 cargo chef cook --release --workspace --all-targets --recipe-path /recipe.json
 
-# bazel-image creates a Docker image with Bazel tooling for persistent container builds
-bazel-image:
-    FROM +build-prepare
-    ARG NATIVEARCH
-
-
-    # Remove .cargo/config.toml — cargo-bazel rejects parent-dir cargo configs
-    RUN rm -f /.cargo/config.toml
-
-    # Pre-download Bazel binary so first build doesn't wait
-    RUN bazel version
-
-    SAVE IMAGE midnight-bazel-builder:latest
-
 # build uses a persistent Docker container to keep the Bazel server alive
 # between builds, avoiding the ~100s analysis phase on incremental builds
 build:
-    # Ensure the bazel builder image is up-to-date before starting the container
-    BUILD +bazel-image
     LOCALLY
     ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
     # Build and extract artifacts inside the container (bazel-bin symlinks
     # point to the container's cache volume, not resolvable from the host).
     # Writing to /workspace/ lands files on the host via the bind mount.
@@ -1094,21 +1090,21 @@ build:
 # First run after container creation takes ~160s for analysis; subsequent runs reuse the warm server.
 test:
     LOCALLY
+    ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
         docker exec "$CONTAINER_NAME" bazel test //...
 
 # uber builds all binaries, runs all tests, and runs clippy+fmt in a single Bazel
 # invocation — one analysis phase, maximum parallelism across build/test/lint.
 uber:
-    BUILD +bazel-image
     LOCALLY
     ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR --NATIVEARCH=$NATIVEARCH
     RUN docker exec "$CONTAINER_NAME" bash -c '\
         rm -f /.cargo/config.toml && \
         CLIPPY_FLAGS=$(scripts/cargo-clippy-flags.sh) && \
