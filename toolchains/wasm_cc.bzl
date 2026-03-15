@@ -5,6 +5,7 @@ compiled (e.g. secp256k1-sys). Uses the host clang's wasm32 backend.
 """
 
 load("@bazel_tools//tools/cpp:cc_toolchain_config_lib.bzl", "tool_path")
+load("@rules_cc//cc:defs.bzl", "CcToolchainConfigInfo")
 
 def _wasm_cc_toolchain_config_impl(ctx):
     tool_paths = [

@@ -10,6 +10,7 @@ rust_library(
         "//pallets/midnight:pallet-midnight",
         "@crates//:hex",
         "@crates//:jsonrpsee",
+        "@crates//:schemars",
         "@crates//:sc-client-api",
         "@crates//:serde",
         "@crates//:sp-api",

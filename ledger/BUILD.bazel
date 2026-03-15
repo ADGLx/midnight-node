@@ -27,16 +27,14 @@ rust_library(
         "//conditions:default": {
             # L7 aliases (non-colliding only)
             "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
-            "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+            "@crates//:midnight-ledger-7.0.3": "mn_ledger",
             "@crates//:midnight-storage-1.1.1": "ledger_storage",
             "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
-            "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
+            "@crates//:midnight-zswap-7.0.3": "zswap",
             "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
-            # L8 aliases (non-colliding only)
-            "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+            # L8 aliases (only for deps that differ from L7)
             "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
             "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
-            "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
             # HF deps excluded (see crate_features comment above)
         },
     }),
@@ -59,17 +57,15 @@ rust_library(
         # midnight-primitives-ledger is optional, behind std
         # L7 midnight deps (colliding use bridges from helpers)
         "midnight-base-crypto-1.0.0",
-        "midnight-ledger-7.0.3-rc.1",
+        "midnight-ledger-7.0.3",
         "midnight-onchain-runtime-2.0.1",
         "midnight-serialize",
         "midnight-storage-1.1.1",
         "midnight-storage-core",
-        "midnight-zswap-7.0.3-rc.1",
-        # L8 midnight deps
-        "coin_structure_ledger_8",
+        "midnight-zswap-7.0.3",
+        # L8 midnight deps (only those that differ from L7)
         "onchain_runtime_ledger_8",
         "ledger_storage_ledger_8",
-        "transient_crypto_ledger_8",
         # Host-only substrate/utility
         "substrate-prometheus-endpoint-0.17.7",
         "lazy_static",
@@ -109,14 +105,12 @@ rust_test(
     edition = "2024",
     aliases = {
         "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
-        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+        "@crates//:midnight-ledger-7.0.3": "mn_ledger",
         "@crates//:midnight-storage-1.1.1": "ledger_storage",
         "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
-        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
-        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+        "@crates//:midnight-zswap-7.0.3": "zswap",
         "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
         "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
-        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
         "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
     },
     deps = [

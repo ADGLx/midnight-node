@@ -11,8 +11,10 @@ build --action_env=PATH
 # wasm-opt-sys build script (via cxx/scratch crates) creates symlinks across
 # sandbox boundaries. The scratch crate bakes sandbox-specific paths via env!("OUT_DIR")
 # at compile time, causing dangling symlinks in tree artifact outputs.
-build --noincompatible_disallow_unsound_directory_outputs
-build --experimental_allow_unresolved_symlinks
+build --allow_unresolved_symlinks
+
+# Bazel 9: avoid repo contents cache inside the main repo (Earthly runs from /)
+build --repo_contents_cache=
 
 # C++ standard — binaryen (wasm-opt-sys) requires C++17.
 # BAZEL_CXXOPTS overrides the auto-configured CC toolchain's default standard,
@@ -28,11 +30,15 @@ build --compilation_mode=opt
 
 # Performance
 build --jobs=auto
+build --experimental_remote_analysis_cache
 
 # Lint config
 # Clippy flags are generated from [workspace.lints.clippy] in Cargo.toml
 # by scripts/cargo-clippy-flags.sh — see check-rust Earthly target.
 build --@rules_rust//rust/settings:rustfmt.toml=//:rustfmt.toml
+
+# Keep Bazel server alive for 24h to preserve the warm analysis cache
+startup --max_idle_secs=86400
 
 # Test output
 test --test_output=errors

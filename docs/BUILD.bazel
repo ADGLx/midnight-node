@@ -1,3 +1,6 @@
-exports_files(["Cargo.toml"])
+exports_files([
+    "Cargo.toml",
+    "openrpc.json",
+])
 
 # docs crate has no library sources; only dev-dependencies for doctests.

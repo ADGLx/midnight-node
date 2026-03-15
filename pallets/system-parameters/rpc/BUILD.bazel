@@ -10,6 +10,7 @@ rust_library(
         "//pallets/system-parameters:pallet-system-parameters",
         "@crates//:jsonrpsee",
         "@crates//:sc-client-api",
+        "@crates//:schemars",
         "@crates//:serde",
         "@crates//:serde_json",
         "@crates//:sidechain-domain",

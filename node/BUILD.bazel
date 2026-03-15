@@ -64,6 +64,7 @@ _NODE_DEPS = [
     "@crates//:partner-chains-node-commands",
     "@crates//:prost",
     "@crates//:reqwest",
+    "@crates//:schemars",
     "@crates//:sc-basic-authorship",
     "@crates//:sc-chain-spec",
     "@crates//:sc-cli",
@@ -117,6 +118,7 @@ _NODE_DEPS = [
     "@crates//:sp-sidechain",
     "@crates//:sp-state-machine",
     "@crates//:sp-timestamp",
+    "@crates//:sp-transaction-pool",
     "@crates//:sp-version",
     "@crates//:sqlx",
     "@crates//:substrate-frame-rpc-system",
@@ -132,6 +134,7 @@ _NODE_PROC_MACRO_DEPS = [
 ]
 
 # Library crate — main.rs imports midnight_node::command
+# version must match Cargo.toml — sets CARGO_PKG_VERSION for env!() macros
 rust_library(
     name = "midnight-node-lib",
     crate_name = "midnight_node",
@@ -140,6 +143,7 @@ rust_library(
         exclude = ["src/main.rs"],
     ),
     edition = "2024",
+    version = "0.22.0",
     aliases = _NODE_ALIASES,
     compile_data = ["Cargo.toml"],
     deps = _NODE_DEPS,
@@ -165,10 +169,12 @@ rust_test(
     aliases = _NODE_ALIASES,
     compile_data = ["Cargo.toml"],
     data = [
+        "//docs:openrpc.json",
         "//res:cfg_files",
         "//res:test_data_files",
     ],
     edition = "2024",
+    rustc_env = {"CARGO_MANIFEST_DIR": "node"},
     deps = [
         "@crates//:tempfile",
     ],

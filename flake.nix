@@ -11,7 +11,7 @@
 
       in pkgs.mkShell {
         packages = with pkgs; [
-           earthly rustup clang pkg-config zlib
+           bazelisk zig earthly rustup clang pkg-config zlib
         ] ++ (if isDarwin
           then with pkgs.darwin; [ libiconv apple_sdk.frameworks.SystemConfiguration apple_sdk.frameworks.Security ]
           else []);

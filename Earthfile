@@ -1,5 +1,30 @@
 VERSION 0.8
 
+# Ensures a persistent Bazel container is running (for LOCALLY targets)
+ENSURE_BAZEL_CONTAINER:
+    FUNCTION
+    ARG CONTAINER_NAME=midnight-bazel
+    ARG WORKSPACE_DIR
+    # Recreate the container if the image has been updated
+    RUN LATEST_IMAGE=$(docker inspect -f '{{.Id}}' midnight-bazel-builder:latest 2>/dev/null) && \
+        CONTAINER_IMAGE=$(docker inspect -f '{{.Image}}' "$CONTAINER_NAME" 2>/dev/null) && \
+        if [ -n "$LATEST_IMAGE" ] && [ -n "$CONTAINER_IMAGE" ] && [ "$CONTAINER_IMAGE" != "$LATEST_IMAGE" ]; then \
+            echo "Image updated, recreating Bazel container..." && \
+            docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1; \
+        fi
+    RUN if ! docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then \
+            echo "Starting persistent Bazel container..." && \
+            docker run -d --name "$CONTAINER_NAME" \
+                -v "$WORKSPACE_DIR":/workspace \
+                -v midnight-bazel-cache:/root/.cache/bazel \
+                -w /workspace \
+                midnight-bazel-builder:latest \
+                sleep infinity; \
+        elif [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != "true" ]; then \
+            echo "Restarting Bazel container..." && \
+            docker start "$CONTAINER_NAME"; \
+        fi
+
 # ================ Local Targets START ================
 # If you add a new one here, prefix it with "local-"
 # Add the target name to the doc string so it shows up
@@ -606,6 +631,8 @@ node-ci-image-single-platform:
         patch \
         tar \
         gzip \
+        lld \
+        docker \
         jq && \
         microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
         # gcc-aarch64-linux-gnu \
@@ -639,7 +666,15 @@ node-ci-image-single-platform:
         cargo install --locked cargo-shear --version 1.9.1 && \
         cargo install sqlx-cli --no-default-features --features rustls,postgres && \
         cargo install aiken --version $AIKEN_VERSION --locked && \
+        cargo install wasm-opt --version 0.116.0 --locked && \
         rm -rf /root/.cargo/registry /root/.cargo/git
+
+    # Install Bazelisk (cached — only re-runs when BAZELISK_VERSION changes)
+    ARG BAZELISK_VERSION=1.25.0
+    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
+        curl -fsSL -o /usr/local/bin/bazel \
+        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
+        chmod 0755 /usr/local/bin/bazel
 
     # Install gh CLI (use uname -m for reliable arch detection)
     RUN ARCH=$(uname -m) && \
@@ -699,13 +734,12 @@ prep-no-copy:
     ARG COMPACTC_VER=$(cat COMPACTC_VERSION)
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
-    # FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
+    FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
+    # FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VER}-$NATIVEARCH
 
     # ca-certificates and curl-minimal already present in the CI base image
 
     RUN cargo --version
-    RUN cargo binstall --no-confirm cargo-auditable
 
     SAVE ARTIFACT /compactc-bin
 
@@ -783,48 +817,30 @@ planner:
 
 # check-rust runs clippy and rustfmt via Bazel aspects.
 check-rust:
-    FROM +build-prepare
-    ARG NATIVEARCH
-
-    # Install lld for linking
-    RUN microdnf -y install lld && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-
-    # Install wasm-opt — the runtime-wasm genrule calls it directly.
-    # Built from source so it works on any architecture (aarch64/x86_64).
-    RUN cargo install wasm-opt --version 0.116.0
-
-    # Install Bazelisk
-    ARG BAZELISK_VERSION=1.25.0
-    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
-        curl -fsSL -o /usr/local/bin/bazel \
-        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
-        chmod 0755 /usr/local/bin/bazel
-
-    COPY --keep-ts --dir Cargo.lock Cargo.toml .sqlx \
-    ledger node pallets primitives metadata res runtime util tools toolchains wasm-deps tests relay COMPACTC_VERSION \
-    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel defs.bzl scripts docs patches rustfmt.toml .
-
-    RUN rm -f /.cargo/config.toml
-
-    # WORKDIR is / — exclude system dirs so //... doesn't traverse /proc, /dev, etc.
-    RUN printf 'proc\ndev\nsys\nrun\ntmp\nboot\netc\nmnt\nopt\nsrv\nvar\nusr\nroot\nlib\nlib64\nsbin\nbin\nmedia\nhome\n' >> .bazelignore
-
-    CACHE --sharing shared --id bazelisk /root/.cache/bazelisk
-    CACHE --sharing shared --id bazel-output /root/.cache/bazel
+    BUILD +bazel-image
+    LOCALLY
+    ARG CONTAINER_NAME=midnight-bazel
+    ARG WORKSPACE_DIR=$(pwd)
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
     # Rustfmt: check formatting on all targets
-    RUN bazel build \
-        --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect \
-        --output_groups=rustfmt_checks \
-        //...
-
-    # Clippy: lint flags derived from [workspace.lints.clippy] in Cargo.toml
-    RUN CLIPPY_FLAGS=$(scripts/cargo-clippy-flags.sh) && \
+    # Note: --@rules_rust//...rustfmt.toml must be passed explicitly here —
+    # Bazel 9 does not apply label_flag values from .bazelrc (only CLI flags).
+    RUN docker exec "$CONTAINER_NAME" bash -c '\
+        rm -f /.cargo/config.toml && \
         bazel build \
-        --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect \
-        --output_groups=clippy_checks \
-        "--@rules_rust//rust/settings:clippy_flags=${CLIPPY_FLAGS}" \
-        --@rules_rust//rust/settings:clippy_flag=-Dwarnings \
-        //...
+            --@rules_rust//rust/settings:rustfmt.toml=//:rustfmt.toml \
+            --aspects=@rules_rust//rust:defs.bzl%rustfmt_aspect \
+            --output_groups=rustfmt_checks \
+            //...'
+    # Clippy: lint flags derived from [workspace.lints.clippy] in Cargo.toml
+    RUN docker exec "$CONTAINER_NAME" bash -c '\
+        CLIPPY_FLAGS=$(scripts/cargo-clippy-flags.sh) && \
+        bazel build \
+            --aspects=@rules_rust//rust:defs.bzl%rust_clippy_aspect \
+            --output_groups=clippy_checks \
+            "--@rules_rust//rust/settings:clippy_flags=${CLIPPY_FLAGS}" \
+            --@rules_rust//rust/settings:clippy_flag=-Dwarnings \
+            //...'
 
 
 # check-metadata confirms that metadata in the repo matches a given node image
@@ -850,36 +866,36 @@ check:
 
 # test runs the tests in parallel with code coverage.
 # Core tests - excludes Midnight Node Toolkit (requires Node Toolkit (JS) npm packages from midnight-js)
-test:
-    ARG NATIVEARCH
-    FROM +prep
-    CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-    CACHE /target
+# test:
+#     ARG NATIVEARCH
+#     FROM +prep
+#     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
+#     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
+#     CACHE /target
 
-    # Test
-    RUN mkdir /test-artifacts
-    # Compile the tests to go as fast as possible on this machine:
-    ENV RUSTFLAGS="-C target-cpu=native"
-    COPY .envrc ./bin/.envrc
-    COPY static/contracts/simple-merkle-tree /test-static/simple-merkle-tree
-    ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
+#     # Test
+#     RUN mkdir /test-artifacts
+#     # Compile the tests to go as fast as possible on this machine:
+#     ENV RUSTFLAGS="-C target-cpu=native"
+#     COPY .envrc ./bin/.envrc
+#     COPY static/contracts/simple-merkle-tree /test-static/simple-merkle-tree
+#     ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
 
-    # Run all tests EXCEPT:
-    # - Midnight Node Toolkit (depends on Node Toolkit (JS) npm packages from midnight-js)
-    # - pallet-midnight fixture tests (depend on .mn files that need regenerating with Midnight Node Toolkit)
-    RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo nextest r --profile ci --release --workspace --locked \
-        --exclude midnight-node-toolkit \
-        -E 'not (test(/^tests::test_get_contract_state$/) | test(/^tests::test_send_mn_transaction$/) | test(/^tests::test_validation_works$/))'
+#     # Run all tests EXCEPT:
+#     # - Midnight Node Toolkit (depends on Node Toolkit (JS) npm packages from midnight-js)
+#     # - pallet-midnight fixture tests (depend on .mn files that need regenerating with Midnight Node Toolkit)
+#     RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo nextest r --profile ci --release --workspace --locked \
+#         --exclude midnight-node-toolkit \
+#         -E 'not (test(/^tests::test_get_contract_state$/) | test(/^tests::test_send_mn_transaction$/) | test(/^tests::test_validation_works$/))'
 
-    # RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo llvm-cov nextest --profile ci --release --workspace --locked \
-    #     --exclude midnight-node-toolkit \
-    #     -E 'not (test(/^tests::test_get_contract_state$/) | test(/^tests::test_send_mn_transaction$/) | test(/^tests::test_validation_works$/))'
-    # RUN cargo llvm-cov report --html --release --output-dir /test-artifacts-$NATIVEARCH/html
-    # RUN cargo llvm-cov report --lcov --release --fail-under-regions 14 --ignore-filename-regex res/src/subxt_metadata.rs --output-path /test-artifacts-$NATIVEARCH/tests.lcov
+#     # RUN MIDNIGHT_LEDGER_EXPERIMENTAL=1 cargo llvm-cov nextest --profile ci --release --workspace --locked \
+#     #     --exclude midnight-node-toolkit \
+#     #     -E 'not (test(/^tests::test_get_contract_state$/) | test(/^tests::test_send_mn_transaction$/) | test(/^tests::test_validation_works$/))'
+#     # RUN cargo llvm-cov report --html --release --output-dir /test-artifacts-$NATIVEARCH/html
+#     # RUN cargo llvm-cov report --lcov --release --fail-under-regions 14 --ignore-filename-regex res/src/subxt_metadata.rs --output-path /test-artifacts-$NATIVEARCH/tests.lcov
 
-    # AS /target is a temp cache, copy the results to /test-artifacts, otherwise earthly won't find them later
-    # SAVE ARTIFACT --if-exists ./test-artifacts-$NATIVEARCH AS LOCAL ./test-artifacts
+#     # AS /target is a temp cache, copy the results to /test-artifacts, otherwise earthly won't find them later
+#     # SAVE ARTIFACT --if-exists ./test-artifacts-$NATIVEARCH AS LOCAL ./test-artifacts
 
 # Pallet fixture tests - runs pallet-midnight tests that depend on regenerated .mn fixtures
 # These tests do NOT require toolkit-js
@@ -912,15 +928,6 @@ build-test-toolkit:
     FROM +build-prepare
     ARG NATIVEARCH
 
-    # Install lld for faster linking, docker CLI for testcontainers
-    RUN microdnf -y install lld docker && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-
-    # Install Bazelisk
-    ARG BAZELISK_VERSION=1.25.0
-    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
-        curl -fsSL -o /usr/local/bin/bazel \
-        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
-        chmod 0755 /usr/local/bin/bazel
 
     # Install Node.js 22
     ARG NODE_VERSION=22.13.1
@@ -1039,121 +1046,59 @@ bazel-image:
     FROM +build-prepare
     ARG NATIVEARCH
 
-    RUN microdnf -y install lld && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-
-    ARG BAZELISK_VERSION=1.25.0
-    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
-        curl -fsSL -o /usr/local/bin/bazel \
-        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
-        chmod 0755 /usr/local/bin/bazel
 
     # Remove .cargo/config.toml — cargo-bazel rejects parent-dir cargo configs
     RUN rm -f /.cargo/config.toml
-
-    # Install wasm-opt binary — substrate-wasm-builder uses it to optimize WASM.
-    # Building wasm-opt-sys from source in Bazel is broken (cxx/scratch crate
-    # symlinks dangle across sandbox boundaries). Pre-installing avoids this.
-    RUN cargo install wasm-opt --version 0.116.0
 
     # Pre-download Bazel binary so first build doesn't wait
     RUN bazel version
 
     SAVE IMAGE midnight-bazel-builder:latest
 
-# build-local uses a persistent Docker container to keep the Bazel server alive
+# build uses a persistent Docker container to keep the Bazel server alive
 # between builds, avoiding the ~100s analysis phase on incremental builds
-build-local:
+build:
+    # Ensure the bazel builder image is up-to-date before starting the container
+    BUILD +bazel-image
     LOCALLY
+    ARG NATIVEARCH
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    RUN if ! docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then \
-            echo "Starting persistent Bazel container..." && \
-            docker run -d --name "$CONTAINER_NAME" \
-                -v "$WORKSPACE_DIR":/workspace \
-                -v midnight-bazel-cache:/root/.cache/bazel \
-                -w /workspace \
-                midnight-bazel-builder:latest \
-                sleep infinity; \
-        elif [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != "true" ]; then \
-            echo "Restarting Bazel container..." && \
-            docker start "$CONTAINER_NAME"; \
-        fi
-    RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
-        docker exec "$CONTAINER_NAME" bazel build //...
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
+    # Build and extract artifacts inside the container (bazel-bin symlinks
+    # point to the container's cache volume, not resolvable from the host).
+    # Writing to /workspace/ lands files on the host via the bind mount.
+    RUN docker exec "$CONTAINER_NAME" bash -c '\
+        rm -f /.cargo/config.toml && \
+        bazel build \
+            //node:midnight-node \
+            //util/toolkit:midnight-node-toolkit \
+            //util/upgrader:upgrader \
+            //util/aiken-deployer:aiken-deployer \
+            //runtime:runtime-wasm && \
+        rm -rf /workspace/artifacts-'"$NATIVEARCH"' && \
+        mkdir -p /workspace/artifacts-'"$NATIVEARCH"'/midnight-node-runtime && \
+        cp -L bazel-bin/node/midnight-node /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/util/toolkit/midnight-node-toolkit /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/util/upgrader/upgrader /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/util/aiken-deployer/aiken-deployer /workspace/artifacts-'"$NATIVEARCH"'/ && \
+        cp -L bazel-bin/runtime/midnight_node_runtime.wasm \
+            /workspace/artifacts-'"$NATIVEARCH"'/midnight-node-runtime/midnight_node_runtime.compact.compressed.wasm'
 
-# test-local runs Bazel tests using the persistent Docker container
-test-local:
+    # Package artifacts into a container image for downstream targets
+    FROM alpine:3.20
+    COPY --dir ./artifacts-$NATIVEARCH /
+    SAVE ARTIFACT /artifacts-$NATIVEARCH
+
+# test runs Bazel tests using the persistent Docker container.
+# First run after container creation takes ~160s for analysis; subsequent runs reuse the warm server.
+test:
     LOCALLY
     ARG CONTAINER_NAME=midnight-bazel
     ARG WORKSPACE_DIR=$(pwd)
-    RUN if ! docker inspect "$CONTAINER_NAME" >/dev/null 2>&1; then \
-            echo "Starting persistent Bazel container..." && \
-            docker run -d --name "$CONTAINER_NAME" \
-                -v "$WORKSPACE_DIR":/workspace \
-                -v midnight-bazel-cache:/root/.cache/bazel \
-                -w /workspace \
-                midnight-bazel-builder:latest \
-                sleep infinity; \
-        elif [ "$(docker inspect -f '{{.State.Running}}' "$CONTAINER_NAME")" != "true" ]; then \
-            echo "Restarting Bazel container..." && \
-            docker start "$CONTAINER_NAME"; \
-        fi
+    DO +ENSURE_BAZEL_CONTAINER --CONTAINER_NAME=$CONTAINER_NAME --WORKSPACE_DIR=$WORKSPACE_DIR
     RUN docker exec "$CONTAINER_NAME" rm -f /.cargo/config.toml && \
         docker exec "$CONTAINER_NAME" bazel test //...
-
-# build creates production ready binaries using Bazel
-build:
-    FROM +build-prepare
-    ARG NATIVEARCH
-
-    # Install lld for faster linking (cached — only re-runs when base image changes)
-    RUN microdnf -y install lld && microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
-
-    # Install wasm-opt binary — the runtime-wasm genrule calls it directly.
-    # Building wasm-opt-sys from source in Bazel is broken (cxx/scratch crate
-    # symlinks dangle across sandbox boundaries). Pre-installing avoids this.
-    ARG BINARYEN_VERSION=116
-    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "aarch64" || echo "x86_64") && \
-        curl -fsSL "https://github.com/WebAssembly/binaryen/releases/download/version_${BINARYEN_VERSION}/binaryen-version_${BINARYEN_VERSION}-${ARCH}-linux.tar.gz" \
-        | tar -xz --strip-components=2 -C /usr/local/bin "binaryen-version_${BINARYEN_VERSION}/bin/wasm-opt" && \
-        chmod 0755 /usr/local/bin/wasm-opt
-
-    # Install Bazelisk (cached — only re-runs when BAZELISK_VERSION changes)
-    ARG BAZELISK_VERSION=1.25.0
-    RUN ARCH=$([ "$NATIVEARCH" = "arm64" ] && echo "arm64" || echo "amd64") && \
-        curl -fsSL -o /usr/local/bin/bazel \
-        https://github.com/bazelbuild/bazelisk/releases/download/v${BAZELISK_VERSION}/bazelisk-linux-${ARCH} && \
-        chmod 0755 /usr/local/bin/bazel
-
-    # Copy source files AFTER tool installation so tool layers stay cached
-    COPY --keep-ts --dir Cargo.lock Cargo.toml .sqlx \
-    ledger node pallets primitives metadata res runtime util tools toolchains wasm-deps tests relay COMPACTC_VERSION \
-    MODULE.bazel .bazelrc .bazelversion .bazelignore BUILD.bazel defs.bzl scripts docs patches .
-
-    # Remove base image's .cargo/config.toml — cargo-bazel rejects parent-dir cargo configs
-    RUN rm -f /.cargo/config.toml
-
-
-    # Cache Bazel binary (downloaded by Bazelisk) and build outputs
-    # (action cache, external repos, compiled artifacts)
-    CACHE --sharing shared --id bazelisk /root/.cache/bazelisk
-    CACHE --sharing shared --id bazel-output /root/.cache/bazel
-
-    RUN bazel build \
-        //node:midnight-node \
-        //util/toolkit:midnight-node-toolkit \
-        //util/upgrader:upgrader \
-        //util/aiken-deployer:aiken-deployer \
-        //runtime:runtime-wasm && \
-        mkdir -p /artifacts-$NATIVEARCH/midnight-node-runtime && \
-        cp -L bazel-bin/node/midnight-node /artifacts-$NATIVEARCH/ && \
-        cp -L bazel-bin/util/toolkit/midnight-node-toolkit /artifacts-$NATIVEARCH/ && \
-        cp -L bazel-bin/util/upgrader/upgrader /artifacts-$NATIVEARCH/ && \
-        cp -L bazel-bin/util/aiken-deployer/aiken-deployer /artifacts-$NATIVEARCH/ && \
-        cp -L bazel-bin/runtime/midnight_node_runtime.wasm \
-            /artifacts-$NATIVEARCH/midnight-node-runtime/midnight_node_runtime.compact.compressed.wasm
-
-    SAVE ARTIFACT /artifacts-$NATIVEARCH AS LOCAL artifacts
 
 build-fork:
     FROM +prep
@@ -1335,10 +1280,6 @@ toolkit-image:
     # Warning, seeing the same bug as recorded here: https://github.com/earthly/earthly/issues/932
     FROM DOCKERFILE --build-arg ARCH="$NATIVEARCH" -f ./images/toolkit/Dockerfile .
     USER root
-
-    # Install dependencies for Node.js (libxml2 pinned via base image digest, python3-pip not installed)
-    RUN microdnf -y install tar-1.34 gzip-1.12 xz-5.2.5 && \
-        microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
 
     # Install Node.js 22 from official binaries (AL2023's nodejs is v18, which lacks File API needed by undici)
     # renovate: datasource=node-version depName=node versioning=node

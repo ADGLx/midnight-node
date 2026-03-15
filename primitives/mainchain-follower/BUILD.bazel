@@ -13,6 +13,12 @@ rust_library(
     crate_features = wasm_aware_features(["std"]),
     edition = "2024",
     rustc_flags = wasm_rustc_flags(),
+    aliases = select({
+        "//:wasm32": {},
+        "//conditions:default": {
+            "@crates//:substrate-prometheus-endpoint-0.17.7": "prometheus_endpoint",
+        },
+    }),
     deps = [
         "//primitives/cnight-observation:midnight-primitives-cnight-observation",
         "//primitives/federated-authority-observation:midnight-primitives-federated-authority-observation",
@@ -42,6 +48,7 @@ rust_library(
         "sp-keyring",
         "sqlx",
         "thiserror",
+        "substrate-prometheus-endpoint-0.17.7",
         "tokio",
     ]),
     proc_macro_deps = [

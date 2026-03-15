@@ -180,7 +180,7 @@ rust_test(
     size = "small",
     srcs = ["tests/cli_tests.rs"],
     crate_root = "tests/cli_tests.rs",
-    data = glob(["tests/cmd/**"]) + [":midnight-node-toolkit"],
+    data = glob(["tests/cmd/**"], allow_empty = True) + [":midnight-node-toolkit"],
     edition = "2024",
     env = _INTEGRATION_TEST_ENV,
     rustc_env = {"CARGO_MANIFEST_DIR": "util/toolkit"},

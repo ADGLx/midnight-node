@@ -8,7 +8,7 @@ cargo_build_script(
     name = "build_script",
     srcs = ["build.rs"],
     edition = "2024",
-    data = glob(["static/**"]),
+    data = glob(["static/**"], allow_empty = True),
 )
 
 # Bridge crates: provide a second extern name for crates that collide in the
@@ -45,7 +45,7 @@ rust_library(
     name = "_mn_ledger_8_bridge",
     crate_name = "mn_ledger_8",
     srcs = ["bridges/mn_ledger_8.rs"],
-    deps = ["@crates__midnight-ledger-8.0.0-rc.4//:midnight_ledger"],
+    deps = ["@crates__midnight-ledger-8.0.2//:midnight_ledger"],
     edition = "2024",
     visibility = ["//ledger:__pkg__"],
 )
@@ -54,7 +54,7 @@ rust_library(
     name = "_zswap_ledger_8_bridge",
     crate_name = "zswap_ledger_8",
     srcs = ["bridges/zswap_ledger_8.rs"],
-    deps = ["@crates__midnight-zswap-8.0.0-rc.4//:midnight_zswap"],
+    deps = ["@crates__midnight-zswap-8.0.0//:midnight_zswap"],
     edition = "2024",
     visibility = ["//ledger:__pkg__"],
 )
@@ -62,7 +62,7 @@ rust_library(
 rust_library(
     name = "midnight-node-ledger-helpers",
     srcs = glob(["src/**/*.rs"]),
-    compile_data = glob(["static/**"]) + ["//:Cargo.toml", "Cargo.toml"],
+    compile_data = glob(["static/**"], allow_empty = True) + ["//:Cargo.toml", "Cargo.toml"],
     crate_features = [
         "can-panic",
         "test-utils",
@@ -71,18 +71,15 @@ rust_library(
     aliases = select({
         "//:wasm32": {},
         "//conditions:default": {
-            # L7 aliases (only for deps that DON'T collide with L8)
+            # L7 aliases
             "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
-            "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+            "@crates//:midnight-ledger-7.0.3": "mn_ledger",
             "@crates//:midnight-storage-1.1.1": "ledger_storage",
             "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
-            "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
-            # L8 aliases (only for deps that DON'T collide with L7)
-            "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+            "@crates//:midnight-zswap-7.0.3": "zswap",
+            # L8 aliases (only for deps that differ from L7)
             "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
             "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
-            "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
-            "@crates//:zkir_ledger_8": "zkir_ledger_8",
             # HF deps excluded — hardfork feature not enabled in Bazel to avoid
             # midnight_storage_core version conflict (see docs/bazel-notes.md Bug 3)
         },
@@ -96,17 +93,14 @@ rust_library(
     ]) + native_only_crates([
         # L7 midnight deps (non-colliding use aliases, colliding use bridges)
         "midnight-base-crypto-1.0.0",
-        "midnight-ledger-7.0.3-rc.1",
+        "midnight-ledger-7.0.3",
         "midnight-onchain-runtime-2.0.1",
         "midnight-serialize",
         "midnight-storage-1.1.1",
-        "midnight-zswap-7.0.3-rc.1",
-        # L8 midnight deps
-        "coin_structure_ledger_8",
+        "midnight-zswap-7.0.3",
+        # L8 midnight deps (only those that differ from L7)
         "onchain_runtime_ledger_8",
         "ledger_storage_ledger_8",
-        "transient_crypto_ledger_8",
-        "zkir_ledger_8",
         # HF deps excluded (see aliases comment above)
         # Other deps
         "bech32",
@@ -144,19 +138,16 @@ rust_test(
     name = "midnight-node-ledger-helpers-test",
     size = "small",
     crate = ":midnight-node-ledger-helpers",
-    compile_data = glob(["static/**"]) + ["//:Cargo.toml", "Cargo.toml"],
+    compile_data = glob(["static/**"], allow_empty = True) + ["//:Cargo.toml", "Cargo.toml"],
     edition = "2024",
     aliases = {
         "@crates//:midnight-base-crypto-1.0.0": "base_crypto",
-        "@crates//:midnight-ledger-7.0.3-rc.1": "mn_ledger",
+        "@crates//:midnight-ledger-7.0.3": "mn_ledger",
         "@crates//:midnight-storage-1.1.1": "ledger_storage",
         "@crates//:midnight-onchain-runtime-2.0.1": "onchain_runtime",
-        "@crates//:midnight-zswap-7.0.3-rc.1": "zswap",
-        "@crates//:coin_structure_ledger_8": "coin_structure_ledger_8",
+        "@crates//:midnight-zswap-7.0.3": "zswap",
         "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
         "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
-        "@crates//:transient_crypto_ledger_8": "transient_crypto_ledger_8",
-        "@crates//:zkir_ledger_8": "zkir_ledger_8",
     },
     proc_macro_deps = [
         "@crates//:async-trait",
