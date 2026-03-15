@@ -361,7 +361,7 @@ jobs:
 
       - name: Run pallet fixture tests
         run: |
-          . ./.envrc && earthly --strict +test-pallet-fixtures
+          . ./.envrc && earthly +test-pallet-fixtures
 
   # Gate job for toolkit E2E tests - if this fails, toolkit E2E tests are skipped
   test-toolkit:
@@ -394,7 +394,7 @@ jobs:
 
       - name: Run toolkit tests
         run: |
-          . ./.envrc && earthly -P --strict \
+          . ./.envrc && earthly -P \
             --build-arg "NODE_IMAGE=ghcr.io/midnight-ntwrk/midnight-node:${{ needs.run.outputs.node_image_tag }}" \
             +test-toolkit
 
