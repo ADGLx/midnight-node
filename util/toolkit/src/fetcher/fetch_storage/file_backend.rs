@@ -28,8 +28,13 @@ use async_trait::async_trait;
 use std::{
 	fs, io,
 	path::{Path, PathBuf},
+	time::Duration,
 };
 use subxt::utils::H256;
+
+/// Ledger snapshots younger than this are never GC'd, giving concurrent
+/// processes time to finish saving wallet states that reference them.
+const GC_GRACE_PERIOD: Duration = Duration::from_secs(5 * 60);
 
 pub struct FileBackend {
 	root: PathBuf,
@@ -71,10 +76,33 @@ fn parse_seed_hash(filename: &str) -> Option<H256> {
 	if bytes.len() == 32 { Some(H256::from_slice(&bytes)) } else { None }
 }
 
-/// Write data atomically: write to `<path>.tmp`, then rename over `<path>`.
-fn atomic_write(path: &Path, data: &[u8]) -> io::Result<()> {
+/// Write to `<path>.tmp`, then rename over `<path>`.
+fn write_via_tmp_and_rename(path: &Path, data: &[u8]) -> io::Result<()> {
 	let tmp = path.with_extension("tmp");
 	fs::write(&tmp, data)?;
+	fs::rename(&tmp, path)
+}
+
+fn read_wallet_height(path: &Path) -> Option<u64> {
+	let mut file = fs::File::open(path).ok()?;
+	let mut header = [0u8; 8];
+	io::Read::read_exact(&mut file, &mut header).ok()?;
+	CachedWalletState::block_height_from_header(&header)
+}
+
+/// Write wallet data only if `new_height` exceeds the existing file's height.
+/// Check happens after writing `.tmp` but before rename to minimize the TOCTOU window.
+/// A concurrent writer can still race between our read and rename — we accept that
+/// the consequence is a benign height regression (extra replay on next startup).
+fn write_wallet_if_newer(path: &Path, new_height: u64, data: &[u8]) -> io::Result<()> {
+	let tmp = path.with_extension("tmp");
+	fs::write(&tmp, data)?;
+	if let Some(existing) = read_wallet_height(path) {
+		if existing >= new_height {
+			let _ = fs::remove_file(&tmp);
+			return Ok(());
+		}
+	}
 	fs::rename(&tmp, path)
 }
 
@@ -127,7 +155,7 @@ impl WalletStateCaching for FileBackend {
 		let size = encoded.len();
 		if let Err(e) = tokio::task::spawn_blocking(move || {
 			fs::create_dir_all(&dir)?;
-			atomic_write(&path, &encoded)
+			write_via_tmp_and_rename(&path, &encoded)
 		})
 		.await
 		.unwrap_or_else(|e| Err(io::Error::new(io::ErrorKind::Other, e)))
@@ -189,15 +217,15 @@ impl WalletStateCaching for FileBackend {
 						return None;
 					},
 				};
-				Some((self.wallet_path(chain_id, w.seed_hash), encoded))
+				Some((self.wallet_path(chain_id, w.seed_hash), w.block_height, encoded))
 			})
 			.collect();
 
 		let count = items.len();
 		if let Err(e) = tokio::task::spawn_blocking(move || -> io::Result<()> {
 			fs::create_dir_all(&dir)?;
-			for (path, data) in &items {
-				atomic_write(path, data)?;
+			for (path, new_height, data) in &items {
+				write_wallet_if_newer(path, *new_height, data)?;
 			}
 			Ok(())
 		})
@@ -240,7 +268,14 @@ impl WalletStateCaching for FileBackend {
 			for name in list_dir(&dir) {
 				if let Some(height) = parse_ledger_height(&name) {
 					if !keep.contains(&height) {
-						match fs::remove_file(dir.join(&name)) {
+						let path = dir.join(&name);
+						let dominated_by_grace_period = fs::metadata(&path)
+							.and_then(|m| m.modified())
+							.is_ok_and(|t| t.elapsed().unwrap_or(Duration::ZERO) < GC_GRACE_PERIOD);
+						if dominated_by_grace_period {
+							continue;
+						}
+						match fs::remove_file(&path) {
 							Ok(()) => removed += 1,
 							Err(e) if e.kind() == io::ErrorKind::NotFound => {},
 							Err(e) => log::warn!("Failed to GC ledger snapshot file {name}: {e}"),
@@ -268,12 +303,7 @@ impl WalletStateCaching for FileBackend {
 					continue;
 				}
 				let path = dir.join(&name);
-				let height = (|| {
-					let mut file = fs::File::open(&path).ok()?;
-					let mut header = [0u8; 8];
-					io::Read::read_exact(&mut file, &mut header).ok()?;
-					CachedWalletState::block_height_from_header(&header)
-				})();
+				let height = read_wallet_height(&path);
 				match height {
 					Some(h) => {
 						heights.insert(h);
@@ -297,6 +327,7 @@ impl WalletStateCaching for FileBackend {
 #[cfg(test)]
 mod tests {
 	use super::*;
+	use tempfile::TempDir;
 
 	fn test_snapshot(block_height: u64) -> LedgerSnapshot {
 		use crate::fetcher::wallet_state_cache::SerializableBlockContext;
@@ -326,63 +357,57 @@ mod tests {
 		H256::from([0x01; 32])
 	}
 
+	fn test_fixture() -> (TempDir, FileBackend, H256) {
+		let tmp = TempDir::new().unwrap();
+		let backend = FileBackend::new(tmp.path());
+		(tmp, backend, chain_id())
+	}
+
 	#[tokio::test]
 	async fn ledger_snapshot_roundtrip() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
-		backend.set_ledger_snapshot(cid, test_snapshot(42)).await;
+		let snapshot = test_snapshot(42);
+		backend.set_ledger_snapshot(cid, snapshot.clone()).await;
 		let restored = backend.get_ledger_snapshot(cid, 42).await.expect("snapshot missing");
 
-		assert_eq!(restored.block_height, 42);
-		assert_eq!(restored.ledger_state_bytes, vec![0xAA; 1024]);
-		assert_eq!(restored.state_root, [0xCC; 32]);
+		assert_eq!(snapshot, restored);
 	}
 
 	#[tokio::test]
 	async fn get_latest_ledger_height_multiple() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
 		assert_eq!(backend.get_latest_ledger_height(cid).await, None);
 
 		backend.set_ledger_snapshot(cid, test_snapshot(100)).await;
-		backend.set_ledger_snapshot(cid, test_snapshot(200)).await;
-		backend.set_ledger_snapshot(cid, test_snapshot(50)).await;
+		assert_eq!(backend.get_latest_ledger_height(cid).await, Some(100));
 
+		backend.set_ledger_snapshot(cid, test_snapshot(200)).await;
+		assert_eq!(backend.get_latest_ledger_height(cid).await, Some(200));
+
+		backend.set_ledger_snapshot(cid, test_snapshot(50)).await;
 		assert_eq!(backend.get_latest_ledger_height(cid).await, Some(200));
 	}
 
 	#[tokio::test]
 	async fn wallet_states_batch() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
 		let h1 = H256::from([0x01; 32]);
 		let h2 = H256::from([0x02; 32]);
 		let h3 = H256::from([0x03; 32]);
 
-		backend
-			.set_wallet_states(cid, &[test_wallet(h1, 100), test_wallet(h2, 100)])
-			.await;
+		let (wallet1, wallet2) = (test_wallet(h1, 100), test_wallet(h2, 100));
+		backend.set_wallet_states(cid, &[wallet1.clone(), wallet2.clone()]).await;
 
-		let results = backend.get_wallet_states(cid, &[h1, h3, h2]).await;
-		assert_eq!(results.len(), 3);
-		assert!(results[0].is_some());
-		assert!(results[1].is_none());
-		assert!(results[2].is_some());
-		assert_eq!(results[0].as_ref().unwrap().seed_hash, h1);
-		assert_eq!(results[2].as_ref().unwrap().seed_hash, h2);
+		let results = backend.get_wallet_states(cid, &[h2, h3, h1]).await;
+		assert_eq!(results, vec![Some(wallet2), None, Some(wallet1)]);
 	}
 
 	#[tokio::test]
 	async fn delete_wallet_states() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
 		let h1 = H256::from([0x01; 32]);
 		let h2 = H256::from([0x02; 32]);
@@ -397,15 +422,26 @@ mod tests {
 		assert!(results[1].is_some());
 	}
 
+	fn backdate_ledger_snapshot(backend: &FileBackend, cid: H256, height: u64) {
+		use std::{fs::FileTimes, time::SystemTime};
+		let path = backend.ledger_path(cid, height);
+		let old = SystemTime::UNIX_EPOCH + Duration::from_secs(1_000_000);
+		let times = FileTimes::new().set_modified(old);
+		fs::File::options().write(true).open(&path).unwrap().set_times(times).unwrap();
+	}
+
 	#[tokio::test]
 	async fn gc_ledger_snapshots() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
 		backend.set_ledger_snapshot(cid, test_snapshot(100)).await;
 		backend.set_ledger_snapshot(cid, test_snapshot(200)).await;
 		backend.set_ledger_snapshot(cid, test_snapshot(300)).await;
+
+		// Backdate files past grace period so GC can remove them
+		backdate_ledger_snapshot(&backend, cid, 100);
+		backdate_ledger_snapshot(&backend, cid, 200);
+		backdate_ledger_snapshot(&backend, cid, 300);
 
 		backend.gc_ledger_snapshots(cid, &[200]).await;
 
@@ -415,10 +451,27 @@ mod tests {
 	}
 
 	#[tokio::test]
+	async fn gc_spares_recent_snapshots() {
+		let (_, backend, cid) = test_fixture();
+
+		backend.set_ledger_snapshot(cid, test_snapshot(100)).await;
+		backend.set_ledger_snapshot(cid, test_snapshot(200)).await;
+
+		// Backdate only height 100
+		backdate_ledger_snapshot(&backend, cid, 100);
+
+		backend.gc_ledger_snapshots(cid, &[]).await;
+
+		assert!(backend.get_ledger_snapshot(cid, 100).await.is_none());
+		assert!(
+			backend.get_ledger_snapshot(cid, 200).await.is_some(),
+			"recent snapshot should survive GC"
+		);
+	}
+
+	#[tokio::test]
 	async fn get_all_cached_wallet_heights() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
 		let h1 = H256::from([0x01; 32]);
 		let h2 = H256::from([0x02; 32]);
@@ -438,9 +491,7 @@ mod tests {
 
 	#[tokio::test]
 	async fn empty_dir_reads() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
 		assert!(backend.get_ledger_snapshot(cid, 42).await.is_none());
 		assert_eq!(backend.get_latest_ledger_height(cid).await, None);
@@ -450,23 +501,31 @@ mod tests {
 
 	#[tokio::test]
 	async fn wallet_state_overwrite() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 		let h1 = H256::from([0x01; 32]);
 
 		backend.set_wallet_states(cid, &[test_wallet(h1, 100)]).await;
 		backend.set_wallet_states(cid, &[test_wallet(h1, 200)]).await;
 
 		let results = backend.get_wallet_states(cid, &[h1]).await;
-		assert_eq!(results[0].as_ref().unwrap().block_height, 200);
+		assert_eq!(results, vec![Some(test_wallet(h1, 200))]);
+	}
+
+	#[tokio::test]
+	async fn wallet_state_no_height_regression() {
+		let (_, backend, cid) = test_fixture();
+		let h1 = H256::from([0x01; 32]);
+
+		backend.set_wallet_states(cid, &[test_wallet(h1, 200)]).await;
+		backend.set_wallet_states(cid, &[test_wallet(h1, 100)]).await;
+
+		let results = backend.get_wallet_states(cid, &[h1]).await;
+		assert_eq!(results, vec![Some(test_wallet(h1, 200))]);
 	}
 
 	#[tokio::test]
 	async fn corrupted_wallet_file_is_deleted() {
-		let tmp = tempfile::TempDir::new().unwrap();
-		let backend = FileBackend::new(tmp.path());
-		let cid = chain_id();
+		let (_, backend, cid) = test_fixture();
 
 		let h1 = H256::from([0x01; 32]);
 

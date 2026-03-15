@@ -27,7 +27,7 @@ use sha2::{Digest, Sha256};
 use subxt::utils::H256;
 
 /// Serializable representation of BlockContext.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct SerializableBlockContext {
 	pub tblock_secs: u64,
 	pub tblock_err: u32,
@@ -59,7 +59,7 @@ impl From<&BlockContext> for SerializableBlockContext {
 ///
 /// `block_height` is the storage key and is skipped during serialization;
 /// it must be supplied to `from_value_bytes` to reconstruct the struct.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct LedgerSnapshot {
 	#[serde(skip)]
 	pub block_height: u64,
@@ -78,7 +78,7 @@ pub struct LedgerSnapshot {
 ///
 /// `seed_hash` is the storage key and is skipped during serialization;
 /// it must be supplied to `from_value_bytes` to reconstruct the struct.
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct CachedWalletState {
 	#[serde(skip)]
 	pub seed_hash: H256,
