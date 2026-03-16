@@ -468,7 +468,7 @@ rebuild-genesis-state-preprod:
 rebuild-genesis-state-mainnet:
     BUILD +rebuild-genesis-state \
         --NETWORK=mainnet \
-        --FUND_FAUCET_WALLETS=false
+        --FUND_FAUCET_WALLETS=true
 
 # rebuild-genesis-state-perfnet rebuilds the genesis ledger state for perfnet network - this MUST be followed by updating the chainspecs for CI to pass!
 rebuild-genesis-state-perfnet:
