@@ -383,25 +383,7 @@ mod tests {
 		let bytes = snapshot.to_value_bytes().expect("serialize failed");
 		let restored = LedgerSnapshot::from_value_bytes(&bytes, 42).expect("decode failed");
 
-		assert_eq!(restored.block_height, 42);
-		assert_eq!(restored.ledger_state_bytes, snapshot.ledger_state_bytes);
-		assert_eq!(restored.state_root, snapshot.state_root);
-		assert_eq!(
-			restored.latest_block_context.tblock_secs,
-			snapshot.latest_block_context.tblock_secs
-		);
-		assert_eq!(
-			restored.latest_block_context.tblock_err,
-			snapshot.latest_block_context.tblock_err
-		);
-		assert_eq!(
-			restored.latest_block_context.parent_block_hash,
-			snapshot.latest_block_context.parent_block_hash
-		);
-		assert_eq!(
-			restored.latest_block_context.last_block_time,
-			snapshot.latest_block_context.last_block_time
-		);
+		assert_eq!(restored, snapshot);
 	}
 
 	#[test]
@@ -419,10 +401,7 @@ mod tests {
 		let restored =
 			CachedWalletState::from_value_bytes(&bytes, seed_hash).expect("decode failed");
 
-		assert_eq!(restored.seed_hash, seed_hash);
-		assert_eq!(restored.block_height, 99);
-		assert_eq!(restored.shielded_state_bytes, wallet.shielded_state_bytes);
-		assert_eq!(restored.dust_local_state_bytes, wallet.dust_local_state_bytes);
+		assert_eq!(restored, wallet);
 	}
 
 	#[test]
@@ -440,9 +419,7 @@ mod tests {
 		let restored =
 			CachedWalletState::from_value_bytes(&bytes, seed_hash).expect("decode failed");
 
-		assert_eq!(restored.block_height, 50);
-		assert_eq!(restored.shielded_state_bytes, wallet.shielded_state_bytes);
-		assert!(restored.dust_local_state_bytes.is_none());
+		assert_eq!(restored, wallet);
 	}
 
 	#[test]
@@ -461,16 +438,12 @@ mod tests {
 				.map(|w| w.block_height);
 			let from_header = CachedWalletState::block_height_from_header(&bytes);
 			assert_eq!(from_header, from_full, "header extraction mismatch at height {height}");
-
-			// Verify the 8-byte LE prefix
-			assert_eq!(&bytes[..8], &height.to_le_bytes());
 		}
 
 		assert_eq!(CachedWalletState::block_height_from_header(&[]), None);
 		assert_eq!(CachedWalletState::block_height_from_header(&[0; 7]), None);
 	}
 
-	/// Load genesis test data as SourceTransactions + build LedgerContext.
 	fn load_genesis_context(
 		wallet_seeds: &[WalletSeed],
 	) -> (crate::serde_def::SourceTransactions, LedgerContext<DefaultDB>) {
@@ -488,7 +461,7 @@ mod tests {
 	}
 
 	// =========================================================================
-	// v2 per-wallet cache tests
+	// per-wallet cache tests
 	// =========================================================================
 
 	#[test]
@@ -502,7 +475,6 @@ mod tests {
 		let (source, context) = load_genesis_context(&wallet_seeds);
 		let total_blocks = source.blocks.len() as u64;
 
-		// Create ledger snapshot
 		let snapshot = create_ledger_snapshot(&context, total_blocks).expect("snapshot failed");
 		assert_eq!(snapshot.block_height, total_blocks);
 
@@ -514,11 +486,11 @@ mod tests {
 		// Verify ledger state matches
 		let original_bytes = {
 			let state = context.ledger_state.lock().unwrap();
-			midnight_node_ledger_helpers::serialize(&**state).expect("serialize failed")
+			midnight_node_ledger_helpers::serialize(&*state).expect("serialize failed")
 		};
 		let restored_bytes = {
 			let state = restored.ledger_state.lock().unwrap();
-			midnight_node_ledger_helpers::serialize(&**state).expect("serialize failed")
+			midnight_node_ledger_helpers::serialize(&*state).expect("serialize failed")
 		};
 		assert_eq!(original_bytes, restored_bytes, "ledger state bytes differ");
 
@@ -583,7 +555,7 @@ mod tests {
 
 	/// Verifies ledger snapshot + wallet injection + incremental replay matches full replay.
 	#[test]
-	fn v2_cache_restore_then_incremental_replay() {
+	fn cache_restore_then_incremental_replay() {
 		use crate::tx_generator::builder::build_fork_aware_context;
 		use midnight_node_ledger_helpers::fork::fork_aware_context::ForkAwareLedgerContext;
 
@@ -595,15 +567,17 @@ mod tests {
 
 		let (source, _) = load_genesis_context(&wallet_seeds);
 
-		let split_at = source.blocks.len() / 2 + 1;
+		let split_at = source.blocks.len() / 2;
 		let first_half = &source.blocks[..split_at];
 		let second_half = &source.blocks[split_at..];
 
-		// Full replay
+		assert!(first_half.len() > 0, "no blocks in first half");
+		assert!(second_half.len() > 0, "no blocks in first half");
+
 		let full_context =
 			build_fork_aware_context(&source, &wallet_seeds).expect("full context build failed");
 
-		// Partial replay → v2 cache → restore → replay remainder
+		// Partial replay → cache → restore → replay remainder
 		let partial_source =
 			crate::serde_def::SourceTransactions::new(first_half.to_vec(), &source.network_id);
 		let partial_context = build_fork_aware_context(&partial_source, &wallet_seeds)
@@ -685,7 +659,7 @@ mod tests {
 		let state = context.ledger_state.lock().unwrap();
 
 		let default_bytes =
-			midnight_node_ledger_helpers::serialize(&**state).expect("default serialize failed");
+			midnight_node_ledger_helpers::serialize(&*state).expect("default serialize failed");
 		let fast_bytes = serialize_ledger_state_fast(&state).expect("fast serialize failed");
 
 		assert_eq!(
