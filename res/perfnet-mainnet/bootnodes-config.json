@@ -1,0 +1,6 @@
+{
+    "bootnodes": [
+        "/dns/ferdie.perf.dev.aws.shielded.io/tcp/30333/p2p/12D3KooWEeNuWqoWezVUc37PDXAmFGFCNU8gNkBSG9qTSNVNaaXp",
+        "/dns/paul.perf.dev.aws.shielded.io/tcp/30333/p2p/12D3KooWHXVDMYkWp7cv6vefZpUXvLc65sHkyR3E85WWn1efqLRM"
+    ]
+}
