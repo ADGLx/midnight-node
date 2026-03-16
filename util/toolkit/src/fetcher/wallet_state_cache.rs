@@ -686,7 +686,7 @@ mod tests {
 
 		let default_bytes =
 			midnight_node_ledger_helpers::serialize(&**state).expect("default serialize failed");
-		let fast_bytes = serialize_ledger_state_fast(&**state).expect("fast serialize failed");
+		let fast_bytes = serialize_ledger_state_fast(&state).expect("fast serialize failed");
 
 		assert_eq!(
 			default_bytes.len(),
