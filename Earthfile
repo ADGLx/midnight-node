@@ -141,8 +141,12 @@ build-node-only:
 # node-image-minimal creates a minimal node image for metadata extraction
 node-image-minimal:
     ARG NATIVEARCH
-    FROM DOCKERFILE -f ./images/node/Dockerfile .
+    FROM DOCKERFILE -f ./images/node/Dockerfile ./images/node
     USER root
+
+    # Files outside the base image directory
+    COPY .envrc ./bin/.envrc
+    COPY res/ ./res/
 
     RUN mkdir -p /node
     COPY +build-node-only/artifacts-$NATIVEARCH/midnight-node /
@@ -1136,12 +1140,62 @@ srtool-info:
     USER builder
     RUN /srtool/info
 
+# ================ BASE IMAGE TARGETS ================
+# Base images are built from Dockerfiles under images/ and pushed with content-stable
+# hash tags derived from `git rev-parse "HEAD^{tree}:images/<name>"`, so the tag changes
+# only when the Dockerfile or its sibling files (e.g. entrypoint.sh) change.
+# Run `earthly --push +build-base-images` to build and push them.
+
+_node-base-image:
+    ARG BASE_HASH
+    ARG NATIVEARCH
+    FROM DOCKERFILE ./images/node
+    SAVE IMAGE --push ghcr.io/midnight-ntwrk/midnight-node-base:$BASE_HASH-$NATIVEARCH
+
+_toolkit-base-image:
+    ARG BASE_HASH
+    ARG NATIVEARCH
+    FROM DOCKERFILE ./images/toolkit
+    SAVE IMAGE --push ghcr.io/midnight-ntwrk/midnight-toolkit-base:$BASE_HASH-$NATIVEARCH
+
+_upgrader-base-image:
+    ARG BASE_HASH
+    ARG NATIVEARCH
+    FROM DOCKERFILE ./images/hardfork-test-upgrader
+    SAVE IMAGE --push ghcr.io/midnight-ntwrk/midnight-hardfork-upgrader-base:$BASE_HASH-$NATIVEARCH
+
+# build-base-images Build and push all base Docker images with content-stable hash tags
+build-base-images:
+    LOCALLY
+    RUN git diff --quiet HEAD -- images/ || (echo "ERROR: images/ has uncommitted changes — commit before building base images" && exit 1)
+    LET NODE_HASH = "$(git rev-parse 'HEAD^{tree}:images/node')"
+    LET TOOLKIT_HASH = "$(git rev-parse 'HEAD^{tree}:images/toolkit')"
+    LET UPGRADER_HASH = "$(git rev-parse 'HEAD^{tree}:images/hardfork-test-upgrader')"
+    BUILD +_node-base-image --BASE_HASH=$NODE_HASH
+    BUILD +_toolkit-base-image --BASE_HASH=$TOOLKIT_HASH
+    BUILD +_upgrader-base-image --BASE_HASH=$UPGRADER_HASH
+
+# ================ IMAGE TARGETS ================
+# Each image target is a LOCALLY wrapper that computes the content hash
+# of its base image directory and delegates to an _impl target which
+# pulls the pre-built base from the registry.
+
 # node-image creates the Midnight Substrate Node's image
 node-image:
+    LOCALLY
+    LET NODE_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/node')"
+    BUILD +_node-image-impl --NODE_BASE_HASH=$NODE_BASE_HASH
+
+_node-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
-    FROM DOCKERFILE -f ./images/node/Dockerfile .
+    ARG NODE_BASE_HASH
+    FROM ghcr.io/midnight-ntwrk/midnight-node-base:$NODE_BASE_HASH-$NATIVEARCH
     USER root
+
+    # Files outside the base image directory
+    COPY .envrc ./bin/.envrc
+    COPY res/ ./res/
 
     RUN mkdir -p /artifacts-$NATIVEARCH
     RUN mkdir -p node
@@ -1177,10 +1231,20 @@ node-image:
 
 # node-benchmarks-image creates the Midnight Substrate Node's image with runtime-benchmarks feature
 node-benchmarks-image:
+    LOCALLY
+    LET NODE_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/node')"
+    BUILD +_node-benchmarks-image-impl --NODE_BASE_HASH=$NODE_BASE_HASH
+
+_node-benchmarks-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
-    FROM DOCKERFILE -f ./images/node/Dockerfile .
+    ARG NODE_BASE_HASH
+    FROM ghcr.io/midnight-ntwrk/midnight-node-base:$NODE_BASE_HASH-$NATIVEARCH
     USER root
+
+    # Files outside the base image directory
+    COPY .envrc ./bin/.envrc
+    COPY res/ ./res/
 
     RUN mkdir -p /artifacts-$NATIVEARCH
 
@@ -1207,14 +1271,24 @@ node-benchmarks-image:
 
 # toolkit-image creates an image to run the midnight toolkit
 toolkit-image:
+    LOCALLY
+    ARG INCLUDE_TOOLKIT_JS=true
+    LET TOOLKIT_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/toolkit')"
+    BUILD +_toolkit-image-impl --TOOLKIT_BASE_HASH=$TOOLKIT_BASE_HASH --INCLUDE_TOOLKIT_JS=$INCLUDE_TOOLKIT_JS
+
+_toolkit-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
+    ARG TOOLKIT_BASE_HASH
     # Set to false to skip toolkit-js
     # toolkit-js is only needed when GENERATE_TEST_TXS=true
     ARG INCLUDE_TOOLKIT_JS=true
-    # Warning, seeing the same bug as recorded here: https://github.com/earthly/earthly/issues/932
-    FROM DOCKERFILE --build-arg ARCH="$NATIVEARCH" -f ./images/toolkit/Dockerfile .
+    FROM ghcr.io/midnight-ntwrk/midnight-toolkit-base:$TOOLKIT_BASE_HASH-$NATIVEARCH
     USER root
+
+    # Files outside the base image directory
+    COPY .envrc ./bin/.envrc
+    COPY static/contracts/simple-merkle-tree /test-static/simple-merkle-tree
 
     # Install dependencies for Node.js (libxml2 pinned via base image digest, python3-pip not installed)
     RUN microdnf -y install tar-1.34 gzip-1.12 xz-5.2.5 && \
@@ -1248,7 +1322,9 @@ toolkit-image:
     COPY +build/artifacts-$NATIVEARCH/midnight-node-toolkit /
     RUN mkdir -p /.cache/midnight/zk-params /.cache/sync
 
-    LET NODE_VERSION="$(cat node_version)"
+    # Extract node version (previously done in base Dockerfile)
+    COPY node/Cargo.toml /tmp/node-Cargo.toml
+    LET NODE_VERSION="$(awk -F'\042' '/^version/ {print $2}' /tmp/node-Cargo.toml)"
     ENV GHCR_REGISTRY=ghcr.io/midnight-ntwrk
     ENV GHCR_REGISTRY_PUBLIC=ghcr.io/midnightntwrk
     ENV IMAGE_TAG="${NODE_VERSION}-${EARTHLY_GIT_SHORT_HASH}-${NATIVEARCH}"
@@ -1263,9 +1339,15 @@ toolkit-image:
 
 # hardfork-test-upgrader-image creates the hardfork test upgrader tool image
 hardfork-test-upgrader-image:
+    LOCALLY
+    LET UPGRADER_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/hardfork-test-upgrader')"
+    BUILD +_hardfork-test-upgrader-image-impl --UPGRADER_BASE_HASH=$UPGRADER_BASE_HASH
+
+_hardfork-test-upgrader-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
-    FROM DOCKERFILE -f ./images/hardfork-test-upgrader/Dockerfile .
+    ARG UPGRADER_BASE_HASH
+    FROM ghcr.io/midnight-ntwrk/midnight-hardfork-upgrader-base:$UPGRADER_BASE_HASH-$NATIVEARCH
     USER root
 
     COPY +build-fork/artifacts-$NATIVEARCH/upgrader /
@@ -1544,6 +1626,6 @@ stop-local-env:
 
 #images Build all the images
 images:
-    FROM scratch
+    LOCALLY
     BUILD +node-image
     BUILD +toolkit-image
