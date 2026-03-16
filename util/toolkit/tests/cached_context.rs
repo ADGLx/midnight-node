@@ -14,9 +14,8 @@
 //! Integration tests verifying `build_fork_aware_context_cached` produces the
 //! same result as `build_fork_aware_context_raw` across all cache scenarios.
 
-use midnight_node_ledger_helpers::{
-	DefaultDB, LedgerContext, WalletSeed, serialize, serialize_untagged,
-};
+use midnight_node_ledger_helpers::{DefaultDB, LedgerContext, WalletSeed, serialize_untagged};
+use midnight_node_toolkit::fetcher::wallet_state_cache::{hash_seed, serialize_ledger_state_fast};
 use midnight_node_toolkit::{
 	fetcher::fetch_storage::{WalletStateCaching, file_backend::FileBackend},
 	serde_def::SourceTransactions,
@@ -25,17 +24,24 @@ use midnight_node_toolkit::{
 		source::GetTxsFromFile,
 	},
 };
-
-// ---------------------------------------------------------------------------
-// Genesis helpers
-// ---------------------------------------------------------------------------
+use subxt::utils::H256;
 
 fn load_genesis_source() -> SourceTransactions {
 	let genesis_path =
 		format!("{}/test-data/genesis/genesis_block_undeployed.mn", env!("CARGO_MANIFEST_DIR"));
 	let batches = GetTxsFromFile::load_single_or_multiple(&genesis_path)
 		.expect("failed to load genesis file");
-	SourceTransactions::from_batches(batches.batches, true)
+	let mut source = SourceTransactions::from_batches(batches.batches, true);
+
+	assign_block_numbers(&mut source);
+
+	// protection from dummy tests
+	assert!(
+		source.chain_id().is_some(),
+		"genesis must produce a valid chain_id for caching tests to be meaningful"
+	);
+	assert!(source.blocks.len() >= 2);
+	source
 }
 
 /// Assign sequential block numbers and deterministic hashes so `chain_id()`
@@ -56,10 +62,6 @@ fn wallet_seed(hex_byte: u8) -> WalletSeed {
 	WalletSeed::try_from_hex_str(&hex).unwrap()
 }
 
-// ---------------------------------------------------------------------------
-// Context comparison
-// ---------------------------------------------------------------------------
-
 fn assert_contexts_equal(
 	label: &str,
 	cached: &LedgerContext<DefaultDB>,
@@ -69,12 +71,13 @@ fn assert_contexts_equal(
 	// Compare ledger state
 	let cached_bytes = {
 		let state = cached.ledger_state.lock().unwrap();
-		serialize(&**state).expect("serialize cached ledger state")
+		serialize_ledger_state_fast(&state).unwrap()
 	};
 	let raw_bytes = {
 		let state = raw.ledger_state.lock().unwrap();
-		serialize(&**state).expect("serialize raw ledger state")
+		serialize_ledger_state_fast(&state).unwrap()
 	};
+	assert!(!cached_bytes.is_empty(), "{label}: cached ledger state serialized to empty");
 	assert_eq!(cached_bytes, raw_bytes, "{label}: ledger state diverged");
 
 	// Compare per-wallet state
@@ -90,6 +93,7 @@ fn assert_contexts_equal(
 
 		let cs = serialize_untagged(&cw.shielded.state).expect("serialize cached shielded");
 		let rs = serialize_untagged(&rw.shielded.state).expect("serialize raw shielded");
+		assert!(!cs.is_empty(), "{label}: shielded state serialized to empty for seed {seed:?}");
 		assert_eq!(cs, rs, "{label}: shielded state diverged for seed {seed:?}");
 
 		let cd = cw
@@ -106,70 +110,64 @@ fn assert_contexts_equal(
 	}
 }
 
+async fn assert_cache_empty(backend: &dyn WalletStateCaching, chain_id: H256) {
+	assert_eq!(backend.get_latest_ledger_height(chain_id).await, None);
+	assert!(backend.get_all_cached_wallet_heights(chain_id).await.is_empty());
+}
+
+async fn verify_cache_state(
+	backend: &dyn WalletStateCaching,
+	chain_id: H256,
+	blocks: usize,
+	wallets: Vec<WalletSeed>,
+) {
+	assert_eq!(backend.get_latest_ledger_height(chain_id).await, Some(blocks as u64 - 1));
+	let wallet_states: Vec<_> = backend
+		.get_wallet_states(chain_id, &wallets.iter().map(hash_seed).collect::<Vec<H256>>())
+		.await
+		.into_iter()
+		.flatten()
+		.collect();
+	assert_eq!(wallet_states.len(), wallets.len());
+}
+
 // ---------------------------------------------------------------------------
 // Test scenarios (backend-agnostic)
 // ---------------------------------------------------------------------------
 
-/// Test 1: No wallet seeds — early-return to raw. Compare ledger state only.
-async fn test_no_seeds(backend: &dyn WalletStateCaching) {
-	let mut source = load_genesis_source();
-	assign_block_numbers(&mut source);
-
-	let cached_ctx = build_fork_aware_context_cached(&[], &source, Some(backend)).await;
-	let raw_ctx = build_fork_aware_context_raw(&source, &[]);
-
-	let cached = cached_ctx.into_ledger8().expect("cached: expected ledger 8");
-	let raw = raw_ctx.into_ledger8().expect("raw: expected ledger 8");
-
-	assert_contexts_equal("no_seeds", &cached, &raw, &[]);
-}
-
-/// Test 2: All uncached (Case A) — 2 wallet seeds, empty DB.
-async fn test_all_uncached(backend: &dyn WalletStateCaching) {
-	let mut source = load_genesis_source();
-	assign_block_numbers(&mut source);
+async fn test_cache_and_restore(backend: &dyn WalletStateCaching, source: &SourceTransactions) {
 	let seeds = vec![wallet_seed(0x01), wallet_seed(0x02)];
 
-	let cached_ctx = build_fork_aware_context_cached(&seeds, &source, Some(backend)).await;
-	let raw_ctx = build_fork_aware_context_raw(&source, &seeds);
+	let raw = build_fork_aware_context_raw(&source, &seeds).into_ledger8().unwrap();
 
-	let cached = cached_ctx.into_ledger8().expect("cached: expected ledger 8");
-	let raw = raw_ctx.into_ledger8().expect("raw: expected ledger 8");
+	let cached = build_fork_aware_context_cached(&seeds, &source, Some(backend))
+		.await
+		.into_ledger8()
+		.unwrap();
+	verify_cache_state(backend, source.chain_id().unwrap(), source.blocks.len(), seeds.clone())
+		.await;
 
-	assert_contexts_equal("all_uncached", &cached, &raw, &seeds);
+	assert_contexts_equal("2 seeds", &cached, &raw, &seeds);
+
+	let cached = build_fork_aware_context_cached(&seeds, &source, Some(backend)).await;
+	verify_cache_state(backend, source.chain_id().unwrap(), source.blocks.len(), seeds.clone())
+		.await;
+
+	let cached = cached.into_ledger8().expect("cached: expected ledger 8");
+
+	assert_contexts_equal("2 seeds restored", &cached, &raw, &seeds);
 }
 
-/// Test 3: All cached (Case B) — populate cache, then restore from it.
-async fn test_all_cached(backend: &dyn WalletStateCaching) {
-	let mut source = load_genesis_source();
-	assign_block_numbers(&mut source);
-	let seeds = vec![wallet_seed(0x01), wallet_seed(0x02)];
-
-	// First call populates the cache (Case A internally)
-	let _ = build_fork_aware_context_cached(&seeds, &source, Some(backend)).await;
-
-	// Second call restores from cache (Case B)
-	let cached_ctx = build_fork_aware_context_cached(&seeds, &source, Some(backend)).await;
-	let raw_ctx = build_fork_aware_context_raw(&source, &seeds);
-
-	let cached = cached_ctx.into_ledger8().expect("cached: expected ledger 8");
-	let raw = raw_ctx.into_ledger8().expect("raw: expected ledger 8");
-
-	assert_contexts_equal("all_cached", &cached, &raw, &seeds);
-}
-
-/// Test 4: Split — some cached, some new (Case C).
-async fn test_split_cached(backend: &dyn WalletStateCaching) {
-	let mut source = load_genesis_source();
-	assign_block_numbers(&mut source);
-
-	// First call: populate cache with only seed 0x01
+async fn test_split_cached(backend: &dyn WalletStateCaching, source: &SourceTransactions) {
 	let seed1 = vec![wallet_seed(0x01)];
 	let _ = build_fork_aware_context_cached(&seed1, &source, Some(backend)).await;
+	verify_cache_state(backend, source.chain_id().unwrap(), source.blocks.len(), seed1).await;
 
-	// Second call: request [0x01, 0x02] — snapshot exists, 0x02 is new (Case C)
 	let seeds = vec![wallet_seed(0x01), wallet_seed(0x02)];
 	let cached_ctx = build_fork_aware_context_cached(&seeds, &source, Some(backend)).await;
+	verify_cache_state(backend, source.chain_id().unwrap(), source.blocks.len(), seeds.clone())
+		.await;
+
 	let raw_ctx = build_fork_aware_context_raw(&source, &seeds);
 
 	let cached = cached_ctx.into_ledger8().expect("cached: expected ledger 8");
@@ -178,25 +176,16 @@ async fn test_split_cached(backend: &dyn WalletStateCaching) {
 	assert_contexts_equal("split_cached", &cached, &raw, &seeds);
 }
 
-// ---------------------------------------------------------------------------
-// File backend
-// ---------------------------------------------------------------------------
-
 #[tokio::test]
 async fn file_cached_context() {
+	let source = load_genesis_source();
 	let tmp = tempfile::TempDir::new().expect("failed to create temp dir");
 	let backend = FileBackend::new(tmp.path());
-	test_no_seeds(&backend).await;
+	assert_cache_empty(&backend, source.chain_id().unwrap()).await;
+
+	test_cache_and_restore(&backend, &source).await;
 
 	let tmp2 = tempfile::TempDir::new().expect("failed to create temp dir");
 	let backend2 = FileBackend::new(tmp2.path());
-	test_all_uncached(&backend2).await;
-
-	let tmp3 = tempfile::TempDir::new().expect("failed to create temp dir");
-	let backend3 = FileBackend::new(tmp3.path());
-	test_all_cached(&backend3).await;
-
-	let tmp4 = tempfile::TempDir::new().expect("failed to create temp dir");
-	let backend4 = FileBackend::new(tmp4.path());
-	test_split_cached(&backend4).await;
+	test_split_cached(&backend2, &source).await;
 }

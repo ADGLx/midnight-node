@@ -14,11 +14,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use super::ledger_helpers_local::{
-	BuildIntent, BuildUtxoOutput, BuildUtxoSpend, DefaultDB, FromContext as _, IntentInfo,
-	LedgerContext, ProofProvider, Segment, StandardTrasactionInfo, TransactionWithContext,
-	UnshieldedOfferInfo, UnshieldedTokenType, UnshieldedWallet, UtxoOutputInfo, UtxoSelectionError,
-	UtxoSpendInfo, WalletAddress, WalletSeed,
+	DefaultDB, FromContext as _, LedgerContext, ProofProvider, ShieldedTokenType, ShieldedWallet,
+	StandardTrasactionInfo, TransactionWithContext, UnshieldedTokenType, UnshieldedWallet,
+	UtxoSelectionError, WalletAddress,
 };
+use super::single_tx::{MAX_GUARANTEED_OUTPUTS, build_shielded_offer, build_unshielded_intents};
 use async_trait::async_trait;
 use futures::stream::StreamExt;
 
@@ -111,11 +111,6 @@ impl BatchSingleTxBuilder {
 		}
 
 		if let Some(amount) = spec.shielded_amount {
-			use super::ledger_helpers_local::{
-				BuildInput, BuildOutput, InputInfo, OfferInfo, OutputInfo, ShieldedTokenType,
-				ShieldedWallet,
-			};
-
 			let hash = parse_hash_output(spec.shielded_token_type.as_deref());
 			let token_type: ShieldedTokenType =
 				convert_shielded_token_type(midnight_node_ledger_helpers::ShieldedTokenType(hash));
@@ -123,28 +118,10 @@ impl BatchSingleTxBuilder {
 			let dest_wallet: ShieldedWallet<DefaultDB> =
 				(&dest_address).try_into().expect("destination is not a valid shielded address");
 
-			let input_info = InputInfo { origin: source_seed, token_type, value: amount };
-
-			let inputs_info: Vec<Box<dyn BuildInput<DefaultDB>>> = vec![Box::new(input_info)];
-
-			let output_info: Box<dyn BuildOutput<DefaultDB>> =
-				Box::new(OutputInfo { destination: dest_wallet, token_type, value: amount });
-
-			let funding_wallet = context.clone().wallet_from_seed(source_seed);
-			let input_amount = input_info.min_match_coin(&funding_wallet.shielded.state).value;
-			let remaining = input_amount.checked_sub(amount).expect("insufficient shielded input");
-
-			let mut outputs_info: Vec<Box<dyn BuildOutput<DefaultDB>>> = vec![output_info];
-			outputs_info.push(Box::new(OutputInfo {
-				destination: source_seed,
-				token_type,
-				value: remaining,
-			}));
-
 			let offer =
-				OfferInfo { inputs: inputs_info, outputs: outputs_info, transients: vec![] };
+				build_shielded_offer(context, source_seed, vec![dest_wallet], amount, token_type);
 
-			if offer.outputs.len() > 2 {
+			if offer.outputs.len() > MAX_GUARANTEED_OUTPUTS {
 				tx_info.set_fallible_offers(HashMap::from([(1, offer)]));
 			} else {
 				tx_info.set_guaranteed_offer(offer);
@@ -181,73 +158,6 @@ fn parse_hash_output(hex_str: Option<&str>) -> midnight_node_ledger_helpers::Has
 			.try_into()
 			.expect("token_type must be 32 bytes"),
 	)
-}
-
-const MAX_GUARANTEED_INPUTS_OUTPUTS: usize = 3;
-
-fn build_unshielded_intents(
-	context: Arc<LedgerContext<DefaultDB>>,
-	source_seed: WalletSeed,
-	output_wallets: Vec<UnshieldedWallet>,
-	amount_per_output: u128,
-	token_type: UnshieldedTokenType,
-) -> Result<HashMap<u16, Box<dyn BuildIntent<DefaultDB>>>, UtxoSelectionError> {
-	let total_required = amount_per_output
-		.checked_mul(output_wallets.len() as u128)
-		.expect("unshielded amount overflow");
-
-	let (inputs_info, remaining) =
-		UtxoSpendInfo::utxos_to_cover_value(context, source_seed, total_required, token_type)?;
-
-	let inputs_info: Vec<Box<dyn BuildUtxoSpend<DefaultDB>>> = inputs_info
-		.into_iter()
-		.map(|input| {
-			let input: Box<dyn BuildUtxoSpend<DefaultDB>> = Box::new(input);
-			input
-		})
-		.collect();
-
-	let mut outputs_info: Vec<Box<dyn BuildUtxoOutput<DefaultDB>>> = output_wallets
-		.iter()
-		.map(|wallet| {
-			let output: Box<dyn BuildUtxoOutput<DefaultDB>> = Box::new(UtxoOutputInfo {
-				value: amount_per_output,
-				owner: wallet.clone(),
-				token_type,
-			});
-			output
-		})
-		.collect();
-
-	if remaining > 0 {
-		outputs_info.push(Box::new(UtxoOutputInfo {
-			value: remaining,
-			owner: source_seed,
-			token_type,
-		}));
-	}
-
-	let inputs_outputs_len = inputs_info.len() + outputs_info.len();
-	let unshielded_offer = UnshieldedOfferInfo { inputs: inputs_info, outputs: outputs_info };
-
-	let intent_info = if inputs_outputs_len > MAX_GUARANTEED_INPUTS_OUTPUTS {
-		IntentInfo {
-			guaranteed_unshielded_offer: None,
-			fallible_unshielded_offer: Some(unshielded_offer),
-			actions: vec![],
-		}
-	} else {
-		IntentInfo {
-			guaranteed_unshielded_offer: Some(unshielded_offer),
-			fallible_unshielded_offer: None,
-			actions: vec![],
-		}
-	};
-
-	let mut intents = HashMap::new();
-	intents
-		.insert(Segment::Fallible.into(), Box::new(intent_info) as Box<dyn BuildIntent<DefaultDB>>);
-	Ok(intents)
 }
 
 #[async_trait]

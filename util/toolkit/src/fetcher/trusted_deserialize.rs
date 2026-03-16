@@ -195,7 +195,7 @@ mod tests {
 
 		let ledger_state = context.ledger_state.lock().unwrap();
 		let original_bytes =
-			midnight_node_ledger_helpers::serialize(&**ledger_state).expect("serialize failed");
+			midnight_node_ledger_helpers::serialize(&*ledger_state).expect("serialize failed");
 		drop(ledger_state);
 
 		let restored: LedgerState<DefaultDB> =
