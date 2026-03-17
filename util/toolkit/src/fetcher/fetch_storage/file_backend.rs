@@ -31,6 +31,7 @@ use std::{
 	time::Duration,
 };
 use subxt::utils::H256;
+use tempfile::NamedTempFile;
 
 /// Ledger snapshots younger than this are never GC'd, giving concurrent
 /// processes time to finish saving wallet states that reference them.
@@ -76,11 +77,16 @@ fn parse_seed_hash(filename: &str) -> Option<H256> {
 	if bytes.len() == 32 { Some(H256::from_slice(&bytes)) } else { None }
 }
 
-/// Write to `<path>.tmp`, then rename over `<path>`.
+/// Write to a unique temp file, then rename over `<path>`.
 fn write_via_tmp_and_rename(path: &Path, data: &[u8]) -> io::Result<()> {
-	let tmp = path.with_extension("tmp");
-	fs::write(&tmp, data)?;
-	fs::rename(&tmp, path)
+	let dir = path
+		.parent()
+		.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "path has no parent"))?;
+	let tmp = NamedTempFile::new_in(dir)?;
+	fs::write(tmp.path(), data)?;
+	// persist() uses rename(2) on POSIX — atomic directory-entry swap
+	tmp.persist(path).map_err(|e| e.error)?;
+	Ok(())
 }
 
 fn read_wallet_height(path: &Path) -> Option<u64> {
@@ -91,19 +97,23 @@ fn read_wallet_height(path: &Path) -> Option<u64> {
 }
 
 /// Write wallet data only if `new_height` exceeds the existing file's height.
-/// Check happens after writing `.tmp` but before rename to minimize the TOCTOU window.
+/// Check happens after writing the temp file but before rename to minimize the TOCTOU window.
 /// A concurrent writer can still race between our read and rename — we accept that
 /// the consequence is a benign height regression (extra replay on next startup).
 fn write_wallet_if_newer(path: &Path, new_height: u64, data: &[u8]) -> io::Result<()> {
-	let tmp = path.with_extension("tmp");
-	fs::write(&tmp, data)?;
+	let dir = path
+		.parent()
+		.ok_or_else(|| io::Error::new(io::ErrorKind::InvalidInput, "path has no parent"))?;
+	let tmp = NamedTempFile::new_in(dir)?;
+	fs::write(tmp.path(), data)?;
 	if let Some(existing) = read_wallet_height(path) {
 		if existing >= new_height {
-			let _ = fs::remove_file(&tmp);
-			return Ok(());
+			return Ok(()); // tmp auto-deleted on drop
 		}
 	}
-	fs::rename(&tmp, path)
+	// persist() uses rename(2) on POSIX — atomic directory-entry swap
+	tmp.persist(path).map_err(|e| e.error)?;
+	Ok(())
 }
 
 /// List filenames in a directory, returning empty vec if the directory doesn't exist.
