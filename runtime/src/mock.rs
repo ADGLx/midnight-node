@@ -21,17 +21,22 @@ use frame_support::{
 	pallet_prelude::*,
 	parameter_types,
 	traits::{ConstBool, ConstU64},
+	weights::Weight,
 };
 use frame_system::EnsureRoot;
+use frame_system::pallet_prelude::HeaderFor;
 use sidechain_domain::*;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+use sp_consensus_beefy::{
+	AncestryHelper, AncestryHelperWeightInfo, Commitment, ecdsa_crypto::AuthorityId as BeefyId,
+};
 use sp_core::crypto::CryptoType;
 use sp_core::{ByteArray, H256, Pair, crypto::AccountId32};
 use sp_core::{ecdsa, ed25519, sr25519};
 use sp_runtime::{
 	BuildStorage, Digest, DigestItem, MultiSigner, impl_opaque_keys,
-	key_types::{AURA, GRANDPA},
-	traits::{BlakeTwo256, IdentifyAccount, IdentityLookup, OpaqueKeys},
+	key_types::{AURA, BEEFY, GRANDPA},
+	traits::{BlakeTwo256, Header as HeaderT, IdentifyAccount, IdentityLookup, OpaqueKeys},
 };
 use std::cmp::max;
 
@@ -44,23 +49,11 @@ pub const DUMMY_EPOCH_NONCE: &[u8] = &[1u8, 2u8, 3u8];
 
 type Block = frame_system::mocking::MockBlock<Test>;
 
-#[derive(
-	PartialOrd,
-	Ord,
-	PartialEq,
-	Eq,
-	Debug,
-	Clone,
-	MaxEncodedLen,
-	Encode,
-	Decode,
-	frame_support::Serialize,
-	frame_support::Deserialize,
-	TypeInfo,
-)]
+#[derive(PartialOrd, Ord, PartialEq, Eq, Debug, Clone, MaxEncodedLen, Encode, Decode, TypeInfo)]
 pub struct AccountKeys {
 	pub aura: [u8; 32],
 	pub grandpa: [u8; 32],
+	pub beefy: [u8; 33],
 }
 
 impl AccountKeys {
@@ -69,7 +62,13 @@ impl AccountKeys {
 		aura.resize(32, 0);
 		let mut grandpa = format!("grandpa-{seed}").into_bytes();
 		grandpa.resize(32, 0);
-		AccountKeys { aura: aura.try_into().unwrap(), grandpa: grandpa.try_into().unwrap() }
+		let mut beefy = format!("beefy-{seed}").into_bytes();
+		beefy.resize(33, 0);
+		AccountKeys {
+			aura: aura.try_into().unwrap(),
+			grandpa: grandpa.try_into().unwrap(),
+			beefy: beefy.try_into().unwrap(),
+		}
 	}
 }
 
@@ -86,6 +85,7 @@ frame_support::construct_runtime!(
 		SessionCommitteeManagement: pallet_session_validator_management,
 		Aura: pallet_aura,
 		Grandpa: pallet_grandpa,
+		Beeefy: pallet_beefy,
 		PalletSession: pallet_session,
 		Session: pallet_partner_chains_session,
 	}
@@ -224,6 +224,59 @@ impl pallet_grandpa::Config for Test {
 	type MaxNominators = ConstU32<0>;
 	type MaxSetIdSessionEntries = ConstU64<0>;
 
+	type KeyOwnerProof = sp_core::Void;
+	type EquivocationReportSystem = ();
+}
+
+pub struct MockAncestryHelper;
+
+impl<Header: HeaderT> AncestryHelper<Header> for MockAncestryHelper {
+	type Proof = ();
+	type ValidationContext = ();
+
+	fn generate_proof(_: Header::Number, _: Option<Header::Number>) -> Option<Self::Proof> {
+		None
+	}
+
+	fn is_proof_optimal(_: &Self::Proof) -> bool {
+		true
+	}
+
+	fn extract_validation_context(_: Header) -> Option<Self::ValidationContext> {
+		None
+	}
+
+	fn is_non_canonical(
+		_: &Commitment<Header::Number>,
+		_: Self::Proof,
+		_: Self::ValidationContext,
+	) -> bool {
+		false
+	}
+}
+
+impl<Header: HeaderT> AncestryHelperWeightInfo<Header> for MockAncestryHelper {
+	fn is_proof_optimal(_: &<Self as AncestryHelper<HeaderFor<Test>>>::Proof) -> Weight {
+		Weight::zero()
+	}
+
+	fn extract_validation_context() -> Weight {
+		Weight::zero()
+	}
+
+	fn is_non_canonical(_: &<Self as AncestryHelper<HeaderFor<Test>>>::Proof) -> Weight {
+		Weight::zero()
+	}
+}
+
+impl pallet_beefy::Config for Test {
+	type BeefyId = BeefyId;
+	type MaxAuthorities = ConstU32<100>;
+	type MaxNominators = ConstU32<1000>;
+	type MaxSetIdSessionEntries = ConstU64<100>;
+	type OnNewValidatorSet = ();
+	type AncestryHelper = MockAncestryHelper;
+	type WeightInfo = ();
 	type KeyOwnerProof = sp_core::Void;
 	type EquivocationReportSystem = ();
 }
@@ -417,6 +470,7 @@ impl TestKeys {
 		CandidateKeys(vec![
 			CandidateKey::new(AURA, self.aura.public().as_slice().into()),
 			CandidateKey::new(GRANDPA, self.grandpa.public().as_slice().into()),
+			CandidateKey::new(BEEFY, self.cross_chain.public().as_slice().into()),
 		])
 	}
 }
@@ -464,6 +518,7 @@ impl MockValidator {
 		CandidateKeys(vec![
 			CandidateKey::new(AURA, keys.aura.to_vec()),
 			CandidateKey::new(GRANDPA, keys.grandpa.to_vec()),
+			CandidateKey::new(BEEFY, keys.beefy.to_vec()),
 		])
 	}
 }

@@ -23,6 +23,10 @@ use partner_chains_node_commands::{PartnerChainRuntime, PartnerChainsSubcommand}
 use sc_cli::SubstrateCli;
 use sidechain_domain::McBlockHash;
 
+// TODO: can be replaced with predefined key once https://github.com/input-output-hk/partner-chains/pull/1098 is merged
+const BEEFY: KeyDefinition<'static> =
+	KeyDefinition { name: "BEEFY", scheme: "ecdsa", key_type: "beef" };
+
 #[derive(Debug, Clone, clap::Parser)]
 pub struct RunMidnight {
 	#[clap(flatten)]
@@ -421,8 +425,7 @@ impl PartnerChainRuntime for MidnightRuntime {
 	}
 
 	fn key_definitions() -> Vec<KeyDefinition<'static>> {
-		// TODO: BEEFY(follow up pr)
-		vec![AURA, GRANDPA, CROSS_CHAIN]
+		vec![AURA, GRANDPA, BEEFY, CROSS_CHAIN]
 	}
 }
 

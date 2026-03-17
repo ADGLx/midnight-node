@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use async_trait::async_trait;
 use authority_selection_inherents::AuthoritySelectionDataSource;
 use midnight_primitives_mainchain_follower::CandidatesDataSourceImpl;
 use midnight_primitives_mainchain_follower::MidnightDataSourceMetrics;
@@ -31,7 +32,12 @@ use sqlx::{Pool, Postgres};
 use super::cfg::midnight_cfg::MidnightCfg;
 use midnight_primitives::BridgeRecipient;
 use partner_chains_mock_data_sources::MockRegistrationsConfig;
-use sidechain_domain::mainchain_epoch::{Duration, MainchainEpochConfig, Timestamp};
+use sidechain_domain::{
+	CandidateKey, CandidateKeys, CandidateRegistrations, McEpochNumber, PermissionedCandidateData,
+	PolicyId,
+	mainchain_epoch::{Duration, MainchainEpochConfig, Timestamp},
+};
+use sp_runtime::key_types::BEEFY as BEEFY_KEY_TYPE;
 use std::{error::Error, str::FromStr as _, sync::Arc};
 
 use midnight_primitives_mainchain_follower::{
@@ -58,6 +64,85 @@ pub struct DataSources {
 pub struct DbPoolCfg {
 	acquire_timeout: std::time::Duration,
 	max_connections: u32,
+}
+
+/// Adapts external authority-selection data sources to always include a `beef` key.
+///
+/// We keep this only for external/mock providers we don't own directly; in-repo data sources
+/// should emit all three session keys natively.
+///
+// TODO: can be replaced with predefined data source once https://github.com/input-output-hk/partner-chains/pull/1098 is merged
+struct BeefyKeyAugmentingDataSource {
+	inner: Arc<dyn AuthoritySelectionDataSource + Send + Sync>,
+}
+
+impl BeefyKeyAugmentingDataSource {
+	fn new(inner: Arc<dyn AuthoritySelectionDataSource + Send + Sync>) -> Self {
+		Self { inner }
+	}
+
+	fn ensure_beefy_key(keys: &mut CandidateKeys, sidechain_pub_key: &[u8]) {
+		if keys.find(BEEFY_KEY_TYPE).is_none() {
+			keys.0.push(CandidateKey::new(BEEFY_KEY_TYPE, sidechain_pub_key.to_vec()));
+		}
+	}
+
+	fn augment_permissioned(candidates: &mut [PermissionedCandidateData]) {
+		for candidate in candidates {
+			Self::ensure_beefy_key(&mut candidate.keys, &candidate.sidechain_public_key.0);
+		}
+	}
+
+	fn augment_registrations(candidates: &mut [CandidateRegistrations]) {
+		for candidate in candidates {
+			for registration in &mut candidate.registrations {
+				Self::ensure_beefy_key(&mut registration.keys, &registration.sidechain_pub_key.0);
+			}
+		}
+	}
+}
+
+#[async_trait]
+impl AuthoritySelectionDataSource for BeefyKeyAugmentingDataSource {
+	async fn get_ariadne_parameters(
+		&self,
+		epoch_number: McEpochNumber,
+		d_parameter: PolicyId,
+		permissioned_candidates: PolicyId,
+	) -> Result<authority_selection_inherents::AriadneParameters, Box<dyn Error + Send + Sync>> {
+		let mut parameters = self
+			.inner
+			.get_ariadne_parameters(epoch_number, d_parameter, permissioned_candidates)
+			.await?;
+		if let Some(candidates) = parameters.permissioned_candidates.as_mut() {
+			Self::augment_permissioned(candidates);
+		}
+		Ok(parameters)
+	}
+
+	async fn get_candidates(
+		&self,
+		epoch: McEpochNumber,
+		committee_candidate_address: sidechain_domain::MainchainAddress,
+	) -> Result<Vec<CandidateRegistrations>, Box<dyn Error + Send + Sync>> {
+		let mut candidates = self.inner.get_candidates(epoch, committee_candidate_address).await?;
+		Self::augment_registrations(&mut candidates);
+		Ok(candidates)
+	}
+
+	async fn get_epoch_nonce(
+		&self,
+		epoch: McEpochNumber,
+	) -> Result<Option<sidechain_domain::EpochNonce>, Box<dyn Error + Send + Sync>> {
+		self.inner.get_epoch_nonce(epoch).await
+	}
+
+	async fn data_epoch(
+		&self,
+		for_epoch: McEpochNumber,
+	) -> Result<McEpochNumber, Box<dyn Error + Send + Sync>> {
+		self.inner.data_epoch(for_epoch).await
+	}
 }
 
 pub(crate) async fn create_cached_main_chain_follower_data_sources(
@@ -99,7 +184,9 @@ pub async fn create_mock_data_sources(
 	Ok(DataSources {
 		sidechain_rpc: Arc::new(SidechainRpcDataSourceMock::new(block.clone())),
 		mc_hash: Arc::new(McHashDataSourceMock::new(block)),
-		authority_selection: Arc::new(authority_selection_data_source_mock),
+		authority_selection: Arc::new(BeefyKeyAugmentingDataSource::new(Arc::new(
+			authority_selection_data_source_mock,
+		))),
 		cnight_observation: Arc::new(CNightObservationDataSourceMock::new()),
 		federated_authority_observation: Arc::new(
 			FederatedAuthorityObservationDataSourceMock::new(),
