@@ -627,6 +627,18 @@ mod tests {
 		let incr_shielded =
 			serialize_untagged(&incr_wallet.shielded.state).expect("serialize failed");
 		assert_eq!(full_shielded, incr_shielded, "shielded state diverged");
+
+		let full_dust = full_wallet
+			.dust
+			.dust_local_state
+			.as_ref()
+			.map(|s| serialize_untagged(&**s).expect("serialize failed"));
+		let incr_dust = incr_wallet
+			.dust
+			.dust_local_state
+			.as_ref()
+			.map(|s| serialize_untagged(&**s).expect("serialize failed"));
+		assert_eq!(full_dust, incr_dust, "dust local state diverged");
 	}
 
 	#[test]
