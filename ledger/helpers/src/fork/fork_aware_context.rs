@@ -107,7 +107,6 @@ impl ForkAwareLedgerContext {
 	}
 }
 
-/// Construct a Ledger7 `BlockContext` from `RawBlockData`.
 pub fn block_context_from_raw_7(block: &RawBlockData) -> crate::ledger_7::BlockContext {
 	crate::ledger_7::make_block_context(
 		crate::ledger_7::Timestamp::from_secs(block.tblock_secs),
@@ -116,7 +115,6 @@ pub fn block_context_from_raw_7(block: &RawBlockData) -> crate::ledger_7::BlockC
 	)
 }
 
-/// Construct a Ledger8 `BlockContext` from `RawBlockData`.
 pub fn block_context_from_raw_8(block: &RawBlockData) -> crate::ledger_8::BlockContext {
 	crate::ledger_8::make_block_context(
 		crate::ledger_8::Timestamp::from_secs(block.tblock_secs),

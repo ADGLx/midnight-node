@@ -135,6 +135,7 @@ impl FetchStorage for PostgresBackend {
 
 		let block_numbers_i64: Vec<i64> = block_numbers.iter().map(|&n| n as i64).collect();
 
+		// Create a table with the block numbers, then left-join to create nulls if missing
 		let rows: Vec<PgRow> = sqlx::query(
 			r#"
             SELECT bd.data
@@ -187,6 +188,7 @@ impl FetchStorage for PostgresBackend {
 			return;
 		}
 
+		// Use a transaction for batch insert
 		let mut tx = self.pool.begin().await.expect("failed to begin transaction");
 
 		for (block_number, block) in blocks {

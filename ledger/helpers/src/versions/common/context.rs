@@ -291,6 +291,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 				Default::default()
 			};
 
+		// Update Ledger State
 		let (new_ledger_state, offers, events, cost) = match &tx {
 			SerdeTransaction::Midnight(tx) => {
 				let valid_tx: VerifiedTransaction<_> = tx

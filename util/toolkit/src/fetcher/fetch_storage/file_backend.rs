@@ -19,8 +19,8 @@
 //! <root>/<chain_id_hex>/wallets/<seed_hash_hex>.bin
 //! ```
 //!
-//! Atomic writes (write `.tmp`, rename) ensure crash safety and safe concurrent
-//! access from multiple processes.
+//! Write `.tmp` + atomic rename ensure data consistency on POSIX when
+//! used from multiple processes.
 
 use super::WalletStateCaching;
 use crate::fetcher::wallet_state_cache::{CachedWalletState, LedgerSnapshot};

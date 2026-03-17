@@ -745,8 +745,6 @@ fn inject_cached_wallets(
 }
 
 /// Create the initial fork-aware context, either cold (genesis) or warm (snapshot restore).
-///
-/// Returns the context and the initial pointer into `cached` (number of wallets consumed).
 async fn initialize_context(
 	received_tx: &SourceTransactions,
 	uncached_seeds: &[WalletSeed],
@@ -841,7 +839,7 @@ fn replay_blocks_8(
 
 		let is_last = i + 1 == total;
 		if events.len() >= DUST_BATCH_SIZE || is_last {
-			ctx.update_dust_from_events(&events.as_slice());
+			ctx.update_dust_from_events(events.as_slice());
 			events.clear();
 			log::debug!("[perf] replay_blocks_8 progress: {}/{} blocks", i + 1, total);
 		}

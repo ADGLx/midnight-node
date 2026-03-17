@@ -30,7 +30,7 @@ pub struct BlockKey {
 
 /// Persistent [`FetchStorage`] backend using [redb](https://github.com/cberner/redb).
 ///
-/// Block data keys/values use postcard via `Serde<T>` wrapper.
+/// Data is serialized with postcard. Uses `RwLock` for concurrent read access.
 #[derive(Clone)]
 pub struct RedbBackend {
 	pub db: Arc<RwLock<Database>>,
@@ -86,6 +86,7 @@ impl FetchStorage for RedbBackend {
 	}
 
 	async fn insert_block_data(&self, chain_id: H256, block_number: u64, block: RawBlockData) {
+		// Can only open the table as writable from one thread
 		let write_txn = self.db.write().await.begin_write().expect("failed to begin write txn");
 		{
 			let mut table =
@@ -102,6 +103,7 @@ impl FetchStorage for RedbBackend {
 		chain_id: H256,
 		range: impl Iterator<Item = (u64, RawBlockData)> + Send,
 	) {
+		// Can only open the table as writable from one thread
 		let write_txn = self.db.write().await.begin_write().expect("failed to begin write txn");
 		{
 			let mut table =
