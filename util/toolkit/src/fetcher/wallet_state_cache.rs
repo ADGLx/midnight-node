@@ -13,10 +13,8 @@
 
 //! Per-wallet state caching with deduplicated ledger snapshots.
 //!
-//! Ledger snapshots (~49MB) are stored once per block height, while individual
-//! wallet state (~5-15KB) is cached per seed. This eliminates redundant storage
-//! when multiple wallets share the same chain state and allows adding/removing
-//! wallets without full cache invalidation.
+//! Ledger snapshots are stored once per block height, while individual
+//! wallet state is cached per seed. Ledger snapshots unused by any wallets are eventually gced.
 
 use midnight_node_ledger_helpers::{
 	BlockContext, DefaultDB, DustLocalState, HashOutput, LedgerContext, LedgerState, Sp, Timestamp,
@@ -47,12 +45,6 @@ impl From<&BlockContext> for SerializableBlockContext {
 	}
 }
 
-// =============================================================================
-// Per-wallet cache types
-// =============================================================================
-
-/// Ledger state snapshot at a specific block height.
-///
 /// Stored once per (chain_id, block_height) pair, referenced by multiple
 /// `CachedWalletState` entries.
 ///
@@ -227,10 +219,6 @@ pub fn create_ledger_snapshot(
 	})
 }
 
-// =============================================================================
-// Per-wallet cache helpers
-// =============================================================================
-
 pub fn create_wallet_snapshot(
 	context: &LedgerContext<DefaultDB>,
 	seed: &WalletSeed,
@@ -314,6 +302,7 @@ pub fn restore_context_from_ledger_snapshot(
 ///
 /// Creates a default wallet from the seed + current ledger state, then
 /// overwrites shielded and dust state from the cache.
+/// Caller needs to make sure that the wallet block height matches the context
 pub fn inject_wallet_from_cache(
 	context: &LedgerContext<DefaultDB>,
 	cached: &CachedWalletState,
@@ -459,10 +448,6 @@ mod tests {
 			build_fork_aware_context(&source, wallet_seeds).expect("failed to build context");
 		(source, context)
 	}
-
-	// =========================================================================
-	// per-wallet cache tests
-	// =========================================================================
 
 	#[test]
 	fn ledger_snapshot_roundtrip() {
