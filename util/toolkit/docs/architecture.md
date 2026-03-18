@@ -43,12 +43,12 @@ The toolkit is a transaction generator and testing tool for Midnight. It fetches
             └──────────┬───────────────┘
                        │
                        ▼  SourceTransactions
- ┌───────────────────────────────────────────┐
- │  Builder (tx_generator/builder/)          │
- │  ForkAwareLedgerContext (Ledger7|Ledger8) │
- │  Dual-compiled common/ builders           │
- │  Prover: Local | Remote (remote_prover.rs)│
- └───────────────────────────────────────────┘
+ ┌───────────────────────────────────────────┐       ┌──────────────────────────────────────┐
+ │  Builder (tx_generator/builder/)          │       │  Ledger Wallet Cache                 │
+ │  ForkAwareLedgerContext (Ledger7|Ledger8) │◄ ─── ►│  wallet_state_cache.rs               │
+ │  Dual-compiled common/ builders           │       │  MN_LEDGER_CACHE_DB                  │
+ │  Prover: Local | Remote (remote_prover.rs)│       │  Snapshots + per-wallet state        │
+ └───────────────────────────────────────────┘       └──────────────────────────────────────┘
                        │
                        ▼  SerializedTxBatches
  ┌───────────────────────────────────────────┐
