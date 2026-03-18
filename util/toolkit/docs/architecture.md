@@ -67,7 +67,7 @@ The toolkit is a transaction generator and testing tool for Midnight. It fetches
 ## Components
 
 | Component | Re-implements | Description |
-|-----------|---------------|-------------|
+| --------- | ------------- | ----------- |
 | Fetcher | Indexer | Parallel block fetching, extraction, and caching with pluggable storage backends |
 | Builder | Wallet | Ledger context management, wallet state, proof generation |
 | toolkit_js | midnight-js | Thin wrapper around compact.js (which wraps the compact-runtime) via Node.js bridge; Deploy/Circuit/Maintain |
