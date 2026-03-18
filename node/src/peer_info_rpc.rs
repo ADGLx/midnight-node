@@ -52,11 +52,11 @@ pub struct PeerReputationInfo<Hash, Number> {
 #[rpc(server, namespace = "network")]
 pub trait PeerInfoApi<Hash, Number> {
 	/// Returns reputation info for all connected peers.
-	#[method(name = "peerReputations")]
+	#[method(name = "peerReputations", with_extensions)]
 	async fn peer_reputations(&self) -> RpcResult<Vec<PeerReputationInfo<Hash, Number>>>;
 
 	/// Returns reputation info for a single peer by its base58-encoded peer ID.
-	#[method(name = "peerReputation")]
+	#[method(name = "peerReputation", with_extensions)]
 	async fn peer_reputation(&self, peer_id: String)
 	-> RpcResult<PeerReputationInfo<Hash, Number>>;
 
@@ -90,6 +90,7 @@ where
 {
 	async fn peer_reputations(
 		&self,
+		ext: &jsonrpsee::Extensions,
 	) -> RpcResult<
 		Vec<
 			PeerReputationInfo<
@@ -98,6 +99,8 @@ where
 			>,
 		>,
 	> {
+		check_if_safe(ext)?;
+
 		let (tx, rx) = oneshot::channel();
 		self.system_rpc_tx.unbounded_send(Request::Peers(tx)).map_err(|e| {
 			ErrorObject::owned(
@@ -137,6 +140,7 @@ where
 
 	async fn peer_reputation(
 		&self,
+		ext: &jsonrpsee::Extensions,
 		peer_id: String,
 	) -> RpcResult<
 		PeerReputationInfo<
@@ -144,6 +148,8 @@ where
 			<<Block as BlockT>::Header as sp_runtime::traits::Header>::Number,
 		>,
 	> {
+		check_if_safe(ext)?;
+
 		let pid: sc_network::service::traits::PeerId = peer_id.parse().map_err(|_| {
 			ErrorObject::owned(
 				INVALID_PARAMS_CODE,
