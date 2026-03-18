@@ -578,7 +578,15 @@ fn select_authorities_optionally_overriding(
 	let d_parameter = SystemParameters::get_d_parameter();
 	input.d_parameter.num_permissioned_candidates = d_parameter.num_permissioned_candidates;
 	input.d_parameter.num_registered_candidates = d_parameter.num_registered_candidates;
-	select_authorities(Sidechain::genesis_utxo(), input, sidechain_epoch)
+
+	// Keep previous computation behavior, but do not use the computed committee.
+	let _computed_authorities = select_authorities::<CrossChainPublic, SessionKeys, MaxAuthorities>(
+		Sidechain::genesis_utxo(),
+		input,
+		sidechain_epoch,
+	)?;
+
+	Some(SessionCommitteeManagement::current_committee_storage().committee)
 }
 
 impl pallet_session_validator_management::Config for Runtime {
