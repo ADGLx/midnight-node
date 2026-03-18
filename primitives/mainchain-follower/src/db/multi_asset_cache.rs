@@ -43,7 +43,6 @@ impl MultiAssetCache {
 		{
 			let cache = self.cache.lock().await;
 			if let Some(&id) = cache.get(&key) {
-				log::debug!("MultiAssetCache hit for multi_asset.id = {}", id);
 				return Ok(Some(id));
 			}
 		}
