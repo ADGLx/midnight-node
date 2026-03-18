@@ -1146,19 +1146,19 @@ srtool-info:
 # only when the Dockerfile or its sibling files (e.g. entrypoint.sh) change.
 # Run `earthly --push +build-base-images` to build and push them.
 
-_node-base-image:
+node-base-image:
     ARG BASE_HASH
     ARG NATIVEARCH
     FROM DOCKERFILE ./images/node
     SAVE IMAGE --push ghcr.io/midnight-ntwrk/midnight-node-base:$BASE_HASH-$NATIVEARCH
 
-_toolkit-base-image:
+toolkit-base-image:
     ARG BASE_HASH
     ARG NATIVEARCH
     FROM DOCKERFILE ./images/toolkit
     SAVE IMAGE --push ghcr.io/midnight-ntwrk/midnight-toolkit-base:$BASE_HASH-$NATIVEARCH
 
-_upgrader-base-image:
+upgrader-base-image:
     ARG BASE_HASH
     ARG NATIVEARCH
     FROM DOCKERFILE ./images/hardfork-test-upgrader
@@ -1171,22 +1171,22 @@ build-base-images:
     LET NODE_HASH = "$(git rev-parse 'HEAD^{tree}:images/node')"
     LET TOOLKIT_HASH = "$(git rev-parse 'HEAD^{tree}:images/toolkit')"
     LET UPGRADER_HASH = "$(git rev-parse 'HEAD^{tree}:images/hardfork-test-upgrader')"
-    BUILD +_node-base-image --BASE_HASH=$NODE_HASH
-    BUILD +_toolkit-base-image --BASE_HASH=$TOOLKIT_HASH
-    BUILD +_upgrader-base-image --BASE_HASH=$UPGRADER_HASH
+    BUILD +node-base-image --BASE_HASH=$NODE_HASH
+    BUILD +toolkit-base-image --BASE_HASH=$TOOLKIT_HASH
+    BUILD +upgrader-base-image --BASE_HASH=$UPGRADER_HASH
 
 # ================ IMAGE TARGETS ================
 # Each image target is a LOCALLY wrapper that computes the content hash
-# of its base image directory and delegates to an _impl target which
+# of its base image directory and delegates to an -impl target which
 # pulls the pre-built base from the registry.
 
 # node-image creates the Midnight Substrate Node's image
 node-image:
     LOCALLY
     LET NODE_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/node')"
-    BUILD +_node-image-impl --NODE_BASE_HASH=$NODE_BASE_HASH
+    BUILD +node-image-impl --NODE_BASE_HASH=$NODE_BASE_HASH
 
-_node-image-impl:
+node-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
     ARG NODE_BASE_HASH
@@ -1233,9 +1233,9 @@ _node-image-impl:
 node-benchmarks-image:
     LOCALLY
     LET NODE_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/node')"
-    BUILD +_node-benchmarks-image-impl --NODE_BASE_HASH=$NODE_BASE_HASH
+    BUILD +node-benchmarks-image-impl --NODE_BASE_HASH=$NODE_BASE_HASH
 
-_node-benchmarks-image-impl:
+node-benchmarks-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
     ARG NODE_BASE_HASH
@@ -1274,9 +1274,9 @@ toolkit-image:
     LOCALLY
     ARG INCLUDE_TOOLKIT_JS=true
     LET TOOLKIT_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/toolkit')"
-    BUILD +_toolkit-image-impl --TOOLKIT_BASE_HASH=$TOOLKIT_BASE_HASH --INCLUDE_TOOLKIT_JS=$INCLUDE_TOOLKIT_JS
+    BUILD +toolkit-image-impl --TOOLKIT_BASE_HASH=$TOOLKIT_BASE_HASH --INCLUDE_TOOLKIT_JS=$INCLUDE_TOOLKIT_JS
 
-_toolkit-image-impl:
+toolkit-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
     ARG TOOLKIT_BASE_HASH
@@ -1341,9 +1341,9 @@ _toolkit-image-impl:
 hardfork-test-upgrader-image:
     LOCALLY
     LET UPGRADER_BASE_HASH = "$(git rev-parse 'HEAD^{tree}:images/hardfork-test-upgrader')"
-    BUILD +_hardfork-test-upgrader-image-impl --UPGRADER_BASE_HASH=$UPGRADER_BASE_HASH
+    BUILD +hardfork-test-upgrader-image-impl --UPGRADER_BASE_HASH=$UPGRADER_BASE_HASH
 
-_hardfork-test-upgrader-image-impl:
+hardfork-test-upgrader-image-impl:
     ARG NATIVEARCH
     ARG EARTHLY_GIT_SHORT_HASH
     ARG UPGRADER_BASE_HASH
