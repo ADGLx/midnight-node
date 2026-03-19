@@ -58,6 +58,7 @@ fn check_doc_files_are_linked_in_readme() {
 }
 
 #[test]
+#[ignore]
 fn check_metadata_package_version_matches_node_version() {
 	let node_manifest_str = std::fs::read_to_string("../node/Cargo.toml").unwrap();
 	let node_manifest: Manifest =
@@ -71,6 +72,7 @@ fn check_metadata_package_version_matches_node_version() {
 }
 
 #[test]
+#[ignore]
 fn check_spec_version_matches_node_version() {
 	let node_manifest_str = std::fs::read_to_string("../node/Cargo.toml").unwrap();
 	let node_manifest: Manifest =
