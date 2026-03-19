@@ -149,6 +149,8 @@ blake2b_simd = "1.0"
 sp-transaction-pool.workspace = true
 
 [dev-dependencies]
+yamux = "0.13"
+tokio-util = { version = "0.7", features = ["compat"] }
 
 [build-dependencies]
 substrate-build-script-utils.workspace = true
