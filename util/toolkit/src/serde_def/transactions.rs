@@ -51,21 +51,7 @@ impl SourceTransactions {
 			));
 		}
 
-		let Some(block) = blocks.first() else {
-			panic!("block list is empty");
-		};
-
-		let network_id_res = block
-			.transactions
-			.iter()
-			.filter_map(|tx| fork::network_id_and_ledger_version_from_tx_bytes(tx.as_bytes()).ok())
-			.next();
-
-		let Some((network_id, _)) = network_id_res else {
-			panic!("first block has no transactions that include a network id");
-		};
-
-		Self { blocks, network_id }
+		Self { blocks, network_id: "mainnet".to_string() }
 	}
 
 	/// Convert untyped transactions (from file loading) into RawBlockData.
