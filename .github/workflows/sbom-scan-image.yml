@@ -34,6 +34,10 @@ on:
         description: 'Minimum severity to fail on (negligible, low, medium, high, critical)'
         default: 'critical'
         type: string
+      skip-scan:
+        description: 'Skip Grype vulnerability scan (use when image layers were already scanned from another registry)'
+        default: false
+        type: boolean
       skip-attestation:
         description: 'Skip SBOM attestation (e.g., for fork PRs)'
         default: false
@@ -67,13 +71,17 @@ jobs:
         uses: anchore/sbom-action/download-syft@28d71544de8eaf1b958d335707167c5f783590ad # v0.22.2
 
       - name: Install Grype
+        if: ${{ !inputs.skip-scan }}
         id: grype
         uses: anchore/scan-action/download-grype@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
 
-      - name: Add tools to PATH
+      - name: Add Syft to PATH
         run: |
-          # Add syft and grype binary directories to PATH
           dirname "${{ steps.syft.outputs.cmd }}" >> "$GITHUB_PATH"
+
+      - name: Add Grype to PATH
+        if: ${{ !inputs.skip-scan }}
+        run: |
           dirname "${{ steps.grype.outputs.cmd }}" >> "$GITHUB_PATH"
 
       - name: Login to GHCR
@@ -99,6 +107,7 @@ jobs:
           generate_sbom_with_retry "${IMAGE}" "sbom.spdx.json" "${PLATFORM}"
 
       - name: Scan for vulnerabilities
+        if: ${{ !inputs.skip-scan }}
         id: scan
         env:
           IMAGE: ${{ inputs.image }}
@@ -175,7 +184,7 @@ jobs:
           retention-days: 90
 
       - name: Upload scan results
-        if: always()
+        if: ${{ always() && !inputs.skip-scan }}
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: ${{ inputs.sbom-artifact-name }}-scan-results
