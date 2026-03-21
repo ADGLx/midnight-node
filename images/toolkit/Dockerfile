@@ -16,7 +16,8 @@ RUN microdnf -y install \
 ENV TOOLKIT_JS_PATH="/toolkit-js"
 ENV MIDNIGHT_LEDGER_TEST_STATIC_DIR=/test-static
 ENV MIDNIGHT_PP=/.cache/midnight/zk-params
-ENV MN_FETCH_CACHE=redb:/.cache/fetch/toolkit.db
+ENV MN_FETCH_CACHE=redb:/.cache/toolkit_fetch_cache.db
+ENV MN_LEDGER_CACHE_DB=/.cache/toolkit_ledger_cache_db
 
 COPY entrypoint.sh /entrypoint.sh
 
