@@ -183,6 +183,13 @@ pub async fn create_cached_data_sources(
 			.ok_or(missing("block_stability_margin"))?,
 	};
 
+	log::info!(
+		"Cardano DbSync block data source config: security_parameter={}, active_slots_coeff={}, block_stability_margin={}",
+		db_sync_block_data_source_config.cardano_security_parameter,
+		db_sync_block_data_source_config.cardano_active_slots_coeff,
+		db_sync_block_data_source_config.block_stability_margin
+	);
+
 	let mc = MainchainEpochConfig {
 		first_epoch_timestamp_millis: Timestamp::from_unix_millis(
 			cfg.mc_first_epoch_timestamp_millis,
