@@ -211,18 +211,12 @@ pub fn construct_genesis_block<Block: BlockT>(
 	)
 }
 
-/// Only enable the benchmarking host functions when we actually want to benchmark.
-#[cfg(feature = "runtime-benchmarks")]
+/// Host functions registered with the Wasm executor. Benchmark host functions are always
+/// included to ensure all nodes expose an identical set regardless of build features,
+/// preventing consensus divergence (see Least Authority audit Issue AH).
 pub type HostFunctions = (
 	sp_io::SubstrateHostFunctions,
 	frame_benchmarking::benchmarking::HostFunctions,
-	midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
-	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
-);
-/// Otherwise we only use the default Substrate host functions.
-#[cfg(not(feature = "runtime-benchmarks"))]
-pub type HostFunctions = (
-	sp_io::SubstrateHostFunctions,
 	midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
 	midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
 );
@@ -914,5 +908,18 @@ mod tests {
 		let values: Vec<serde_json::Value> = vec![];
 		let result = parse_genesis_extrinsic_values(&values).unwrap();
 		assert!(result.is_empty());
+	}
+
+	#[test]
+	fn host_functions_always_include_benchmarking() {
+		// Compile-time type assertion: HostFunctions must be the 4-tuple including
+		// frame_benchmarking. If someone re-introduces a #[cfg] gate that excludes
+		// benchmark host functions, this identity closure fails to compile.
+		let _: fn(HostFunctions) -> (
+			sp_io::SubstrateHostFunctions,
+			frame_benchmarking::benchmarking::HostFunctions,
+			midnight_node_ledger::host_api::ledger_7::ledger_bridge::HostFunctions,
+			midnight_node_ledger::host_api::ledger_8::ledger_8_bridge::HostFunctions,
+		) = |x| x;
 	}
 }

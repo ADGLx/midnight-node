@@ -72,7 +72,7 @@ sc-basic-authorship.workspace = true
 substrate-frame-rpc-system.workspace = true
 
 # These dependencies are used for runtime benchmarking
-frame-benchmarking = {workspace = true, optional = true}
+frame-benchmarking = {workspace = true}
 frame-benchmarking-cli = {workspace = true, optional = true, default-features = true }
 
 # Local Dependencies
@@ -160,7 +160,7 @@ substrate-build-script-utils.workspace = true
 [features]
 default = []
 
-# Dependencies that are only required if runtime benchmarking should be build.
+# Enable runtime benchmarking support in the runtime, frame-benchmarking, and CLI.
 runtime-benchmarks = [
     "midnight-node-runtime/runtime-benchmarks",
     "frame-benchmarking/runtime-benchmarks",
