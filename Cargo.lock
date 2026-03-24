@@ -7288,8 +7288,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf29bc144421a429a3c6fff48ca4dec3e5e78d652e10d9c438f58c8f4388f2ff"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "anyhow",
  "atomic-write-file",
@@ -7321,8 +7320,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto-derive"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62d0904a6357c953a55316b0ea7fac93d971f2d00c94d51e082817ae24872126"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -7377,8 +7375,7 @@ dependencies = [
 [[package]]
 name = "midnight-coin-structure"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "295ff7814b0288a9f0cbfea0cf13e5bfaa9a631f0525fd43175d572ca9af03ce"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "fake",
  "lazy_static",
@@ -7491,8 +7488,7 @@ dependencies = [
 [[package]]
 name = "midnight-ledger-static"
 version = "9.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61166f45d97fa0635aa5b72d16120d547aef78d6504ad96a3f4bfde6b10ad6fd"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -7896,8 +7892,7 @@ dependencies = [
 [[package]]
 name = "midnight-onchain-runtime"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f4f57168b906d68eddcf14fe6b34b1b8202ad3415e9796fdb59a38c01205610"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "derive-where",
  "enum_index",
@@ -7941,8 +7936,7 @@ dependencies = [
 [[package]]
 name = "midnight-onchain-state"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cf32b5175d303251d7051fb30532d4fdef3c19c7e36c5831c002a27e8440163"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "derive-where",
  "fake",
@@ -7982,8 +7976,7 @@ dependencies = [
 [[package]]
 name = "midnight-onchain-vm"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fe2080991c8f6063cb204480db6b5db4072fb6fe7cb807ef77371ea7f0bbc62"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "derive-where",
  "fake",
@@ -8149,8 +8142,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cf09a5e7e71e9cda92d6a401448cccaf6147ecb2b473bda2bb0afcccebdfd12"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "crypto",
  "konst",
@@ -8163,8 +8155,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize-macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d470675b20968294a11b14680c540c1ba9cccdbe89437ac939dfa688e91baf4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -8192,8 +8183,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "210e601a89aee79ce2b007cf96c1a56c23baa306b0c40b9b98d12c27e18d1981"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "crypto",
  "derive-where",
@@ -8211,8 +8201,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-core"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bc1be493c1a38918c0629d4b0ab8725ef0b759a6243410c5f7504700c851feb"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "archery",
  "crypto",
@@ -8237,8 +8226,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aeb4dc8c8ea5a6495036a88943c38cce40c23fc0181e0073ca52b7124800960"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "midnight-serialize-macros",
  "proc-macro2",
@@ -8249,8 +8237,7 @@ dependencies = [
 [[package]]
 name = "midnight-transient-crypto"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f0e92f0e835fc85d3e22d54b2e0fbfd3d3777439475da8d10020ef7bf016bb1"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -8308,8 +8295,7 @@ dependencies = [
 [[package]]
 name = "midnight-zkir"
 version = "2.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef44e11cfb43259ada31738fd4fb1835f1394bda29ed6c1ca45a35204a544d9a"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
 dependencies = [
  "anyhow",
  "const-hex",
@@ -20474,3 +20460,13 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "midnight-ledger"
+version = "8.0.3"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"
+
+[[patch.unused]]
+name = "midnight-zswap"
+version = "8.0.3"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=alexshielded%2Fpm-22391-storage-core-panic#bd8a7cff417684877eacc9aaa02b7ff876313e68"

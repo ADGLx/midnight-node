@@ -352,5 +352,23 @@ zeroize = { opt-level = 3 }
 cardano-serialization-lib = { git = "https://github.com/SupernaviX/cardano-serialization-lib", branch = "sg/patch-wasm-bindgen" }
 yamux = { git = "https://github.com/midnightntwrk/rust-yamux", branch = "yamux-v0.12.2" }
 
+# Ledger branch override for debugging (alexshielded/pm-22391-storage-core-panic)
+midnight-ledger = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-storage = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-storage-core = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-storage-macros = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-onchain-runtime = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-onchain-state = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-onchain-vm = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-zswap = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-coin-structure = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-base-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-base-crypto-derive = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-zkir = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-serialize = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-serialize-macros = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+midnight-ledger-static = { git = "https://github.com/midnightntwrk/midnight-ledger", branch = "alexshielded/pm-22391-storage-core-panic" }
+
 [workspace.metadata.cargo-shear]
 ignored = []
