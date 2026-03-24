@@ -8,3 +8,4 @@ Empty input (the default) skips validation and falls through to the
 `NODE_VERSIONS` file as before.
 
 PR: https://github.com/midnightntwrk/midnight-node/pull/951
+JIRA: https://shielded.atlassian.net/browse/PM-22227
