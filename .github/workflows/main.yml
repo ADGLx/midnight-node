@@ -118,7 +118,8 @@ jobs:
             # We don't use --ci as we want artifacts to be saved
             # Note: --strict is omitted because +node-image uses LOCALLY
             . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --push +node-image
-            . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --ci --push +toolkit-image
+            # Note: --ci implies --strict, but +toolkit-image uses LOCALLY, so use --no-output instead
+            . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --no-output --push +toolkit-image
           fi
 
           printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
@@ -303,7 +304,8 @@ jobs:
           else
             # Note: --strict is omitted because +node-image uses LOCALLY
             . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --push +node-image
-            . ./.envrc && earthly --secret "GITHUB_TOKEN=$GITHUB_TOKEN" -P --ci --push +toolkit-image
+            # Note: --ci implies --strict, but +toolkit-image uses LOCALLY, so use --no-output instead
+            . ./.envrc && earthly --secret "GITHUB_TOKEN=$GITHUB_TOKEN" -P --no-output --push +toolkit-image
           fi
 
       - name: Get image digests
