@@ -116,7 +116,8 @@ jobs:
               --TOOLKIT_IMAGE="ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64"
           else
             # We don't use --ci as we want artifacts to be saved
-            . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
+            # Note: --strict is omitted because +node-image uses LOCALLY
+            . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --push +node-image
             . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --ci --push +toolkit-image
           fi
 
@@ -300,7 +301,8 @@ jobs:
             . ./.envrc && earthly +extract-toolkit-artifacts \
               --TOOLKIT_IMAGE="ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64"
           else
-            . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
+            # Note: --strict is omitted because +node-image uses LOCALLY
+            . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --push +node-image
             . ./.envrc && earthly --secret "GITHUB_TOKEN=$GITHUB_TOKEN" -P --ci --push +toolkit-image
           fi
 
