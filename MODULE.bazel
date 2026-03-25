@@ -59,18 +59,12 @@ crate.from_cargo(
     manifests = ["//wasm-deps:Cargo.toml"],
 )
 
-# OpenSSL: use system headers/libs instead of vendoring from source.
-# Vendored builds fail because rules_rust bakes an absolute sandbox path
-# into env!("CARGO_MANIFEST_DIR") at openssl-src compile time, and that
-# path doesn't exist when the openssl-sys build script runs in a different
-# sandbox. OPENSSL_NO_VENDOR skips vendoring; OPENSSL_LIB_DIR/INCLUDE_DIR
-# tell the build script where to find system OpenSSL (needed because the
-# zig hermetic CC toolchain doesn't search system paths automatically).
+# OpenSSL: point the build script at system OpenSSL.
+# The zig hermetic CC toolchain doesn't search system paths, so we
+# must tell openssl-sys where to find headers and libraries.
 crate.annotation(
     crate = "openssl-sys",
-    crate_features = ["vendored"],
     build_script_env = {
-        "OPENSSL_NO_VENDOR": "1",
         "OPENSSL_LIB_DIR": "/usr/lib64",
         "OPENSSL_INCLUDE_DIR": "/usr/include",
     },
