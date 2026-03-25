@@ -1,14 +1,7 @@
-load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "native_only_crates", "wasm_aware_crates", "wasm_aware_features", "wasm_rustc_flags")
 
 exports_files(["Cargo.toml"])
-
-cargo_build_script(
-    name = "build_script",
-    srcs = ["build.rs"],
-    edition = "2024",
-)
 
 rust_library(
     name = "midnight-node-ledger",
@@ -17,8 +10,6 @@ rust_library(
     crate_features = wasm_aware_features([
         "std",
         "test-utils",
-        # "hardfork" excluded — avoids midnight_storage_core version conflict
-        # (see docs/bazel-notes.md Bug 3)
     ]),
     edition = "2024",
     rustc_flags = wasm_rustc_flags(),
@@ -35,12 +26,9 @@ rust_library(
             # L8 aliases (only for deps that differ from L7)
             "@crates//:onchain_runtime_ledger_8": "onchain_runtime_ledger_8",
             "@crates//:ledger_storage_ledger_8": "ledger_storage_ledger_8",
-            # HF deps excluded (see crate_features comment above)
         },
     }),
-    deps = [
-        ":build_script",
-    ] + wasm_aware_crates([
+    deps = wasm_aware_crates([
         # no_std core deps (unconditional in Cargo.toml)
         "frame-support",
         "parity-scale-codec",

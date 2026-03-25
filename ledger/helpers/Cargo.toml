@@ -22,17 +22,9 @@ onchain-runtime-ledger-8 = { workspace = true }
 ledger-storage-ledger-8 = { workspace = true }
 zswap-ledger-8 = { workspace = true }
 
-mn-ledger-hf = { workspace = true, features = ["proving", "test-utilities"], optional = true }
-base-crypto-hf = { workspace = true, optional = true }
-coin-structure-hf = { workspace = true, optional = true }
-onchain-runtime-hf = { workspace = true, optional = true }
-midnight-serialize-hf = { workspace = true, optional = true }
-ledger-storage-hf = { workspace = true, optional = true }
-transient-crypto-hf = { workspace = true, optional = true }
-zswap-hf = { workspace = true, optional = true }
-zkir-hf = { workspace = true, optional = true }
 
 rand = { workspace = true, features = ["small_rng"] }
+rayon.workspace = true
 log.workspace = true
 lazy_static.workspace = true
 itertools = { workspace = true, features = ["use_alloc"] }
@@ -49,20 +41,10 @@ toml.workspace = true
 subxt.workspace = true
 subxt-signer.workspace = true
 serde_json.workspace = true
+serde_bytes = "0.11"
 
 [features]
-default = ["hardfork"]
-hardfork = [
-    "mn-ledger-hf",
-    "base-crypto-hf",
-    "coin-structure-hf",
-    "onchain-runtime-hf",
-    "midnight-serialize-hf",
-    "ledger-storage-hf",
-    "transient-crypto-hf",
-    "zswap-hf",
-    "zkir-hf",
-]
+default = []
 can-panic = []
 erase-proof = []
 test-utils = []

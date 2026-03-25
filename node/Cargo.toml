@@ -150,13 +150,14 @@ sp-transaction-pool.workspace = true
 
 [dev-dependencies]
 tempfile = "3"
+yamux = "0.13"
+tokio-util = { version = "0.7", features = ["compat"] }
 
 [build-dependencies]
 substrate-build-script-utils.workspace = true
 
 [features]
-default = ["hardfork"]
-hardfork = ["midnight-node-ledger/hardfork"]
+default = []
 
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [

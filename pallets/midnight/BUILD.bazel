@@ -1,14 +1,7 @@
-load("@rules_rust//cargo:defs.bzl", "cargo_build_script")
 load("@rules_rust//rust:defs.bzl", "rust_library", "rust_test")
 load("//:defs.bzl", "wasm_aware_crates", "wasm_aware_features")
 
 exports_files(["Cargo.toml"])
-
-cargo_build_script(
-    name = "build_script",
-    srcs = ["build.rs"],
-    edition = "2024",
-)
 
 rust_library(
     name = "pallet-midnight",
@@ -17,7 +10,6 @@ rust_library(
     edition = "2024",
     compile_data = ["Cargo.toml"],
     deps = [
-        ":build_script",
         "//ledger:midnight-node-ledger",
         "//primitives/midnight:midnight-primitives",
     ] + wasm_aware_crates([
