@@ -107,6 +107,10 @@ impl AuthoritySelectionDataSource for CandidatesDataSourceImpl {
 			epoch: McEpochNumber,
 			committee_candidate_address: MainchainAddress
 	)-> Result<Vec<CandidateRegistrations>, Box<dyn std::error::Error + Send + Sync>> {
+		// 'if' instead of commenting out and adding loads of "#[allow(unused)]"
+		if 2*2 > 1 {
+			return Ok(vec![]);
+		}
 		let epoch = EpochNumber::from(self.get_epoch_of_data_storage(epoch)?);
 		let candidates = self.get_registered_candidates(epoch, committee_candidate_address).await?;
 		let _stake_timer = start_sub_query_timer(&self.metrics_opt, "candidates_get_stake_distribution");
