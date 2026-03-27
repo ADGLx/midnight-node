@@ -14,8 +14,11 @@ runs:
       run: |
         mkdir -p ~/.earthly/certs
         echo "${{ inputs.earthly-tar }}" | base64 -d | tar xf - -C ~/.earthly/certs/
-        # Earthly expects ca_cert.pem, not ca.pem
-        cp ~/.earthly/certs/ca.pem ~/.earthly/certs/ca_cert.pem
+        cd ~/.earthly/certs
+        cp ca.pem ca_cert.pem
+        cp cert.pem earthly_cert.pem
+        cp key.pem earthly_key.pem
+        ls -la
 
     - name: Set Earthly satellite env
       shell: bash
