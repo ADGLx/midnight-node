@@ -1,3 +1,16 @@
+// This file is part of midnight-node.
+// Copyright (C) Midnight Foundation
+// SPDX-License-Identifier: Apache-2.0
+// Licensed under the Apache License, Version 2.0 (the "License");
+// You may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+// http://www.apache.org/licenses/LICENSE-2.0
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
 use crate::commands::{
 	contract_address::{self, ContractAddressArgs},
 	contract_state::{self, ContractStateArgs},
@@ -20,6 +33,7 @@ use crate::commands::{
 	show_viewing_key::{self, ShowViewingKeyArgs},
 	show_wallet::{self, ShowWalletArgs, ShowWalletResult},
 	update_ledger_parameters::{self, UpdateLedgerParametersArgs},
+	wallet_history::{self, WalletHistoryArgs, WalletHistoryResult},
 };
 use crate::utils;
 use clap::{Parser, Subcommand};
@@ -51,6 +65,8 @@ pub enum Commands {
 	DustBalance(DustBalanceArgs),
 	/// Show the state of a wallet using it's seed
 	ShowWallet(ShowWalletArgs),
+	/// Show the transaction history of a wallet using it's seed or address
+	WalletHistory(WalletHistoryArgs),
 	/// Show the address of a wallet using it's seed
 	ShowAddress(ShowAddressArgs),
 	/// Show the ledger parameters
@@ -158,6 +174,17 @@ pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error 
 
 			Ok(())
 		},
+		Commands::WalletHistory(args) => {
+			let result = wallet_history::execute(args).await?;
+			match result {
+				WalletHistoryResult::Json(history) => {
+					println!("{}", serde_json::to_string_pretty(&history)?);
+				},
+				WalletHistoryResult::DryRun(()) => (),
+			}
+
+			Ok(())
+		},
 		Commands::ShowAddress(args) => {
 			let address = show_address::execute(args);
 			match address {
@@ -235,7 +262,7 @@ pub async fn run_command(cmd: Commands) -> Result<(), Box<dyn std::error::Error 
 				"Node: {}\nLedger: {}\nCompactc: {}",
 				node_version, ledger_version, compactc_version
 			);
-			return Ok(());
+			Ok(())
 		},
 		Commands::ShowTokenType(args) => {
 			let token_type = show_token_type::execute(args);

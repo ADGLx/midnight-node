@@ -76,8 +76,6 @@ local-environment/docker-compose.yml.bak
 local-environment/runtime-values/*
 
 midnight-up/src/networks/data/
-
-midnight-up/src/networks/data/
 midnight-up-js/port-mapping.json
 midnight-up-js/src/networks/well-known/**/data/
 
@@ -88,6 +86,7 @@ dist
 .bin
 
 # Toolkit cache
+toolkit_cache/
 toolkit.db
 
 # toolkit artifacts

@@ -25,5 +25,6 @@ pub mod inner {
 	pub mod serde_convert;
 	pub mod show_transaction;
 	pub mod show_wallet;
+	pub mod wallet_history;
 }
 pub use inner::*;
