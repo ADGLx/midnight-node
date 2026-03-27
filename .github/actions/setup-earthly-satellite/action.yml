@@ -1,0 +1,25 @@
+name: "Setup Earthly Satellite"
+description: "Configure Earthly to use a remote BuildKit satellite"
+
+inputs:
+  earthly-tar:
+    description: "Base64-encoded tarball of TLS certs (ca.pem, cert.pem, key.pem)"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Extract Earthly TLS certs
+      shell: bash
+      run: |
+        mkdir -p ~/.earthly/certs
+        echo "${{ inputs.earthly-tar }}" | base64 -d | tar xf - -C ~/.earthly/certs/
+
+    - name: Set Earthly satellite env
+      shell: bash
+      run: |
+        echo "EARTHLY_BUILDKIT_HOST=$EARTHLY_HOST" >> "$GITHUB_ENV"
+        echo "EARTHLY_TLS_ENABLED=true" >> "$GITHUB_ENV"
+        echo "EARTHLY_TLS_CA=$HOME/.earthly/certs/ca.pem" >> "$GITHUB_ENV"
+        echo "EARTHLY_TLS_CERT=$HOME/.earthly/certs/cert.pem" >> "$GITHUB_ENV"
+        echo "EARTHLY_TLS_KEY=$HOME/.earthly/certs/key.pem" >> "$GITHUB_ENV"

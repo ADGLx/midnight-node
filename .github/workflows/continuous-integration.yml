@@ -46,6 +46,13 @@ jobs:
           github-token: ${{ github.token }}
           use-cache: false
 
+      - name: Setup Earthly satellite
+        uses: ./.github/actions/setup-earthly-satellite
+        with:
+          earthly-tar: ${{ secrets.EARTHLY_TAR }}
+        env:
+          EARTHLY_HOST: ${{ secrets.EARTHLY_HOST }}
+
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
 
@@ -154,6 +161,13 @@ jobs:
           github-token: ${{ github.token }}
           use-cache: false
 
+      - name: Setup Earthly satellite
+        uses: ./.github/actions/setup-earthly-satellite
+        with:
+          earthly-tar: ${{ secrets.EARTHLY_TAR }}
+        env:
+          EARTHLY_HOST: ${{ secrets.EARTHLY_HOST }}
+
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
 
@@ -228,6 +242,13 @@ jobs:
           github-token: ${{ github.token }}
           use-cache: false
 
+      - name: Setup Earthly satellite
+        uses: ./.github/actions/setup-earthly-satellite
+        with:
+          earthly-tar: ${{ secrets.EARTHLY_TAR }}
+        env:
+          EARTHLY_HOST: ${{ secrets.EARTHLY_HOST }}
+
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
 
@@ -255,6 +276,13 @@ jobs:
           version: v0.8.16
           github-token: ${{ github.token }}
           use-cache: false
+
+      - name: Setup Earthly satellite
+        uses: ./.github/actions/setup-earthly-satellite
+        with:
+          earthly-tar: ${{ secrets.EARTHLY_TAR }}
+        env:
+          EARTHLY_HOST: ${{ secrets.EARTHLY_HOST }}
 
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -300,6 +328,13 @@ jobs:
           github-token: ${{ github.token }}
           use-cache: false
 
+      - name: Setup Earthly satellite
+        uses: ./.github/actions/setup-earthly-satellite
+        with:
+          earthly-tar: ${{ secrets.EARTHLY_TAR }}
+        env:
+          EARTHLY_HOST: ${{ secrets.EARTHLY_HOST }}
+
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
 
@@ -325,6 +360,13 @@ jobs:
           version: v0.8.16
           github-token: ${{ github.token }}
           use-cache: false
+
+      - name: Setup Earthly satellite
+        uses: ./.github/actions/setup-earthly-satellite
+        with:
+          earthly-tar: ${{ secrets.EARTHLY_TAR }}
+        env:
+          EARTHLY_HOST: ${{ secrets.EARTHLY_HOST }}
 
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -437,6 +479,13 @@ jobs:
           version: v0.8.16
           github-token: ${{ github.token }}
           use-cache: false
+
+      - name: Setup Earthly satellite
+        uses: ./.github/actions/setup-earthly-satellite
+        with:
+          earthly-tar: ${{ secrets.EARTHLY_TAR }}
+        env:
+          EARTHLY_HOST: ${{ secrets.EARTHLY_HOST }}
       - name: Login to GHCR
         uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 #v4.0.0
         with:
