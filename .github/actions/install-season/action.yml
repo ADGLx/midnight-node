@@ -7,6 +7,10 @@ inputs:
   gh-token:
     description: GitHub token for downloading the release asset
     required: true
+  config:
+    description: Location for Season config
+    required: true
+    default: .github/season.yml
 
 runs:
   using: composite
@@ -14,10 +18,12 @@ runs:
     - name: Read Season config
       id: config
       shell: bash
+      env:
+        SEASON_CONFIG: ${{ inputs.config }}
       run: |
-        echo "tag=$(yq '.version.tag' .github/season.yml)" >> "$GITHUB_OUTPUT"
-        echo "repo=$(yq '.version.repo' .github/season.yml)" >> "$GITHUB_OUTPUT"
-        echo "checksum=$(yq '.version.checksum' .github/season.yml)" >> "$GITHUB_OUTPUT"
+        echo "tag=$(yq '.version.tag' "$SEASON_CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "repo=$(yq '.version.repo' "$SEASON_CONFIG")" >> "$GITHUB_OUTPUT"
+        echo "checksum=$(yq '.version.checksum' "$SEASON_CONFIG")" >> "$GITHUB_OUTPUT"
 
     - name: Download and install Season
       shell: bash

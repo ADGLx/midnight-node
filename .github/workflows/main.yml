@@ -65,6 +65,9 @@ jobs:
 
       - name: Install Season
         uses: ./midnight-node-ci/.github/actions/install-season
+        with:
+          gh-token: ${{ secrets.GITHUB_TOKEN }}
+          config: ./midnight-node-ci/.github/season.yml
 
       - name: Install just
         uses: taiki-e/install-action@94a7388bec5d4c8dd93e3ebf09e0ff448f3f6f4d #v2.68.35
