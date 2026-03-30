@@ -667,6 +667,8 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 		telemetry: telemetry.as_mut(),
 	})?;
 
+	crate::ledger_log_pipeline::spawn(&task_manager, client.clone());
+
 	if role.is_authority() {
 		let basic_authorship_proposer_factory = sc_basic_authorship::ProposerFactory::new(
 			task_manager.spawn_handle(),

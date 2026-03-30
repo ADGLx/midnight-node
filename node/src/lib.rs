@@ -23,6 +23,7 @@ pub mod extensions;
 mod filtering_pool;
 pub mod genesis;
 pub mod inherent_data;
+mod ledger_log_pipeline;
 pub mod main_chain_follower;
 pub mod memory_monitor;
 pub mod metrics_push;

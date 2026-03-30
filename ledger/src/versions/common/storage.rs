@@ -30,6 +30,12 @@ pub fn drop_default_storage_if_exists() {
 	}
 }
 
+pub fn flush_log_pipeline_on_default_storage_if_exists() {
+	if let Some(storage) = try_get_default_storage::<ParityDb>() {
+		storage.with_backend(|backend| backend.flush_log_pipeline());
+	}
+}
+
 #[cfg(feature = "std")]
 use {
 	super::ledger_storage_local::db::DB,
