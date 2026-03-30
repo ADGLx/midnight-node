@@ -56,28 +56,15 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
-      - name: Checkout Season action repository
+      # We can remove this in future - useful for now when branches may not have
+      # ./.github/actions/install-season
+      - name: Checkout node repo (for season install action)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
-          repository: midnightntwrk/season-action
-          ref: 1666b2819e86ffd23f187a3e854e32311a768161 # 0.4.2
-          path: season-action
-          token: ${{ secrets.MIDNIGHTCI_REPO }}
-          submodules: true
+          path: ./midnight-node-ci
 
-      - name: Setup Season
-        uses: ./season-action
-        with:
-          ghcr_registry: ghcr.io/midnight-ntwrk
-          ghcr_username: MidnightCI
-          ghcr_password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-          suffix: ${{ github.event.inputs.suffix }}
-          tag_name: node
-          image_name: midnight-node
-          cargo_toml_path: node/Cargo.toml
-          changes_archive_dir: .changes_archive
-          hash_type: tree
+      - name: Install Season
+        uses: ./midnight-node-ci/.github/actions/install-season
 
       - name: Install just
         uses: taiki-e/install-action@94a7388bec5d4c8dd93e3ebf09e0ff448f3f6f4d #v2.68.35
@@ -192,19 +179,21 @@ jobs:
           echo "Generated checksums:"
           cat "SHA256SUMS-${PLATFORM}"
 
+      - name: Build Release Notes
+        env:
+          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+        run: |
+          export SEASON_VAR_NODE_DOCKER_IMAGE="midnightntwrk/midnight-node:$IMAGE_TAG"
+          export SEASON_VAR_TOOLKIT_DOCKER_IMAGE="midnightntwrk/midnight-node-toolkit:$IMAGE_TAG"
+          export SEASON_VAR_RELEASE_TAG="N/A"
+          season build --changes-dir changes -o RELEASE_NOTES.md
+
       - name: Create or Update Draft Release
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
           IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
         run: |
-          # Build release notes
-          export SEASON_GHCR_REGISTRY="midnightntwrk"
-          export SEASON_VAR_NODE_DOCKER_IMAGE="$SEASON_GHCR_REGISTRY/$SEASON_IMAGE_NAME:$SEASON_IMAGE_TAG_COMMIT"
-          export SEASON_VAR_TOOLKIT_DOCKER_IMAGE="$SEASON_GHCR_REGISTRY/midnight-node-toolkit:$SEASON_IMAGE_TAG_COMMIT"
-          export SEASON_VAR_RELEASE_TAG="$SEASON_GIT_TAG"
-          season-build-release-notes
-
           if [[ "$BRANCH" != "main" && ! "$BRANCH" =~ ^release/.* ]]; then
             echo "Branch \"$BRANCH\" is not \"main\" and does not start with \"release/\", skipping draft release creation for AMD64..."
             exit 0
@@ -231,11 +220,17 @@ jobs:
             --notes-file RELEASE_NOTES.md
 
           PLATFORM="amd64"
+
+          # Remove stale assets for this platform (old IMAGE_TAG filenames linger)
+          for asset in $(gh release view "$RELEASE_TITLE" --json assets -q ".assets[].name" | grep "${PLATFORM}"); do
+            echo "Deleting old asset: $asset"
+            gh release delete-asset "$RELEASE_TITLE" "$asset" --yes || true
+          done
+
           gh release upload "$RELEASE_TITLE" \
             "midnight-node-${IMAGE_TAG}-linux-${PLATFORM}.tar.gz" \
             "midnight-node-toolkit-${IMAGE_TAG}-linux-${PLATFORM}.tar.gz" \
-            "SHA256SUMS-${PLATFORM}" \
-            --clobber
+            "SHA256SUMS-${PLATFORM}"
 
       - name: Archive release notes
         uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
@@ -393,12 +388,18 @@ jobs:
           fi
 
           PLATFORM="arm64"
+
+          # Remove stale assets for this platform (old IMAGE_TAG filenames linger)
+          for asset in $(gh release view "$RELEASE_TITLE" --json assets -q ".assets[].name" | grep "${PLATFORM}"); do
+            echo "Deleting old asset: $asset"
+            gh release delete-asset "$RELEASE_TITLE" "$asset" --yes || true
+          done
+
           echo "Uploading ARM64 release archives..."
           gh release upload "$RELEASE_TITLE" \
             "midnight-node-${IMAGE_TAG}-linux-${PLATFORM}.tar.gz" \
             "midnight-node-toolkit-${IMAGE_TAG}-linux-${PLATFORM}.tar.gz" \
-            "SHA256SUMS-${PLATFORM}" \
-            --clobber
+            "SHA256SUMS-${PLATFORM}"
           echo "ARM64 release archives uploaded successfully."
 
   build-indexer-images:
