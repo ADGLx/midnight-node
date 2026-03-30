@@ -22,14 +22,14 @@ use crate::{
 	metrics_push::{MetricsPushConfig, run_metrics_push_task},
 	rpc::{BeefyDeps, GrandpaDeps},
 };
-use futures::FutureExt;
+use futures::{FutureExt, StreamExt};
 use midnight_node_runtime::storage::child::StateVersion;
 use midnight_node_runtime::{self, RuntimeApi, opaque::Block};
 use midnight_primitives_ledger::{LedgerMetrics, LedgerStorage};
 use midnight_primitives_mainchain_follower::MidnightDataSourceMetrics;
 use parity_scale_codec::{Decode, Encode};
 use partner_chains_db_sync_data_sources::register_metrics_warn_errors;
-use sc_client_api::{Backend, BlockImportOperation, ExecutorProvider};
+use sc_client_api::{Backend, BlockImportOperation, BlockchainEvents, ExecutorProvider};
 use sc_consensus_aura::{ImportQueueParams, SlotProportion, StartAuraParams};
 use sc_consensus_grandpa::SharedVoterState;
 use sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging;
@@ -42,6 +42,7 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sidechain_domain::mainchain_epoch::MainchainEpochConfig;
 use sidechain_mc_hash::McHashInherentDigest;
+use sp_consensus::BlockOrigin;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 
@@ -56,7 +57,7 @@ use std::{
 	marker::PhantomData,
 	path::Path,
 	sync::{Arc, Mutex},
-	time::Duration,
+	time::{Duration, Instant},
 };
 use time_source::SystemTimeSource;
 
@@ -668,6 +669,39 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	})?;
 
 	if role.is_authority() {
+		let pipeline_client = client.clone();
+		let pipeline_spawn_handle = task_manager.spawn_handle();
+		task_manager
+			.spawn_handle()
+			.spawn("ledger-paritydb-log-pipeline", None, async move {
+				let mut import_notifications = pipeline_client.every_import_notification_stream();
+
+				while let Some(notification) = import_notifications.next().await {
+					if notification.origin != BlockOrigin::Own {
+						continue;
+					}
+
+					let hash = notification.hash;
+					pipeline_spawn_handle.spawn_blocking(
+						"ledger-paritydb-log-pipeline-run",
+						None,
+						async move {
+							log::debug!(
+								target: "ledger-paritydb-log-pipeline",
+								"starting ledger parity-db log pipeline after own block import {hash:?}"
+							);
+							let started_at = Instant::now();
+							midnight_node_ledger::run_log_pipeline_on_default_storage();
+							log::debug!(
+								target: "ledger-paritydb-log-pipeline",
+								"finished ledger parity-db log pipeline after own block import {hash:?} in {} ms",
+								started_at.elapsed().as_millis()
+							);
+						},
+					);
+				}
+			});
+
 		let basic_authorship_proposer_factory = sc_basic_authorship::ProposerFactory::new(
 			task_manager.spawn_handle(),
 			client.clone(),

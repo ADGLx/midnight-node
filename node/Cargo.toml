@@ -68,6 +68,7 @@ sc-rpc.workspace = true
 sc-rpc-api.workspace = true
 sp-blockchain.workspace = true
 sp-block-builder.workspace = true
+sp-consensus.workspace = true
 sc-basic-authorship.workspace = true
 substrate-frame-rpc-system.workspace = true
 

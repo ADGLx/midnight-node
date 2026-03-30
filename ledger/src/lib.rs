@@ -87,6 +87,12 @@ pub fn drop_all_default_storage() {
 	ledger_8::storage::drop_default_storage_if_exists();
 }
 
+#[cfg(feature = "std")]
+pub fn run_log_pipeline_on_default_storage() {
+	ledger_8::storage::run_log_pipeline_on_default_storage_if_exists();
+	ledger_7::storage::run_log_pipeline_on_default_storage_if_exists();
+}
+
 mod common;
 
 pub mod types {

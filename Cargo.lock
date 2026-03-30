@@ -370,9 +370,9 @@ dependencies = [
 
 [[package]]
 name = "anyhow"
-version = "1.0.98"
+version = "1.0.102"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e16d2d3311acee920a9eb8d33b8cbc1787ce4a264e85f964c2404b969bdcd487"
+checksum = "7f202df86484c868dbad7eaa557ef785d5c66295e41b460ef922eca0723b842c"
 
 [[package]]
 name = "approx"
@@ -2219,6 +2219,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "console"
+version = "0.16.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d64e8af5551369d19cf50138de61f1c42074ab970f74e99be916646777f8fc87"
+dependencies = [
+ "encode_unicode",
+ "libc",
+ "unicode-width 0.2.1",
+ "windows-sys 0.61.2",
+]
+
+[[package]]
 name = "console_error_panic_hook"
 version = "0.1.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3155,9 +3167,9 @@ dependencies = [
 
 [[package]]
 name = "derive-where"
-version = "1.5.0"
+version = "1.6.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "510c292c8cf384b1a340b816a9a6cf2599eb8f566a44949024af88418000c50b"
+checksum = "d08b3a0bcc0d079199cd476b2cae8435016ec11d1c0986c6901c5ac223041534"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -5788,10 +5800,23 @@ version = "0.17.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "183b3088984b400f4cfac3620d5e076c84da5364016b4f49473de574b2586235"
 dependencies = [
- "console",
+ "console 0.15.11",
  "number_prefix",
  "portable-atomic",
  "unicode-width 0.2.1",
+ "web-time",
+]
+
+[[package]]
+name = "indicatif"
+version = "0.18.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "25470f23803092da7d239834776d653104d551bc4d7eacaf31e6837854b8e9eb"
+dependencies = [
+ "console 0.16.3",
+ "portable-atomic",
+ "unicode-width 0.2.1",
+ "unit-prefix",
  "web-time",
 ]
 
@@ -7305,8 +7330,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "cf29bc144421a429a3c6fff48ca4dec3e5e78d652e10d9c438f58c8f4388f2ff"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "anyhow",
  "atomic-write-file",
@@ -7317,7 +7341,7 @@ dependencies = [
  "flate2",
  "futures",
  "group",
- "indicatif",
+ "indicatif 0.18.4",
  "k256",
  "lazy_static",
  "midnight-base-crypto-derive",
@@ -7338,8 +7362,7 @@ dependencies = [
 [[package]]
 name = "midnight-base-crypto-derive"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "62d0904a6357c953a55316b0ea7fac93d971f2d00c94d51e082817ae24872126"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -7394,8 +7417,7 @@ dependencies = [
 [[package]]
 name = "midnight-coin-structure"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "295ff7814b0288a9f0cbfea0cf13e5bfaa9a631f0525fd43175d572ca9af03ce"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "fake",
  "lazy_static",
@@ -7603,6 +7625,7 @@ dependencies = [
  "sp-api",
  "sp-block-builder",
  "sp-blockchain",
+ "sp-consensus",
  "sp-consensus-aura",
  "sp-consensus-beefy",
  "sp-consensus-grandpa",
@@ -7846,11 +7869,11 @@ dependencies = [
  "async-trait",
  "backoff",
  "clap",
- "console",
+ "console 0.15.11",
  "futures",
  "hex",
  "hex-literal 0.4.1",
- "indicatif",
+ "indicatif 0.17.11",
  "log",
  "midnight-node-ledger-helpers",
  "midnight-node-metadata",
@@ -7914,8 +7937,7 @@ dependencies = [
 [[package]]
 name = "midnight-onchain-runtime"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5f4f57168b906d68eddcf14fe6b34b1b8202ad3415e9796fdb59a38c01205610"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "derive-where",
  "enum_index",
@@ -7959,8 +7981,7 @@ dependencies = [
 [[package]]
 name = "midnight-onchain-state"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6cf32b5175d303251d7051fb30532d4fdef3c19c7e36c5831c002a27e8440163"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "derive-where",
  "fake",
@@ -8000,8 +8021,7 @@ dependencies = [
 [[package]]
 name = "midnight-onchain-vm"
 version = "3.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3fe2080991c8f6063cb204480db6b5db4072fb6fe7cb807ef77371ea7f0bbc62"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "derive-where",
  "fake",
@@ -8167,8 +8187,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0cf09a5e7e71e9cda92d6a401448cccaf6147ecb2b473bda2bb0afcccebdfd12"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "crypto",
  "konst",
@@ -8181,8 +8200,7 @@ dependencies = [
 [[package]]
 name = "midnight-serialize-macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6d470675b20968294a11b14680c540c1ba9cccdbe89437ac939dfa688e91baf4"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "proc-macro2",
  "quote 1.0.40",
@@ -8210,8 +8228,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "210e601a89aee79ce2b007cf96c1a56c23baa306b0c40b9b98d12c27e18d1981"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "crypto",
  "derive-where",
@@ -8229,8 +8246,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-core"
 version = "1.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3bc1be493c1a38918c0629d4b0ab8725ef0b759a6243410c5f7504700c851feb"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "archery",
  "crypto",
@@ -8255,8 +8271,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-macros"
 version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6aeb4dc8c8ea5a6495036a88943c38cce40c23fc0181e0073ca52b7124800960"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "midnight-serialize-macros",
  "proc-macro2",
@@ -8267,8 +8282,7 @@ dependencies = [
 [[package]]
 name = "midnight-transient-crypto"
 version = "2.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f0e92f0e835fc85d3e22d54b2e0fbfd3d3777439475da8d10020ef7bf016bb1"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
 dependencies = [
  "anyhow",
  "blake2b_simd",
@@ -13442,7 +13456,7 @@ name = "sc-informant"
 version = "0.52.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable2509#5ab401310d2fbd808b3ffbcfc8735ad8f1c8fe10"
 dependencies = [
- "console",
+ "console 0.15.11",
  "futures",
  "futures-timer",
  "log",
@@ -14001,7 +14015,7 @@ version = "42.0.0"
 source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable2509#5ab401310d2fbd808b3ffbcfc8735ad8f1c8fe10"
 dependencies = [
  "chrono",
- "console",
+ "console 0.15.11",
  "is-terminal",
  "libc",
  "log",
@@ -16802,7 +16816,7 @@ source = "git+https://github.com/paritytech/polkadot-sdk.git?tag=polkadot-stable
 dependencies = [
  "build-helper",
  "cargo_metadata 0.15.4",
- "console",
+ "console 0.15.11",
  "filetime",
  "jobserver",
  "parity-wasm",
@@ -18479,6 +18493,12 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
+
+[[package]]
+name = "unit-prefix"
+version = "0.5.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "81e544489bf3d8ef66c953931f56617f423cd4b5494be343d9b9d3dda037b9a3"
 
 [[package]]
 name = "universal-hash"
@@ -20491,3 +20511,13 @@ dependencies = [
  "cc",
  "pkg-config",
 ]
+
+[[patch.unused]]
+name = "midnight-ledger"
+version = "8.0.3"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
+
+[[patch.unused]]
+name = "midnight-zswap"
+version = "8.0.3"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=feat%2Fparity_db_pipeline_flush#768b803f52d386a4afd51171966b160bf4ac7fcb"
