@@ -77,6 +77,8 @@ jobs:
 
       - name: Check if images already exist
         id: check-images
+        env:
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
         run: |
           CONTENT_HASH=$(git rev-parse "HEAD^{tree}" | cut -c1-12)
           VERSION=$(grep -m1 'version =' node/Cargo.toml | awk '{print $3}' | tr -d '"')
@@ -84,7 +86,7 @@ jobs:
           printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
           IMAGES_EXIST=false
-          if [ "${{ inputs.force_rebuild }}" != "true" ]; then
+          if [ "$FORCE_REBUILD" != "true" ]; then
             NODE_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64" > /dev/null 2>&1 && echo true || echo false)
             TOOLKIT_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64" > /dev/null 2>&1 && echo true || echo false)
             if [ "$NODE_EXISTS" = "true" ] && [ "$TOOLKIT_EXISTS" = "true" ]; then
@@ -285,6 +287,8 @@ jobs:
 
       - name: Check if images already exist
         id: check-images
+        env:
+          FORCE_REBUILD: ${{ inputs.force_rebuild }}
         run: |
           CONTENT_HASH=$(git rev-parse "HEAD^{tree}" | cut -c1-12)
           VERSION=$(grep -m1 'version =' node/Cargo.toml | awk '{print $3}' | tr -d '"')
@@ -292,7 +296,7 @@ jobs:
           printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
 
           IMAGES_EXIST=false
-          if [ "${{ inputs.force_rebuild }}" != "true" ]; then
+          if [ "$FORCE_REBUILD" != "true" ]; then
             NODE_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64" > /dev/null 2>&1 && echo true || echo false)
             TOOLKIT_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64" > /dev/null 2>&1 && echo true || echo false)
             if [ "$NODE_EXISTS" = "true" ] && [ "$TOOLKIT_EXISTS" = "true" ]; then
