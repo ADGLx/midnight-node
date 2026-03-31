@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -20,10 +20,13 @@ pub mod chain_spec;
 pub mod cli;
 pub mod command;
 pub mod extensions;
+mod filtering_pool;
 pub mod genesis;
 pub mod inherent_data;
 pub mod main_chain_follower;
+pub mod memory_monitor;
 pub mod metrics_push;
+pub mod openrpc;
 pub mod partner_chains;
 pub mod payload;
 pub mod peer_info_rpc;

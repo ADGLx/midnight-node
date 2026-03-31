@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -22,28 +22,27 @@ pub mod inner {
 	mod build_txs_ext;
 	mod claim_rewards;
 	mod contract_call;
-	pub mod transactions;
-	mod tx_serialization;
-	pub mod type_convert;
-	// contract_custom excluded: EncodedOutputInfo does not implement ledger_7 BuildOutput
+	mod contract_custom;
 	mod contract_deploy;
 	mod contract_maintenance;
 	mod deregister_dust_address;
 	mod do_nothing;
 	mod register_dust_address;
-	mod replace_initial_tx;
 	pub mod single_tx;
+	pub mod transactions;
+	mod tx_serialization;
+	pub mod type_convert;
 
 	pub use batches::*;
 	pub use build_txs_ext::*;
 	pub use claim_rewards::*;
 	pub use contract_call::*;
+	pub use contract_custom::*;
 	pub use contract_deploy::*;
 	pub use contract_maintenance::*;
 	pub use deregister_dust_address::*;
 	pub use do_nothing::*;
 	pub use register_dust_address::*;
-	pub use replace_initial_tx::*;
 }
 pub use inner::*;
 
@@ -55,12 +54,8 @@ use midnight_node_ledger_helpers::ledger_7::{
 pub fn serialize_tx(
 	tx: &TransactionWithContext<Signature, ProofMarker, DefaultDB>,
 ) -> SerializedTx {
-	let context = midnight_node_ledger_helpers::ledger_8::BlockContext {
-		tblock: tx.block_context.tblock,
-		tblock_err: tx.block_context.tblock_err,
-		parent_block_hash: tx.block_context.parent_block_hash,
-		last_block_time: tx.block_context.tblock,
-	};
+	let context =
+		midnight_node_ledger_helpers::fork::fork_7_to_8::block_context_7_to_8(&tx.block_context);
 	let raw_tx = transactions::from_serde_tx(&tx.tx);
 	let tx_hash = tx.tx.transaction_hash().0.0;
 	SerializedTx { tx: raw_tx, context, tx_hash }

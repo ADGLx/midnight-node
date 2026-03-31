@@ -1,28 +1,25 @@
-use std::sync::Arc;
-
 use midnight_node_ledger_helpers::{
-	BuildOutput, CoinInfo, CoinPublicKey, ContractAddress, DB, Deserializable, EncryptionPublicKey,
-	HashOutput, LedgerContext, Nonce, Output, PERSISTENT_HASH_BYTES, ProofPreimage, Recipient,
-	Serializable, ShieldedTokenType, ShieldedWallet, TokenInfo, WalletState,
+	CoinPublicKey, ContractAddress, DB, Deserializable, HashOutput, PERSISTENT_HASH_BYTES,
+	Serializable, WalletState,
 };
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EncodedQualifiedShieldedCoinInfo {
-	nonce: Vec<u8>,
-	color: Vec<u8>,
+	pub(crate) nonce: [u8; PERSISTENT_HASH_BYTES],
+	pub(crate) color: [u8; PERSISTENT_HASH_BYTES],
 	#[serde(with = "string")]
-	value: u128,
+	pub(crate) value: u128,
 	#[serde(with = "string")]
-	mt_index: u64,
+	pub(crate) mt_index: u64,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub struct EncodedShieldedCoinInfo {
-	nonce: [u8; PERSISTENT_HASH_BYTES],
-	color: [u8; PERSISTENT_HASH_BYTES],
+	pub(crate) nonce: [u8; PERSISTENT_HASH_BYTES],
+	pub(crate) color: [u8; PERSISTENT_HASH_BYTES],
 	#[serde(with = "string")]
-	value: u128,
+	pub(crate) value: u128,
 }
 
 impl EncodedShieldedCoinInfo {
@@ -35,86 +32,11 @@ impl EncodedShieldedCoinInfo {
 	}
 }
 
-impl<D: DB + Clone> BuildOutput<D> for EncodedOutputInfo {
-	fn build(
-		&self,
-		rng: &mut rand::prelude::StdRng,
-		_context: Arc<LedgerContext<D>>,
-	) -> Output<ProofPreimage, D> {
-		let coin_info = CoinInfo {
-			nonce: Nonce(HashOutput(self.encoded_output.coin_info.nonce)),
-			type_: ShieldedTokenType(HashOutput(self.encoded_output.coin_info.color)),
-			value: self.encoded_output.coin_info.value,
-		};
-
-		println!("coin_info: {coin_info:?}");
-		let recipient: Recipient = self.encoded_output.recipient.clone().into();
-
-		match recipient {
-			Recipient::User(public_key) => Output::new(
-				rng,
-				&coin_info,
-				Some(self.segment),
-				&public_key,
-				self.encryption_public_key,
-			)
-			.expect("failed to construct output"),
-			Recipient::Contract(contract_address) => {
-				Output::new_contract_owned(rng, &coin_info, Some(self.segment), contract_address)
-					.expect("failed to construct output")
-			},
-		}
-	}
-}
-
-pub struct EncodedOutputInfo {
-	pub encoded_output: EncodedOutput,
-	pub segment: u16,
-	pub encryption_public_key: Option<EncryptionPublicKey>,
-}
-
-impl EncodedOutputInfo {
-	/// Create a new EncodedOutputInfo, searching for a matching encryption public key from
-	/// possible destinations
-	pub fn new<D: DB + Clone>(
-		encoded_output: EncodedOutput,
-		segment: u16,
-		possible_destinations: &[ShieldedWallet<D>],
-	) -> Self {
-		let mut encryption_public_key = None;
-		let recipient: Recipient = encoded_output.recipient.clone().into();
-		if let Recipient::User(ref public_key) = recipient {
-			if let Some(wallet) =
-				possible_destinations.iter().find(|w| w.coin_public_key == *public_key)
-			{
-				encryption_public_key = Some(wallet.enc_public_key);
-			} else {
-				println!(
-					"warning: missing encryption_public_key for zswap output {} - output will be invisible to indexer",
-					hex::encode(&encoded_output.coin_info.nonce)
-				);
-			}
-		}
-
-		Self { encoded_output, segment, encryption_public_key }
-	}
-}
-
-impl TokenInfo for EncodedOutputInfo {
-	fn token_type(&self) -> ShieldedTokenType {
-		ShieldedTokenType(HashOutput(self.encoded_output.coin_info.color))
-	}
-
-	fn value(&self) -> u128 {
-		self.encoded_output.coin_info.value
-	}
-}
-
 #[derive(Clone, Debug, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EncodedOutput {
-	coin_info: EncodedShieldedCoinInfo,
-	recipient: EncodedRecipient,
+	pub(crate) coin_info: EncodedShieldedCoinInfo,
+	pub(crate) recipient: EncodedRecipient,
 }
 
 impl EncodedOutput {
@@ -122,15 +44,14 @@ impl EncodedOutput {
 		Self { coin_info, recipient }
 	}
 }
-
 /// Either a coin public key if the recipient is a user, or a contract address
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct EncodedRecipient {
-	is_left: bool,
+	pub(crate) is_left: bool,
 	#[serde(with = "bytes")]
-	left: EncodedCoinPublic,
+	pub(crate) left: EncodedCoinPublic,
 	#[serde(with = "bytes")]
-	right: EncodedContractAddress,
+	pub(crate) right: EncodedContractAddress,
 }
 
 impl EncodedRecipient {
@@ -143,18 +64,8 @@ impl EncodedRecipient {
 	}
 }
 
-impl From<EncodedRecipient> for Recipient {
-	fn from(value: EncodedRecipient) -> Self {
-		if value.is_left {
-			Recipient::User(value.left.0)
-		} else {
-			Recipient::Contract(value.right.0)
-		}
-	}
-}
-
 #[derive(Debug, Clone)]
-pub struct EncodedContractAddress(ContractAddress);
+pub struct EncodedContractAddress(pub(crate) ContractAddress);
 
 impl From<&EncodedContractAddress> for Vec<u8> {
 	fn from(value: &EncodedContractAddress) -> Self {
@@ -223,9 +134,9 @@ impl EncodedZswapLocalState {
 			outputs: value
 				.coins
 				.iter()
-				.map(|(nullifier, c)| EncodedOutput {
+				.map(|(_nullifier, c)| EncodedOutput {
 					coin_info: EncodedShieldedCoinInfo {
-						nonce: nullifier.0.0,
+						nonce: c.nonce.0.0,
 						color: c.type_.0.0,
 						value: c.value,
 					},

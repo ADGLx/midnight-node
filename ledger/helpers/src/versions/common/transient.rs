@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -42,7 +42,9 @@ impl<D: DB + Clone> BuildTransient<D> for TransientInfo<WalletSeed, WalletSeed> 
 		let transients = vec![];
 
 		let mut offer_arg = OfferInfo { inputs, outputs, transients };
-		let offer = offer_arg.build(rng, context.clone());
+		let offer = offer_arg
+			.build(rng, context.clone())
+			.expect("offer build failed: arithmetic overflow");
 
 		context.with_wallets_from_seeds(
 			self.input.origin,

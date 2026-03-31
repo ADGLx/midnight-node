@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 pub mod inner {
 	pub use midnight_node_ledger_helpers::ledger_8 as ledger_helpers_local;
 
+	pub mod batch_single_tx;
 	mod batches;
 	mod build_txs_ext;
 	mod claim_rewards;
@@ -28,12 +29,12 @@ pub mod inner {
 	mod deregister_dust_address;
 	mod do_nothing;
 	mod register_dust_address;
-	mod replace_initial_tx;
 	pub mod single_tx;
 	pub mod transactions;
 	mod tx_serialization;
 	pub mod type_convert;
 
+	pub use batch_single_tx::*;
 	pub use batches::*;
 	pub use build_txs_ext::*;
 	pub use claim_rewards::*;
@@ -44,7 +45,6 @@ pub mod inner {
 	pub use deregister_dust_address::*;
 	pub use do_nothing::*;
 	pub use register_dust_address::*;
-	pub use replace_initial_tx::*;
 }
 pub use inner::*;
 

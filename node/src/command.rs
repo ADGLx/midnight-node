@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -15,7 +15,8 @@
 
 use crate::{
 	cfg::Cfg,
-	cli::{self, Cli, Subcommand},
+	cli::{self, Cli, RunMidnight, Subcommand},
+	filtering_pool::TxFilterConfig,
 	genesis::creation::{
 		cnight_genesis::generate_cnight_genesis,
 		federated_authority_genesis::generate_federated_authority_genesis,
@@ -33,7 +34,6 @@ use crate::{
 	service::{self, StorageInit},
 };
 use clap::Parser;
-use midnight_node_res::networks::MidnightNetwork as _;
 use midnight_node_runtime::Block;
 use midnight_primitives_cnight_observation::CNightAddresses;
 use midnight_primitives_federated_authority_observation::FederatedAuthorityAddresses;
@@ -148,6 +148,14 @@ fn decode_genesis_state(
 
 fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	let run_cmd: RunCmd = cfg.substrate_cfg.clone().try_into()?;
+	let run_midnight = RunMidnight::try_parse_from(cfg.substrate_cfg.clone().argv())
+		.map_err(|e| sc_cli::Error::Input(format!("invalid node run arguments: {e}")))?;
+	let tx_filter_config = if run_midnight.filter_deploy_txs {
+		TxFilterConfig::enabled()
+	} else {
+		TxFilterConfig::disabled()
+	};
+
 	if cfg.midnight_cfg.wipe_chain_state
 		&& let Some(base_path) = run_cmd.base_path()?
 	{
@@ -223,16 +231,9 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		log::info!("CROSS_CHAIN pubkey: {}", &keypair.public())
 	}
 
-	runner.run_node_until_exit(|config| async move {
+	let run_result = runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
-
-		// TODO: Add metrics
-		let data_sources =
-			crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-				cfg.midnight_cfg.clone(),
-				None,
-			)
-			.await?;
+		let midnight_cfg = cfg.midnight_cfg.clone();
 
 		// Build Prometheus push config if endpoint is configured
 		log::debug!(
@@ -261,14 +262,21 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 		service::new_full::<sc_network::NetworkWorker<_, _>>(
 			config,
 			epoch_config,
-			data_sources,
+			midnight_cfg,
 			cfg.storage_monitor_params_cfg.into(),
+			cfg.memory_monitor_cfg.into(),
 			storage_config,
 			metrics_push_config,
+			tx_filter_config,
 		)
 		.await
 		.map_err(sc_cli::Error::Service)
-	})
+	});
+
+	// Explicitly release global ledger storage on shutdown.
+	midnight_node_ledger::drop_all_default_storage();
+
+	run_result
 }
 
 /// Returns the CFG_PRESET from environment, defaulting to "dev"
@@ -281,31 +289,55 @@ fn get_res_preset_dir() -> std::path::PathBuf {
 	std::path::PathBuf::from("res").join(get_cfg_preset())
 }
 
+/// Extracts and hex-decodes the `genesis_state` value from chain spec properties.
+fn genesis_state_from_properties(
+	properties: &serde_json::Map<String, serde_json::Value>,
+) -> sc_cli::Result<Vec<u8>> {
+	let hex_str = properties
+		.get("genesis_state")
+		.ok_or_else(|| sc_cli::Error::Input("chain spec missing 'genesis_state' property".into()))?
+		.as_str()
+		.ok_or_else(|| sc_cli::Error::Input("'genesis_state' property is not a string".into()))?;
+	hex::decode(hex_str)
+		.map_err(|e| sc_cli::Error::Input(format!("invalid hex in 'genesis_state': {e}")))
+}
+
+/// Returns the genesis state from a chain spec's properties.
+fn genesis_state_from_chain_spec(
+	chain_spec: &dyn sc_service::ChainSpec,
+) -> sc_cli::Result<Vec<u8>> {
+	genesis_state_from_properties(&chain_spec.properties())
+}
+
+/// Builds a `StorageInit` from the chain spec's genesis state.
+fn storage_init_from_chain_spec(
+	config: &sc_service::Configuration,
+	cache_size: usize,
+) -> sc_cli::Result<StorageInit> {
+	Ok(StorageInit {
+		genesis_state: genesis_state_from_chain_spec(&*config.chain_spec)?,
+		cache_size,
+	})
+}
+
 fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 	let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
-
-	let storage_config = StorageInit {
-		genesis_state: midnight_node_res::networks::UndeployedNetwork.genesis_state().to_vec(),
-		cache_size: cfg.midnight_cfg.storage_cache_size,
-	};
+	let cache_size = cfg.midnight_cfg.storage_cache_size;
+	let tx_filter_config = TxFilterConfig::disabled();
 
 	match subcommand {
 		Subcommand::Key(ref cmd) => cmd.run(&cfg),
 		Subcommand::PartnerChains(cmd) => {
 			let midnight_cfg = cfg.midnight_cfg.clone();
 			let make_dependencies = |config: sc_service::Configuration| {
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						midnight_cfg,
-						None,
-					),
-				)?;
+				let storage_config =
+					storage_init_from_chain_spec(&config, cache_size).map_err(|e| e.to_string())?;
 				let PartialComponents { client, task_manager, other, .. } = service::new_partial(
 					&config,
 					epoch_config,
-					data_sources,
+					midnight_cfg,
 					storage_config,
-					Default::default(),
+					tx_filter_config,
 				)?;
 				Ok((client, task_manager, other.5.authority_selection))
 			};
@@ -323,19 +355,14 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::CheckBlock(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						None,
-					),
-				)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
 					service::new_partial(
 						&config,
 						epoch_config,
-						data_sources,
+						cfg.midnight_cfg.clone(),
 						storage_config,
-						Default::default(),
+						tx_filter_config,
 					)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
@@ -343,18 +370,13 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::ExportBlocks(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						None,
-					),
-				)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
 				let PartialComponents { client, task_manager, .. } = service::new_partial(
 					&config,
 					epoch_config,
-					data_sources,
+					cfg.midnight_cfg.clone(),
 					storage_config,
-					Default::default(),
+					tx_filter_config,
 				)?;
 				Ok((cmd.run(client, config.database), task_manager))
 			})
@@ -362,18 +384,13 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::ExportState(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						None,
-					),
-				)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
 				let PartialComponents { client, task_manager, .. } = service::new_partial(
 					&config,
 					epoch_config,
-					data_sources,
+					cfg.midnight_cfg.clone(),
 					storage_config,
-					Default::default(),
+					tx_filter_config,
 				)?;
 				Ok((cmd.run(client, config.chain_spec), task_manager))
 			})
@@ -381,19 +398,14 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::ImportBlocks(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						None,
-					),
-				)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
 					service::new_partial(
 						&config,
 						epoch_config,
-						data_sources,
+						cfg.midnight_cfg.clone(),
 						storage_config,
-						Default::default(),
+						tx_filter_config,
 					)?;
 				Ok((cmd.run(client, import_queue), task_manager))
 			})
@@ -405,18 +417,13 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::Revert(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let data_sources = config.tokio_handle.block_on(
-					crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-						cfg.midnight_cfg.clone(),
-						None,
-					),
-				)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
 				let PartialComponents { client, task_manager, backend, .. } = service::new_partial(
 					&config,
 					epoch_config,
-					data_sources,
+					cfg.midnight_cfg.clone(),
 					storage_config,
-					Default::default(),
+					tx_filter_config,
 				)?;
 				let aux_revert = Box::new(|client, _, blocks| {
 					sc_consensus_grandpa::revert(client, blocks)?;
@@ -440,26 +447,23 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 								"Runtime benchmarking wasn't enabled when building the node. \
 							You can enable it with `--features runtime-benchmarks`."
 									.into(),
-							)
+							);
 						}
 
-						cmd.run_with_spec::<HashingFor<Block>, service::HostFunctions>(Some(config.chain_spec))
+						cmd.run_with_spec::<HashingFor<Block>, service::HostFunctions>(Some(
+							config.chain_spec,
+						))
 					},
 					BenchmarkCmd::Block(cmd) => {
-                        let data_sources = config.tokio_handle.block_on(
-                            crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-                                cfg.midnight_cfg.clone(),
-                                None,
-                            ),
-                        )?;
-						// ensure that we keep the task manager alive
+						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+
 						let partial = service::new_partial(
-                            &config,
-                            epoch_config,
-                            data_sources,
-                            storage_config,
-                            Default::default(),
-                        )?;
+							&config,
+							epoch_config,
+							cfg.midnight_cfg.clone(),
+							storage_config,
+							tx_filter_config,
+						)?;
 
 						cmd.run(partial.client)
 					},
@@ -470,41 +474,30 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 					#[cfg(feature = "runtime-benchmarks")]
 					BenchmarkCmd::Storage(cmd) => {
-						// ensure that we keep the task manager alive
-                        let data_sources = config.tokio_handle.block_on(
-                            crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-                                cfg.midnight_cfg.clone(),
-                                None,
-                            ),
-                        )?;
-						// ensure that we keep the task manager alive
+						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+
 						let partial = service::new_partial(
-                            &config,
-                            epoch_config,
-                            data_sources,
-                            storage_config,
-                            Default::default(),
-                        )?;
+							&config,
+							epoch_config,
+							cfg.midnight_cfg.clone(),
+							storage_config,
+							tx_filter_config,
+						)?;
 						let db = partial.backend.expose_db();
 						let storage = partial.backend.expose_storage();
 
 						cmd.run(config, partial.client, db, storage, None)
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-                        let data_sources = config.tokio_handle.block_on(
-                            crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-                                cfg.midnight_cfg.clone(),
-                                None,
-                            ),
-                        )?;
-						// ensure that we keep the task manager alive
+						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+
 						let partial = service::new_partial(
-                            &config,
-                            epoch_config,
-                            data_sources,
-                            storage_config,
-                            Default::default(),
-                        )?;
+							&config,
+							epoch_config,
+							cfg.midnight_cfg.clone(),
+							storage_config,
+							tx_filter_config,
+						)?;
 						let ext_builder = RemarkBuilder::new(partial.client.clone());
 
 						cmd.run(
@@ -517,24 +510,19 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						)
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {
-						// ensure that we keep the task manager alive
-                        let data_sources = config.tokio_handle.block_on(
-                            crate::main_chain_follower::create_cached_main_chain_follower_data_sources(
-                                cfg.midnight_cfg.clone(),
-                                None,
-                            ),
-                        )?;
+						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+
 						let partial = service::new_partial(
-                            &config,
-                            epoch_config,
-                            data_sources,
-                            storage_config,
-                            Default::default(),
-                        )?;
+							&config,
+							epoch_config,
+							cfg.midnight_cfg.clone(),
+							storage_config,
+							tx_filter_config,
+						)?;
 						// Register the *Remark* and *TKA* builders.
-						let ext_factory = ExtrinsicFactory(vec![
-							Box::new(RemarkBuilder::new(partial.client.clone())),
-						]);
+						let ext_factory = ExtrinsicFactory(vec![Box::new(RemarkBuilder::new(
+							partial.client.clone(),
+						))]);
 
 						cmd.run(
 							partial.client,
@@ -543,8 +531,9 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 							&ext_factory,
 						)
 					},
-					BenchmarkCmd::Machine(cmd) =>
-						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone()),
+					BenchmarkCmd::Machine(cmd) => {
+						cmd.run(&config, SUBSTRATE_REFERENCE_HARDWARE.clone())
+					},
 				}
 			})
 		},
@@ -1006,11 +995,34 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
 
+			// Parse genesis timestamp from cardano-tip.json (if provided)
+			let genesis_timestamp: Option<u64> = if let Some(ref path) = cmd.cardano_tip_config {
+				#[derive(serde::Deserialize)]
+				struct CardanoTipConfig {
+					timestamp: String,
+				}
+				let json_str = std::fs::read_to_string(path).map_err(|e| {
+					sc_cli::Error::Input(format!(
+						"Failed to read cardano-tip config {:?}: {}",
+						path, e
+					))
+				})?;
+				let config: CardanoTipConfig = serde_json::from_str(&json_str).map_err(|e| {
+					sc_cli::Error::Input(format!("Failed to parse cardano-tip config: {}", e))
+				})?;
+				Some(config.timestamp.parse::<u64>().map_err(|e| {
+					sc_cli::Error::Input(format!("Invalid timestamp in cardano-tip config: {}", e))
+				})?)
+			} else {
+				None
+			};
+
 			let result = verify_ledger_state_genesis::verify_ledger_state_genesis(
 				&cmd.chain_spec,
 				cmd.cnight_config.as_deref(),
 				cmd.ledger_parameters_config.as_deref(),
 				cmd.network.as_deref(),
+				genesis_timestamp,
 			)
 			.map_err(|e| sc_cli::Error::Input(format!("Genesis verification failed: {e}")))?;
 
@@ -1344,6 +1356,23 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 mod tests {
 	use super::*;
 
+	/// Compares two genesis blobs by blake2_256 hash; returns an error on mismatch.
+	fn verify_genesis_consistency(
+		chain_spec_genesis: &[u8],
+		compiled_genesis: &[u8],
+	) -> sc_cli::Result<()> {
+		let spec_hash = sp_core::hashing::blake2_256(chain_spec_genesis);
+		let compiled_hash = sp_core::hashing::blake2_256(compiled_genesis);
+		if spec_hash != compiled_hash {
+			return Err(sc_cli::Error::Input(format!(
+				"genesis state mismatch: chain spec genesis hash {} differs from compiled default {}",
+				hex::encode(spec_hash),
+				hex::encode(compiled_hash),
+			)));
+		}
+		Ok(())
+	}
+
 	fn make_properties(
 		entries: Vec<(&str, serde_json::Value)>,
 	) -> serde_json::Map<String, serde_json::Value> {
@@ -1392,5 +1421,20 @@ mod tests {
 		let err = decode_genesis_state(&props).unwrap_err();
 		let msg = err.to_string();
 		assert!(msg.contains("invalid hex"), "unexpected error: {msg}",);
+	}
+
+	#[test]
+	fn verify_genesis_consistency_matching() {
+		let data = vec![0x01, 0x02, 0x03];
+		assert!(verify_genesis_consistency(&data, &data).is_ok());
+	}
+
+	#[test]
+	fn verify_genesis_consistency_mismatch() {
+		let a = vec![0x01, 0x02];
+		let b = vec![0x03, 0x04];
+		let err = verify_genesis_consistency(&a, &b).unwrap_err();
+		let msg = err.to_string();
+		assert!(msg.contains("mismatch"), "expected 'mismatch' in error: {msg}",);
 	}
 }

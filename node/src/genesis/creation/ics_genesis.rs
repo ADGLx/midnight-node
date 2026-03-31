@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -94,7 +94,7 @@ async fn query_ics_utxos(
 		SELECT
 			encode(tx.hash, 'hex') as tx_hash,
 			txo.index as output_index,
-			ma.quantity as amount
+			ma.quantity::BIGINT as amount
 		FROM tx_out txo
 		JOIN tx ON tx.id = txo.tx_id
 		JOIN block b ON b.id = tx.block_id
@@ -153,11 +153,13 @@ pub async fn generate_ics_genesis(
 		hex::encode(cardano_tip.0)
 	);
 
+	let policy_id_hex = hex::encode(addresses.asset.policy_id.0);
+	let asset_name_hex = hex::encode(&addresses.asset.asset_name);
 	let utxos = query_ics_utxos(
 		pool,
 		&addresses.illiquid_circulation_supply_validator_address,
-		&addresses.asset.policy_id.to_hex_string(),
-		&addresses.asset.asset_name,
+		&policy_id_hex,
+		&asset_name_hex,
 		&cardano_tip,
 	)
 	.await?;

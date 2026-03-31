@@ -11,9 +11,6 @@ on:
       networks:
         description: 'Space-separated network names (e.g., "qanet preview")'
         required: true
-  push:
-    paths-ignore:
-      - "changes/**"
 
 jobs:
   rebuild-chainspec:
@@ -31,6 +28,11 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
+            const association = context.payload.comment.author_association;
+            if (!['MEMBER', 'OWNER'].includes(association)) {
+              core.setFailed(`User ${context.actor} is not an org member or owner (association: ${association})`);
+              return;
+            }
             const { data: permission } = await github.rest.repos.getCollaboratorPermissionLevel({
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -59,28 +61,55 @@ jobs:
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
         with:
           script: |
+            const ALLOWED_NETWORKS = ['dev', 'devnet', 'govnet', 'perfnet'];
             const comment = context.payload.comment.body;
             const match = comment.match(/\/bot rebuild-chainspec\s+(.+)/);
             if (!match) {
               core.setFailed('No networks specified. Usage: /bot rebuild-chainspec <network1> <network2> ...');
               return;
             }
-            const networks = match[1].trim();
-            core.setOutput('networks', networks);
+            const networks = match[1].trim().split(/\s+/);
+            const invalid = networks.filter(n => !ALLOWED_NETWORKS.includes(n));
+            if (invalid.length > 0) {
+              core.setFailed(`Unknown network(s): ${invalid.join(', ')}. Allowed: ${ALLOWED_NETWORKS.join(', ')}`);
+              return;
+            }
+            core.setOutput('networks', networks.join(' '));
+
+      - name: Validate networks (workflow_dispatch)
+        if: github.event_name == 'workflow_dispatch'
+        id: validate_networks
+        uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          NETWORKS_INPUT: ${{ github.event.inputs.networks }}
+        with:
+          script: |
+            const ALLOWED_NETWORKS = ['dev', 'devnet', 'govnet', 'perfnet'];
+            const networks = process.env.NETWORKS_INPUT.trim().split(/\s+/);
+            const invalid = networks.filter(n => !ALLOWED_NETWORKS.includes(n));
+            if (invalid.length > 0) {
+              core.setFailed(`Unknown network(s): ${invalid.join(', ')}. Allowed: ${ALLOWED_NETWORKS.join(', ')}`);
+            }
 
       - name: Get PR branch
         id: pr
         uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd # v8.0.0
+        env:
+          PR_NUMBER: ${{ github.event.inputs.pr_number }}
         with:
           script: |
             const prNumber = context.eventName === 'workflow_dispatch'
-              ? '${{ github.event.inputs.pr_number }}'
+              ? process.env.PR_NUMBER
               : context.issue.number;
             const pr = await github.rest.pulls.get({
               owner: context.repo.owner,
               repo: context.repo.repo,
               pull_number: prNumber
             });
+            if (pr.data.head.repo === null || pr.data.head.repo.fork) {
+              core.setFailed('Bot commands are not allowed on fork PRs for security reasons');
+              return;
+            }
             core.setOutput('ref', pr.data.head.ref);
             core.setOutput('sha', pr.data.head.sha);
             core.setOutput('number', prNumber);
@@ -88,7 +117,7 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
-          ref: ${{ steps.pr.outputs.ref }}
+          ref: ${{ steps.pr.outputs.sha }}
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
 
@@ -100,7 +129,7 @@ jobs:
           use-cache: false
 
       - name: Login to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           registry: ghcr.io
           username: MidnightCI
@@ -108,18 +137,17 @@ jobs:
 
       - name: Run rebuild-chainspec
         env:
+          EARTHLY_CONFIG: .earthly/config.yml
           NETWORKS: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.networks || steps.parse_comment.outputs.networks }}
         run: |
-          mkdir -p $HOME/.cargo
-          echo "[net]" >> $HOME/.cargo/config
-          echo "git-fetch-with-cli = true" >> $HOME/.cargo/config
-
-          . ./.envrc
+          mkdir -p "$HOME"/.cargo
+          echo "[net]" >> "$HOME"/.cargo/config
+          echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
 
           # Split networks and run earthly for each
           for network in $NETWORKS; do
             echo "Rebuilding chainspec for network: $network"
-            earthly -P +rebuild-chainspec --NETWORK=$network
+            earthly -P +rebuild-chainspec --NETWORK="$network"
           done
 
       - name: Commit and push changes
@@ -199,7 +227,7 @@ jobs:
 
       - name: Post success comment
         if: env.CHANGES_MADE == 'true'
-        uses: thollander/actions-comment-pull-request@e2c37e53a7d2227b61585343765f73a9ca57eda9 # v3.0.0
+        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b # v3.0.1
         with:
           message: |
             :white_check_mark: Chainspec rebuild complete! Changes have been committed.
@@ -207,7 +235,7 @@ jobs:
 
       - name: Post no-changes comment
         if: env.CHANGES_MADE == 'false'
-        uses: thollander/actions-comment-pull-request@e2c37e53a7d2227b61585343765f73a9ca57eda9 # v3.0.0
+        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b # v3.0.1
         with:
           message: |
             :white_check_mark: Chainspec rebuild complete. No changes detected.
@@ -215,7 +243,7 @@ jobs:
 
       - name: Post failure comment
         if: failure()
-        uses: thollander/actions-comment-pull-request@e2c37e53a7d2227b61585343765f73a9ca57eda9 # v3.0.0
+        uses: thollander/actions-comment-pull-request@24bffb9b452ba05a4f3f77933840a6a841d1b32b # v3.0.1
         with:
           message: |
             :x: Chainspec rebuild failed. Check the [workflow logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}) for details.

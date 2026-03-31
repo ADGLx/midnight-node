@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -45,10 +45,7 @@ const KEY_TYPES = [
 type KeyTypeId = (typeof KEY_TYPES)[number]["id"];
 type KeyScheme = (typeof KEY_TYPES)[number]["scheme"];
 
-// Exceptions for networks such as node-dev-01, which are running with qanet keys
-const CHAIN_ID_OVERRIDE: Record<string, string> = {
-  "node-dev-01": "qanet",
-};
+const CHAIN_ID_OVERRIDE: Record<string, string> = {};
 
 interface NamespaceKeystoreOptions {
   namespace: string;

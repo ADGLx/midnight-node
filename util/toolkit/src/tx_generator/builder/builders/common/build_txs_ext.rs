@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -12,6 +12,7 @@
 // limitations under the License.
 
 use async_trait::async_trait;
+use std::error::Error;
 use std::sync::Arc;
 
 use super::ledger_helpers_local::{
@@ -52,14 +53,18 @@ pub trait CreateIntentInfo {
 /// A trait to save a Contract (serialized`Intent` Structure) into a file.
 #[async_trait]
 pub trait IntentToFile: CreateIntentInfo + BuildTxsExt {
-	async fn generate_intent_file(&mut self, dir: &str, partial_name: &str) {
-		println!("Generate intent file...");
+	async fn generate_intent_file(
+		&mut self,
+		dir: &str,
+		partial_name: &str,
+	) -> Result<(), Box<dyn Error + Send + Sync>> {
+		log::info!("Generate intent file...");
 		let (_, mut tx_info) = self.context_and_tx_info();
 
 		let intent_info = self.create_intent_info();
 
 		tx_info.add_intent(1, intent_info);
 
-		tx_info.save_intents_to_file(dir, partial_name).await;
+		tx_info.save_intents_to_file(dir, partial_name).await
 	}
 }

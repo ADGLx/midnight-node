@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -19,9 +19,9 @@ use clap::Parser;
 use common::test_image;
 use midnight_node_toolkit::{
 	cli::{Cli, Commands, run_command},
-	commands::contract_address,
+	commands::{contract_address, show_address},
 };
-use std::time::Duration;
+use std::{path::Path, time::Duration};
 use testcontainers::{
 	GenericImage, ImageExt,
 	core::{ContainerPort, WaitFor},
@@ -102,6 +102,21 @@ async fn run_cli(args: &[&str]) {
 
 const RNG_SEED: &str = "0000000000000000000000000000000000000000000000000000000000000037";
 
+fn ledger_test_artifacts_ready() -> bool {
+	let Ok(path) = std::env::var("MIDNIGHT_LEDGER_TEST_STATIC_DIR") else {
+		eprintln!("Skipping contract e2e tests: MIDNIGHT_LEDGER_TEST_STATIC_DIR is not set");
+		return false;
+	};
+	if !Path::new(&path).exists() {
+		eprintln!(
+			"Skipping contract e2e tests: MIDNIGHT_LEDGER_TEST_STATIC_DIR does not exist: {}",
+			path
+		);
+		return false;
+	}
+	true
+}
+
 #[tokio::test]
 async fn generate_batches() {
 	let url = node_ws_url().await;
@@ -158,6 +173,26 @@ async fn get_version() {
 async fn register_dust_address() {
 	let url = node_ws_url().await;
 
+	// 3b. Extract contract address (parse CLI to get args, then call execute directly)
+	let dust_address = {
+		let cli = Cli::parse_from([
+			"midnight-node-toolkit",
+			"show-address",
+			"--network",
+			"undeployed",
+			"--seed",
+			"0000000000000000000000000000000000000000000000000000000000000002",
+			"--dust",
+		]);
+		match cli.command {
+			Commands::ShowAddress(args) => match show_address::execute(args) {
+				show_address::ShowAddress::SingleAddress(addr) => addr,
+				show_address::ShowAddress::Addresses(_) => panic!("should not reach this arm"),
+			},
+			_ => unreachable!(),
+		}
+	};
+
 	// 5. Register dust address (with destination-dust)
 	run_cli(&[
 		"generate-txs",
@@ -169,7 +204,7 @@ async fn register_dust_address() {
 		"--funding-seed",
 		"0000000000000000000000000000000000000000000000000000000000000002",
 		"--destination-dust",
-		"mn_dust-addr_undeployed1v36hxapdv9jxgun9wde4ka33t5a88l624n9ms7rs86fzez44mge2xjw20ddxuz3tp9g2c6xx5038x3c6nnqc6y",
+		&dust_address,
 		"-s",
 		url,
 		"-d",
@@ -214,6 +249,10 @@ async fn register_dust_address() {
 
 #[tokio::test]
 async fn contract_ops() {
+	if !ledger_test_artifacts_ready() {
+		return;
+	}
+
 	let url = node_ws_url().await;
 
 	// 3. Contract deploy + address + send + maintenance + call(store) + call(check)
@@ -244,7 +283,6 @@ async fn contract_ops() {
 			"contract-address",
 			"--src-file",
 			&deploy_file_str,
-			"--tagged",
 		]);
 		match cli.command {
 			Commands::ContractAddress(args) => {
