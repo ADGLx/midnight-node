@@ -56,7 +56,8 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
-      # We can remove this in future - useful for now when branches may not have
+      # We can remove this after merge of #1131
+      # needed for testing while main branch does not have
       # ./.github/actions/install-season
       - name: Checkout node repo (for install-season action)
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -65,9 +66,9 @@ jobs:
 
       - name: Install Season
         uses: ./midnight-node-ci/.github/actions/install-season
-        working-directory: ./midnight-node-ci
         with:
           gh-token: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
+          config: ./midnight-node-ci/.github/season.yml
 
       - name: Install just
         uses: taiki-e/install-action@94a7388bec5d4c8dd93e3ebf09e0ff448f3f6f4d #v2.68.35
