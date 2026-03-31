@@ -36,7 +36,7 @@ on:
         default: false
       archive-changes:
         type: boolean
-        description: 'Archive changes for this release on the main barnch'
+        description: 'Archive changes for this release on the main branch'
         required: true
         default: true
       archive-mode:
@@ -45,7 +45,7 @@ on:
           - move
           - copy
           - delete
-        description: 'Archive changes for this release on the main barnch'
+        description: 'Archive changes for this release on the main branch'
         required: true
         default: move
       bump-version:
@@ -55,7 +55,7 @@ on:
         default: false
       reset-changes:
         type: boolean
-        description: 'Reset changes to == the change template'
+        description: 'Reset `changes/` to the change template'
         required: true
         default: true
 
