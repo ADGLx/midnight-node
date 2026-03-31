@@ -23,7 +23,7 @@ jobs:
     name: AMD Build and Publish
     runs-on: ubuntu-latest-16-core-x64
     outputs:
-      IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+      IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
     env:
       FORCE_COLOR: 1
     permissions:
@@ -75,14 +75,45 @@ jobs:
         with:
           tool: just
 
+      - name: Check if images already exist
+        id: check-images
+        run: |
+          CONTENT_HASH=$(git rev-parse "HEAD^{tree}" | cut -c1-12)
+          VERSION=$(grep -m1 'version =' node/Cargo.toml | awk '{print $3}' | tr -d '"')
+          IMAGE_TAG="${VERSION}-${CONTENT_HASH}"
+          printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+          IMAGES_EXIST=false
+          if [ "${{ inputs.force_rebuild }}" != "true" ]; then
+            NODE_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64" > /dev/null 2>&1 && echo true || echo false)
+            TOOLKIT_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64" > /dev/null 2>&1 && echo true || echo false)
+            if [ "$NODE_EXISTS" = "true" ] && [ "$TOOLKIT_EXISTS" = "true" ]; then
+              IMAGES_EXIST=true
+            fi
+          fi
+          echo "Images exist: $IMAGES_EXIST"
+          printf "images_exist=%s\n" "${IMAGES_EXIST}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract existing artifacts
+        if: steps.check-images.outputs.images_exist == 'true'
+        env:
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
+        run: |
+          echo "Images already exist for ${IMAGE_TAG}-amd64, skipping build"
+          . ./.envrc && earthly +extract-node-artifacts \
+            --NODE_IMAGE="ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64"
+          . ./.envrc && earthly +extract-toolkit-artifacts \
+            --TOOLKIT_IMAGE="ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64"
+
       - name: Free disk space
+        if: steps.check-images.outputs.images_exist != 'true'
         run: |
           git fetch origin "$GITHUB_REF" --depth=1
           git checkout FETCH_HEAD -- "scripts/free-disk-space.sh"
           ./scripts/free-disk-space.sh
 
       - name: Run build
-        id: export
+        if: steps.check-images.outputs.images_exist != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
         run: |
@@ -90,33 +121,14 @@ jobs:
           echo "[net]" >> "$HOME"/.cargo/config
           echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
 
-          CONTENT_HASH=$(git rev-parse "HEAD^{tree}" | cut -c1-12)
-          VERSION=$(cat node/Cargo.toml | grep "version =" | head -1 | awk '{print $3}' | tr -d '"')
-          IMAGE_TAG="${VERSION}-${CONTENT_HASH}"
-
-          if [ "${{ inputs.force_rebuild }}" != "true" ]; then
-            NODE_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64" > /dev/null 2>&1 && echo true || echo false)
-            TOOLKIT_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64" > /dev/null 2>&1 && echo true || echo false)
-          fi
-
-          if [ "$NODE_EXISTS" = "true" ] && [ "$TOOLKIT_EXISTS" = "true" ]; then
-              echo "Images already exist for ${IMAGE_TAG}-amd64, skipping build"
-            . ./.envrc && earthly +extract-node-artifacts \
-              --NODE_IMAGE="ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64"
-            . ./.envrc && earthly +extract-toolkit-artifacts \
-              --TOOLKIT_IMAGE="ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-amd64"
-          else
-            # We don't use --ci as we want artifacts to be saved
-            . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
-            . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --ci --push +toolkit-image
-          fi
-
-          printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+          # We don't use --ci as we want artifacts to be saved
+          . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
+          . ./.envrc && earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --ci --push +toolkit-image
 
       - name: Get image digests
         id: digests
         env:
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           NODE_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-amd64" --raw | sha256sum | awk '{print "sha256:"$1}')
           echo "node=${NODE_DIGEST}" >> "$GITHUB_OUTPUT"
@@ -138,7 +150,7 @@ jobs:
       - name: Add commit-hash alias tags (amd64)
         continue-on-error: true
         env:
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           SHORT_COMMIT=$(git rev-parse --short=8 HEAD)
           VERSION=$(grep -m1 'version =' node/Cargo.toml | awk '{print $3}' | tr -d '"')
@@ -159,7 +171,7 @@ jobs:
 
       - name: Create release archives
         env:
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           PLATFORM="amd64"
 
@@ -185,7 +197,7 @@ jobs:
 
       - name: Build Release Notes
         env:
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           export SEASON_VAR_NODE_DOCKER_IMAGE="midnightntwrk/midnight-node:$IMAGE_TAG"
           export SEASON_VAR_TOOLKIT_DOCKER_IMAGE="midnightntwrk/midnight-node-toolkit:$IMAGE_TAG"
@@ -196,7 +208,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           if [[ "$BRANCH" != "main" && ! "$BRANCH" =~ ^release/.* ]]; then
             echo "Branch \"$BRANCH\" is not \"main\" and does not start with \"release/\", skipping draft release creation for AMD64..."
@@ -271,8 +283,38 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
+      - name: Check if images already exist
+        id: check-images
+        run: |
+          CONTENT_HASH=$(git rev-parse "HEAD^{tree}" | cut -c1-12)
+          VERSION=$(grep -m1 'version =' node/Cargo.toml | awk '{print $3}' | tr -d '"')
+          IMAGE_TAG="${VERSION}-${CONTENT_HASH}"
+          printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
+
+          IMAGES_EXIST=false
+          if [ "${{ inputs.force_rebuild }}" != "true" ]; then
+            NODE_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64" > /dev/null 2>&1 && echo true || echo false)
+            TOOLKIT_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64" > /dev/null 2>&1 && echo true || echo false)
+            if [ "$NODE_EXISTS" = "true" ] && [ "$TOOLKIT_EXISTS" = "true" ]; then
+              IMAGES_EXIST=true
+            fi
+          fi
+          echo "Images exist: $IMAGES_EXIST"
+          printf "images_exist=%s\n" "${IMAGES_EXIST}" >> "$GITHUB_OUTPUT"
+
+      - name: Extract existing artifacts
+        if: steps.check-images.outputs.images_exist == 'true'
+        env:
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
+        run: |
+          echo "Images already exist for ${IMAGE_TAG}-arm64, skipping build"
+          . ./.envrc && earthly +extract-node-artifacts \
+            --NODE_IMAGE="ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64"
+          . ./.envrc && earthly +extract-toolkit-artifacts \
+            --TOOLKIT_IMAGE="ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64"
+
       - name: Run Node and toolkit builds
-        id: export
+        if: steps.check-images.outputs.images_exist != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
         run: |
@@ -280,33 +322,13 @@ jobs:
           echo "[net]" >> "$HOME"/.cargo/config
           echo "git-fetch-with-cli = true" >> "$HOME"/.cargo/config
 
-          CONTENT_HASH=$(git rev-parse "HEAD^{tree}" | cut -c1-12)
-          VERSION=$(cat node/Cargo.toml | grep "version =" | head -1 | awk '{print $3}' | tr -d '"')
-          IMAGE_TAG="${VERSION}-${CONTENT_HASH}"
-          printf "IMAGE_TAG=%s\n" "${IMAGE_TAG}" >> "$GITHUB_OUTPUT"
-
-          NODE_EXISTS=false
-          TOOLKIT_EXISTS=false
-          if [ "${{ inputs.force_rebuild }}" != "true" ]; then
-            NODE_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64" > /dev/null 2>&1 && echo true || echo false)
-            TOOLKIT_EXISTS=$(docker manifest inspect "ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64" > /dev/null 2>&1 && echo true || echo false)
-          fi
-
-          if [ "$NODE_EXISTS" = "true" ] && [ "$TOOLKIT_EXISTS" = "true" ]; then
-            echo "Images already exist for ${IMAGE_TAG}-arm64, skipping build"
-            . ./.envrc && earthly +extract-node-artifacts \
-              --NODE_IMAGE="ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64"
-            . ./.envrc && earthly +extract-toolkit-artifacts \
-              --TOOLKIT_IMAGE="ghcr.io/midnight-ntwrk/midnight-node-toolkit:${IMAGE_TAG}-arm64"
-          else
-            . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
-            . ./.envrc && earthly --secret "GITHUB_TOKEN=$GITHUB_TOKEN" -P --ci --push +toolkit-image
-          fi
+          . ./.envrc && earthly -P --use-inline-cache --save-inline-cache --strict --push +node-image
+          . ./.envrc && earthly --secret "GITHUB_TOKEN=$GITHUB_TOKEN" -P --ci --push +toolkit-image
 
       - name: Get image digests
         id: digests
         env:
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           NODE_DIGEST=$(docker buildx imagetools inspect "ghcr.io/midnight-ntwrk/midnight-node:${IMAGE_TAG}-arm64" --raw | sha256sum | awk '{print "sha256:"$1}')
           echo "node=${NODE_DIGEST}" >> "$GITHUB_OUTPUT"
@@ -328,7 +350,7 @@ jobs:
       - name: Add commit-hash alias tags (arm64)
         continue-on-error: true
         env:
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           SHORT_COMMIT=$(git rev-parse --short=8 HEAD)
           VERSION=$(grep -m1 'version =' node/Cargo.toml | awk '{print $3}' | tr -d '"')
@@ -349,7 +371,7 @@ jobs:
 
       - name: Create release archives
         env:
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           PLATFORM="arm64"
 
@@ -377,7 +399,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           BRANCH: ${{ github.event.inputs.branch || github.ref_name }}
-          IMAGE_TAG: ${{ steps.export.outputs.IMAGE_TAG }}
+          IMAGE_TAG: ${{ steps.check-images.outputs.IMAGE_TAG }}
         run: |
           if [[ "$BRANCH" != "main" && ! "$BRANCH" =~ ^release/.* ]]; then
             echo "Branch \"$BRANCH\" is not \"main\" and does not start with \"release/\", skipping draft release creation for ARM64..."
