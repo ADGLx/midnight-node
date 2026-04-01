@@ -719,13 +719,22 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 						"ledger-paritydb-log-pipeline-run",
 						None,
 						async move {
+							// Reset the flag on drop so a panic in the flush
+							// doesn't permanently disable future flushes.
+							struct ResetOnDrop(Arc<std::sync::atomic::AtomicBool>);
+							impl Drop for ResetOnDrop {
+								fn drop(&mut self) {
+									self.0.store(false, std::sync::atomic::Ordering::Release);
+								}
+							}
+							let _guard = ResetOnDrop(flush_flag);
+
 							log::debug!(
 								target: "ledger-paritydb-log-pipeline",
 								"starting ledger parity-db log pipeline after block import {hash:?}"
 							);
 							let started_at = Instant::now();
 							midnight_node_ledger::run_log_pipeline_on_default_storage();
-							flush_flag.store(false, std::sync::atomic::Ordering::Release);
 							log::debug!(
 								target: "ledger-paritydb-log-pipeline",
 								"finished ledger parity-db log pipeline after block import {hash:?} in {} ms",
