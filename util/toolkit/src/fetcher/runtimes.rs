@@ -95,6 +95,13 @@ pub trait MidnightMetadata {
 	fn send_mn_system_transaction(call: &Self::Call) -> Option<Vec<u8>>;
 	fn timestamp_set(call: &Self::Call) -> Option<u64>;
 	fn system_transaction_applied(event: Self::SystemTransactionAppliedEvent) -> Vec<u8>;
+
+	/// Extract the serialized transaction from a `RootTxApplied` or
+	/// `RootTxPartialSuccess` event.
+	/// Returns `None` for runtime versions that don't have these events.
+	fn root_tx_applied(
+		event: &subxt::events::EventDetails<crate::client::MidnightNodeClientConfig>,
+	) -> Option<Vec<u8>>;
 }
 
 macro_rules! impl_midnight_metadata {
@@ -144,6 +151,15 @@ macro_rules! impl_midnight_metadata {
 
 			fn system_transaction_applied(event: Self::SystemTransactionAppliedEvent) -> Vec<u8> {
 				event.0.serialized_system_transaction
+			}
+
+			fn root_tx_applied(
+				_event: &subxt::events::EventDetails<crate::client::MidnightNodeClientConfig>,
+			) -> Option<Vec<u8>> {
+				// TODO: Implement after metadata rebuild. The RootTransactionApplied
+				// event will be available in the regenerated 0.22.0 metadata.
+				// For 0.21.0 this is always None (event doesn't exist).
+				None
 			}
 		}
 	};

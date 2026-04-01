@@ -198,17 +198,19 @@ impl ComputeTask {
 				}
 			}
 
-			// For non-genesis blocks: extract system transactions from events.
-			// This handles system transactions regardless of how they were triggered:
-			// - Direct send_mn_system_transaction calls
-			// - Governance-wrapped calls (FederatedAuthority::motion_dispatch)
-			// - CNightObservation-triggered system transactions
-			// - Any future wrapper patterns
+			// Extract transactions from events. This handles calls regardless of how
+			// they were dispatched (direct, governance, scheduler, utility batch, etc.).
 			let ext_events = ExtrinsicEvents::new(ext.hash(), ext.index(), events.clone());
 			for ev in ext_events.iter().filter_map(Result::ok) {
+				// System transactions (from governance, CNightObservation, etc.)
 				if let Some(event) = ev.as_event::<M::SystemTransactionAppliedEvent>()? {
 					let bytes = M::system_transaction_applied(event);
 					transactions.push(RawTransaction::System(bytes));
+				}
+				// Root-dispatched midnight transactions (via send_mn_root_transaction).
+				// Handles both RootTxApplied and RootTxPartialSuccess events.
+				if let Some(bytes) = M::root_tx_applied(&ev) {
+					transactions.push(RawTransaction::Midnight(bytes));
 				}
 			}
 		}
