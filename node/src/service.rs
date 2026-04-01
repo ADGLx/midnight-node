@@ -668,40 +668,76 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 		telemetry: telemetry.as_mut(),
 	})?;
 
-	if role.is_authority() {
+	// Flush the ledger parity-db WAL pipeline after block imports to prevent
+	// the WAL from growing to the 64 MB threshold.  When parity-db hits that
+	// threshold it flushes synchronously, which can stall the node long enough
+	// to miss an AURA slot and cause a chain fork.
+	//
+	// On authority nodes we flush after every self-authored block (the
+	// time-critical path).  On non-authority nodes we flush periodically
+	// (every FLUSH_INTERVAL blocks) to avoid unbounded WAL growth that could
+	// stall RPC responses or peer connections.
+	//
+	// A `flush_in_progress` flag coalesces concurrent requests: if a flush is
+	// already running when the next notification arrives, we skip rather than
+	// queue another spawn_blocking task.
+	{
+		const FLUSH_INTERVAL: u32 = 50;
+
 		let pipeline_client = client.clone();
 		let pipeline_spawn_handle = task_manager.spawn_handle();
+		let is_authority = role.is_authority();
+		let flush_in_progress = Arc::new(std::sync::atomic::AtomicBool::new(false));
+
 		task_manager
 			.spawn_handle()
 			.spawn("ledger-paritydb-log-pipeline", None, async move {
 				let mut import_notifications = pipeline_client.every_import_notification_stream();
+				let mut blocks_since_flush: u32 = 0;
 
 				while let Some(notification) = import_notifications.next().await {
-					if notification.origin != BlockOrigin::Own {
+					let should_flush = if is_authority {
+						notification.origin == BlockOrigin::Own
+					} else {
+						blocks_since_flush += 1;
+						blocks_since_flush >= FLUSH_INTERVAL
+					};
+
+					if !should_flush {
 						continue;
 					}
 
+					// Skip if a previous flush is still running.
+					if flush_in_progress.swap(true, std::sync::atomic::Ordering::AcqRel) {
+						continue;
+					}
+
+					blocks_since_flush = 0;
 					let hash = notification.hash;
+					let flush_flag = flush_in_progress.clone();
 					pipeline_spawn_handle.spawn_blocking(
 						"ledger-paritydb-log-pipeline-run",
 						None,
 						async move {
 							log::debug!(
 								target: "ledger-paritydb-log-pipeline",
-								"starting ledger parity-db log pipeline after own block import {hash:?}"
+								"starting ledger parity-db log pipeline after block import {hash:?}"
 							);
 							let started_at = Instant::now();
 							midnight_node_ledger::run_log_pipeline_on_default_storage();
+							flush_flag.store(false, std::sync::atomic::Ordering::Release);
 							log::debug!(
 								target: "ledger-paritydb-log-pipeline",
-								"finished ledger parity-db log pipeline after own block import {hash:?} in {} ms",
+								"finished ledger parity-db log pipeline after block import {hash:?} in {} ms",
 								started_at.elapsed().as_millis()
 							);
 						},
 					);
 				}
 			});
+	}
 
+	if role.is_authority() {
 		let basic_authorship_proposer_factory = sc_basic_authorship::ProposerFactory::new(
 			task_manager.spawn_handle(),
 			client.clone(),
