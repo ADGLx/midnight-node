@@ -26,14 +26,14 @@ serde.workspace = true
 async-trait.workspace = true
 futures.workspace = true
 
-sc-cli = { workspace = true, features = ["rocksdb"] }
+sc-cli.workspace = true
 sc-chain-spec.workspace = true
 sp-core.workspace = true
 sp-keyring.workspace = true
 sc-keystore.workspace = true
 sc-executor.workspace = true
 sp-externalities.workspace = true
-sc-service = { workspace = true, features = ["rocksdb"] }
+sc-service.workspace = true
 sc-telemetry.workspace = true
 sc-transaction-pool.workspace = true
 sc-transaction-pool-api.workspace = true
@@ -159,6 +159,7 @@ substrate-build-script-utils.workspace = true
 
 [features]
 default = []
+rocksdb = ["sc-cli/rocksdb", "sc-service/rocksdb"]
 
 # Dependencies that are only required if runtime benchmarking should be build.
 runtime-benchmarks = [
