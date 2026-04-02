@@ -11,5 +11,5 @@ midnight transactions purely from events, regardless of how the call was wrapped
 Also restricted `send_mn_transaction` to unsigned origin only (`ensure_none`), so
 governance actions must use the new root extrinsic instead.
 
-PR:
-JIRA:
+PR: https://github.com/midnightntwrk/midnight-node/pull/463
+Ticket: https://shielded.atlassian.net/browse/PM-21016
