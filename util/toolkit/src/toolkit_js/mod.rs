@@ -9,10 +9,7 @@ use midnight_node_ledger_helpers::{
 	CoinPublicKey, ContractAddress, UnshieldedWallet, WalletSeed, serialize_untagged,
 };
 pub(crate) mod encoded_zswap_local_state;
-pub use encoded_zswap_local_state::{
-	EncodedInputInfo, EncodedOutput, EncodedOutputInfo, EncodedTransientInfo,
-	EncodedZswapLocalState,
-};
+pub use encoded_zswap_local_state::{EncodedOutput, EncodedZswapLocalState};
 
 use crate::cli_parsers as cli;
 
@@ -80,6 +77,9 @@ pub struct CircuitArgs {
 	/// Input file containing the private circuit state
 	#[arg(long, value_parser = PathBufValueParser::new().map(|p| RelativePath::from(p)))]
 	input_private_state: RelativePath,
+	/// A file path of where the generated 'ZswapLocalState' is stored.
+	#[arg(long, value_parser = PathBufValueParser::new().map(|p| RelativePath::from(p)))]
+	pub input_zswap_state: Option<RelativePath>,
 	/// The output file of the intent
 	#[arg(long, value_parser = PathBufValueParser::new().map(|p| RelativePath::from(p)))]
 	output_intent: RelativePath,
@@ -157,7 +157,7 @@ pub struct SharedMaintainArgs {
 pub struct MaintainContractArgs {
 	#[command(flatten)]
 	shared: SharedMaintainArgs,
-	#[arg(value_parser = cli::wallet_seed_decode)]
+	#[arg(long, value_parser = cli::wallet_seed_decode)]
 	/// A public BIP-340 signing key, hex encoded. Replaces the signing key for the contract.
 	new_authority: WalletSeed,
 }
@@ -372,7 +372,25 @@ impl ToolkitJs {
 	fn execute_js(&self, args: &[&str]) -> Result<(), ToolkitJsError> {
 		let cmd = PathBuf::from(&self.path).join(BUILD_DIST).to_string_lossy().to_string();
 		log::info!("Executing {cmd}...");
-		log::debug!("Executing {cmd} with arguments: {args:?}...");
+		if log::log_enabled!(log::Level::Debug) {
+			let redacted_args: Vec<&str> = {
+				let mut result = Vec::with_capacity(args.len());
+				let mut redact_next = false;
+				for &arg in args {
+					if redact_next {
+						result.push("[REDACTED]");
+						redact_next = false;
+					} else if arg == "--signing" || arg == "--new-authority" {
+						result.push(arg);
+						redact_next = true;
+					} else {
+						result.push(arg);
+					}
+				}
+				result
+			};
+			log::debug!("Executing {cmd} with arguments: {redacted_args:?}...");
+		}
 
 		let output = std::process::Command::new(cmd)
 			.current_dir(&self.path)

@@ -10,6 +10,7 @@
 // WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 // See the License for the specific language governing permissions and
 // limitations under the License.
+use std::sync::LazyLock;
 use strum::{EnumIter, IntoEnumIterator as _};
 
 #[derive(thiserror::Error, Debug)]
@@ -22,13 +23,6 @@ pub enum RuntimeVersionError {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, EnumIter)]
 pub enum RuntimeVersion {
-	V0_17_0,
-	V0_17_1,
-	V0_18_0,
-	V0_18_1,
-	V0_19_0,
-	V0_20_0,
-	V0_20_1,
 	V0_21_0,
 	V0_22_0,
 }
@@ -36,13 +30,6 @@ impl TryFrom<u32> for RuntimeVersion {
 	type Error = RuntimeVersionError;
 	fn try_from(value: u32) -> Result<Self, Self::Error> {
 		match value {
-			000_017_000 => Ok(Self::V0_17_0),
-			000_017_001 => Ok(Self::V0_17_1),
-			000_018_000 => Ok(Self::V0_18_0),
-			000_018_001 => Ok(Self::V0_18_1),
-			000_019_000 => Ok(Self::V0_19_0),
-			000_020_000 => Ok(Self::V0_20_0),
-			000_020_001 => Ok(Self::V0_20_1),
 			000_021_000 => Ok(Self::V0_21_0),
 			000_022_000 => Ok(Self::V0_22_0),
 			_ => Err(RuntimeVersionError::UnsupportedBlockVersion(value)),
@@ -54,13 +41,6 @@ impl RuntimeVersion {
 	/// Convert back to the raw spec version number.
 	pub fn to_spec_version(self) -> u32 {
 		match self {
-			Self::V0_17_0 => 000_017_000,
-			Self::V0_17_1 => 000_017_001,
-			Self::V0_18_0 => 000_018_000,
-			Self::V0_18_1 => 000_018_001,
-			Self::V0_19_0 => 000_019_000,
-			Self::V0_20_0 => 000_020_000,
-			Self::V0_20_1 => 000_020_001,
 			Self::V0_21_0 => 000_021_000,
 			Self::V0_22_0 => 000_022_000,
 		}
@@ -68,6 +48,30 @@ impl RuntimeVersion {
 
 	pub fn latest_version() -> Self {
 		RuntimeVersion::iter().max().unwrap()
+	}
+
+	/// Return subxt `Metadata` for this runtime version, used to decode
+	/// extrinsics from historical blocks with the correct schema.
+	pub fn metadata(&self) -> subxt::ext::subxt_core::Metadata {
+		use parity_scale_codec::Decode;
+
+		static META_0_21_0: LazyLock<subxt::ext::subxt_core::Metadata> = LazyLock::new(|| {
+			subxt::ext::subxt_core::Metadata::decode(
+				&mut &midnight_node_metadata::METADATA_0_21_0_BYTES[..],
+			)
+			.expect("valid 0.21.0 metadata")
+		});
+		static META_0_22_0: LazyLock<subxt::ext::subxt_core::Metadata> = LazyLock::new(|| {
+			subxt::ext::subxt_core::Metadata::decode(
+				&mut &midnight_node_metadata::METADATA_0_22_0_BYTES[..],
+			)
+			.expect("valid 0.22.0 metadata")
+		});
+
+		match self {
+			Self::V0_21_0 => META_0_21_0.clone(),
+			Self::V0_22_0 => META_0_22_0.clone(),
+		}
 	}
 }
 
@@ -146,42 +150,6 @@ macro_rules! impl_midnight_metadata {
 }
 
 impl_midnight_metadata!(
-	MidnightMetadata0_17_1,
-	mn_meta_0_17_1,
-	midnight_node_metadata::midnight_metadata_0_17_1
-);
-
-impl_midnight_metadata!(
-	MidnightMetadata0_18_0,
-	mn_meta_0_18_0,
-	midnight_node_metadata::midnight_metadata_0_18_0
-);
-
-impl_midnight_metadata!(
-	MidnightMetadata0_18_1,
-	mn_meta_0_18_1,
-	midnight_node_metadata::midnight_metadata_0_18_1
-);
-
-impl_midnight_metadata!(
-	MidnightMetadata0_19_0,
-	mn_meta_0_19_0,
-	midnight_node_metadata::midnight_metadata_0_19_0
-);
-
-impl_midnight_metadata!(
-	MidnightMetadata0_20_0,
-	mn_meta_0_20_0,
-	midnight_node_metadata::midnight_metadata_0_20_0
-);
-
-impl_midnight_metadata!(
-	MidnightMetadata0_20_1,
-	mn_meta_0_20_1,
-	midnight_node_metadata::midnight_metadata_0_20_1
-);
-
-impl_midnight_metadata!(
 	MidnightMetadata0_21_0,
 	mn_meta_0_21_0,
 	midnight_node_metadata::midnight_metadata_0_21_0
@@ -192,51 +160,3 @@ impl_midnight_metadata!(
 	mn_meta_0_22_0,
 	midnight_node_metadata::midnight_metadata_0_22_0
 );
-
-// Manually implement 0.17.0
-use midnight_node_metadata::midnight_metadata_0_17_0 as mn_meta_0_17_0;
-
-pub struct MidnightMetadata0_17_0;
-
-impl MidnightMetadata for MidnightMetadata0_17_0 {
-	type Call = mn_meta_0_17_0::Call;
-	type SystemTransactionAppliedEvent =
-		mn_meta_0_17_0::midnight_system::events::SystemTransactionApplied;
-
-	fn send_mn_transaction(call: &Self::Call) -> Option<Vec<u8>> {
-		if let mn_meta_0_17_0::Call::Midnight(
-			mn_meta_0_17_0::midnight::Call::send_mn_transaction { midnight_tx },
-		) = call
-		{
-			Some(midnight_tx.clone())
-		} else {
-			None
-		}
-	}
-
-	fn send_mn_system_transaction(call: &Self::Call) -> Option<Vec<u8>> {
-		if let mn_meta_0_17_0::Call::MidnightSystem(
-			mn_meta_0_17_0::midnight_system::Call::send_mn_system_transaction {
-				midnight_system_tx,
-			},
-		) = call
-		{
-			Some(midnight_system_tx.clone())
-		} else {
-			None
-		}
-	}
-
-	fn timestamp_set(call: &Self::Call) -> Option<u64> {
-		if let mn_meta_0_17_0::Call::Timestamp(mn_meta_0_17_0::timestamp::Call::set { now }) = call
-		{
-			Some(*now)
-		} else {
-			None
-		}
-	}
-
-	fn system_transaction_applied(event: Self::SystemTransactionAppliedEvent) -> Vec<u8> {
-		event.0.serialized_system_transaction
-	}
-}

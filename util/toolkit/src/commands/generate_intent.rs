@@ -1,8 +1,8 @@
 use crate::client::MidnightNodeClient;
 use crate::toolkit_js;
 use crate::toolkit_js::{EncodedZswapLocalState, RelativePath};
-use crate::tx_generator::builder::build_fork_aware_context_raw;
-use crate::tx_generator::source::Source;
+use crate::tx_generator::builder::build_fork_aware_context_cached;
+use crate::tx_generator::source::{Source, create_file_wallet_cache};
 use crate::{cli_parsers as cli, tx_generator::TxGenerator};
 use clap::{Args, Subcommand};
 use midnight_node_ledger_helpers::{
@@ -94,6 +94,8 @@ pub async fn fetch_zswap_state(
 	coin_public: CoinPublicKey,
 	dry_run: bool,
 ) -> Result<EncodedZswapLocalState, Box<dyn std::error::Error + Send + Sync>> {
+	let ledger_state_db = source.ledger_state_db.clone();
+	let fetch_cache = source.fetch_cache.clone();
 	let source = TxGenerator::source(source, dry_run).await?;
 	if dry_run {
 		log::info!("Dry-run: fetching zswap state for wallet seed {:?}", wallet_seed);
@@ -105,7 +107,10 @@ pub async fn fetch_zswap_state(
 	}
 
 	let received_tx = source.get_txs().await?;
-	let fork_ctx = build_fork_aware_context_raw(&received_tx, &[wallet_seed]);
+	let wallet_cache = create_file_wallet_cache(&ledger_state_db, &fetch_cache);
+	let fork_ctx =
+		build_fork_aware_context_cached(&[wallet_seed], &received_tx, wallet_cache.as_deref())
+			.await;
 
 	Ok(fork_ctx.dispatch(
 		|ctx| {
@@ -165,7 +170,9 @@ pub async fn execute(
 				log::info!("Dry-run: generate circuit call intent: {:?}", &args.circuit_call);
 			}
 
-			let input_zswap_state = if let Some(wallet_seed) = args.wallet_seed {
+			let input_zswap_state = if args.circuit_call.input_zswap_state.is_some() {
+				args.circuit_call.input_zswap_state.clone()
+			} else if let Some(wallet_seed) = args.wallet_seed {
 				log::info!("getting input zswap...");
 				let encoded_zswap_state = fetch_zswap_state(
 					args.source.clone(),
@@ -433,6 +440,7 @@ mod test {
 			&contract_address_hex,
 			"--signing",
 			&signing_key_hex,
+			"--new-authority",
 			&signing_key_hex,
 		];
 		let cli = Cli::parse_from(args);
