@@ -164,11 +164,27 @@ macro_rules! impl_midnight_metadata {
 			}
 
 			fn root_tx_applied(
-				_event: &subxt::events::EventDetails<crate::client::MidnightNodeClientConfig>,
+				event: &subxt::events::EventDetails<crate::client::MidnightNodeClientConfig>,
 			) -> Option<Vec<u8>> {
-				// TODO: Implement after metadata rebuild. The RootTransactionApplied
-				// event will be available in the regenerated 0.22.0 metadata.
-				// For 0.21.0 this is always None (event doesn't exist).
+				// Dynamically check for RootTxApplied / RootTxPartialSuccess by
+				// pallet + variant name. This works across all runtime versions:
+				// if the event doesn't exist in a version's metadata, the check
+				// simply won't match.
+				if event.pallet_name() == "Midnight" {
+					let variant = event.variant_name();
+					if variant == "RootTxApplied" || variant == "RootTxPartialSuccess" {
+						// The event's first field (index 0) is a struct with
+						// `serialized_transaction: Vec<u8>`. Decode from raw bytes:
+						// skip the 2-byte event index prefix, then decode the struct.
+						let field_bytes = event.field_bytes();
+						// RootTxAppliedDetails { tx_hash: Hash, serialized_transaction: Vec<u8> }
+						// Hash is 32 bytes, then SCALE-encoded Vec<u8>
+						let tx_bytes = &field_bytes[32..]; // skip tx_hash
+						let serialized_tx: Vec<u8> =
+							parity_scale_codec::Decode::decode(&mut &tx_bytes[..]).ok()?;
+						return Some(serialized_tx);
+					}
+				}
 				None
 			}
 		}
