@@ -10167,8 +10167,7 @@ dependencies = [
 [[package]]
 name = "parity-db"
 version = "0.4.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "592a28a24b09c9dc20ac8afaa6839abc417c720afe42c12e1e4a9d6aa2508d2e"
+source = "git+https://github.com/midnightntwrk/parity-db?branch=v0.4.13-patched#6b69ba3bdf567ecb8bc51cdd6cf89afe8af2326f"
 dependencies = [
  "blake2 0.10.6",
  "crc32fast",
@@ -10188,8 +10187,7 @@ dependencies = [
 [[package]]
 name = "parity-db"
 version = "0.5.4"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6985a45b0597d68448dac9db2907f9f72bbaf63fe3383d4ba15f99096c87212f"
+source = "git+https://github.com/midnightntwrk/parity-db?branch=master#a9c0e8517868ed513a50754940cd0ebc40a4a34d"
 dependencies = [
  "blake2 0.10.6",
  "crc32fast",

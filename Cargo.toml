@@ -408,6 +408,8 @@ zeroize = { opt-level = 3 }
 
 [patch.crates-io]
 yamux = { git = "https://github.com/midnightntwrk/rust-yamux", branch = "yamux-v0.12.2" }
+parity-db = { git = "https://github.com/midnightntwrk/parity-db", branch = "v0.4.13-patched" }
+parity-db-for-ledger = { git = "https://github.com/midnightntwrk/parity-db", package = "parity-db", branch = "master" }
 
 [workspace.metadata.cargo-shear]
 ignored = []
