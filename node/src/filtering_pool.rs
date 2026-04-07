@@ -33,15 +33,13 @@ pub struct TxFilterConfig {
 	pub enabled: bool,
 	pub deny_deploy: bool,
 	pub deny_maintain: bool,
+	pub max_tx_gas_cost: Option<u64>,
 }
 
 impl TxFilterConfig {
-	pub fn enabled() -> Self {
-		Self { enabled: true, deny_deploy: true, deny_maintain: true }
-	}
-
-	pub fn disabled() -> Self {
-		Self { enabled: false, deny_deploy: false, deny_maintain: false }
+	pub fn new(deny_deploy: bool, deny_maintain: bool, max_tx_gas_cost: Option<u64>) -> Self {
+		let enabled = deny_deploy || deny_maintain || max_tx_gas_cost.is_some();
+		Self { enabled, deny_deploy, deny_maintain, max_tx_gas_cost }
 	}
 }
 
@@ -64,6 +62,7 @@ where
 	metrics: FilteringMetrics,
 	deny_deploy: bool,
 	deny_maintain: bool,
+	max_tx_gas_cost: Option<u64>,
 }
 
 impl<Block, Client> FilteringTransactionPool<Block, Client>
@@ -91,6 +90,7 @@ where
 			metrics,
 			deny_deploy: config.deny_deploy,
 			deny_maintain: config.deny_maintain,
+			max_tx_gas_cost: config.max_tx_gas_cost,
 		}
 	}
 
@@ -140,7 +140,7 @@ where
 			midnight_node_runtime::MidnightCall::send_mn_transaction { midnight_tx },
 		) = decoded_xt.function
 		{
-			match self.client.runtime_api().get_decoded_transaction(at, midnight_tx) {
+			match self.client.runtime_api().get_decoded_transaction(at, midnight_tx.clone()) {
 				Ok(decoded_tx_result) => match decoded_tx_result {
 					Ok(decoded_tx) => {
 						if self.is_forbidden_tx(&decoded_tx) {
@@ -170,6 +170,37 @@ where
 					);
 					return false;
 				},
+			}
+
+			if let Some(max_cost) = self.max_tx_gas_cost {
+				match self.client.runtime_api().get_transaction_cost(at, midnight_tx) {
+					Ok(Ok(gas_cost)) => {
+						if gas_cost > max_cost {
+							self.metrics.deny(COST_EXCEEDED);
+							log::info!(
+								target: LOG_TARGET,
+								"🚫 Blocking midnight transaction: gas cost {gas_cost} exceeds limit {max_cost}",
+							);
+							return false;
+						}
+					},
+					Ok(Err(error)) => {
+						self.metrics.deny(COST_ERROR);
+						log::warn!(
+							target: LOG_TARGET,
+							"⚠️ Failed to compute transaction cost, allowing transaction: {:?}",
+							error
+						);
+					},
+					Err(error) => {
+						self.metrics.deny(COST_ERROR);
+						log::warn!(
+							target: LOG_TARGET,
+							"⚠️ Runtime API call get_transaction_cost failed, allowing transaction: {:?}",
+							error
+						);
+					},
+				}
 			}
 		}
 		self.metrics.forward();
@@ -340,8 +371,10 @@ where
 const DEPLOY: &str = "deploy";
 const MAINTAIN: &str = "maintain";
 const PARSE_ERROR: &str = "parse_error";
+const COST_EXCEEDED: &str = "cost_exceeded";
+const COST_ERROR: &str = "cost_error";
 
-const LABELS: &[&str] = &[DEPLOY, MAINTAIN, PARSE_ERROR];
+const LABELS: &[&str] = &[DEPLOY, MAINTAIN, PARSE_ERROR, COST_EXCEEDED, COST_ERROR];
 
 pub struct FilteringMetrics {
 	forwarded_count: Option<Counter<U64>>,

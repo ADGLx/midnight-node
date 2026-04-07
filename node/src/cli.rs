@@ -31,6 +31,11 @@ pub struct RunMidnight {
 	/// Rejects transactions that contain Deploy and Maintain Operations from being accepted to the transaction pool.
 	#[arg(long)]
 	pub filter_deploy_txs: bool,
+
+	/// Reject midnight transactions whose estimated gas cost exceeds this limit.
+	/// The value is in gas units (u64). Transactions above this cost will be dropped at the pool gateway.
+	#[arg(long)]
+	pub max_tx_gas_cost: Option<u64>,
 }
 
 #[derive(Debug, clap::Parser)]

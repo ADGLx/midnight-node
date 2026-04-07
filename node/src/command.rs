@@ -151,11 +151,11 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	let run_cmd: RunCmd = cfg.substrate_cfg.clone().try_into()?;
 	let run_midnight = RunMidnight::try_parse_from(cfg.substrate_cfg.clone().argv())
 		.map_err(|e| sc_cli::Error::Input(format!("invalid node run arguments: {e}")))?;
-	let tx_filter_config = if run_midnight.filter_deploy_txs {
-		TxFilterConfig::enabled()
-	} else {
-		TxFilterConfig::disabled()
-	};
+	let tx_filter_config = TxFilterConfig::new(
+		run_midnight.filter_deploy_txs,
+		run_midnight.filter_deploy_txs,
+		run_midnight.max_tx_gas_cost,
+	);
 
 	if cfg.midnight_cfg.wipe_chain_state
 		&& let Some(base_path) = run_cmd.base_path()?
@@ -319,7 +319,7 @@ fn storage_init_from_chain_spec(
 fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 	let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 	let cache_size = cfg.midnight_cfg.storage_cache_size;
-	let tx_filter_config = TxFilterConfig::disabled();
+	let tx_filter_config = TxFilterConfig::new(false, false, None);
 
 	match subcommand {
 		Subcommand::Key(ref cmd) => cmd.run(&cfg),

@@ -64,8 +64,29 @@ impl TryFrom<SubstrateCfg> for RunCmd {
 	fn try_from(value: SubstrateCfg) -> Result<Self, Self::Error> {
 		let default_run_cmd = RunCmd::parse_from(&["midnight-node".to_string()]);
 
-		let argv: Vec<String> =
-			value.argv().into_iter().filter(|e| e != "--filter-deploy-txs").collect();
+		let argv: Vec<String> = {
+			let raw = value.argv();
+			let mut filtered = Vec::with_capacity(raw.len());
+			let mut skip_next = false;
+			for arg in raw {
+				if skip_next {
+					skip_next = false;
+					continue;
+				}
+				if arg == "--filter-deploy-txs" {
+					continue;
+				}
+				if arg == "--max-tx-gas-cost" {
+					skip_next = true;
+					continue;
+				}
+				if arg.starts_with("--max-tx-gas-cost=") {
+					continue;
+				}
+				filtered.push(arg);
+			}
+			filtered
+		};
 
 		let mut run_cmd = RunCmd::parse_from(argv);
 		if run_cmd.shared_params.base_path.is_none() && value.base_path.is_some() {
