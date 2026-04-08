@@ -152,24 +152,27 @@ jobs:
 
       - name: Compute release configuration
         id: release-config
+        env:
+          SKIP_NODE: ${{ inputs.skip-node }}
+          SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
         run: |
           # Determine git tag based on which components are included
-          if [ "${{ inputs.skip-node }}" != "true" ]; then
+          if [ "$SKIP_NODE" != "true" ]; then
             echo "git_tag_release=node-${IMAGE_TAG_RELEASE}" >> "$GITHUB_OUTPUT"
-          elif [ "${{ inputs.skip-toolkit }}" != "true" ]; then
+          elif [ "$SKIP_TOOLKIT" != "true" ]; then
             echo "git_tag_release=toolkit-${TOOLKIT_TAG_RELEASE}" >> "$GITHUB_OUTPUT"
           else
             echo "git_tag_release=runtime-${IMAGE_TAG_RELEASE}" >> "$GITHUB_OUTPUT"
           fi
 
           # Determine changes directory for release notes and archiving
-          if [ "${{ inputs.skip-node }}" != "true" ] && [ "${{ inputs.skip-toolkit }}" != "true" ]; then
+          if [ "$SKIP_NODE" != "true" ] && [ "$SKIP_TOOLKIT" != "true" ]; then
             echo "changes_dir=changes" >> "$GITHUB_OUTPUT"
             echo "template_dir=.changes_template" >> "$GITHUB_OUTPUT"
-          elif [ "${{ inputs.skip-node }}" != "true" ]; then
+          elif [ "$SKIP_NODE" != "true" ]; then
             echo "changes_dir=changes/node" >> "$GITHUB_OUTPUT"
             echo "template_dir=.changes_template/node" >> "$GITHUB_OUTPUT"
-          elif [ "${{ inputs.skip-toolkit }}" != "true" ]; then
+          elif [ "$SKIP_TOOLKIT" != "true" ]; then
             echo "changes_dir=changes/toolkit" >> "$GITHUB_OUTPUT"
             echo "template_dir=.changes_template/toolkit" >> "$GITHUB_OUTPUT"
           else
@@ -421,11 +424,14 @@ jobs:
 
       - name: Build Release Notes
         shell: bash
+        env:
+          SKIP_NODE: ${{ inputs.skip-node }}
+          SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
         run: |
-          if [ "${{ inputs.skip-node }}" != "true" ]; then
+          if [ "$SKIP_NODE" != "true" ]; then
             export SEASON_VAR_NODE_DOCKER_IMAGE="midnightntwrk/midnight-node:$IMAGE_TAG_RELEASE"
           fi
-          if [ "${{ inputs.skip-toolkit }}" != "true" ]; then
+          if [ "$SKIP_TOOLKIT" != "true" ]; then
             export SEASON_VAR_TOOLKIT_DOCKER_IMAGE="midnightntwrk/midnight-node-toolkit:$TOOLKIT_TAG_RELEASE"
           fi
           export SEASON_VAR_RELEASE_TAG="$GIT_TAG_RELEASE"

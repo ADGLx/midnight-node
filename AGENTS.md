@@ -158,6 +158,28 @@ JIRA: <link to JIRA ticket, if applicable>
 
 Change files are optional for changes that don't affect products (e.g., CI-only changes), but are worth adding for significant changes anyway.
 
+## GitHub Actions Workflows
+
+When writing or modifying GitHub Actions workflows (`.github/workflows/*.yml`):
+
+- **Never interpolate `${{ }}` expressions directly in `run:` blocks.** Pass them via `env:` and reference as `"$ENV_VAR"` in the script. This prevents shell injection from untrusted context data.
+
+  ```yaml
+  # Bad — shell injection risk
+  run: |
+    if [ "${{ inputs.my-input }}" = "true" ]; then ...
+
+  # Good — safe
+  env:
+    MY_INPUT: ${{ inputs.my-input }}
+  run: |
+    if [ "$MY_INPUT" = "true" ]; then ...
+  ```
+
+- **`if:` conditions on steps are safe** — `if: inputs.skip-node != true` is evaluated by the Actions runner, not interpolated into shell.
+- **Job-level `if:` on reusable workflow calls uses string comparison** — use `github.event.inputs.skip-node != 'true'` (quoted string), not boolean.
+- **Use `!cancelled() && !failure()`** on downstream jobs to let them run when upstream jobs are skipped (but not when failed).
+
 ## License Header
 
 See `LICENSE_HEADER.txt` for the required header on all new source files.

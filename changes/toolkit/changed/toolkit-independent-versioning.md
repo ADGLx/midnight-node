@@ -6,3 +6,4 @@ The midnight-node-toolkit Docker image is now versioned from its own
 `node/Cargo.toml`. Release tags for toolkit-only releases use the
 `toolkit-X.Y.Z` format.
 
+PR: https://github.com/midnightntwrk/midnight-node/pull/1261
