@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 # This file is part of midnight-node.
-# Copyright (C) 2025 Midnight Foundation
+# Copyright (C) Midnight Foundation
 # SPDX-License-Identifier: Apache-2.0
 # Licensed under the Apache License, Version 2.0 (the "License");
 # You may not use this file except in compliance with the License.
@@ -43,7 +43,6 @@ docker run -d --rm \
   --name midnight-node-tx \
   --network toolkit-e2e-net \
   -e CFG_PRESET=dev \
-  -e SIDECHAIN_BLOCK_BENEFICIARY="04bcf7ad3be7a5c790460be82a713af570f22e0f801f6659ab8e84a52be6969e" \
   "$NODE_IMAGE"
 
 tempdir=$(mktemp -d 2>/dev/null || mktemp -d -t 'txgene2e')
@@ -77,14 +76,14 @@ docker run --rm -e RESTORE_OWNER="$(id -u):$(id -g)" \
     -d ws://midnight-node-tx:9944
 
 docker run --rm -e RESTORE_OWNER="$(id -u):$(id -g)" -e RUST_BACKTRACE=1 -v $tempdir:/out --network toolkit-e2e-net "$TOOLKIT_IMAGE" generate-txs \
-    --dest-file "/out/$deploy_filename" --to-bytes \
+    --dest-file "/out/$deploy_filename" \
     contract-simple deploy \
     --rng-seed "$RNG_SEED" \
     -s ws://midnight-node-tx:9944
 
 contract_address=$(
     docker run --rm -e RESTORE_OWNER="$(id -u):$(id -g)" -e RUST_BACKTRACE=1 -v $tempdir:/out "$TOOLKIT_IMAGE" \
-        contract-address --src-file "/out/$deploy_filename" --tagged
+        contract-address --src-file "/out/$deploy_filename"
 )
 
 docker run --rm -e RESTORE_OWNER="$(id -u):$(id -g)" -e RUST_BACKTRACE=1 -v $tempdir:/out --network toolkit-e2e-net "$TOOLKIT_IMAGE" generate-txs \
@@ -126,12 +125,20 @@ docker run --rm -e RUST_BACKTRACE=1 --network toolkit-e2e-net "$TOOLKIT_IMAGE" \
     -s ws://midnight-node-tx:9944 \
     -d ws://midnight-node-tx:9944
 
+dust_address=$(
+    docker run --rm -e RUST_BACKTRACE=1 "$TOOLKIT_IMAGE" \
+    show-address \
+    --network undeployed \
+    --seed 0000000000000000000000000000000000000000000000000000000000000002 \
+    --dust
+)
+
 echo "Register received tokens..."
 docker run --rm -e RUST_BACKTRACE=1 --network toolkit-e2e-net "$TOOLKIT_IMAGE" \
     generate-txs register-dust-address \
     --wallet-seed "0000000000000000000000000000000000000000000000000000000000000002" \
     --funding-seed "0000000000000000000000000000000000000000000000000000000000000002" \
-    --destination-dust mn_dust-addr_undeployed1v36hxapdv9jxgun9wde4ka33t5a88l624n9ms7rs86fzez44mge2xjw20ddxuz3tp9g2c6xx5038x3c6nnqc6y \
+    --destination-dust "$dust_address" \
     -s ws://midnight-node-tx:9944 \
     -d ws://midnight-node-tx:9944
 

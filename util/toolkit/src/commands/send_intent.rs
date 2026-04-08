@@ -1,11 +1,8 @@
-use crate::{
-	ProofType, SignatureType,
-	tx_generator::{
-		TxGenerator,
-		builder::{Builder, CustomContractArgs},
-		destination::Destination,
-		source::Source,
-	},
+use crate::tx_generator::{
+	TxGenerator,
+	builder::{Builder, CustomContractArgs},
+	destination::Destination,
+	source::Source,
 };
 use clap::Args;
 
@@ -28,14 +25,9 @@ pub struct SendIntentArgs {
 pub async fn execute(args: SendIntentArgs) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 	let builder = Builder::ContractCustom(args.contract_args);
 
-	let generator = TxGenerator::<SignatureType, ProofType>::new(
-		args.source,
-		args.destination,
-		builder,
-		args.proof_server,
-		args.dry_run,
-	)
-	.await?;
+	let generator =
+		TxGenerator::new(args.source, args.destination, builder, args.proof_server, args.dry_run)
+			.await?;
 
 	if args.dry_run {
 		return Ok(());
@@ -56,11 +48,34 @@ mod test {
 	use crate::tx_generator::source::FetchCacheConfig;
 	use clap::Parser;
 	use std::fs;
+	use std::path::Path;
 	use tempfile::tempdir;
 
 	use super::{CustomContractArgs, Destination, SendIntentArgs, Source, execute};
+
+	fn ledger_test_artifacts_ready() -> bool {
+		let Ok(path) = std::env::var("MIDNIGHT_LEDGER_TEST_STATIC_DIR") else {
+			eprintln!(
+				"Skipping send-intent contract tests: MIDNIGHT_LEDGER_TEST_STATIC_DIR is not set"
+			);
+			return false;
+		};
+		if !Path::new(&path).exists() {
+			eprintln!(
+				"Skipping send-intent contract tests: MIDNIGHT_LEDGER_TEST_STATIC_DIR does not exist: {}",
+				path
+			);
+			return false;
+		}
+		true
+	}
+
 	#[tokio::test]
 	async fn test_send_intent() {
+		if !ledger_test_artifacts_ready() {
+			return;
+		}
+
 		let rng_seed = "0000000000000000000000000000000000000000000000000000000000000037";
 		let src_files = "../../res/genesis/genesis_block_undeployed.mn";
 		let compiled_contract_dir = "../../static/contracts/simple-merkle-tree";
@@ -103,13 +118,13 @@ mod test {
 			ignore_block_context: false,
 			fetch_only_cached: false,
 			fetch_cache: FetchCacheConfig::InMemory,
+			ledger_state_db: String::new(),
 		};
 
 		let destination = Destination {
 			dest_urls: vec![],
 			rate: 0.0,
 			dest_file: Some(output_file.to_string()),
-			to_bytes: false,
 			no_watch_progress: false,
 		};
 

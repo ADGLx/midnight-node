@@ -31,16 +31,14 @@ earthly doc                               # List all available targets
 
 **E2E tests (just):**
 ```bash
-just node-e2e <NODE_IMAGE> <TOOLKIT_IMAGE>
-just hardfork-e2e <NODE_IMAGE> <UPGRADER_IMAGE>
 just toolkit-e2e <NODE_IMAGE> <TOOLKIT_IMAGE>
 ```
 
 **Genesis generation:**
 ```bash
-./scripts/genesis/genesis-generation.sh  # Interactive genesis generation wizard
+./scripts/genesis/genesis-construction.sh  # Interactive genesis construction wizard
 ```
-See [Genesis Generation Guide](docs/genesis/generation.md) for complete documentation.
+See [Genesis Construction Guide](docs/genesis/construction.md) for complete documentation.
 
 **Genesis verification:**
 ```bash
@@ -112,12 +110,11 @@ Ports: P2P 30333, RPC 9944
 
 Config presets are in `res/cfg/`:
 - `dev` - Local development (no AWS secrets required)
-- `node-dev-01` - Single node development
 - `qanet` - QA testing network
 - `preview` - Preview/staging network
 - `preprod` - Pre-production network
 
-Networks other than `dev`/`node-dev-01` require AWS access for genesis rebuilds. Contact the node team if you need help.
+Networks other than `dev` require AWS access for genesis rebuilds. Contact the node team if you need help.
 
 ## Git Workflow
 

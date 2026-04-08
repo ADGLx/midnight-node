@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -12,13 +12,16 @@
 // limitations under the License.
 
 use crate::{
-	ProofType, SeedableRng, SignatureType, Spin, StdRng,
+	SeedableRng, Spin, StdRng,
 	cli_parsers::{self as cli},
 	remote_prover::RemoteProofServer,
 	t_token,
 };
-use midnight_node_ledger_helpers::{Transaction as MNLedgerTransaction, *};
-use std::collections::HashMap;
+use midnight_node_ledger_helpers::fork::raw_block_data::{SerializedTx, SerializedTxBatches};
+use midnight_node_ledger_helpers::{
+	Transaction as MNLedgerTransaction, fork::raw_block_data::RawTransaction, *,
+};
+
 use thiserror::Error;
 
 // Re-export ICS types from the primitives crate
@@ -52,6 +55,8 @@ pub enum GenesisGeneratorError<D: DB> {
 	FeeCalculationError(#[from] FeeCalculationError),
 	#[error("Failure applying block: {0:?}")]
 	BlockLimitExceeded(#[from] BlockLimitExceeded),
+	#[error("Error serializing transaction: {0}")]
+	SerializationError(#[from] std::io::Error),
 	#[error("Missing verifying key for wallet")]
 	MissingVerifyingKey,
 }
@@ -97,7 +102,7 @@ pub struct FundingArgs {
 
 pub struct GenesisGenerator {
 	pub state: LedgerState<DefaultDB>,
-	pub txs: Vec<TransactionWithContext<SignatureType, ProofType, DefaultDB>>,
+	pub txs: SerializedTxBatches,
 	fullness: SyntheticCost,
 }
 
@@ -105,8 +110,8 @@ const GLACIER_DROP_START_UNIX_EPOC: u64 = 1754395200;
 const BEGINNING: Timestamp = Timestamp::from_secs(GLACIER_DROP_START_UNIX_EPOC);
 
 // Provisional hardcoded expected values until transfers from iterim ICS to new ICS happens
-const EXPECTED_RESERVE_VALUE: u128 = 6000000000873988; // STARS
-const EXPECTED_ICS_VALUE: u128 = 1200000000000000; // STARS
+const EXPECTED_RESERVE_VALUE: u128 = 6_000_000_000_873_988; // STARS
+const EXPECTED_ICS_VALUE: u128 = 1_200_000_000_000_000; // STARS
 
 type Result<T, E = GenesisGeneratorError<DefaultDB>> = std::result::Result<T, E>;
 
@@ -122,6 +127,7 @@ impl GenesisGenerator {
 		_ics_config: Option<IcsConfig>,
 		_reserve_config: Option<ReserveConfig>,
 		ledger_parameters: Option<LedgerParameters>,
+		genesis_timestamp: Option<u64>,
 	) -> Result<Self> {
 		// TODO: Uncomment after transfers from iterim ICS to new ICS happens
 		// let reserve_pool = reserve_config.as_ref().map(|c| c.total_amount).unwrap_or(0);
@@ -144,7 +150,11 @@ impl GenesisGenerator {
 			treasury,
 		)
 		.map_err(SystemTransactionError::from)?;
-		let mut me = Self { state, txs: vec![], fullness: SyntheticCost::ZERO };
+		let mut me = Self {
+			state,
+			txs: SerializedTxBatches { batches: vec![vec![]] },
+			fullness: SyntheticCost::ZERO,
+		};
 		me.init(
 			seed,
 			network_id,
@@ -153,6 +163,7 @@ impl GenesisGenerator {
 			seeds,
 			cnight_system_tx,
 			original_parameters,
+			genesis_timestamp,
 		)
 		.await?;
 		Ok(me)
@@ -168,6 +179,7 @@ impl GenesisGenerator {
 		seeds: Option<&[WalletSeed]>,
 		cnight_system_tx: Option<SystemTransaction>,
 		original_parameters: LedgerParameters,
+		genesis_timestamp: Option<u64>,
 	) -> Result<(), GenesisGeneratorError<DefaultDB>> {
 		let wallets: Vec<Wallet<DefaultDB>> = seeds
 			.map(|s| s.iter().cloned().map(|seed| Wallet::default(seed, &self.state)).collect())
@@ -176,11 +188,12 @@ impl GenesisGenerator {
 		// Source of randomness
 		let mut rng = StdRng::from_seed(seed);
 
+		let beginning = genesis_timestamp.map(Timestamp::from_secs).unwrap_or(BEGINNING);
 		let genesis_block_context = BlockContext {
-			tblock: BEGINNING,
+			tblock: beginning,
 			tblock_err: 30,
 			parent_block_hash: HashOutput::default(),
-			last_block_time: BEGINNING,
+			last_block_time: beginning,
 		};
 
 		// Only fund faucet wallets if seeds were provided
@@ -210,11 +223,13 @@ impl GenesisGenerator {
 
 			// Restore fees now that we've finished.
 			self.set_parameters(original_parameters, &genesis_block_context)?;
+		} else {
+			self.set_parameters(original_parameters, &genesis_block_context)?;
 		}
 
 		if let Some(system_tx) = cnight_system_tx {
 			self.apply_system_tx(system_tx.clone(), &genesis_block_context)?;
-			println!("cNight System Tx applied: {:?}", system_tx);
+			log::info!("cNight System Tx applied: {:?}", system_tx);
 		}
 
 		let block_limits = self.state.parameters.limits.block_limits;
@@ -331,7 +346,7 @@ impl GenesisGenerator {
 	) -> Result<()> {
 		// Generate Shielded Offer
 		let guaranteed_shielded_offer = Self::shielded_offer(&wallets, network, &funding, rng);
-		let fallible_coins = HashMap::new();
+		let fallible_coins = HashMapStorage::new();
 
 		// Generate Unshielded Offer
 		let guaranteed_unshielded_offer = Self::unshielded_offer(&wallets, network, funding);
@@ -370,7 +385,7 @@ impl GenesisGenerator {
 		proof_server: Option<String>,
 		intents: IntentsMap,
 		guaranteed_shielded_offer: Option<ShieldedOffer>,
-		fallible_coins: HashMap<u16, ShieldedOffer>,
+		fallible_coins: HashMapStorage<u16, ShieldedOffer, DefaultDB>,
 		rng: StdRng,
 	) -> Transaction {
 		let spin = Spin::new("proving genesis transaction...");
@@ -453,7 +468,7 @@ impl GenesisGenerator {
 				outputs.push(out);
 			}
 
-			println!(
+			log::info!(
 				"generated {} outputs for wallet {:?}",
 				shielded_num_funding_outputs + shielded_alt_token_types.len(),
 				wallet.address(network).to_bech32(),
@@ -509,7 +524,7 @@ impl GenesisGenerator {
 				outputs.push(out);
 			}
 
-			println!(
+			log::info!(
 				"generated {} outputs for wallet {:?}",
 				unshielded_alt_token_types.len(),
 				wallet.address(network).to_bech32(),
@@ -581,9 +596,12 @@ impl GenesisGenerator {
 		match result {
 			TransactionResult::Success(_) => {
 				self.state = state;
-				self.txs.push(TransactionWithContext {
-					tx: SerdeTransaction::Midnight(tx),
-					block_context: tx_context.block_context,
+				let tx_hash = tx.transaction_hash().0.0;
+				let raw_tx = RawTransaction::Midnight(serialize(&tx)?);
+				self.txs.batches[0].push(SerializedTx {
+					tx: raw_tx,
+					context: block_context.clone(),
+					tx_hash,
 				});
 				Ok(())
 			},
@@ -602,9 +620,12 @@ impl GenesisGenerator {
 		self.fullness = self.fullness + tx.cost(&self.state.parameters);
 		let (state, _) = self.state.apply_system_tx(&tx, block_context.tblock)?;
 		self.state = state;
-		self.txs.push(TransactionWithContext {
-			tx: SerdeTransaction::System(tx),
-			block_context: block_context.clone(),
+		let tx_hash = tx.transaction_hash().0.0;
+		let raw_tx = RawTransaction::System(serialize(&tx)?);
+		self.txs.batches[0].push(SerializedTx {
+			tx: raw_tx,
+			context: block_context.clone(),
+			tx_hash,
 		});
 		Ok(())
 	}
@@ -627,7 +648,7 @@ fn without_fees(params: &LedgerParameters) -> LedgerParameters {
 mod test {
 	use super::*;
 	use midnight_primitives_ics_observation::PolicyId;
-	use std::str::FromStr;
+	use std::{collections::HashMap, str::FromStr};
 
 	#[tokio::test]
 	async fn test_genesis_with_ics_config() {
@@ -681,6 +702,7 @@ mod test {
 			Some(ics_config),
 			None, // no reserve config
 			None, // no custom ledger parameters
+			None, // use default genesis timestamp
 		)
 		.await
 		.unwrap();
@@ -744,6 +766,7 @@ mod test {
 			None,
 			Some(reserve_config),
 			None,
+			None, // use default genesis timestamp
 		)
 		.await
 		.unwrap();
@@ -793,6 +816,7 @@ mod test {
 			None,
 			None,
 			None,
+			None, // use default genesis timestamp
 		)
 		.await
 		.unwrap();

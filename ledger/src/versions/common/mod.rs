@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -41,6 +41,9 @@ pub mod api;
 pub mod conversions;
 
 #[cfg(feature = "std")]
+pub mod utxo_ordering_override;
+
+#[cfg(feature = "std")]
 use {
 	api::{
 		ContractAddress, ContractState, Ledger, LedgerParameters, SystemTransaction, Transaction,
@@ -56,7 +59,7 @@ use {
 		db::{DB, ParityDb},
 		storage::{default_storage, set_default_storage},
 	},
-	midnight_primitives_ledger::{LedgerMetricsExt, LedgerStorageExt, SyncStatusExt},
+	midnight_primitives_ledger::{LedgerMetricsExt, LedgerStorageExt},
 	mn_ledger_local::{
 		dust::InitialNonce,
 		structure::{
@@ -211,10 +214,7 @@ where
 
 	pub fn flush_storage(mut externalities: &mut dyn Externalities) {
 		let now = std::time::Instant::now();
-		default_storage::<D>().with_backend(|backend| {
-			backend.flush_all_changes_to_db();
-			backend.gc();
-		});
+		default_storage::<D>().with_backend(|backend| backend.flush_all_changes_to_db());
 		let elapsed = now.elapsed().as_secs_f64();
 
 		let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
@@ -316,6 +316,7 @@ where
 			hex::encode(tx_hash)
 		);
 		let ledger = Self::get_ledger(&api, state_key)?;
+		utxo_ordering_override::set_network_id(&ledger.state.network_id);
 		log::trace!(
 			target: LOG_TARGET,
 			"⏱️  Ledger loaded (elapsed_ms={})",
@@ -349,8 +350,6 @@ where
 
 		let all_applied = matches!(applied_stage, TransactionAppliedStage::AllApplied);
 
-		let is_syncing =
-			externalities.extension::<SyncStatusExt>().is_some_and(|ext| ext.is_syncing());
 		log::trace!(
 			target: LOG_TARGET,
 			"⏱️  Building unshielded UTXOs (elapsed_ms={})",
@@ -381,16 +380,19 @@ where
 			start_tx_processing_time.elapsed().as_millis()
 		);
 
-		let (utxo_outputs, utxo_inputs) =
+		// Capture segment counts before flattening — the HashMap→BTreeMap fix
+		// only changes ordering between segments, not within a single segment.
+		let output_segments = utxos.outputs.len();
+		let input_segments = utxos.inputs.len();
+
+		let (mut utxo_outputs, mut utxo_inputs) =
 			utxos.check_utxos_response_integrity(initial_utxos_size, &new_ledger)?;
 
-		// During sync, shuffle segment ordering to probabilistically match historical
-		// blocks produced with non-deterministic HashMap iteration order
-		let (utxo_outputs, utxo_inputs) = if is_syncing {
-			(utxos.outputs_shuffled(), utxos.inputs_shuffled())
-		} else {
-			(utxo_outputs, utxo_inputs)
-		};
+		// Apply ordering override for old blocks produced with HashMap ordering.
+		// Only reorder lists that span multiple segments.
+		if let Some(ordering) = utxo_ordering_override::get_override(&tx_hash) {
+			ordering.apply(&mut utxo_outputs, output_segments, &mut utxo_inputs, input_segments);
+		}
 
 		log::trace!(
 			target: LOG_TARGET,
@@ -499,7 +501,7 @@ where
 
 		let api = api::new();
 		let tx = api.tagged_deserialize::<SystemTransaction>(tx_serialized)?;
-		let tx_type = Self::get_system_tx_type(&tx);
+		let tx_type = Self::get_system_tx_type(&tx)?;
 		log::info!(
 			target: LOG_TARGET,
 			"⚙️  Processing SystemTx {tx:?}"
@@ -715,12 +717,10 @@ where
 		api.tagged_serialize(&ledger_parameters)
 	}
 
-	// TODO COST MODEL: Needs to be redone with the new ledger cost model
-	#[allow(unused_variables)]
 	pub fn get_transaction_cost(
 		state_key: &[u8],
 		tx: &[u8],
-		block_context: &BlockContext,
+		_block_context: &BlockContext,
 		max_weight: u64,
 	) -> Result<GasCost, LedgerApiError> {
 		let api = api::new();
@@ -825,20 +825,8 @@ where
 		}
 	}
 
-	fn get_system_tx_type(tx: &SystemTransaction) -> &'static str {
-		match tx {
-			SystemTransaction::OverwriteParameters(_) => "overwrite_parameters",
-			SystemTransaction::DistributeNight(claim_kind, _) => match claim_kind {
-				ClaimKind::Reward => "distribute_night_reward",
-				ClaimKind::CardanoBridge => "distribute_night_cardano_bridge",
-			},
-			SystemTransaction::PayBlockRewardsToTreasury { .. } => "pay_block_rewards_to_treasury",
-			SystemTransaction::PayFromTreasuryShielded { .. } => "pay_from_treasury_shielded",
-			SystemTransaction::PayFromTreasuryUnshielded { .. } => "pay_from_treasury_unshielded",
-			SystemTransaction::DistributeReserve(_) => "distribute_reserve",
-			SystemTransaction::CNightGeneratesDustUpdate { .. } => "cnight_generates_dust_update",
-			_ => "unknown",
-		}
+	fn get_system_tx_type(tx: &SystemTransaction) -> Result<&'static str, LedgerApiError> {
+		get_system_tx_type(tx)
 	}
 
 	/// Gets a VerifiedTransaction, using the cache when possible.
@@ -933,7 +921,13 @@ where
 			mn_ledger_local::verify::WellFormedStrictness::default(),
 			block_timestamp,
 		)
-		.map_err(|e| LedgerApiError::Transaction(types::TransactionError::Malformed(e.into())))
+		.map_err(|e| {
+            log::warn!(
+				target: LOG_TARGET,
+				"Transaction malformed: {e}",
+			);
+            LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()))
+        })
 	}
 
 	/// Validates a transaction for the mempool.
@@ -1069,6 +1063,31 @@ where
 	}
 }
 
+#[cfg(feature = "std")]
+fn get_system_tx_type(tx: &SystemTransaction) -> Result<&'static str, LedgerApiError> {
+	match tx {
+		SystemTransaction::OverwriteParameters(_) => Ok("overwrite_parameters"),
+		SystemTransaction::DistributeNight(claim_kind, _) => match claim_kind {
+			ClaimKind::Reward => Ok("distribute_night_reward"),
+			ClaimKind::CardanoBridge => Ok("distribute_night_cardano_bridge"),
+		},
+		SystemTransaction::PayBlockRewardsToTreasury { .. } => Ok("pay_block_rewards_to_treasury"),
+		SystemTransaction::PayFromTreasuryShielded { .. } => Ok("pay_from_treasury_shielded"),
+		SystemTransaction::PayFromTreasuryUnshielded { .. } => Ok("pay_from_treasury_unshielded"),
+		SystemTransaction::DistributeReserve(_) => Ok("distribute_reserve"),
+		SystemTransaction::CNightGeneratesDustUpdate { .. } => Ok("cnight_generates_dust_update"),
+		other => {
+			log::error!(
+				target: LOG_TARGET,
+				"Unsupported system transaction type: {other:?}"
+			);
+			Err(LedgerApiError::Transaction(types::TransactionError::SystemTransaction(
+				types::SystemTransactionError::UnknownError,
+			)))
+		},
+	}
+}
+
 /// Creates a Nonce using BlakeTwo256; similar Hashing type set in the Runtime.
 ///
 /// # Arguments
@@ -1107,6 +1126,7 @@ fn scale_normalized_cost(normalized: &LedgerNormalizedCost, max_weight: u64) -> 
 mod tests {
 	use super::*;
 	use base_crypto_local::cost_model::FixedPoint;
+	use coin_structure_local::coin::{ShieldedTokenType, UnshieldedTokenType};
 
 	fn normalized_all(value: FixedPoint) -> LedgerNormalizedCost {
 		LedgerNormalizedCost {
@@ -1136,5 +1156,54 @@ mod tests {
 		assert_eq!(over_one, max_weight);
 		assert!(half >= zero);
 		assert!(one >= half);
+	}
+
+	#[test]
+	fn get_system_tx_type_distribute_night_reward() {
+		let tx = SystemTransaction::DistributeNight(ClaimKind::Reward, vec![]);
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "distribute_night_reward");
+	}
+
+	#[test]
+	fn get_system_tx_type_distribute_night_cardano_bridge() {
+		let tx = SystemTransaction::DistributeNight(ClaimKind::CardanoBridge, vec![]);
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "distribute_night_cardano_bridge");
+	}
+
+	#[test]
+	fn get_system_tx_type_pay_block_rewards_to_treasury() {
+		let tx = SystemTransaction::PayBlockRewardsToTreasury { amount: 0 };
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "pay_block_rewards_to_treasury");
+	}
+
+	#[test]
+	fn get_system_tx_type_pay_from_treasury_shielded() {
+		let tx = SystemTransaction::PayFromTreasuryShielded {
+			outputs: vec![],
+			nonce: HashOutput([0u8; 32]),
+			token_type: ShieldedTokenType(HashOutput([0u8; 32])),
+		};
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "pay_from_treasury_shielded");
+	}
+
+	#[test]
+	fn get_system_tx_type_pay_from_treasury_unshielded() {
+		let tx = SystemTransaction::PayFromTreasuryUnshielded {
+			outputs: vec![],
+			token_type: UnshieldedTokenType(HashOutput([0u8; 32])),
+		};
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "pay_from_treasury_unshielded");
+	}
+
+	#[test]
+	fn get_system_tx_type_distribute_reserve() {
+		let tx = SystemTransaction::DistributeReserve(0);
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "distribute_reserve");
+	}
+
+	#[test]
+	fn get_system_tx_type_cnight_generates_dust_update() {
+		let tx = SystemTransaction::CNightGeneratesDustUpdate { events: vec![] };
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "cnight_generates_dust_update");
 	}
 }

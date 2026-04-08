@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -13,7 +13,6 @@
 
 use backoff::{ExponentialBackoff, future::retry};
 use hex::ToHex as _;
-use midnight_node_ledger_helpers::{DB, ProofKind, SignatureKind, Tagged};
 use subxt::{ext::subxt_rpcs, utils::H256};
 
 use crate::{
@@ -45,19 +44,15 @@ pub enum FetchTask {
 }
 
 impl FetchTask {
-	pub async fn fetch<
-		S: SignatureKind<D> + Tagged,
-		P: ProofKind<D> + core::fmt::Debug,
-		D: DB + Clone,
-	>(
+	pub async fn fetch(
 		self,
 		chain_id: H256,
 		client: &MidnightNodeClient,
-		storage: impl FetchStorage<S, P, D> + Send + Sync,
+		storage: impl FetchStorage,
 	) -> FetchResult {
 		match self {
 			FetchTask::FetchBlocks { min, max } => {
-				log::info!("fetching blocks {min}..{max}");
+				log::debug!("fetching blocks {min}..{max}");
 				let cached_blocks = storage.get_block_data_range(chain_id, min..max).await;
 				let mut blocks = Vec::new();
 				for (i, b) in (min..max).into_iter().zip(cached_blocks.into_iter()) {
@@ -67,14 +62,14 @@ impl FetchTask {
 						blocks.push(block);
 					}
 				}
-				log::info!("fetching blocks {min}..{max}: complete");
+				log::debug!("fetching blocks {min}..{max}: complete");
 				Ok(ComputeTask::ExtractBlockData { min, max, blocks })
 			},
 			FetchTask::NoOp => Ok(ComputeTask::NoOp),
 		}
 	}
 
-	async fn fetch_block_hash(
+	pub(crate) async fn fetch_block_hash(
 		client: &MidnightNodeClient,
 		block_number: u64,
 	) -> Result<H256, FetchTaskError> {
@@ -103,7 +98,7 @@ impl FetchTask {
 		Ok(block_hash)
 	}
 
-	async fn fetch_block(
+	pub(crate) async fn fetch_block(
 		client: &MidnightNodeClient,
 		block_hash: H256,
 	) -> Result<FetchedBlock, FetchTaskError> {
@@ -123,6 +118,7 @@ impl FetchTask {
 		.await?;
 
 		let state_root = client.get_state_root_at(Some(block.hash())).await?;
+		let raw_body = client.api.backend().block_body(block_hash).await?.unwrap_or_default();
 
 		let state = if block.header().parent_hash.is_zero() {
 			let system_properties = client.get_system_properties().await?;
@@ -139,6 +135,6 @@ impl FetchTask {
 			None
 		};
 
-		Ok(FetchedBlock { block, state_root, state })
+		Ok(FetchedBlock { block, raw_body, state_root, state })
 	}
 }

@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -14,8 +14,8 @@
 use super::super::{
 	ArenaKey, DB, DerivationPath, DeriveSeed, Deserializable, HRP_CONSTANT,
 	HRP_CREDENTIAL_UNSHIELDED, HashOutput, IntentHash, IntoWalletAddress, Loader, Role,
-	Serializable, SigningKey, Storable, UserAddress, VerifyingKey, WalletAddress, WalletSeed,
-	deserialize_untagged, serialize_untagged,
+	Serializable, SigningKey, Storable, Tagged, UserAddress, VerifyingKey, WalletAddress,
+	WalletSeed, deserialize_untagged, serialize_untagged,
 };
 use hex::FromHexError;
 use std::num::ParseIntError;
@@ -66,6 +66,7 @@ impl std::str::FromStr for UtxoId {
 }
 
 #[derive(Clone, Debug, Storable, Serializable)]
+#[tag = "unshielded-wallet"]
 #[storable(base)]
 pub struct UnshieldedWallet {
 	pub user_address: UserAddress,

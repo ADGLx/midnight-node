@@ -40,6 +40,10 @@ on:
         description: 'Minimum severity to fail on (negligible, low, medium, high, critical)'
         default: 'critical'
         type: string
+      skip-scan:
+        description: 'Skip Grype vulnerability scan (use when image layers were already scanned from another registry)'
+        default: false
+        type: boolean
       skip-attestation:
         description: 'Skip SBOM attestation (e.g., for fork PRs)'
         default: false
@@ -48,6 +52,10 @@ on:
         description: 'Multi-arch image to also attest SBOM against (e.g., registry/name:tag). Enables cosign verify-attestation on multi-arch tags.'
         default: ''
         type: string
+      tlog-upload:
+        description: 'Upload attestation to the Sigstore transparency log (Rekor). Set to false for non-release builds.'
+        default: true
+        type: boolean
 
 # no top level default permissions for security reasons
 permissions: {}
@@ -63,30 +71,35 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
         with:
+          submodules: true
           sparse-checkout: |
             .github/scripts
             .grype.yaml
 
       - name: Install Cosign
         if: ${{ !inputs.skip-attestation }}
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        uses: sigstore/cosign-installer@cad07c2e89fa2edd6e2d7bab4c1aa38e53f76003 # v4.1.1
 
       - name: Install Syft
         id: syft
-        uses: anchore/sbom-action/download-syft@28d71544de8eaf1b958d335707167c5f783590ad # v0.22.2
+        uses: anchore/sbom-action/download-syft@57aae528053a48a3f6235f2d9461b05fbcb7366d # v0.23.1
 
       - name: Install Grype
+        if: ${{ !inputs.skip-scan }}
         id: grype
         uses: anchore/scan-action/download-grype@7037fa011853d5a11690026fb85feee79f4c946c # v7.3.2
 
-      - name: Add tools to PATH
+      - name: Add Syft to PATH
         run: |
-          # Add syft and grype binary directories to PATH
           dirname "${{ steps.syft.outputs.cmd }}" >> "$GITHUB_PATH"
+
+      - name: Add Grype to PATH
+        if: ${{ !inputs.skip-scan }}
+        run: |
           dirname "${{ steps.grype.outputs.cmd }}" >> "$GITHUB_PATH"
 
       - name: Login to GHCR
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           registry: ghcr.io
           username: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE && 'MidnightCI' || github.actor }}
@@ -94,7 +107,7 @@ jobs:
 
       - name: Login to DockerHub
         if: ${{ github.actor != 'dependabot[bot]' && !github.event.pull_request.head.repo.fork }}
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
+        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 # v4.0.0
         with:
           username: ${{ secrets.DOCKERHUB_MIDNIGHTNTWRK_USER }}
           password: ${{ secrets.DOCKERHUB_MIDNIGHTNTWRK_TOKEN }}
@@ -108,6 +121,7 @@ jobs:
           generate_sbom_with_retry "${IMAGE}" "sbom.spdx.json" "${PLATFORM}"
 
       - name: Scan for vulnerabilities
+        if: ${{ !inputs.skip-scan }}
         id: scan
         env:
           IMAGE: ${{ inputs.image }}
@@ -117,32 +131,40 @@ jobs:
           source .github/scripts/sbom-scan.sh
           scan_image_with_retry "${IMAGE}" "${SEVERITY_CUTOFF}" "grype-results.json" "${PLATFORM}"
 
+      - name: Trim SBOM for attestation
+        if: ${{ !inputs.skip-attestation }}
+        run: |
+          source .github/scripts/sbom-scan.sh
+          trim_sbom_for_attestation "sbom.spdx.json" "sbom-attestation.spdx.json"
+
       - name: Attest SBOM
         if: ${{ !inputs.skip-attestation }}
         env:
           IMAGE: ${{ inputs.image }}
+          TLOG_UPLOAD: ${{ inputs.tlog-upload }}
         run: |
           source .github/scripts/sbom-scan.sh
-          attest_sbom_with_retry "${IMAGE}" "sbom.spdx.json"
+          attest_sbom_with_retry "${IMAGE}" "sbom-attestation.spdx.json" "${TLOG_UPLOAD}"
 
       - name: Attest SBOM to multi-arch manifest
         if: ${{ !inputs.skip-attestation && inputs.multi-arch-image != '' }}
         env:
           MULTIARCH_IMAGE: ${{ inputs.multi-arch-image }}
+          TLOG_UPLOAD: ${{ inputs.tlog-upload }}
         run: |
           source .github/scripts/sbom-scan.sh
-          attest_sbom_to_multiarch "${MULTIARCH_IMAGE}" "sbom.spdx.json"
+          attest_sbom_to_multiarch "${MULTIARCH_IMAGE}" "sbom-attestation.spdx.json" "${TLOG_UPLOAD}"
 
       - name: Upload SBOM artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ inputs.sbom-artifact-name }}
           path: sbom.spdx.json
           retention-days: 90
 
       - name: Upload scan results
-        if: always()
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        if: ${{ always() && !inputs.skip-scan }}
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
         with:
           name: ${{ inputs.sbom-artifact-name }}-scan-results
           path: grype-results.json

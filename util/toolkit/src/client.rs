@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@ use std::time::Duration;
 
 use backoff::ExponentialBackoff;
 use backoff::future::retry;
+use midnight_node_ledger_helpers::{LedgerParameters, deserialize};
 use midnight_node_metadata::midnight_metadata_latest as mn_meta;
+use parity_scale_codec::Decode;
 use subxt::backend::legacy::rpc_methods::{BlockNumber, SystemProperties};
 use subxt::config::HashFor;
 use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
@@ -83,18 +85,26 @@ impl MidnightNodeClient {
 		&self,
 		at: Option<HashFor<MidnightNodeClientConfig>>,
 	) -> Result<Option<Vec<u8>>, ClientError> {
-		let storage_query = mn_meta::storage().midnight().state_key();
+		// Use a raw storage query to avoid IncompatibleCodegen errors when the
+		// toolkit is compiled against a different runtime version than the node.
+		// The storage key is stable: twox_128("Midnight") ++ twox_128("StateKey").
+		let key =
+			[sp_crypto_hashing::twox_128(b"Midnight"), sp_crypto_hashing::twox_128(b"StateKey")]
+				.concat();
 		let storage = match at {
 			Some(hash) => self.api.storage().at(hash),
 			None => self.api.storage().at_latest().await?,
 		};
-		let state_key = storage.fetch(&storage_query).await?;
-		Ok(state_key.map(|bounded| bounded.0))
+		let raw = storage.fetch_raw(key).await?;
+		Ok(raw.map(|bytes| Vec::<u8>::decode(&mut &bytes[..]).expect("failed to decode StateKey")))
 	}
 
 	pub async fn get_block_one_hash(
 		&self,
 	) -> Result<HashFor<MidnightNodeClientConfig>, ClientError> {
+		if self.get_finalized_height().await? < 1 {
+			return Err(ClientError::OnlyGenesisFinalized);
+		}
 		let hash = self.rpc.chain_get_block_hash(Some(BlockNumber::Number(1))).await?;
 		hash.ok_or_else(|| ClientError::BlockHashNotFound(1))
 	}
@@ -108,6 +118,15 @@ impl MidnightNodeClient {
 		let latest_block = self.api.blocks().at_latest().await?;
 		Ok(latest_block.number().into())
 	}
+
+	pub async fn get_ledger_parameters(&self) -> Result<LedgerParameters, ClientError> {
+		let call = mn_meta::apis().midnight_runtime_api().get_ledger_parameters();
+		let response = self.api.runtime_api().at_latest().await?.call(call).await?;
+		let bytes = response.expect("Unable to retrieve ledger parameters from RPC server");
+		let parameters: LedgerParameters = deserialize(&mut &bytes[..])
+			.map_err(|e| ClientError::DeserializeLedgerParameters(e.into()))?;
+		Ok(parameters)
+	}
 }
 
 #[derive(Error, Debug)]
@@ -120,4 +139,8 @@ pub enum ClientError {
 	UnsupportedNetworkId(Vec<u8>),
 	#[error("failed to get block hash for block {0}")]
 	BlockHashNotFound(u32),
+	#[error("chain not yet started - only genesis is finalized")]
+	OnlyGenesisFinalized,
+	#[error("Failed to deserialize ledger parameters: {0}")]
+	DeserializeLedgerParameters(Box<dyn std::error::Error + Send + Sync>),
 }

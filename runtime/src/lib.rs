@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -95,7 +95,7 @@ pub use sp_runtime::{Perbill, Permill};
 #[allow(deprecated)]
 use sp_sidechain::SidechainStatus;
 // use sp_staking::SessionIndex;
-use crate::currency::CurrencyWaiver;
+use crate::{constants::time_units::HOURS, currency::CurrencyWaiver};
 use alloc::{vec, vec::Vec};
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
@@ -266,7 +266,6 @@ pub type CrossChainPublic = opaque::cross_chain_app::Public;
 
 // To learn more about runtime versioning, see:
 // https://docs.substrate.io/main-docs/build/upgrade#runtime-versioning
-#[cfg(all(not(hardfork_test), not(hardfork_test_rollback)))]
 #[allow(clippy::zero_prefixed_literal)]
 #[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
@@ -276,44 +275,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// The version of the runtime specification. A full node will not attempt to use its native
 	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
-	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
-	//   the compatible custom types.
-	spec_version: 000_022_000,
-	impl_version: 0,
-	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 2,
-	system_version: 1,
-};
-
-#[cfg(hardfork_test)]
-#[allow(clippy::zero_prefixed_literal)]
-#[sp_version::runtime_version]
-pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: Cow::Borrowed("midnight"),
-	impl_name: Cow::Borrowed("midnight"),
-	authoring_version: 1,
-	// The version of the runtime specification. A full node will not attempt to use its native
-	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
-	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
-	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
-	//   the compatible custom types.
-	spec_version: 100_006_004,
-
-	impl_version: 0,
-	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 2,
-	system_version: 1,
-};
-
-#[cfg(hardfork_test_rollback)]
-#[allow(clippy::zero_prefixed_literal)]
-#[sp_version::runtime_version]
-pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: Cow::Borrowed("midnight"),
-	impl_name: Cow::Borrowed("midnight"),
-	authoring_version: 1,
-	spec_version: 100_006_002,
-
+	spec_version: 001_000_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 2,
@@ -849,6 +811,21 @@ impl pallet_system_parameters::Config for Runtime {
 	type WeightInfo = ();
 }
 
+parameter_types! {
+	/// Maximum bytes a single account can submit within a throttle window (10 MB).
+	pub const MaxBytes: u64 = 10 * 1024 * 1024;
+	/// Maximum transactions a single account can submit within a throttle window
+	pub const MaxTxs: u64 = 100;
+	/// Number of blocks that define a throttle window (1 day at 6s/block).
+	pub const WindowSize: u32 = HOURS;
+}
+
+impl pallet_throttle::Config for Runtime {
+	type MaxBytes = MaxBytes;
+	type MaxTxs = MaxTxs;
+	type WindowSize = WindowSize;
+}
+
 pub struct MidnightTokenTransferHandler;
 
 parameter_types! {
@@ -865,6 +842,7 @@ impl pallet_partner_chains_bridge::TransferHandler<BridgeRecipient>
 
 impl pallet_cnight_observation::Config for Runtime {
 	type MidnightSystemTransactionExecutor = MidnightSystem;
+	type WeightInfo = pallet_cnight_observation::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_partner_chains_bridge::Config for Runtime {
@@ -873,6 +851,8 @@ impl pallet_partner_chains_bridge::Config for Runtime {
 	type TransferHandler = MidnightTokenTransferHandler;
 	type MaxTransfersPerBlock = BridgeMaxTransfersPerBlock;
 	type WeightInfo = pallet_partner_chains_bridge::weights::SubstrateWeight<Runtime>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type BenchmarkHelper = ();
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -976,6 +956,10 @@ mod runtime {
 	// System Parameters
 	#[runtime::pallet_index(50)]
 	pub type SystemParameters = pallet_system_parameters::Pallet<Runtime>;
+
+	// Throttling
+	#[runtime::pallet_index(51)]
+	pub type Throttle = pallet_throttle::Pallet<Runtime>;
 }
 
 /// The address format for describing accounts.
@@ -994,6 +978,7 @@ pub type SignedExtra = (
 	frame_system::CheckNonce<Runtime>,
 	frame_system::CheckWeight<Runtime>,
 	CheckCallFilter,
+	pallet_throttle::CheckThrottle<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
@@ -1012,7 +997,7 @@ pub type Executive = frame_executive::Executive<
 >;
 
 /// Migrations to apply on runtime upgrade.
-pub type Migrations = ();
+pub type Migrations = pallet_throttle::migration::ClearAccountUsageV1<Runtime>;
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
@@ -1027,6 +1012,7 @@ mod benches {
 		[pallet_federated_authority, FederatedAuthority]
 		[pallet_federated_authority_observation, FederatedAuthorityObservation]
 		[pallet_system_parameters, SystemParameters]
+		[pallet_cnight_observation, CNightObservation]
 	);
 }
 

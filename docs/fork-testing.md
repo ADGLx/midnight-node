@@ -51,7 +51,6 @@ well-known namespace:
 npm run snapshot:qanet
 npm run snapshot:devnet
 npm run snapshot:testnet-02
-npm run snapshot:node-dev-01
 ```
 
 By default the snapshot pod uploads to `MN_SNAPSHOT_S3_URI`. You can override
@@ -66,7 +65,7 @@ the helper image, pass `--bootnode`, `--pvc`, or `--snapshot-image` respectively
 
 ### Restoring a snapshot locally
 
-The `run`, `image-upgrade`, and `runtime-upgrade` commands can automatically
+The `run`, `image-upgrade`, and `governance-runtime-upgrade` commands can automatically
 restore a bootnode snapshot before launching Docker Compose services. This
 requires the AWS CLI (for `aws s3 cp`) and `zstd` if the archive is compressed.
 

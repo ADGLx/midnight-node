@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -57,7 +57,13 @@ impl<D: DB + Clone> Wallet<D> {
 		// }
 	}
 
-	pub fn update_dust_from_tx(&mut self, events: &[Event<D>]) -> Result<(), EventReplayError> {
+	pub fn update_dust_from_tx<'a>(
+		&mut self,
+		events: impl IntoIterator<Item = &'a Event<D>>,
+	) -> Result<(), EventReplayError>
+	where
+		D: 'a,
+	{
 		self.dust.replay_events(events)
 	}
 
@@ -79,15 +85,49 @@ impl<D: DB + Clone> Wallet<D> {
 	}
 
 	#[cfg(feature = "can-panic")]
-	pub fn increment_seed(s: &str) -> String {
+	pub fn increment_seed(s: &str) -> Result<String, &'static str> {
 		let num = u128::from_str_radix(s, 2).expect("Invalid wallet seed");
-		let result = num + 1;
+		let result = num.checked_add(1).ok_or("wallet seed overflow")?;
 		let width = s.len();
-		format!("{result:0width$b}")
+		Ok(format!("{result:0width$b}"))
 	}
 
 	#[cfg(feature = "can-panic")]
 	pub fn wallet_seed_decode(input: &str) -> WalletSeed {
 		input.parse().expect("failed to decode seed")
+	}
+}
+
+#[cfg(test)]
+mod tests {
+	use super::Wallet;
+	type TestDB = super::super::DefaultDB;
+
+	#[test]
+	fn test_increment_seed_normal() {
+		let input = "0000000000000000000000000000000000000000000000000000000000000010";
+		let expected = "0000000000000000000000000000000000000000000000000000000000000011";
+		assert_eq!(Wallet::<TestDB>::increment_seed(input), Ok(expected.to_string()));
+	}
+
+	#[test]
+	fn test_increment_seed_overflow() {
+		let max_u128 = "1".repeat(128);
+		assert_eq!(Wallet::<TestDB>::increment_seed(&max_u128), Err("wallet seed overflow"));
+	}
+
+	#[test]
+	fn test_increment_seed_preserves_width() {
+		let input = "00000001";
+		let result = Wallet::<TestDB>::increment_seed(input).unwrap();
+		assert_eq!(result.len(), input.len());
+		assert_eq!(result, "00000010");
+	}
+
+	#[test]
+	fn test_increment_seed_from_zero() {
+		let input = "0000000000000000000000000000000000000000000000000000000000000000";
+		let expected = "0000000000000000000000000000000000000000000000000000000000000001";
+		assert_eq!(Wallet::<TestDB>::increment_seed(input), Ok(expected.to_string()));
 	}
 }

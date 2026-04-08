@@ -1,5 +1,5 @@
 // This file is part of midnight-node.
-// Copyright (C) 2025 Midnight Foundation
+// Copyright (C) Midnight Foundation
 // SPDX-License-Identifier: Apache-2.0
 // Licensed under the Apache License, Version 2.0 (the "License");
 // You may not use this file except in compliance with the License.
@@ -11,9 +11,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use midnight_node_ledger_helpers::{
-	BlockContext, DB, HashOutput, ProofKind, SignatureKind, Tagged, Timestamp,
-	midnight_serialize::tagged_deserialize,
+use midnight_node_ledger_helpers::fork::raw_block_data::{
+	LedgerVersion, RawBlockData, RawTransaction,
 };
 use subxt::{
 	blocks::ExtrinsicEvents,
@@ -21,12 +20,14 @@ use subxt::{
 	utils::H256,
 };
 
-use crate::fetcher::{
-	fetch_storage::{BlockData, FetchStorage, FetchedBlock, FetchedTransaction},
-	runtimes::{
-		MidnightMetadata, MidnightMetadata0_17_0, MidnightMetadata0_17_1, MidnightMetadata0_18_0,
-		MidnightMetadata0_18_1, MidnightMetadata0_19_0, MidnightMetadata0_20_0,
-		MidnightMetadata0_21_0, MidnightMetadata0_22_0, RuntimeVersion, RuntimeVersionError,
+use crate::{
+	client::MidnightNodeClientConfig,
+	fetcher::{
+		fetch_storage::{FetchStorage, FetchedBlock},
+		runtimes::{
+			MidnightMetadata, MidnightMetadata0_21_0, MidnightMetadata0_22_0,
+			MidnightMetadata1_0_0, RuntimeVersion, RuntimeVersionError,
+		},
 	},
 };
 
@@ -40,10 +41,10 @@ pub enum ComputeError {
 	BlockMissing(u64),
 	#[error("RuntimeVersionError: {0}")]
 	RuntimeVersionError(#[from] RuntimeVersionError),
-	#[error("ledger deserialization error")]
-	LedgerDeserializationError(std::io::Error),
 	#[error("verification failed, child block {0}")]
 	ChildBlockVerificationFailed(u64),
+	#[error("spec version in block {0} doesn't have a defined ledger version mapping")]
+	LedgerVersionMissing(u64),
 }
 
 pub enum ComputeTask {
@@ -54,31 +55,23 @@ pub enum ComputeTask {
 }
 
 impl ComputeTask {
-	pub async fn work<
-		S: SignatureKind<D> + Tagged,
-		P: ProofKind<D> + core::fmt::Debug,
-		D: DB + Clone,
-	>(
-		self,
-		chain_id: H256,
-		storage: impl FetchStorage<S, P, D> + Send + Sync,
-	) -> ComputeResult {
+	pub async fn work(self, chain_id: H256, storage: impl FetchStorage) -> ComputeResult {
 		match self {
 			ComputeTask::ExtractBlockData { min, max, blocks } => {
-				log::info!("extracting block data {min}..{max}");
+				log::debug!("extracting block data {min}..{max}");
 				let mut blocks_to_insert = Vec::new();
 				for b in blocks {
 					let block_data = Self::extract_data(&b).await?;
 					blocks_to_insert.push((b.block.number() as u64, block_data));
 				}
 				storage.insert_block_data_range(chain_id, blocks_to_insert.into_iter()).await;
-				log::info!("extracting block data {min}..{max}: complete");
+				log::debug!("extracting block data {min}..{max}: complete");
 				Ok(ComputeTask::Verify { min, max })
 			},
 			ComputeTask::Verify { min, max } => {
-				log::info!("verifying {min}..{max}");
+				log::debug!("verifying {min}..{max}");
 				let blocks = storage.get_block_data_range(chain_id, (min..max).into_iter()).await;
-				let blocks: Result<Vec<BlockData<S, P, D>>, ComputeError> = (min..max)
+				let blocks: Result<Vec<RawBlockData>, ComputeError> = (min..max)
 					.into_iter()
 					.zip(blocks.into_iter())
 					.map(|(i, b)| b.ok_or(ComputeError::BlockMissing(i)))
@@ -93,12 +86,12 @@ impl ComputeTask {
 					return Err(ComputeError::ChildBlockVerificationFailed(child.number));
 				}
 
-				log::info!("verifying {min}..{max}: complete");
+				log::debug!("verifying {min}..{max}: complete");
 
 				Ok(ComputeTask::FinalVerify { min, max })
 			},
 			ComputeTask::FinalVerify { min, max } => {
-				log::info!("final verify {min} and {max}");
+				log::debug!("final verify {min} and {max}");
 
 				// Check min - only for genesis block
 				if min == 0 {
@@ -106,7 +99,7 @@ impl ComputeTask {
 						.get_block_data(chain_id, 0)
 						.await
 						.ok_or(ComputeError::BlockMissing(0))?;
-					if !block.parent_hash.is_zero() {
+					if block.parent_hash != [0u8; 32] {
 						return Err(ComputeError::ChildBlockVerificationFailed(0));
 					}
 				}
@@ -122,21 +115,15 @@ impl ComputeTask {
 				}
 				// If child (block `max`) doesn't exist, we're at the last batch - no forward check needed
 
-				log::info!("final verify {min} and {max}: complete");
+				log::debug!("final verify {min} and {max}: complete");
 				Ok(ComputeTask::NoOp)
 			},
 			ComputeTask::NoOp => Ok(ComputeTask::NoOp),
 		}
 	}
 
-	async fn extract_data<
-		S: SignatureKind<D> + Tagged,
-		P: ProofKind<D> + core::fmt::Debug,
-		D: DB + Clone,
-	>(
-		block: &FetchedBlock,
-	) -> Result<BlockData<S, P, D>, ComputeError> {
-		let version_number = block
+	pub(crate) async fn extract_data(block: &FetchedBlock) -> Result<RawBlockData, ComputeError> {
+		let spec_version = block
 			.block
 			.header()
 			.digest
@@ -151,64 +138,51 @@ impl ComputeTask {
 				}
 			})
 			.expect("no runtime version found")?;
-		match version_number {
-			RuntimeVersion::V0_17_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_17_0, S, P, D>(block).await
-			},
-			RuntimeVersion::V0_17_1 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_17_1, S, P, D>(block).await
-			},
-			RuntimeVersion::V0_18_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_18_0, S, P, D>(block).await
-			},
-			RuntimeVersion::V0_18_1 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_18_1, S, P, D>(block).await
-			},
-			RuntimeVersion::V0_19_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_19_0, S, P, D>(block).await
-			},
-			RuntimeVersion::V0_20_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_20_0, S, P, D>(block).await
-			},
+		match spec_version {
 			RuntimeVersion::V0_21_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_21_0, S, P, D>(block).await
+				Self::process_block_with_protocol::<MidnightMetadata0_21_0>(block, spec_version)
+					.await
 			},
 			RuntimeVersion::V0_22_0 => {
-				Self::process_block_with_protocol::<MidnightMetadata0_22_0, S, P, D>(block).await
+				Self::process_block_with_protocol::<MidnightMetadata0_22_0>(block, spec_version)
+					.await
+			},
+			RuntimeVersion::V1_0_0 => {
+				Self::process_block_with_protocol::<MidnightMetadata1_0_0>(block, spec_version)
+					.await
 			},
 		}
 	}
 
-	async fn process_block_with_protocol<
-		M: MidnightMetadata,
-		S: SignatureKind<D> + Tagged,
-		P: ProofKind<D> + core::fmt::Debug,
-		D: DB + Clone,
-	>(
+	async fn process_block_with_protocol<M: MidnightMetadata>(
 		block: &FetchedBlock,
-	) -> Result<BlockData<S, P, D>, ComputeError> {
+		version: RuntimeVersion,
+	) -> Result<RawBlockData, ComputeError> {
 		let state_root = block.state_root.clone();
 		let block_header = block.block.header();
 		let parent_block_hash = block_header.parent_hash;
 
-		let extrinsics = block
-			.block
-			.extrinsics()
-			.await
-			.unwrap_or_else(|err| panic!("Error while fetching the transactions: {}", err));
+		let mut timestamp_ms = None;
+		let mut transactions = vec![];
+
+		let block_number = block.block.number() as u64;
+
+		// Decode extrinsics using version-specific metadata so that historical
+		// blocks are decoded with the schema they were produced under, not the
+		// live (post-upgrade) metadata from the OnlineClient.
+		let extrinsics =
+			subxt::ext::subxt_core::blocks::Extrinsics::<MidnightNodeClientConfig>::decode_from(
+				block.raw_body.clone(),
+				version.metadata(),
+			)
+			.map_err(subxt::Error::from)?;
+
 		let events = block
 			.block
 			.events()
 			.await
 			.unwrap_or_else(|err| panic!("Error while fetching the events: {}", err));
 
-		let mut timestamp_ms = None;
-		let mut transactions = vec![];
-
-		// Get block number to determine extraction strategy
-		let block_number = block.block.number() as u64;
-
-		// Extract timestamp and regular midnight transactions from extrinsics
 		for ext in extrinsics.iter() {
 			let Ok(call) = ext.as_root_extrinsic::<M::Call>() else {
 				continue;
@@ -219,16 +193,12 @@ impl ComputeTask {
 				}
 				timestamp_ms = Some(ts);
 			} else if let Some(bytes) = M::send_mn_transaction(&call) {
-				let tx = tagged_deserialize(&mut bytes.as_slice())
-					.map_err(|err| ComputeError::LedgerDeserializationError(err))?;
-				transactions.push(FetchedTransaction::Midnight(tx));
+				transactions.push(RawTransaction::Midnight(bytes));
 			} else if block_number == 0 {
 				// Genesis block: extract system transactions from extrinsics directly
 				// (genesis has no events since events are emitted during block execution)
 				if let Some(bytes) = M::send_mn_system_transaction(&call) {
-					let tx = tagged_deserialize(&mut bytes.as_slice())
-						.map_err(|err| ComputeError::LedgerDeserializationError(err))?;
-					transactions.push(FetchedTransaction::System(tx));
+					transactions.push(RawTransaction::System(bytes));
 				}
 			}
 
@@ -242,30 +212,27 @@ impl ComputeTask {
 			for ev in ext_events.iter().filter_map(Result::ok) {
 				if let Some(event) = ev.as_event::<M::SystemTransactionAppliedEvent>()? {
 					let bytes = M::system_transaction_applied(event);
-					let tx = tagged_deserialize(&mut bytes.as_slice())
-						.map_err(|err| ComputeError::LedgerDeserializationError(err))?;
-					transactions.push(FetchedTransaction::System(tx));
+					transactions.push(RawTransaction::System(bytes));
 				}
 			}
 		}
 
 		let timestamp_ms = timestamp_ms.expect("failed to find a timestamp extrinsic in block");
-		let tblock = Timestamp::from_secs(timestamp_ms / 1000);
-		let context = BlockContext {
-			tblock,
-			tblock_err: 30,
-			parent_block_hash: HashOutput(parent_block_hash.0),
-			last_block_time: tblock, // We fix this later in fetcher.rs
-		};
+		let tblock_secs = timestamp_ms / 1000;
 		let hash = block.block.hash();
 		let parent_hash = block.block.header().parent_hash;
 		let number = block.block.number() as u64;
-		Ok(BlockData {
-			hash,
-			parent_hash,
+		Ok(RawBlockData {
+			hash: hash.0,
+			parent_hash: parent_hash.0,
 			number,
+			ledger_version: LedgerVersion::from_spec_version(version.to_spec_version())
+				.ok_or_else(|| ComputeError::LedgerVersionMissing(number))?,
 			transactions,
-			context,
+			tblock_secs,
+			tblock_err: 30,
+			parent_block_hash: parent_block_hash.0,
+			last_block_time_secs: tblock_secs, // Fixed later in fetcher.rs
 			state_root,
 			state: block.state.clone(),
 		})
