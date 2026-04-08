@@ -22,6 +22,9 @@
 extern crate alloc;
 
 #[cfg(feature = "std")]
+pub mod aux_store_db;
+
+#[cfg(feature = "std")]
 pub mod json;
 
 #[cfg(feature = "std")]
@@ -83,6 +86,14 @@ pub use ledger_8 as latest;
 /// example after Tokio/node shutdown completes) to ensure DB-backed storage is
 /// released deterministically.
 pub fn drop_all_default_storage() {
+	// Drop AuxStoreDb-backed storage
+	type LedgerDb = aux_store_db::AuxStoreDb<sha2::Sha256>;
+	use ledger_storage_ledger_8::storage::{try_get_default_storage, unsafe_drop_default_storage};
+	if try_get_default_storage::<LedgerDb>().is_some() {
+		unsafe_drop_default_storage::<LedgerDb>();
+	}
+
+	// Also try dropping legacy ParityDb storage (for backward compatibility)
 	ledger_7::storage::drop_default_storage_if_exists();
 	ledger_8::storage::drop_default_storage_if_exists();
 }
@@ -98,28 +109,21 @@ pub mod types {
 
 #[cfg(test)]
 mod tests {
+	use crate::aux_store_db::{AuxStoreDb, new_in_memory_backend};
 	use frame_support::assert_ok;
 	use ledger_storage_ledger_8::{
 		Storage,
-		db::ParityDb,
 		storage::{set_default_storage, try_get_default_storage, unsafe_drop_default_storage},
 	};
-	use std::path::PathBuf;
+
+	type LedgerDb = AuxStoreDb<sha2::Sha256>;
 
 	#[test]
 	fn set_and_drop_default_storage() {
-		let mut db_path: PathBuf = std::env::temp_dir();
-		db_path.push("node/chain");
-
 		{
 			// Set default storage
 			let res = set_default_storage(|| {
-				std::fs::create_dir_all(&db_path).unwrap_or_else(|err| {
-					panic!("Failed to create dir {}, err {}", db_path.display(), err)
-				});
-
-				let db = ParityDb::<sha2::Sha256>::open(&db_path);
-
+				let db: LedgerDb = AuxStoreDb::new(new_in_memory_backend());
 				Storage::new(0, db)
 			});
 
@@ -127,7 +131,7 @@ mod tests {
 		}
 
 		// Drop default storage
-		unsafe_drop_default_storage::<ParityDb>();
-		assert!(try_get_default_storage::<ParityDb>().is_none());
+		unsafe_drop_default_storage::<LedgerDb>();
+		assert!(try_get_default_storage::<LedgerDb>().is_none());
 	}
 }

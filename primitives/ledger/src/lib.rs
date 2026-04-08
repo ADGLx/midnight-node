@@ -16,7 +16,7 @@ use prometheus_endpoint::{
 	Registry, U64,
 };
 use std::{
-	path::PathBuf,
+	fmt,
 	sync::{Arc, Mutex},
 };
 
@@ -272,16 +272,40 @@ impl LedgerMetricsExt {
 	}
 }
 
+/// Object-safe trait for ledger database operations.
+///
+/// Wraps the node's AuxStore to provide a simple key-value interface
+/// that the ledger's `DB` trait implementation can use.
+pub trait LedgerBackendDb: Send + Sync + 'static {
+	/// Get a value by key. Returns `None` if the key is not found.
+	fn get(&self, key: &[u8]) -> Option<Vec<u8>>;
+
+	/// Atomically insert and delete key-value pairs.
+	fn write(&self, inserts: &[(&[u8], &[u8])], deletes: &[&[u8]]) -> Result<(), String>;
+}
+
+impl fmt::Debug for dyn LedgerBackendDb {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "LedgerBackendDb")
+	}
+}
+
 /// Ledger Storage info to be sent to host functions
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct LedgerStorage {
-	pub db_path: PathBuf,
+	pub backend: Arc<dyn LedgerBackendDb>,
 	pub cache_size: usize,
 }
 
+impl fmt::Debug for LedgerStorage {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		f.debug_struct("LedgerStorage").field("cache_size", &self.cache_size).finish()
+	}
+}
+
 impl LedgerStorage {
-	pub fn new(db_path: PathBuf, cache_size: usize) -> Self {
-		Self { db_path, cache_size }
+	pub fn new(backend: Arc<dyn LedgerBackendDb>, cache_size: usize) -> Self {
+		Self { backend, cache_size }
 	}
 }
 

@@ -57,7 +57,7 @@ use {
 	ledger_storage_local::{
 		Storage,
 		arena::{ArenaKey, Sp, TypedArenaKey},
-		db::{DB, ParityDb},
+		db::DB,
 		storage::{default_storage, set_default_storage},
 	},
 	midnight_primitives_ledger::{LedgerMetricsExt, LedgerStorageExt},
@@ -168,9 +168,12 @@ where
 	pub fn set_default_storage(mut externalities: &mut dyn Externalities) {
 		let maybe_storage = externalities.extension::<LedgerStorageExt>();
 		if let Some(storage) = maybe_storage {
+			let backend = storage.0.backend.clone();
+			let cache_size = storage.0.cache_size;
 			let res = set_default_storage(|| {
-				let db = ParityDb::<sha2::Sha256>::open(storage.0.db_path.as_path());
-				Storage::new(storage.0.cache_size, db)
+				let db: crate::aux_store_db::AuxStoreDb<sha2::Sha256> =
+					crate::aux_store_db::AuxStoreDb::new(backend);
+				Storage::new(cache_size, db)
 			});
 			if res.is_err() {
 				log::warn!("Warning: Failed to set default storage: {res:?}");

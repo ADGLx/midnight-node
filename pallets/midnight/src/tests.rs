@@ -36,9 +36,9 @@ use sp_runtime::{
 use test_log::test;
 
 fn init_ledger_state(block_context: BlockContext) {
-	let path_buf = tempfile::tempdir().unwrap().keep();
-	let state_key = midnight_node_ledger::latest::storage::init_storage_paritydb(
-		&path_buf,
+	let backend = midnight_node_ledger::aux_store_db::new_in_memory_backend();
+	let state_key = midnight_node_ledger::latest::storage::init_storage_auxstore(
+		backend,
 		UndeployedNetwork.genesis_state(),
 		1024 * 1024,
 	);

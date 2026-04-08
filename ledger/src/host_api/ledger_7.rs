@@ -19,7 +19,7 @@ use sp_runtime_interface::runtime_interface;
 type Signature = base_crypto::signatures::Signature;
 
 #[cfg(feature = "std")]
-type Database = ledger_storage::db::ParityDb;
+type Database = crate::aux_store_db::AuxStoreDb<sha2::Sha256>;
 
 #[runtime_interface]
 pub trait LedgerBridge {
@@ -289,10 +289,10 @@ pub trait LedgerBridge {
 	/// drops HF storage and initializes normal storage.
 	/// Returns true if storage was (re)initialized, false if already correct.
 	fn ensure_storage_initialized(&mut self) -> bool {
-		use ledger_storage::{db::ParityDb, storage::try_get_default_storage};
+		use ledger_storage::storage::try_get_default_storage;
 
-		// If normal storage already exists, we're good
-		if try_get_default_storage::<ParityDb>().is_some() {
+		// If storage already exists, we're good
+		if try_get_default_storage::<Database>().is_some() {
 			return false;
 		}
 

@@ -17,7 +17,7 @@ use sp_runtime_interface::runtime_interface;
 type Signature = crate::ledger_8::base_crypto_local::signatures::Signature;
 
 #[cfg(feature = "std")]
-type Database = crate::ledger_8::ledger_storage_local::db::ParityDb;
+type Database = crate::aux_store_db::AuxStoreDb<sha2::Sha256>;
 
 #[runtime_interface]
 pub trait Ledger8Bridge {
@@ -242,10 +242,10 @@ pub trait Ledger8Bridge {
 	/// drops new version's storage and initializes normal storage.
 	/// Returns true if storage was (re)initialized, false if already correct.
 	fn ensure_storage_initialized(&mut self) -> bool {
-		use ledger_storage_ledger_8::{db::ParityDb, storage::try_get_default_storage};
+		use ledger_storage_ledger_8::storage::try_get_default_storage;
 
-		// If normal storage already exists, we're good
-		if try_get_default_storage::<ParityDb>().is_some() {
+		// If storage already exists, we're good
+		if try_get_default_storage::<Database>().is_some() {
 			return false;
 		}
 

@@ -11,21 +11,28 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "std")]
-use std::path::Path;
-
 use super::LOG_TARGET;
-use super::ledger_storage_local::{
-	db::ParityDb,
-	storage::{try_get_default_storage, unsafe_drop_default_storage},
-};
+use super::ledger_storage_local::storage::{try_get_default_storage, unsafe_drop_default_storage};
+
+use crate::aux_store_db::AuxStoreDb;
+
+type LedgerDb = AuxStoreDb<sha2::Sha256>;
 
 pub fn drop_default_storage_if_exists() {
+	if try_get_default_storage::<LedgerDb>().is_some() {
+		unsafe_drop_default_storage::<LedgerDb>();
+		log::info!(
+			target: LOG_TARGET,
+			"Dropped HF storage after rollback"
+		);
+	}
+	// Also check legacy ParityDb storage
+	use super::ledger_storage_local::db::ParityDb;
 	if try_get_default_storage::<ParityDb>().is_some() {
 		unsafe_drop_default_storage::<ParityDb>();
 		log::info!(
 			target: LOG_TARGET,
-			"Dropped HF storage after rollback"
+			"Dropped legacy ParityDb HF storage after rollback"
 		);
 	}
 }
@@ -41,13 +48,13 @@ use {
 pub fn get_root(state: &[u8]) -> Vec<u8> {
 	// Get empty state key
 	use super::api::Ledger;
-	use super::ledger_storage_local::{DefaultDB, storage::default_storage};
+	use super::ledger_storage_local::storage::default_storage;
 
-	let state: super::mn_ledger_local::structure::LedgerState<DefaultDB> =
+	let state: super::mn_ledger_local::structure::LedgerState<LedgerDb> =
 		super::midnight_serialize_local::tagged_deserialize(state)
 			.expect("Failed to deserialize initial state");
 	let state = Ledger::new(state);
-	let state = default_storage::<DefaultDB>().arena.alloc(state);
+	let state = default_storage::<LedgerDb>().arena.alloc(state);
 	let mut bytes = vec![];
 	super::midnight_serialize_local::tagged_serialize(&state.as_typed_key(), &mut bytes).unwrap();
 	bytes
@@ -75,24 +82,21 @@ where
 }
 
 #[cfg(feature = "std")]
-pub fn init_storage_paritydb<P: AsRef<Path>>(
-	dir: P,
+pub fn init_storage_auxstore(
+	backend: std::sync::Arc<dyn midnight_primitives_ledger::LedgerBackendDb>,
 	genesis_state: &[u8],
 	cache_size: usize,
 ) -> Vec<u8> {
 	use super::base_crypto_local::signatures::Signature;
-	use super::ledger_storage_local::{Storage, db::ParityDb, storage::set_default_storage};
+	use super::ledger_storage_local::{Storage, storage::set_default_storage};
 
 	let res = set_default_storage(|| {
-		std::fs::create_dir_all(dir.as_ref())
-			.unwrap_or_else(|_| panic!("Failed to create dir {}", dir.as_ref().display()));
-
-		let db = ParityDb::<sha2::Sha256>::open(dir.as_ref());
+		let db: LedgerDb = AuxStoreDb::new(backend);
 		Storage::new(cache_size, db)
 	});
 	if res.is_err() {
 		log::warn!("Warning: Failed to set default storage: {res:?}");
 	}
 
-	alloc_with_initial_state::<Signature, ParityDb>(genesis_state)
+	alloc_with_initial_state::<Signature, LedgerDb>(genesis_state)
 }

@@ -54,7 +54,6 @@ use sp_runtime::traits::{Block as BlockT, Hash as HashT, HashingFor, Header as H
 use sp_runtime::{Digest, DigestItem};
 use std::{
 	marker::PhantomData,
-	path::Path,
 	sync::{Arc, Mutex},
 	time::Duration,
 };
@@ -65,22 +64,24 @@ pub struct StorageInit {
 	pub cache_size: usize,
 }
 
-/// Initialize Ledger Storage based on the RuntimeVersion
-fn init_ledger_storage<P: AsRef<Path>>(
-	parity_db_path: P,
+/// Initialize Ledger Storage based on the RuntimeVersion, using the node's backend AuxStore.
+fn init_ledger_storage(
+	backend: Arc<FullBackend>,
 	storage_config: &StorageInit,
 	runtime_version: sp_version::RuntimeVersion,
 ) {
+	let backend_db: Arc<dyn midnight_primitives_ledger::LedgerBackendDb> =
+		Arc::new(crate::ledger_backend::BackendLedgerDb(backend));
 	#[allow(clippy::zero_prefixed_literal)]
 	if runtime_version.spec_version < 000_022_000 {
-		midnight_node_ledger::ledger_7::storage::init_storage_paritydb(
-			parity_db_path.as_ref(),
+		midnight_node_ledger::ledger_7::storage::init_storage_auxstore(
+			backend_db.clone(),
 			&storage_config.genesis_state,
 			storage_config.cache_size,
 		);
 	} else {
-		midnight_node_ledger::ledger_8::storage::init_storage_paritydb(
-			&parity_db_path,
+		midnight_node_ledger::ledger_8::storage::init_storage_auxstore(
+			backend_db,
 			&storage_config.genesis_state,
 			storage_config.cache_size,
 		);
@@ -325,8 +326,7 @@ pub fn new_partial(
 
 	let runtime_version =
 		resolve_runtime_version_from_wasm::<_, HashingFor<Block>>(&genesis_storage, &executor)?;
-	let parity_db_path = config.base_path.path().join("ledger_storage");
-	init_ledger_storage(parity_db_path.clone(), &storage_config, runtime_version);
+	init_ledger_storage(backend.clone(), &storage_config, runtime_version);
 
 	let genesis_block_builder = GenesisBlockBuilder::<Block, _, _>::new(
 		genesis_storage,
@@ -369,7 +369,10 @@ pub fn new_partial(
 				},
 			});
 
-	let ledger_storage = LedgerStorage::new(parity_db_path, storage_config.cache_size);
+	let ledger_storage = LedgerStorage::new(
+		Arc::new(crate::ledger_backend::BackendLedgerDb(backend.clone())),
+		storage_config.cache_size,
+	);
 
 	client
 		.execution_extensions()
