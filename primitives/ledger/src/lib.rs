@@ -101,7 +101,7 @@ impl LedgerMetrics {
 						"Time spent for processing a transaction",
 					)
 					.buckets(time_buckets.clone()),
-					&["tx_type", "cache_outcome"],
+					&["tx_type"],
 				)?,
 				registry,
 			)?,
@@ -223,14 +223,9 @@ impl LedgerMetricsExt {
 		});
 	}
 
-	pub fn observe_txs_processing_time(
-		&mut self,
-		time: f64,
-		tx_type: &'static str,
-		cache_outcome: &str,
-	) {
+	pub fn observe_txs_processing_time(&mut self, time: f64, label: &'static str) {
 		self.observe(|m| {
-			m.txs_processing_time.with_label_values(&[tx_type, cache_outcome]).observe(time);
+			m.txs_processing_time.with_label_values(&[label]).observe(time);
 		});
 	}
 

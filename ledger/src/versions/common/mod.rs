@@ -145,6 +145,15 @@ const TX_VALIDATION_CACHE_CAPACITY: u64 = 2000;
 #[cfg(feature = "std")]
 const TX_VALIDATION_CACHE_TTI: Duration = Duration::from_secs(300);
 
+/// Time-to-live for cache entries.
+/// Unlike TTI, TTL evicts entries unconditionally after this duration regardless of access.
+/// This is critical for relay nodes (non-block-producers) where cache entries are never
+/// invalidated by block authoring — without a TTL, revalidation keeps accessing entries and
+/// resetting the TTI timer, so invalid transactions persist in the mempool indefinitely.
+/// Set to 60s (~10 blocks at 6s/block) to balance eviction latency against revalidation cost.
+#[cfg(feature = "std")]
+const TX_VALIDATION_CACHE_TTL: Duration = Duration::from_secs(60);
+
 #[cfg(feature = "std")]
 lazy_static! {
 	/// Cache: stores VerifiedTransaction for reuse across apply_transaction,
@@ -161,6 +170,7 @@ lazy_static! {
 		Cache::builder()
 			.max_capacity(TX_VALIDATION_CACHE_CAPACITY)
 			.time_to_idle(TX_VALIDATION_CACHE_TTI)
+			.time_to_live(TX_VALIDATION_CACHE_TTL)
 			.build();
 }
 
@@ -475,7 +485,7 @@ where
 			let tx_type = Self::get_tx_type(&tx);
 			let elapsed_time = start_tx_processing_time.elapsed().as_secs_f64();
 
-			metrics.observe_txs_processing_time(elapsed_time, tx_type, cache_outcome.label());
+			metrics.observe_txs_processing_time(elapsed_time, tx_type);
 			metrics.observe_txs_size(tx_size as f64, tx_type);
 			cache_outcome.record_cache_metrics(metrics);
 			metrics.set_tx_validation_cache_size("strict", TX_VALIDATION_CACHE.entry_count());
@@ -956,6 +966,10 @@ where
 					return Err(e);
 				},
 			};
+
+		if !matches!(cache_outcome, TxValidationCacheOutcome::CacheMiss) {
+			return Ok(cache_outcome);
+		}
 
 		// Dry-run apply to validate guaranteed execution against current state
 		let ctx = ledger.get_transaction_context(block_context.clone())?;

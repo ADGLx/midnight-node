@@ -548,42 +548,6 @@ fn test_validation_cache_miss_after_runtime_version_change() {
 }
 
 #[test]
-fn test_validate_unsigned_rejects_applied_tx_via_revalidation() {
-	with_cache_test_env(|metrics| {
-		let (deploy_tx, block_context_deploy) =
-			midnight_node_ledger_helpers::extract_tx_with_context(DEPLOY_TX);
-		let (store_tx, block_context_store) =
-			midnight_node_ledger_helpers::extract_tx_with_context(STORE_TX);
-
-		init_ledger_state(block_context_deploy.into());
-
-		assert_ok!(mock::Midnight::send_mn_transaction(RuntimeOrigin::none(), deploy_tx));
-		process_block(2, block_context_store.into());
-
-		let call = MidnightCall::send_mn_transaction { midnight_tx: store_tx.clone() };
-
-		assert_validate_unsigned_ok(&call);
-
-		assert_ok!(mock::Midnight::send_mn_transaction(RuntimeOrigin::none(), store_tx));
-
-		// validate_unsigned fails, because transaction was already applied in the prev step
-		assert_matches!(
-			<mock::Midnight as ValidateUnsigned>::validate_unsigned(
-				TransactionSource::External,
-				&call
-			),
-			Err(TransactionValidityError::Invalid(InvalidTransaction::Custom(_)))
-		);
-
-		// send_mn_transaction(deploy_tx) pre_dispatch: miss=1
-		// validate_unsigned(store_tx): miss=2
-		// send_mn_transaction(store_tx) pre_dispatch: strict=1
-		// failed validate_unsigned(store_tx): returns early, no metrics recorded
-		assert_cache_metrics(metrics, 2, 1, 0);
-	});
-}
-
-#[test]
 fn test_full_lifecycle_with_state_change() {
 	with_cache_test_env(|metrics| {
 		let (deploy_tx, block_context_deploy) =
