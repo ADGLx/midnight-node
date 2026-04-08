@@ -471,12 +471,14 @@ jobs:
             --notes-file RELEASE_NOTES.md
 
       - name: Fetch release tag
+        if: inputs.archive-changes == true
         working-directory: ./.tmp-package
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: git fetch origin tag "$GIT_TAG_RELEASE"
 
       - name: Archive changes
+        if: inputs.archive-changes == true
         env:
           ARCHIVE_MODE: ${{ inputs.archive-mode }}
         working-directory: ./.tmp-package
