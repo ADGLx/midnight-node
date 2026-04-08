@@ -922,12 +922,12 @@ where
 			block_timestamp,
 		)
 		.map_err(|e| {
-            log::warn!(
+			log::warn!(
 				target: LOG_TARGET,
 				"Transaction malformed: {e}",
 			);
-            LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()))
-        })
+			LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()))
+		})
 	}
 
 	/// Validates a transaction for the mempool.

@@ -58,7 +58,7 @@ fn init_ledger_state(block_context: BlockContext) {
 
 fn init_deploy_call() -> MidnightCall<Test> {
 	let (tx, block_context) =
-		midnight_node_ledger_helpers::extract_info_from_tx_with_context(DEPLOY_TX);
+		midnight_node_ledger_helpers::ledger_8::extract_tx_with_context(DEPLOY_TX);
 	init_ledger_state(block_context.into());
 	MidnightCall::send_mn_transaction { midnight_tx: tx }
 }
@@ -501,7 +501,7 @@ fn test_validation_cache_strict_hit() {
 fn test_validation_cache_revalidation_hit() {
 	with_cache_test_env(|metrics| {
 		let (deploy_tx, block_context_deploy) =
-			midnight_node_ledger_helpers::ledger_8::extract_info_from_tx_with_context(DEPLOY_TX);
+			midnight_node_ledger_helpers::ledger_8::extract_tx_with_context(DEPLOY_TX);
 
 		init_ledger_state(block_context_deploy.clone().into());
 
@@ -551,9 +551,9 @@ fn test_validation_cache_miss_after_runtime_version_change() {
 fn test_validate_unsigned_rejects_applied_tx_via_revalidation() {
 	with_cache_test_env(|metrics| {
 		let (deploy_tx, block_context_deploy) =
-			midnight_node_ledger_helpers::extract_info_from_tx_with_context(DEPLOY_TX);
+			midnight_node_ledger_helpers::extract_tx_with_context(DEPLOY_TX);
 		let (store_tx, block_context_store) =
-			midnight_node_ledger_helpers::extract_info_from_tx_with_context(STORE_TX);
+			midnight_node_ledger_helpers::extract_tx_with_context(STORE_TX);
 
 		init_ledger_state(block_context_deploy.into());
 
@@ -617,7 +617,7 @@ fn change_state_hash(block_context: BlockContext) {
 	let serialized =
 		midnight_node_ledger_helpers::serialize(&sys_tx).expect("system tx serialization");
 
-	let state_key: Vec<u8> = StateKey::<Test>::get().expect("state key").into();
+	let state_key: Vec<u8> = StateKey::<Test>::get();
 	let runtime_version = mock::TestSpecVersion::get();
 	let result = LedgerApi::apply_system_transaction(
 		&state_key,
