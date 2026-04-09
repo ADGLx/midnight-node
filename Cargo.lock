@@ -7834,7 +7834,7 @@ dependencies = [
 
 [[package]]
 name = "midnight-node-toolkit"
-version = "0.1.0"
+version = "1.0.0"
 dependencies = [
  "async-channel 2.5.0",
  "async-trait",

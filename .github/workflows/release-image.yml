@@ -100,8 +100,6 @@ jobs:
       toolkit-tag-release: ${{ steps.release-env.outputs.toolkit_tag_release }}
       runtime-version: ${{ steps.release-env.outputs.runtime_version }}
       runtime-tag-release: ${{ steps.release-env.outputs.runtime_tag_release }}
-      changes-dir: ${{ steps.release-config.outputs.changes_dir }}
-      template-dir: ${{ steps.release-config.outputs.template_dir }}
     env:
       FORCE_COLOR: 1
     steps:
@@ -183,22 +181,6 @@ jobs:
             GIT_TAG="${GIT_TAG:+${GIT_TAG}-}runtime-${RUNTIME_TAG_RELEASE}"
           fi
           echo "git_tag_release=$GIT_TAG" >> "$GITHUB_OUTPUT"
-
-          # Determine changes directory for release notes and archiving
-          if [ "$SKIP_NODE" != "true" ] && [ "$SKIP_TOOLKIT" != "true" ]; then
-            echo "changes_dir=changes" >> "$GITHUB_OUTPUT"
-            echo "template_dir=.changes_template" >> "$GITHUB_OUTPUT"
-          elif [ "$SKIP_NODE" != "true" ]; then
-            echo "changes_dir=changes/node" >> "$GITHUB_OUTPUT"
-            echo "template_dir=.changes_template/node" >> "$GITHUB_OUTPUT"
-          elif [ "$SKIP_TOOLKIT" != "true" ]; then
-            echo "changes_dir=changes/toolkit" >> "$GITHUB_OUTPUT"
-            echo "template_dir=.changes_template/toolkit" >> "$GITHUB_OUTPUT"
-          else
-            # Runtime-only
-            echo "changes_dir=changes/runtime" >> "$GITHUB_OUTPUT"
-            echo "template_dir=.changes_template/runtime" >> "$GITHUB_OUTPUT"
-          fi
 
       # --- Node image retag (GHCR) ---
       - name: Retag and push node release images (GHCR)
@@ -431,8 +413,6 @@ jobs:
           NODE_VERSION: ${{ needs.prepare-release.outputs.node-version }}
           TOOLKIT_TAG_RELEASE: ${{ needs.prepare-release.outputs.toolkit-tag-release }}
           RUNTIME_TAG_RELEASE: ${{ needs.prepare-release.outputs.runtime-tag-release }}
-          CHANGES_DIR: ${{ needs.prepare-release.outputs.changes-dir }}
-          TEMPLATE_DIR: ${{ needs.prepare-release.outputs.template-dir }}
         run: |
           echo "IMAGE_TAG_CONTENT_HASH=$IMAGE_TAG_CONTENT_HASH" >> "$GITHUB_ENV"
           echo "IMAGE_TAG_RELEASE=$IMAGE_TAG_RELEASE" >> "$GITHUB_ENV"
@@ -440,8 +420,6 @@ jobs:
           echo "NODE_VERSION=$NODE_VERSION" >> "$GITHUB_ENV"
           echo "TOOLKIT_TAG_RELEASE=$TOOLKIT_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "RUNTIME_TAG_RELEASE=$RUNTIME_TAG_RELEASE" >> "$GITHUB_ENV"
-          echo "CHANGES_DIR=$CHANGES_DIR" >> "$GITHUB_ENV"
-          echo "TEMPLATE_DIR=$TEMPLATE_DIR" >> "$GITHUB_ENV"
 
       - name: Build Release Notes
         shell: bash
@@ -462,7 +440,19 @@ jobs:
             export SEASON_VAR_RUNTIME_VERSION="$RUNTIME_TAG_RELEASE"
           fi
           export SEASON_VAR_RELEASE_TAG="$GIT_TAG_RELEASE"
-          season build --changes-dir "./.tmp-package/$CHANGES_DIR" -o RELEASE_NOTES.md
+
+          # Determine changes dir for build: use component subdir if single, root if multiple
+          INCLUDED=0
+          SINGLE_COMPONENT=""
+          if [ "$SKIP_NODE" != "true" ]; then INCLUDED=$((INCLUDED+1)); SINGLE_COMPONENT="node"; fi
+          if [ "$SKIP_TOOLKIT" != "true" ]; then INCLUDED=$((INCLUDED+1)); SINGLE_COMPONENT="toolkit"; fi
+          if [ "$SKIP_RUNTIME" != "true" ]; then INCLUDED=$((INCLUDED+1)); SINGLE_COMPONENT="runtime"; fi
+          if [ "$INCLUDED" -eq 1 ]; then
+            BUILD_CHANGES_DIR="changes/$SINGLE_COMPONENT"
+          else
+            BUILD_CHANGES_DIR="changes"
+          fi
+          season build --changes-dir "./.tmp-package/$BUILD_CHANGES_DIR" -o RELEASE_NOTES.md
 
       - name: Create release
         shell: bash
@@ -508,22 +498,38 @@ jobs:
         if: inputs.archive-changes == true
         env:
           ARCHIVE_MODE: ${{ inputs.archive-mode }}
+          SKIP_NODE: ${{ inputs.skip-node }}
+          SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
+          SKIP_RUNTIME: ${{ inputs.skip-runtime }}
         working-directory: ./.tmp-package
         run: |
-          season archive-changes \
-            --changes-dir "$CHANGES_DIR" \
-            --tag "$GIT_TAG_RELEASE" \
-            --archive-mode "$ARCHIVE_MODE" \
-            --force
+          if [ "$SKIP_NODE" != "true" ]; then
+            season archive-changes --changes-dir changes/node --tag "$GIT_TAG_RELEASE" --archive-mode "$ARCHIVE_MODE" --force
+          fi
+          if [ "$SKIP_TOOLKIT" != "true" ]; then
+            season archive-changes --changes-dir changes/toolkit --tag "$GIT_TAG_RELEASE" --archive-mode "$ARCHIVE_MODE" --force
+          fi
+          if [ "$SKIP_RUNTIME" != "true" ]; then
+            season archive-changes --changes-dir changes/runtime --tag "$GIT_TAG_RELEASE" --archive-mode "$ARCHIVE_MODE" --force
+          fi
 
       - name: Reset changes
         if: inputs.reset-changes == true
+        env:
+          SKIP_NODE: ${{ inputs.skip-node }}
+          SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
+          SKIP_RUNTIME: ${{ inputs.skip-runtime }}
         working-directory: ./.tmp-package
         run: |
-          season reset-changes \
-            --changes-dir "$CHANGES_DIR" \
-            --changes-template-dir "$TEMPLATE_DIR" \
-            --dirty
+          if [ "$SKIP_NODE" != "true" ]; then
+            season reset-changes --changes-dir changes/node --changes-template-dir .changes_template/node --dirty
+          fi
+          if [ "$SKIP_TOOLKIT" != "true" ]; then
+            season reset-changes --changes-dir changes/toolkit --changes-template-dir .changes_template/toolkit --dirty
+          fi
+          if [ "$SKIP_RUNTIME" != "true" ]; then
+            season reset-changes --changes-dir changes/runtime --changes-template-dir .changes_template/runtime --dirty
+          fi
 
       - name: Bump Cargo version
         if: inputs.bump-version == true
