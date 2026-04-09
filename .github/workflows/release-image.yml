@@ -463,6 +463,25 @@ jobs:
           sed -i 's/^## Toolkit$/## 🧰 Toolkit/' RELEASE_NOTES.md
           sed -i 's/^## Runtime$/## ⚙️ Runtime/' RELEASE_NOTES.md
 
+          # Reorder component sections to: Node, Toolkit, Runtime
+          # Season renders alphabetically (node, runtime, toolkit) but we want node, toolkit, runtime
+          python3 - RELEASE_NOTES.md <<'PYEOF'
+          import sys, re
+          with open(sys.argv[1]) as f:
+              content = f.read()
+          # Split into header (before first ## section) and component sections
+          parts = re.split(r'(?=^## )', content, flags=re.MULTILINE)
+          header = parts[0]
+          sections = {s.split('\n', 1)[0]: s for s in parts[1:]}
+          # Desired order
+          order = ['## 📦 Node', '## 🧰 Toolkit', '## ⚙️ Runtime']
+          ordered = [sections[k] for k in order if k in sections]
+          # Append any unexpected sections at the end
+          remaining = [sections[k] for k in sections if k not in order]
+          with open(sys.argv[1], 'w') as f:
+              f.write(header + ''.join(ordered + remaining))
+          PYEOF
+
       - name: Create release
         shell: bash
         env:
