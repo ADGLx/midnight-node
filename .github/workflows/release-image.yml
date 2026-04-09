@@ -98,6 +98,8 @@ jobs:
       git-tag-release: ${{ steps.release-config.outputs.git_tag_release }}
       toolkit-version: ${{ steps.release-env.outputs.toolkit_version }}
       toolkit-tag-release: ${{ steps.release-env.outputs.toolkit_tag_release }}
+      runtime-version: ${{ steps.release-env.outputs.runtime_version }}
+      runtime-tag-release: ${{ steps.release-env.outputs.runtime_tag_release }}
       changes-dir: ${{ steps.release-config.outputs.changes_dir }}
       template-dir: ${{ steps.release-config.outputs.template_dir }}
     env:
@@ -133,37 +135,54 @@ jobs:
         run: |
           NODE_VERSION="$(grep -m 1 'version =' node/Cargo.toml | awk '{print $3}' | tr -d '"')"
           TOOLKIT_VERSION="$(grep -m 1 'version =' util/toolkit/Cargo.toml | awk '{print $3}' | tr -d '"')"
+
+          # Extract runtime spec_version (e.g. 001_000_000 -> 1.0.0)
+          SPEC_VERSION_RAW="$(grep -m 1 'spec_version:' runtime/src/lib.rs | awk '{print $2}' | tr -d ',')"
+          MAJOR=$((10#$(echo "$SPEC_VERSION_RAW" | sed 's/_//g' | sed 's/^\([0-9]\{3\}\).*/\1/')))
+          MINOR=$((10#$(echo "$SPEC_VERSION_RAW" | sed 's/_//g' | sed 's/^[0-9]\{3\}\([0-9]\{3\}\).*/\1/')))
+          PATCH=$((10#$(echo "$SPEC_VERSION_RAW" | sed 's/_//g' | sed 's/^[0-9]\{6\}\([0-9]\{3\}\).*/\1/')))
+          RUNTIME_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+
           CONTENT_HASH=$(git rev-parse "HEAD^{tree}" | cut -c1-12)
           IMAGE_TAG_CONTENT_HASH="$NODE_VERSION-$CONTENT_HASH"
           IMAGE_TAG_RELEASE="$NODE_VERSION$SUFFIX"
           TOOLKIT_TAG_RELEASE="$TOOLKIT_VERSION$SUFFIX"
+          RUNTIME_TAG_RELEASE="$RUNTIME_VERSION$SUFFIX"
 
           # Job outputs (for downstream jobs)
           echo "node_version=$NODE_VERSION" >> "$GITHUB_OUTPUT"
           echo "toolkit_version=$TOOLKIT_VERSION" >> "$GITHUB_OUTPUT"
+          echo "runtime_version=$RUNTIME_VERSION" >> "$GITHUB_OUTPUT"
           echo "image_tag_content_hash=$IMAGE_TAG_CONTENT_HASH" >> "$GITHUB_OUTPUT"
           echo "image_tag_release=$IMAGE_TAG_RELEASE" >> "$GITHUB_OUTPUT"
           echo "toolkit_tag_release=$TOOLKIT_TAG_RELEASE" >> "$GITHUB_OUTPUT"
+          echo "runtime_tag_release=$RUNTIME_TAG_RELEASE" >> "$GITHUB_OUTPUT"
 
           # Env vars (for subsequent steps in this job)
           echo "IMAGE_TAG_CONTENT_HASH=$IMAGE_TAG_CONTENT_HASH" >> "$GITHUB_ENV"
           echo "IMAGE_TAG_RELEASE=$IMAGE_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "TOOLKIT_TAG_RELEASE=$TOOLKIT_TAG_RELEASE" >> "$GITHUB_ENV"
+          echo "RUNTIME_TAG_RELEASE=$RUNTIME_TAG_RELEASE" >> "$GITHUB_ENV"
 
       - name: Compute release configuration
         id: release-config
         env:
           SKIP_NODE: ${{ inputs.skip-node }}
           SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
+          SKIP_RUNTIME: ${{ inputs.skip-runtime }}
         run: |
-          # Determine git tag based on which components are included
+          # Build git tag by concatenating included components: node -> toolkit -> runtime
+          GIT_TAG=""
           if [ "$SKIP_NODE" != "true" ]; then
-            echo "git_tag_release=node-${IMAGE_TAG_RELEASE}" >> "$GITHUB_OUTPUT"
-          elif [ "$SKIP_TOOLKIT" != "true" ]; then
-            echo "git_tag_release=toolkit-${TOOLKIT_TAG_RELEASE}" >> "$GITHUB_OUTPUT"
-          else
-            echo "git_tag_release=runtime-${IMAGE_TAG_RELEASE}" >> "$GITHUB_OUTPUT"
+            GIT_TAG="node-${IMAGE_TAG_RELEASE}"
           fi
+          if [ "$SKIP_TOOLKIT" != "true" ]; then
+            GIT_TAG="${GIT_TAG:+${GIT_TAG}-}toolkit-${TOOLKIT_TAG_RELEASE}"
+          fi
+          if [ "$SKIP_RUNTIME" != "true" ]; then
+            GIT_TAG="${GIT_TAG:+${GIT_TAG}-}runtime-${RUNTIME_TAG_RELEASE}"
+          fi
+          echo "git_tag_release=$GIT_TAG" >> "$GITHUB_OUTPUT"
 
           # Determine changes directory for release notes and archiving
           if [ "$SKIP_NODE" != "true" ] && [ "$SKIP_TOOLKIT" != "true" ]; then
@@ -176,9 +195,9 @@ jobs:
             echo "changes_dir=changes/toolkit" >> "$GITHUB_OUTPUT"
             echo "template_dir=.changes_template/toolkit" >> "$GITHUB_OUTPUT"
           else
-            # Runtime-only: no changes to archive, use root as fallback
-            echo "changes_dir=changes" >> "$GITHUB_OUTPUT"
-            echo "template_dir=.changes_template" >> "$GITHUB_OUTPUT"
+            # Runtime-only
+            echo "changes_dir=changes/runtime" >> "$GITHUB_OUTPUT"
+            echo "template_dir=.changes_template/runtime" >> "$GITHUB_OUTPUT"
           fi
 
       # --- Node image retag (GHCR) ---
@@ -411,6 +430,7 @@ jobs:
           GIT_TAG_RELEASE: ${{ needs.prepare-release.outputs.git-tag-release }}
           NODE_VERSION: ${{ needs.prepare-release.outputs.node-version }}
           TOOLKIT_TAG_RELEASE: ${{ needs.prepare-release.outputs.toolkit-tag-release }}
+          RUNTIME_TAG_RELEASE: ${{ needs.prepare-release.outputs.runtime-tag-release }}
           CHANGES_DIR: ${{ needs.prepare-release.outputs.changes-dir }}
           TEMPLATE_DIR: ${{ needs.prepare-release.outputs.template-dir }}
         run: |
@@ -419,6 +439,7 @@ jobs:
           echo "GIT_TAG_RELEASE=$GIT_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "NODE_VERSION=$NODE_VERSION" >> "$GITHUB_ENV"
           echo "TOOLKIT_TAG_RELEASE=$TOOLKIT_TAG_RELEASE" >> "$GITHUB_ENV"
+          echo "RUNTIME_TAG_RELEASE=$RUNTIME_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "CHANGES_DIR=$CHANGES_DIR" >> "$GITHUB_ENV"
           echo "TEMPLATE_DIR=$TEMPLATE_DIR" >> "$GITHUB_ENV"
 
@@ -427,12 +448,18 @@ jobs:
         env:
           SKIP_NODE: ${{ inputs.skip-node }}
           SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
+          SKIP_RUNTIME: ${{ inputs.skip-runtime }}
         run: |
           if [ "$SKIP_NODE" != "true" ]; then
             export SEASON_VAR_NODE_DOCKER_IMAGE="midnightntwrk/midnight-node:$IMAGE_TAG_RELEASE"
+            export SEASON_VAR_NODE_VERSION="$IMAGE_TAG_RELEASE"
           fi
           if [ "$SKIP_TOOLKIT" != "true" ]; then
             export SEASON_VAR_TOOLKIT_DOCKER_IMAGE="midnightntwrk/midnight-node-toolkit:$TOOLKIT_TAG_RELEASE"
+            export SEASON_VAR_TOOLKIT_VERSION="$TOOLKIT_TAG_RELEASE"
+          fi
+          if [ "$SKIP_RUNTIME" != "true" ]; then
+            export SEASON_VAR_RUNTIME_VERSION="$RUNTIME_TAG_RELEASE"
           fi
           export SEASON_VAR_RELEASE_TAG="$GIT_TAG_RELEASE"
           season build --changes-dir "./.tmp-package/$CHANGES_DIR" -o RELEASE_NOTES.md
