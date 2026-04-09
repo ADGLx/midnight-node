@@ -1,5 +1,3 @@
-📦
-
 ### Docker Images
 
 #### DockerHub

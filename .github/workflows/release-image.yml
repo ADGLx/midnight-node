@@ -458,6 +458,11 @@ jobs:
 
           season build --changes-dir "./.tmp-package/changes" -o RELEASE_NOTES.md
 
+          # Prepend icons to component section headings
+          sed -i 's/^## Node$/## 📦 Node/' RELEASE_NOTES.md
+          sed -i 's/^## Toolkit$/## 🧰 Toolkit/' RELEASE_NOTES.md
+          sed -i 's/^## Runtime$/## ⚙️ Runtime/' RELEASE_NOTES.md
+
       - name: Create release
         shell: bash
         env:
