@@ -60,7 +60,7 @@ on:
         default: move
       bump-version:
         type: boolean
-        description: 'Bump node Cargo version on main'
+        description: 'Bump components version on main'
         required: true
         default: false
       reset-changes:
@@ -559,15 +559,41 @@ jobs:
             season reset-changes --changes-dir changes/runtime --changes-template-dir .changes_template/runtime --dirty
           fi
 
-      - name: Bump Cargo version
+      - name: Bump components version
         if: inputs.bump-version == true
+        env:
+          SKIP_NODE: ${{ inputs.skip-node }}
+          SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
+          SKIP_RUNTIME: ${{ inputs.skip-runtime }}
         working-directory: ./.tmp-package
         run: |
-          IFS='.' read -r MAJOR MINOR PATCH <<< "$NODE_VERSION"
-          NEW_NODE_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
-          sed -i "0,/^version = \"$NODE_VERSION\"/s//version = \"$NEW_NODE_VERSION\"/" node/Cargo.toml
-          sed -i '/^name = "midnight-node"/{n;s/version = "'"$NODE_VERSION"'"/version = "'"$NEW_NODE_VERSION"'"/;}' Cargo.lock
-          echo "Bumped version: $NODE_VERSION -> $NEW_NODE_VERSION"
+          if [ "$SKIP_NODE" != "true" ]; then
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$NODE_VERSION"
+            NEW_NODE_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            sed -i "0,/^version = \"$NODE_VERSION\"/s//version = \"$NEW_NODE_VERSION\"/" node/Cargo.toml
+            sed -i '/^name = "midnight-node"/{n;s/version = "'"$NODE_VERSION"'"/version = "'"$NEW_NODE_VERSION"'"/;}' Cargo.lock
+            echo "Bumped node version: $NODE_VERSION -> $NEW_NODE_VERSION"
+          fi
+          if [ "$SKIP_TOOLKIT" != "true" ]; then
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$TOOLKIT_VERSION"
+            NEW_TOOLKIT_VERSION="${MAJOR}.${MINOR}.$((PATCH + 1))"
+            sed -i "0,/^version = \"$TOOLKIT_VERSION\"/s//version = \"$NEW_TOOLKIT_VERSION\"/" util/toolkit/Cargo.toml
+            sed -i '/^name = "midnight-node-toolkit"/{n;s/version = "'"$TOOLKIT_VERSION"'"/version = "'"$NEW_TOOLKIT_VERSION"'"/;}' Cargo.lock
+            echo "Bumped toolkit version: $TOOLKIT_VERSION -> $NEW_TOOLKIT_VERSION"
+          fi
+          if [ "$SKIP_RUNTIME" != "true" ]; then
+            # spec_version format: XXX_YYY_ZZZ (e.g. 001_000_000)
+            SPEC_RAW="$(grep -m 1 'spec_version:' runtime/src/lib.rs | awk '{print $2}' | tr -d ',')"
+            # Remove underscores, extract 3-digit groups, bump patch
+            DIGITS="${SPEC_RAW//_/}"
+            RMAJOR="${DIGITS:0:3}"
+            RMINOR="${DIGITS:3:3}"
+            RPATCH="${DIGITS:6:3}"
+            NEW_RPATCH=$(printf '%03d' $(( 10#$RPATCH + 1 )))
+            NEW_SPEC="${RMAJOR}_${RMINOR}_${NEW_RPATCH}"
+            sed -i "s/spec_version: ${SPEC_RAW}/spec_version: ${NEW_SPEC}/" runtime/src/lib.rs
+            echo "Bumped runtime spec_version: $SPEC_RAW -> $NEW_SPEC"
+          fi
 
       # Create a signed commit on a new branch and open a PR.
       # Uses the GitHub GraphQL API (createCommitOnBranch) instead of a
