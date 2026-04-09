@@ -157,6 +157,9 @@ jobs:
           echo "runtime_tag_release=$RUNTIME_TAG_RELEASE" >> "$GITHUB_OUTPUT"
 
           # Env vars (for subsequent steps in this job)
+          echo "NODE_VERSION=$NODE_VERSION" >> "$GITHUB_ENV"
+          echo "TOOLKIT_VERSION=$TOOLKIT_VERSION" >> "$GITHUB_ENV"
+          echo "RUNTIME_VERSION=$RUNTIME_VERSION" >> "$GITHUB_ENV"
           echo "IMAGE_TAG_CONTENT_HASH=$IMAGE_TAG_CONTENT_HASH" >> "$GITHUB_ENV"
           echo "IMAGE_TAG_RELEASE=$IMAGE_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "TOOLKIT_TAG_RELEASE=$TOOLKIT_TAG_RELEASE" >> "$GITHUB_ENV"
@@ -168,18 +171,21 @@ jobs:
           SKIP_NODE: ${{ inputs.skip-node }}
           SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
           SKIP_RUNTIME: ${{ inputs.skip-runtime }}
+          SUFFIX: ${{ github.event.inputs.suffix }}
         run: |
-          # Build git tag by concatenating included components: node -> toolkit -> runtime
+          # Build git tag by concatenating included components with bare versions,
+          # then appending suffix once at the end (e.g. node-1.0.0-runtime-1.0.0-rc.1)
           GIT_TAG=""
           if [ "$SKIP_NODE" != "true" ]; then
-            GIT_TAG="node-${IMAGE_TAG_RELEASE}"
+            GIT_TAG="node-${NODE_VERSION}"
           fi
           if [ "$SKIP_TOOLKIT" != "true" ]; then
-            GIT_TAG="${GIT_TAG:+${GIT_TAG}-}toolkit-${TOOLKIT_TAG_RELEASE}"
+            GIT_TAG="${GIT_TAG:+${GIT_TAG}-}toolkit-${TOOLKIT_VERSION}"
           fi
           if [ "$SKIP_RUNTIME" != "true" ]; then
-            GIT_TAG="${GIT_TAG:+${GIT_TAG}-}runtime-${RUNTIME_TAG_RELEASE}"
+            GIT_TAG="${GIT_TAG:+${GIT_TAG}-}runtime-${RUNTIME_VERSION}"
           fi
+          GIT_TAG="${GIT_TAG}${SUFFIX}"
           echo "git_tag_release=$GIT_TAG" >> "$GITHUB_OUTPUT"
 
       # --- Node image retag (GHCR) ---
@@ -411,6 +417,8 @@ jobs:
           IMAGE_TAG_CONTENT_HASH: ${{ needs.prepare-release.outputs.image-tag-content-hash }}
           GIT_TAG_RELEASE: ${{ needs.prepare-release.outputs.git-tag-release }}
           NODE_VERSION: ${{ needs.prepare-release.outputs.node-version }}
+          TOOLKIT_VERSION: ${{ needs.prepare-release.outputs.toolkit-version }}
+          RUNTIME_VERSION: ${{ needs.prepare-release.outputs.runtime-version }}
           TOOLKIT_TAG_RELEASE: ${{ needs.prepare-release.outputs.toolkit-tag-release }}
           RUNTIME_TAG_RELEASE: ${{ needs.prepare-release.outputs.runtime-tag-release }}
         run: |
@@ -418,6 +426,8 @@ jobs:
           echo "IMAGE_TAG_RELEASE=$IMAGE_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "GIT_TAG_RELEASE=$GIT_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "NODE_VERSION=$NODE_VERSION" >> "$GITHUB_ENV"
+          echo "TOOLKIT_VERSION=$TOOLKIT_VERSION" >> "$GITHUB_ENV"
+          echo "RUNTIME_VERSION=$RUNTIME_VERSION" >> "$GITHUB_ENV"
           echo "TOOLKIT_TAG_RELEASE=$TOOLKIT_TAG_RELEASE" >> "$GITHUB_ENV"
           echo "RUNTIME_TAG_RELEASE=$RUNTIME_TAG_RELEASE" >> "$GITHUB_ENV"
 
@@ -430,29 +440,23 @@ jobs:
         run: |
           if [ "$SKIP_NODE" != "true" ]; then
             export SEASON_VAR_NODE_DOCKER_IMAGE="midnightntwrk/midnight-node:$IMAGE_TAG_RELEASE"
-            export SEASON_VAR_NODE_VERSION="$IMAGE_TAG_RELEASE"
+            export SEASON_VAR_NODE_VERSION="$NODE_VERSION"
           fi
           if [ "$SKIP_TOOLKIT" != "true" ]; then
             export SEASON_VAR_TOOLKIT_DOCKER_IMAGE="midnightntwrk/midnight-node-toolkit:$TOOLKIT_TAG_RELEASE"
-            export SEASON_VAR_TOOLKIT_VERSION="$TOOLKIT_TAG_RELEASE"
+            export SEASON_VAR_TOOLKIT_VERSION="$TOOLKIT_VERSION"
           fi
           if [ "$SKIP_RUNTIME" != "true" ]; then
-            export SEASON_VAR_RUNTIME_VERSION="$RUNTIME_TAG_RELEASE"
+            export SEASON_VAR_RUNTIME_VERSION="$RUNTIME_VERSION"
           fi
           export SEASON_VAR_RELEASE_TAG="$GIT_TAG_RELEASE"
 
-          # Determine changes dir for build: use component subdir if single, root if multiple
-          INCLUDED=0
-          SINGLE_COMPONENT=""
-          if [ "$SKIP_NODE" != "true" ]; then INCLUDED=$((INCLUDED+1)); SINGLE_COMPONENT="node"; fi
-          if [ "$SKIP_TOOLKIT" != "true" ]; then INCLUDED=$((INCLUDED+1)); SINGLE_COMPONENT="toolkit"; fi
-          if [ "$SKIP_RUNTIME" != "true" ]; then INCLUDED=$((INCLUDED+1)); SINGLE_COMPONENT="runtime"; fi
-          if [ "$INCLUDED" -eq 1 ]; then
-            BUILD_CHANGES_DIR="changes/$SINGLE_COMPONENT"
-          else
-            BUILD_CHANGES_DIR="changes"
-          fi
-          season build --changes-dir "./.tmp-package/$BUILD_CHANGES_DIR" -o RELEASE_NOTES.md
+          # Remove skipped component dirs so season doesn't render empty sections
+          if [ "$SKIP_NODE" = "true" ]; then rm -rf "./.tmp-package/changes/node"; fi
+          if [ "$SKIP_TOOLKIT" = "true" ]; then rm -rf "./.tmp-package/changes/toolkit"; fi
+          if [ "$SKIP_RUNTIME" = "true" ]; then rm -rf "./.tmp-package/changes/runtime"; fi
+
+          season build --changes-dir "./.tmp-package/changes" -o RELEASE_NOTES.md
 
       - name: Create release
         shell: bash

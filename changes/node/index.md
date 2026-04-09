@@ -1,12 +1,8 @@
-Git tag: [{{ release_tag }}](https://github.com/midnightntwrk/midnight-node/tree/{{ release_tag }})
+📦
 
-## Components
+### Docker Images
 
-- 📦 `node-{{ node_version }}`
-
-## Docker Images
-
-### DockerHub
+#### DockerHub
 - [midnight-node](https://hub.docker.com/r/midnightntwrk/midnight-node/)
 
 ```shell
