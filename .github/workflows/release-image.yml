@@ -465,18 +465,22 @@ jobs:
 
           # Reorder component sections to: Node, Toolkit, Runtime
           # Season renders alphabetically (node, runtime, toolkit) but we want node, toolkit, runtime
+          # Only split on known component headings — preserve all other ## headings (e.g. ## Components) in place
           python3 - RELEASE_NOTES.md <<'PYEOF'
           import sys, re
           with open(sys.argv[1]) as f:
               content = f.read()
-          # Split into header (before first ## section) and component sections
-          parts = re.split(r'(?=^## )', content, flags=re.MULTILINE)
-          header = parts[0]
-          sections = {s.split('\n', 1)[0]: s for s in parts[1:]}
+          # Split only on component section headings (not ## Components or other headings)
+          component_re = re.compile(r'(?=^## (?:📦 Node|🧰 Toolkit|⚙️ Runtime)\s*$)', re.MULTILINE)
+          parts = component_re.split(content)
+          header = parts[0]  # Everything before the first component heading (includes ## Components, etc.)
+          sections = {}
+          for s in parts[1:]:
+              key = s.split('\n', 1)[0].rstrip()
+              sections[key] = s
           # Desired order
           order = ['## 📦 Node', '## 🧰 Toolkit', '## ⚙️ Runtime']
           ordered = [sections[k] for k in order if k in sections]
-          # Append any unexpected sections at the end
           remaining = [sections[k] for k in sections if k not in order]
           with open(sys.argv[1], 'w') as f:
               f.write(header + ''.join(ordered + remaining))
