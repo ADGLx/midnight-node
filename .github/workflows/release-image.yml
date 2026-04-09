@@ -600,7 +600,7 @@ jobs:
       # third-party action (e.g. peter-evans/create-pull-request)
       # so the commit is automatically signed by GitHub.
       - name: Create Archive-Changes PR against main
-        if: inputs.skip-node != true || inputs.skip-toolkit != true
+        if: inputs.skip-node != true || inputs.skip-toolkit != true || inputs.skip-runtime != true
         working-directory: ./.tmp-package
         shell: bash
         env:
