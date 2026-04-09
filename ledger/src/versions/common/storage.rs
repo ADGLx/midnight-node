@@ -45,16 +45,19 @@ use {
 	super::transient_crypto_local::commitment::PureGeneratorPedersen,
 };
 
+/// Compute the runtime genesis `genesis_state_key` from the raw genesis ledger blob.
+///
+/// Uses in-memory `DefaultDB` so this works without `set_default_storage` (e.g. `build-spec`).
+/// The running node uses `AuxStoreDb` and `init_storage_auxstore` instead.
 pub fn get_root(state: &[u8]) -> Vec<u8> {
-	// Get empty state key
 	use super::api::Ledger;
-	use super::ledger_storage_local::storage::default_storage;
+	use super::ledger_storage_local::{DefaultDB, storage::default_storage};
 
-	let state: super::mn_ledger_local::structure::LedgerState<LedgerDb> =
+	let state: super::mn_ledger_local::structure::LedgerState<DefaultDB> =
 		super::midnight_serialize_local::tagged_deserialize(state)
 			.expect("Failed to deserialize initial state");
 	let state = Ledger::new(state);
-	let state = default_storage::<LedgerDb>().arena.alloc(state);
+	let state = default_storage::<DefaultDB>().arena.alloc(state);
 	let mut bytes = vec![];
 	super::midnight_serialize_local::tagged_serialize(&state.as_typed_key(), &mut bytes).unwrap();
 	bytes
