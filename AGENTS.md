@@ -153,7 +153,7 @@ PRs that affect the node, toolkit, or runtime should include a change file in th
 Format:
 
 ```
-#node (or #toolkit, #runtime)
+#tag1 #tag2
 # Short description of the change
 
 Longer description of the change
