@@ -1,3 +1,5 @@
+Git tag: [node-{{ node_tag }}](https://github.com/midnightntwrk/midnight-node/tree/node-{{ node_tag }})
+
 ### Docker Images
 
 #### DockerHub

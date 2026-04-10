@@ -1,3 +1,5 @@
+Git tag: [toolkit-{{ toolkit_tag }}](https://github.com/midnightntwrk/midnight-node/tree/toolkit-{{ toolkit_tag }})
+
 ### Docker Images
 
 #### DockerHub

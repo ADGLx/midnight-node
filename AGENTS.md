@@ -144,10 +144,16 @@ Networks other than `dev` require AWS access for genesis rebuilds. Contact the n
 
 ## Change Files
 
-PRs that affect the node or toolkit images should include a change file. Create a new file in the `changes/added` or `changes/changed` directory with the format:
+PRs that affect the node, toolkit, or runtime should include a change file in the appropriate component subdirectory:
+
+- `changes/node/added/` or `changes/node/changed/` — for node changes
+- `changes/toolkit/added/` or `changes/toolkit/changed/` — for toolkit changes
+- `changes/runtime/added/` or `changes/runtime/changed/` — for runtime changes
+
+Format:
 
 ```
-#tag1 #tag2
+#node (or #toolkit, #runtime)
 # Short description of the change
 
 Longer description of the change

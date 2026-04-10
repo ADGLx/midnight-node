@@ -441,13 +441,16 @@ jobs:
           if [ "$SKIP_NODE" != "true" ]; then
             export SEASON_VAR_NODE_DOCKER_IMAGE="midnightntwrk/midnight-node:$IMAGE_TAG_RELEASE"
             export SEASON_VAR_NODE_VERSION="$NODE_VERSION"
+            export SEASON_VAR_NODE_TAG="$IMAGE_TAG_RELEASE"
           fi
           if [ "$SKIP_TOOLKIT" != "true" ]; then
             export SEASON_VAR_TOOLKIT_DOCKER_IMAGE="midnightntwrk/midnight-node-toolkit:$TOOLKIT_TAG_RELEASE"
             export SEASON_VAR_TOOLKIT_VERSION="$TOOLKIT_VERSION"
+            export SEASON_VAR_TOOLKIT_TAG="$TOOLKIT_TAG_RELEASE"
           fi
           if [ "$SKIP_RUNTIME" != "true" ]; then
             export SEASON_VAR_RUNTIME_VERSION="$RUNTIME_VERSION"
+            export SEASON_VAR_RUNTIME_TAG="$RUNTIME_TAG_RELEASE"
           fi
           export SEASON_VAR_RELEASE_TAG="$GIT_TAG_RELEASE"
 
@@ -495,6 +498,45 @@ jobs:
             --title "$GIT_TAG_RELEASE" \
             "${FLAGS[@]}" \
             --notes-file RELEASE_NOTES.md
+
+      - name: Create individual component tags
+        shell: bash
+        env:
+          SKIP_NODE: ${{ inputs.skip-node }}
+          SKIP_TOOLKIT: ${{ inputs.skip-toolkit }}
+          SKIP_RUNTIME: ${{ inputs.skip-runtime }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Count included components
+          INCLUDED=0
+          if [ "$SKIP_NODE" != "true" ]; then INCLUDED=$((INCLUDED+1)); fi
+          if [ "$SKIP_TOOLKIT" != "true" ]; then INCLUDED=$((INCLUDED+1)); fi
+          if [ "$SKIP_RUNTIME" != "true" ]; then INCLUDED=$((INCLUDED+1)); fi
+
+          # Only create individual tags for multi-component releases
+          # (single-component releases already have the individual tag as the combined tag)
+          if [ "$INCLUDED" -gt 1 ]; then
+            RELEASE_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GIT_TAG_RELEASE}" -q '.object.sha')
+
+            if [ "$SKIP_NODE" != "true" ]; then
+              echo "Creating tag node-${IMAGE_TAG_RELEASE}"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                -f ref="refs/tags/node-${IMAGE_TAG_RELEASE}" -f sha="$RELEASE_SHA" \
+                || echo "Tag node-${IMAGE_TAG_RELEASE} already exists, skipping"
+            fi
+            if [ "$SKIP_TOOLKIT" != "true" ]; then
+              echo "Creating tag toolkit-${TOOLKIT_TAG_RELEASE}"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                -f ref="refs/tags/toolkit-${TOOLKIT_TAG_RELEASE}" -f sha="$RELEASE_SHA" \
+                || echo "Tag toolkit-${TOOLKIT_TAG_RELEASE} already exists, skipping"
+            fi
+            if [ "$SKIP_RUNTIME" != "true" ]; then
+              echo "Creating tag runtime-${RUNTIME_TAG_RELEASE}"
+              gh api --method POST "repos/${GITHUB_REPOSITORY}/git/refs" \
+                -f ref="refs/tags/runtime-${RUNTIME_TAG_RELEASE}" -f sha="$RELEASE_SHA" \
+                || echo "Tag runtime-${RUNTIME_TAG_RELEASE} already exists, skipping"
+            fi
+          fi
 
       - name: Fetch release tag
         if: inputs.archive-changes == true
@@ -824,6 +866,7 @@ jobs:
     with:
       ref: ${{ inputs.ref }}
       release-tag: ${{ needs.prepare-release.outputs.git-tag-release }}
+      runtime-tag-release: ${{ needs.prepare-release.outputs.runtime-tag-release }}
     secrets: inherit
 
   finalize-checksums:
