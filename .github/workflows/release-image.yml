@@ -516,7 +516,7 @@ jobs:
           # Only create individual tags for multi-component releases
           # (single-component releases already have the individual tag as the combined tag)
           if [ "$INCLUDED" -gt 1 ]; then
-            RELEASE_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/ref/tags/${GIT_TAG_RELEASE}" -q '.object.sha')
+            RELEASE_SHA=$(gh api "repos/${GITHUB_REPOSITORY}/git/refs/tags/${GIT_TAG_RELEASE}" -q '.object.sha')
 
             if [ "$SKIP_NODE" != "true" ]; then
               echo "Creating tag node-${IMAGE_TAG_RELEASE}"
