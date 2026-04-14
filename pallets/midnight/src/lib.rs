@@ -433,48 +433,51 @@ pub mod pallet {
 	#[pallet::validate_unsigned]
 	impl<T: Config> ValidateUnsigned for Pallet<T> {
 		type Call = Call<T>;
-		fn validate_unsigned(_source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			let mut block_context = Self::get_block_context();
-			let slot_duration: u64 = T::SlotDuration::get().unique_saturated_into();
-			let slot_duration_secs = slot_duration.saturating_div(1000);
+		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
+			match source {
+				TransactionSource::InBlock => {
+					let Call::send_mn_transaction { midnight_tx } = call else {
+						return Err(Self::invalid_transaction(Default::default()));
+					};
 
-			// Simulate the expected next block time during validation.
-			// This is needed to avoid potential `OutOfDustValidityWindow` tx validation errors where `ctime > tblock`.
-			// During transaction pool validation, the stored Timestamp still corresponds to the last produced block.
-			// Validity is increased by `slot_duration_secs * MaxSkippedSlots` to prevent the node
-			// from rejecting potentially valid transactions if an AURA block production slots are skipped.
-			let skipped_slots_margin =
-				slot_duration_secs.saturating_mul(MaxSkippedSlots::<T>::get() as u64);
-			block_context.tblock = block_context
-				.tblock
-				.saturating_add(slot_duration_secs)
-				.saturating_add(skipped_slots_margin);
+					// Substrate's Bare extrinsic path runs pallet pre_dispatch before the
+					// CheckWeight extension, so we pre-check here to avoid expensive ledger
+					// validation for txs that won't fit in the block.
+					Self::check_weight(call)?;
 
-			Self::validate_unsigned(call, block_context)
-		}
+					let block_context = Self::get_block_context();
+					let state_key = StateKey::<T>::get();
+					let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 
-		fn pre_dispatch(call: &Self::Call) -> Result<(), TransactionValidityError> {
-			let Call::send_mn_transaction { midnight_tx } = call else {
-				return Err(Self::invalid_transaction(Default::default()));
-			};
+					LedgerApi::validate_guaranteed_execution(
+						&state_key,
+						midnight_tx,
+						block_context,
+						runtime_version,
+					)
+					.map_err(|e| Self::invalid_transaction(e.into()))?;
+					Ok(ValidTransaction::default())
+				},
+				TransactionSource::Local | TransactionSource::External => {
+					let mut block_context = Self::get_block_context();
+					let slot_duration: u64 = T::SlotDuration::get().unique_saturated_into();
+					let slot_duration_secs = slot_duration.saturating_div(1000);
 
-			// Substrate's Bare extrinsic path runs pallet pre_dispatch before the
-			// CheckWeight extension, so we pre-check here to avoid expensive ledger
-			// validation for txs that won't fit in the block.
-			Self::check_weight(call)?;
+					// Simulate the expected next block time during validation.
+					// This is needed to avoid potential `OutOfDustValidityWindow` tx validation errors where `ctime > tblock`.
+					// During transaction pool validation, the stored Timestamp still corresponds to the last produced block.
+					// Validity is increased by `slot_duration_secs * MaxSkippedSlots` to prevent the node
+					// from rejecting potentially valid transactions if an AURA block production slots are skipped.
+					let skipped_slots_margin =
+						slot_duration_secs.saturating_mul(MaxSkippedSlots::<T>::get() as u64);
+					block_context.tblock = block_context
+						.tblock
+						.saturating_add(slot_duration_secs)
+						.saturating_add(skipped_slots_margin);
 
-			let block_context = Self::get_block_context();
-			let state_key = StateKey::<T>::get();
-			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
-
-			LedgerApi::validate_guaranteed_execution(
-				&state_key,
-				midnight_tx,
-				block_context,
-				runtime_version,
-			)
-			.map_err(|e| Self::invalid_transaction(e.into()))?;
-			Ok(())
+					Self::validate_unsigned(call, block_context)
+				},
+			}
 		}
 	}
 
