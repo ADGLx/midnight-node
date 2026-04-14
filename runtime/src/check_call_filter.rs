@@ -19,6 +19,7 @@ impl Contains<RuntimeCall> for GovernanceAuthorityCallFilter {
 				| RuntimeCall::FederatedAuthority(
 					pallet_federated_authority::Call::motion_close { .. }
 				) | RuntimeCall::System(frame_system::Call::apply_authorized_upgrade { .. })
+				| RuntimeCall::Midnight(pallet_midnight::Call::send_mn_transaction { .. })
 		)
 	}
 }

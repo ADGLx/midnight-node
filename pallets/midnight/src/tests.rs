@@ -15,10 +15,14 @@
 use super::*;
 use crate::{
 	Call as MidnightCall, mock,
-	mock::{RuntimeOrigin, Test},
+	mock::{RuntimeCall, RuntimeOrigin, Test},
 };
 use assert_matches::assert_matches;
-use frame_support::{assert_err, assert_ok, pallet_prelude::Weight, traits::OnFinalize};
+use frame_support::{
+	assert_err, assert_ok,
+	pallet_prelude::Weight,
+	traits::{Authorize, OnFinalize},
+};
 use frame_system::RawOrigin;
 use midnight_node_ledger::types::active_version::{
 	BlockContext, DeserializationError, LedgerApiError, MalformedError, TransactionError,
@@ -29,9 +33,8 @@ use midnight_node_res::{
 		CHECK_TX, CONTRACT_ADDR, DEPLOY_TX, MAINTENANCE_TX, STORE_TX, ZSWAP_TX,
 	},
 };
-use sp_runtime::{
-	traits::ValidateUnsigned,
-	transaction_validity::{InvalidTransaction, TransactionSource, TransactionValidityError},
+use sp_runtime::transaction_validity::{
+	InvalidTransaction, TransactionSource, TransactionValidityError,
 };
 use test_log::test;
 
@@ -144,30 +147,30 @@ fn test_validation_works() {
 	let (tx, block_context) =
 		midnight_node_ledger_helpers::ledger_8::extract_tx_with_context(DEPLOY_TX);
 
-	let call = MidnightCall::send_mn_transaction { midnight_tx: tx };
+	let call = RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx: tx });
 	mock::new_test_ext().execute_with(|| {
 		init_ledger_state(block_context.into());
 
-		assert_ok!(<mock::Midnight as ValidateUnsigned>::validate_unsigned(
-			TransactionSource::External,
-			&call
-		));
+		let auth = call
+			.authorize(TransactionSource::External)
+			.expect("send_mn_transaction must authorize");
+		assert_ok!(auth);
 	})
 }
 
 #[test]
 fn test_validation_fails() {
-	let call = MidnightCall::send_mn_transaction { midnight_tx: vec![1, 2, 3] };
+	let call =
+		RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx: vec![1, 2, 3] });
 
 	mock::new_test_ext().execute_with(|| {
 		init_ledger_state(BlockContext::default());
 
+		let auth = call
+			.authorize(TransactionSource::External)
+			.expect("send_mn_transaction must authorize");
 		assert_err!(
-			<mock::Midnight as ValidateUnsigned>::validate_unsigned(
-				TransactionSource::External,
-				&call
-			),
-			//todo here
+			auth,
 			TransactionValidityError::Invalid(InvalidTransaction::Custom(
 				LedgerApiError::Deserialization(DeserializationError::Transaction).into()
 			))
@@ -180,12 +183,14 @@ fn test_pre_dispatch_accepts_valid_transaction() {
 	let (tx, block_context) =
 		midnight_node_ledger_helpers::ledger_8::extract_tx_with_context(DEPLOY_TX);
 
-	let call = MidnightCall::send_mn_transaction { midnight_tx: tx };
+	let call = RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx: tx });
 	mock::new_test_ext().execute_with(|| {
 		init_ledger_state(block_context.into());
 
-		// pre_dispatch should succeed for a valid transaction
-		assert_ok!(<mock::Midnight as ValidateUnsigned>::pre_dispatch(&call));
+		let auth = call
+			.authorize(TransactionSource::InBlock)
+			.expect("send_mn_transaction must authorize");
+		assert_ok!(auth);
 	})
 }
 
@@ -197,13 +202,12 @@ fn test_pre_dispatch_rejects_contract_not_present() {
 	let (tx, block_context) =
 		midnight_node_ledger_helpers::ledger_8::extract_tx_with_context(STORE_TX);
 
-	let call = MidnightCall::send_mn_transaction { midnight_tx: tx };
+	let call = RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx: tx });
 	mock::new_test_ext().execute_with(|| {
 		init_ledger_state(block_context.into());
 		// Note: DEPLOY_TX not applied - contract doesn't exist
 
-		// pre_dispatch should fail because the contract doesn't exist
-		let result = <mock::Midnight as ValidateUnsigned>::pre_dispatch(&call);
+		let result = call.authorize(TransactionSource::InBlock).unwrap();
 		assert!(
 			result.is_err(),
 			"pre_dispatch should reject transaction with missing contract dependency"
@@ -213,14 +217,15 @@ fn test_pre_dispatch_rejects_contract_not_present() {
 
 #[test]
 fn test_pre_dispatch_rejects_malformed_transaction() {
-	let call = MidnightCall::send_mn_transaction { midnight_tx: vec![1, 2, 3] };
+	let call =
+		RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx: vec![1, 2, 3] });
 
 	mock::new_test_ext().execute_with(|| {
 		init_ledger_state(BlockContext::default());
 
-		// pre_dispatch should fail for malformed transaction
+		let auth = call.authorize(TransactionSource::InBlock).unwrap();
 		assert_err!(
-			<mock::Midnight as ValidateUnsigned>::pre_dispatch(&call),
+			auth,
 			TransactionValidityError::Invalid(InvalidTransaction::Custom(
 				LedgerApiError::Deserialization(DeserializationError::Transaction).into()
 			))
@@ -253,8 +258,10 @@ fn test_pre_dispatch_rejects_replay_attack() {
 
 		// Step 3: Try to replay the same STORE_TX via pre_dispatch
 		// This should fail because the replay protection counter has been consumed
-		let call = MidnightCall::send_mn_transaction { midnight_tx: store_tx_clone };
-		let result = <mock::Midnight as ValidateUnsigned>::pre_dispatch(&call);
+		let call = RuntimeCall::Midnight(MidnightCall::send_mn_transaction {
+			midnight_tx: store_tx_clone,
+		});
+		let result = call.authorize(TransactionSource::InBlock).unwrap();
 
 		// pre_dispatch should reject the replay attempt
 		assert!(result.is_err(), "pre_dispatch should reject replayed transaction");
@@ -276,8 +283,8 @@ fn test_pre_dispatch_validation_does_not_modify_state() {
 			mock::Midnight::get_zswap_state_root().expect("Should be able to get state root");
 
 		// Create call and run pre_dispatch
-		let call = MidnightCall::send_mn_transaction { midnight_tx: tx };
-		let _result = <mock::Midnight as ValidateUnsigned>::pre_dispatch(&call);
+		let call = RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx: tx });
+		let _result = call.authorize(TransactionSource::InBlock).unwrap();
 
 		// Record state after validation
 		let state_root_after =
@@ -306,8 +313,8 @@ fn test_pre_dispatch_validation_does_not_modify_state_on_failure() {
 			mock::Midnight::get_zswap_state_root().expect("Should be able to get state root");
 
 		// Create call and run pre_dispatch (will fail)
-		let call = MidnightCall::send_mn_transaction { midnight_tx: tx };
-		let result = <mock::Midnight as ValidateUnsigned>::pre_dispatch(&call);
+		let call = RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx: tx });
+		let result = call.authorize(TransactionSource::InBlock).unwrap();
 		assert!(result.is_err(), "pre_dispatch should fail for missing contract");
 
 		// Record state after validation

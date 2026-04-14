@@ -20,12 +20,13 @@ use midnight_node_ledger_helpers::BlockContext;
 use midnight_node_runtime::{
 	AccountId, BeefyConfig, Block, BridgeConfig, CNightObservationCall, CNightObservationConfig,
 	CouncilConfig, CouncilMembershipConfig, CrossChainPublic, FederatedAuthorityObservationConfig,
-	MidnightCall, MidnightConfig, MidnightSystemCall, RuntimeCall, RuntimeGenesisConfig,
+	MidnightCall, MidnightConfig, MidnightSystemCall, Runtime, RuntimeCall, RuntimeGenesisConfig,
 	SessionCommitteeManagementConfig, SessionConfig, SidechainConfig, Signature, SystemCall,
 	SystemParametersConfig, TechnicalCommitteeConfig, TechnicalCommitteeMembershipConfig,
 	TimestampCall, UncheckedExtrinsic, WASM_BINARY, opaque::SessionKeys,
 };
 
+use frame_system::offchain::CreateAuthorizedTransaction;
 use midnight_primitives_cnight_observation::ObservedUtxos;
 use sc_chain_spec::{ChainSpecExtension, GenericChainSpec};
 use sidechain_domain::{AssetName, MainchainAddress};
@@ -134,9 +135,10 @@ pub fn get_chainspec_extrinsics(
 	for tx in txs {
 		match tx.tx {
 			RawTransaction::Midnight(midnight_tx) => {
-				let extrinsic = UncheckedExtrinsic::new_bare(RuntimeCall::Midnight(
-					MidnightCall::send_mn_transaction { midnight_tx },
-				));
+				let extrinsic = UncheckedExtrinsic::new_transaction(
+					RuntimeCall::Midnight(MidnightCall::send_mn_transaction { midnight_tx }),
+					<Runtime as CreateAuthorizedTransaction<RuntimeCall>>::create_extension(),
+				);
 				extrinsics.push(hex::encode(extrinsic.encode()));
 			},
 			RawTransaction::System(midnight_system_tx) => {

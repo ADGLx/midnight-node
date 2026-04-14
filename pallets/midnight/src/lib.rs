@@ -362,6 +362,8 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		#[pallet::call_index(0)]
 		#[pallet::weight(Pallet::<T>::get_tx_weight(midnight_tx))]
+		#[pallet::weight_of_authorize(Weight::zero())]
+		#[pallet::authorize(Self::authorize_send_mn_transaction)]
 		pub fn send_mn_transaction(_origin: OriginFor<T>, midnight_tx: Vec<u8>) -> DispatchResult {
 			let state_key = StateKey::<T>::get();
 			let block_context = Self::get_block_context();
@@ -430,57 +432,6 @@ pub mod pallet {
 		}
 	}
 
-	#[pallet::validate_unsigned]
-	impl<T: Config> ValidateUnsigned for Pallet<T> {
-		type Call = Call<T>;
-		fn validate_unsigned(source: TransactionSource, call: &Self::Call) -> TransactionValidity {
-			match source {
-				TransactionSource::InBlock => {
-					let Call::send_mn_transaction { midnight_tx } = call else {
-						return Err(Self::invalid_transaction(Default::default()));
-					};
-
-					// Substrate's Bare extrinsic path runs pallet pre_dispatch before the
-					// CheckWeight extension, so we pre-check here to avoid expensive ledger
-					// validation for txs that won't fit in the block.
-					Self::check_weight(call)?;
-
-					let block_context = Self::get_block_context();
-					let state_key = StateKey::<T>::get();
-					let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
-
-					LedgerApi::validate_guaranteed_execution(
-						&state_key,
-						midnight_tx,
-						block_context,
-						runtime_version,
-					)
-					.map_err(|e| Self::invalid_transaction(e.into()))?;
-					Ok(ValidTransaction::default())
-				},
-				TransactionSource::Local | TransactionSource::External => {
-					let mut block_context = Self::get_block_context();
-					let slot_duration: u64 = T::SlotDuration::get().unique_saturated_into();
-					let slot_duration_secs = slot_duration.saturating_div(1000);
-
-					// Simulate the expected next block time during validation.
-					// This is needed to avoid potential `OutOfDustValidityWindow` tx validation errors where `ctime > tblock`.
-					// During transaction pool validation, the stored Timestamp still corresponds to the last produced block.
-					// Validity is increased by `slot_duration_secs * MaxSkippedSlots` to prevent the node
-					// from rejecting potentially valid transactions if an AURA block production slots are skipped.
-					let skipped_slots_margin =
-						slot_duration_secs.saturating_mul(MaxSkippedSlots::<T>::get() as u64);
-					block_context.tblock = block_context
-						.tblock
-						.saturating_add(slot_duration_secs)
-						.saturating_add(skipped_slots_margin);
-
-					Self::validate_unsigned(call, block_context)
-				},
-			}
-		}
-	}
-
 	// grcov-excl-start
 	impl<T: Config> Pallet<T> {
 		pub fn initialize_state(network_id: &str, state_key: &[u8]) {
@@ -522,6 +473,52 @@ pub mod pallet {
 		}
 		// grcov-excl-stop
 
+		/// Authorization for general (`AuthorizeCall`) Midnight transactions — pool vs block inclusion.
+		fn authorize_send_mn_transaction(
+			source: TransactionSource,
+			midnight_tx: &Vec<u8>,
+		) -> TransactionValidityWithRefund {
+			let call = Call::send_mn_transaction { midnight_tx: (*midnight_tx).clone() };
+			match source {
+				TransactionSource::InBlock => {
+					// General-transaction pipeline runs extensions after authorization; mirror the
+					// old bare `pre_dispatch` ordering by checking weight before ledger work.
+					Self::check_weight(&call)?;
+					let block_context = Self::get_block_context();
+					let state_key = StateKey::<T>::get();
+					let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
+					LedgerApi::validate_guaranteed_execution(
+						&state_key,
+						midnight_tx,
+						block_context,
+						runtime_version,
+					)
+					.map_err(|e| Self::invalid_transaction(e.into()))?;
+					Ok((ValidTransaction::default(), Weight::zero()))
+				},
+				TransactionSource::Local | TransactionSource::External => {
+					let mut block_context = Self::get_block_context();
+					let slot_duration: u64 = T::SlotDuration::get().unique_saturated_into();
+					let slot_duration_secs = slot_duration.saturating_div(1000);
+
+					// Simulate the expected next block time during validation.
+					// This is needed to avoid potential `OutOfDustValidityWindow` tx validation errors where `ctime > tblock`.
+					// During transaction pool validation, the stored Timestamp still corresponds to the last produced block.
+					// Validity is increased by `slot_duration_secs * MaxSkippedSlots` to prevent the node
+					// from rejecting potentially valid transactions if an AURA block production slots are skipped.
+					let skipped_slots_margin =
+						slot_duration_secs.saturating_mul(MaxSkippedSlots::<T>::get() as u64);
+					block_context.tblock = block_context
+						.tblock
+						.saturating_add(slot_duration_secs)
+						.saturating_add(skipped_slots_margin);
+
+					Self::validate_midnight_for_external_pool(midnight_tx, block_context)
+						.map(|valid| (valid, Weight::zero()))
+				},
+			}
+		}
+
 		/// Early block weight check to avoid expensive ledger validation for
 		/// transactions that won't fit. It is slightly more relaxed than
 		/// `frame_system::extensions::check_weight::calculate_consumed_weight`.
@@ -561,31 +558,28 @@ pub mod pallet {
 			TransactionValidityError::Invalid(InvalidTransaction::Custom(error_code))
 		}
 
-		fn validate_unsigned(call: &Call<T>, block_context: BlockContext) -> TransactionValidity {
-			if let Call::send_mn_transaction { midnight_tx } = call {
-				let state_key = StateKey::<T>::get();
-				let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
-				let max_weight = T::BlockWeights::get().max_block.ref_time();
+		fn validate_midnight_for_external_pool(
+			midnight_tx: &[u8],
+			block_context: BlockContext,
+		) -> TransactionValidity {
+			let state_key = StateKey::<T>::get();
+			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
+			let max_weight = T::BlockWeights::get().max_block.ref_time();
 
-				let tx_hash = LedgerApi::validate_transaction(
-					&state_key,
-					midnight_tx,
-					block_context,
-					runtime_version,
-					max_weight,
-				)
-				.map_err(|e| Self::invalid_transaction(e.into()))?;
+			let tx_hash = LedgerApi::validate_transaction(
+				&state_key,
+				midnight_tx,
+				block_context,
+				runtime_version,
+				max_weight,
+			)
+			.map_err(|e| Self::invalid_transaction(e.into()))?;
 
-				ValidTransaction::with_tag_prefix("Midnight")
-					// Transactions can live in the pool for max 600 blocks before they must be revalidated
-					.longevity(600)
-					.and_provides(tx_hash)
-					.build()
-			} else {
-				// grcov-excl-start
-				Err(Self::invalid_transaction(Default::default()))
-				// grcov-excl-stop
-			}
+			ValidTransaction::with_tag_prefix("Midnight")
+				// Transactions can live in the pool for max 600 blocks before they must be revalidated
+				.longevity(600)
+				.and_provides(tx_hash)
+				.build()
 		}
 
 		pub fn get_unclaimed_amount(beneficiary: &[u8]) -> Result<u128, LedgerApiError> {
