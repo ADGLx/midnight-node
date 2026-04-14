@@ -800,8 +800,13 @@ check-rust:
 
 # check-feature-unification verifies each crate compiles without dev-deps,
 # catching issues where workspace feature unification masks missing dependencies.
+# Shardable: pass --SHARD=<i> --SHARDS=<n> to check a deterministic subset of
+# workspace crates (partitioned by cksum(name) % SHARDS). Defaults run the full
+# workspace in a single pass.
 check-feature-unification:
     FROM +check-rust-prepare
+    ARG SHARD=0
+    ARG SHARDS=1
     CACHE --sharing shared --id cargo-git /usr/local/cargo/git
     CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
     COPY --keep-ts --dir \
@@ -812,7 +817,21 @@ check-feature-unification:
     ENV SKIP_WASM_BUILD=1
     ENV CARGO_INCREMENTAL=0
     RUN cargo binstall --no-confirm cargo-hack
-    RUN cargo hack check --workspace --no-dev-deps
+    RUN apt-get update && apt-get install -y --no-install-recommends jq && rm -rf /var/lib/apt/lists/*
+    RUN set -eu; \
+        if [ "$SHARDS" = "1" ]; then \
+            cargo hack check --workspace --no-dev-deps; \
+        else \
+            names=$(cargo metadata --format-version 1 --no-deps | jq -r '.packages[].name'); \
+            pkgs=""; \
+            for n in $names; do \
+                h=$(printf '%s' "$n" | cksum | awk '{print $1}'); \
+                if [ "$((h % SHARDS))" = "$SHARD" ]; then pkgs="$pkgs -p $n"; fi; \
+            done; \
+            echo "Shard ${SHARD}/${SHARDS}:${pkgs}"; \
+            # shellcheck disable=SC2086
+            cargo hack check --no-dev-deps $pkgs; \
+        fi
 
 # check-metadata confirms that metadata in the repo matches a given node image
 check-metadata:

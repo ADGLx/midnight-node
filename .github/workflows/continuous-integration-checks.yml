@@ -68,12 +68,19 @@ jobs:
           . ./.envrc && earthly --ci +check
 
   feature-unification:
-    name: Feature Unification Check
+    name: Feature Unification Check (shard ${{ matrix.shard }}/2)
+    # Only run at PR time — skipped in merge queue and on push to main.
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     permissions:
       contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [0, 1]
     env:
       FORCE_COLOR: 1
+      SHARDS: 2
     steps:
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -115,5 +122,7 @@ jobs:
 
       - name: Run feature unification check
         if: steps.check_images.outputs.skip_check != 'true'
+        env:
+          SHARD: ${{ matrix.shard }}
         run: |
-          . ./.envrc && earthly --ci +check-feature-unification
+          . ./.envrc && earthly --ci +check-feature-unification --SHARD="$SHARD" --SHARDS="$SHARDS"
