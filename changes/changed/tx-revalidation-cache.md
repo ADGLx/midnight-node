@@ -8,6 +8,5 @@ proof verification. Adds cache metrics (miss, strict hit, revalidation hit) and
 tests covering the full validation lifecycle.
 
 PR: https://github.com/midnightntwrk/midnight-node/pull/744
-JIRA: 
-    https://shielded.atlassian.net/browse/PM-21736
-    https://shielded.atlassian.net/browse/PM-18691
+Required for https://github.com/midnightntwrk/midnight-node/issues/1178
+             https://github.com/midnightntwrk/midnight-node/issues/1159
