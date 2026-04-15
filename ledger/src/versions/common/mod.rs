@@ -64,8 +64,8 @@ use {
 		dust::InitialNonce,
 		structure::{
 			CNightGeneratesDustActionType, CNightGeneratesDustEvent, ClaimKind, ContractAction,
-			LedgerState, MaintenanceUpdate, OutputInstructionUnshielded, ProofMarker, SignatureKind,
-			SingleUpdate, Transaction as LedgerTransaction, VerifiedTransaction,
+			LedgerState, MaintenanceUpdate, OutputInstructionUnshielded, ProofMarker,
+			SignatureKind, SingleUpdate, Transaction as LedgerTransaction, VerifiedTransaction,
 		},
 		verify::StateReference,
 	},
@@ -99,7 +99,7 @@ struct TxValidationKey {
 #[cfg(feature = "std")]
 struct TxValidationValue<D: DB> {
 	verified_tx: VerifiedTransaction<D>,
-	state: LedgerState<D>,
+	state: Sp<LedgerState<D>, D>,
 }
 
 #[cfg(feature = "std")]
@@ -856,7 +856,7 @@ where
 	{
 		if let Some(cached) = TX_VALIDATION_CACHE.get(key) {
 			if let Some(cached) = cached.downcast_ref::<TxValidationValue<D>>() {
-				return if cached.state.state_hash() == ledger.state.state_hash() {
+				return if cached.state.hash() == ledger.state.state_hash() {
 					Ok((cached.verified_tx.clone(), TxValidationCacheOutcome::StrictCacheHit))
 				} else {
 					let result = Self::revalidate_transaction(
@@ -892,7 +892,7 @@ where
 			tx_validation_key,
 			Arc::new(TxValidationValue {
 				verified_tx: verified_tx.clone(),
-				state: ledger.state.clone(),
+				state: Sp::new(ledger.state.clone()),
 			}),
 		);
 		Ok((verified_tx, TxValidationCacheOutcome::CacheMiss))
@@ -915,7 +915,7 @@ where
 			tx_validation_key,
 			Arc::new(TxValidationValue {
 				verified_tx: verified_tx.clone(),
-				state: ledger.state.clone(),
+				state: Sp::new(ledger.state.clone()),
 			}),
 		);
 		Ok((verified_tx, TxValidationCacheOutcome::RevalidationHit))
