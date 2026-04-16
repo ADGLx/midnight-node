@@ -2,10 +2,16 @@ use midnight_node_e2e::api::cardano::CardanoClient;
 use midnight_node_e2e::api::midnight::MidnightClient;
 use midnight_node_e2e::config::Settings;
 use midnight_node_e2e::faucet::FaucetManager;
+use midnight_node_ledger_helpers::{SystemTransaction, UnshieldedWallet, deserialize};
+use midnight_node_metadata::midnight_metadata_1_0_0::midnight_system::events::SystemTransactionApplied;
+use midnight_node_metadata::midnight_metadata_1_0_0::runtime_apis::midnight_runtime_api::MidnightRuntimeApi;
+use midnight_node_metadata::midnight_metadata_latest::bridge::events::Transfer as BridgeTransfer;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation::events::{
     Deregistration, MappingAdded, Registration,
 };
+use midnight_node_metadata::midnight_metadata_latest::runtime_types::sidechain_domain::McTxHash;
+use midnight_node_metadata::midnight_metadata_latest::runtime_types::sp_partner_chains_bridge::TransferRecipient as RuntimeBridgeTransferRecipient;
 use midnight_node_toolkit::commands::dust_balance::{
     self, DustBalanceArgs, DustBalanceJson, DustBalanceResult,
 };
@@ -493,7 +499,6 @@ async fn register_2_cardano_same_dust_address_production() {
 
     let nonce_for_check = nonce.clone();
 
-    let amount2 = 100;
     let tx_id2 = cardano_client_2
         .mint_tokens(amount, &collateral_utxo_2)
         .await
@@ -551,10 +556,8 @@ async fn register_2_cardano_same_dust_address_production() {
         .await
         .expect("dust-balance error");
 
-    let mut balance: &u128 = &0;
     if let DustBalanceResult::Json(DustBalanceJson { total, .. }) = &result {
         println!("Total dust balance: {}", total);
-        balance = total;
     }
 
     assert!(matches!(result, DustBalanceResult::Json(DustBalanceJson{total, ..}) if total > 0));
@@ -586,6 +589,107 @@ async fn register_2_cardano_same_dust_address_production() {
     } else {
         panic!("Waiting DustBalanceResult::Json(..)");
     }
+}
+
+#[tokio::test]
+async fn bridge_transfer_cnight_to_midnight_address() {
+    let settings = Settings::default();
+    let cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;
+    let midnight_client = MidnightClient::new(settings.node_client).await;
+
+    let cardano_wallet_address = cardano_client.address_as_bech32();
+
+    // Fund the wallet: one UTXO for collateral, one for minting and transfer
+    let faucet = global_faucet_manager().await;
+    let collateral_utxo = faucet
+        .request_tokens(&cardano_wallet_address, 5_000_000)
+        .await;
+
+    // Mint cNight tokens into the wallet
+    let mint_tx_id = cardano_client
+        .mint_tokens(50000, &collateral_utxo)
+        .await
+        .expect("Failed to mint cNight tokens")
+        .transaction
+        .id;
+    println!("Minted test cNight to Cardano wallet",);
+    // Find the UTXO containing the minted cNight
+    let cnight_utxo = cardano_client
+        .find_utxo_by_tx_id(&cardano_wallet_address, hex::encode(mint_tx_id))
+        .await
+        .expect("No cNight UTXO found after minting");
+
+    let payment_utxo = faucet
+        .request_tokens(&cardano_wallet_address, 5_000_000)
+        .await;
+    // ICS validator address (dev/local testnet)
+    let ics_address = "addr_test1wp9a24gezjgwhnt6a7tdef24xnqqcdzjzyf5u3q4urs2m7qeuln0n";
+
+    // Bridge transfer: send cNight to ICS address with target Midnight address in metadata
+    let amount = 49000;
+    let bridge_tx = cardano_client
+        .bridge_transfer(
+            &cnight_utxo,
+            &payment_utxo,
+            ics_address,
+            amount,
+            midnight_node_e2e::api::cardano::BridgeTransferRecipient::Reserve,
+        )
+        .await
+        .expect("Bridge transfer transaction failed");
+
+    let bridge_tx = bridge_tx.transaction.id;
+    println!("Bridge transfer submitted : {}", hex::encode(&bridge_tx));
+
+    let events = midnight_client
+        .subscribe_to_c2n_bridge_transfers()
+        .await
+        .expect("Failed to observe bridge transfer handler calls");
+
+    let bridge_transfers: Vec<BridgeTransfer> = events
+        .iter()
+        .filter_map(|e| e.ok())
+        .filter_map(|evt| {
+            evt.decode_fields_as::<BridgeTransfer>()
+                .and_then(|r| r.ok())
+        })
+        .collect();
+
+    let transfer_event = bridge_transfers
+        .first()
+        .expect("Expected at least one Bridge::Transfer event, but none were emitted");
+
+    let result = transfer_event.result;
+    assert_eq!(transfer_event.mc_tx_hash.0, bridge_tx);
+    assert_eq!(transfer_event.amount, amount);
+    assert!(matches!(
+        transfer_event.recipient,
+        RuntimeBridgeTransferRecipient::Reserve
+    ));
+
+    let system_transaction_applied: Vec<SystemTransactionApplied> = events
+        .iter()
+        .filter_map(|e| e.ok())
+        .filter_map(|evt| {
+            evt.decode_fields_as::<SystemTransactionApplied>()
+                .and_then(|r| r.ok())
+        })
+        .next()
+        .expect("There should be at least one midnight transaction applied");
+    assert_eq!(system_transaction_applied.0.hash, transfer_event.result);
+
+    let system_tx: SystemTransaction = deserialize(
+        system_transaction_applied
+            .0
+            .serialized_system_transaction
+            .as_slice(),
+    )
+    .expect("Failed to deserialize system transaction");
+
+    assert!(
+        matches!(system_tx, SystemTransaction::DistributeReserve(_)),
+        "Expected DistributeReserve, got {system_tx:?}"
+    );
 }
 
 #[tokio::test]
@@ -2310,7 +2414,6 @@ async fn produce_dust_from_tokens_owned_before_registration() {
 
     let midnight_wallet_seed = MidnightClient::new_seed();
     let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
-    let dust_bytes: Vec<u8> = hex::decode(&dust_hex).unwrap().try_into().unwrap();
     println!(
         "Registering Cardano wallet {} with DUST address {}",
         address_bech32, dust_hex
@@ -2588,7 +2691,7 @@ async fn stop_dust_producing_after_deregistration_and_rotation() {
         dry_run: false,
     };
 
-    let spend_cnight_event = midnight_client
+    let _spend_cnight_event = midnight_client
         .subscribe_to_cnight_observation_events(&cnight_utxo_new.transaction.id)
         .await
         .expect("Failed to listen to cNgD registration event");
@@ -2741,7 +2844,7 @@ async fn spend_cnight_producing_dust() {
         dry_run: false,
     };
 
-    let spend_cnight_event = midnight_client
+    let _spend_cnight_event = midnight_client
         .subscribe_to_cnight_observation_events(&cnight_spent_utxo.unwrap().transaction.id)
         .await
         .expect("Failed to listen to cNgD registration event");
