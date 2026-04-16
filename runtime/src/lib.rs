@@ -394,6 +394,10 @@ pallet_partner_chains_session::impl_pallet_session_config!(Runtime);
 impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 
+	// Upstream pallet_grandpa does not publicly export its weights module.
+	// The Substrate node and Westend runtimes also use WeightInfo = () for this pallet.
+	// With EquivocationReportSystem = () and KeyOwnerProof = sp_core::Void,
+	// equivocation reporting is effectively disabled.
 	type WeightInfo = ();
 	type MaxAuthorities = MaxAuthorities;
 	type MaxNominators = ConstU32<5>;
@@ -410,6 +414,11 @@ impl pallet_beefy::Config for Runtime {
 	type MaxSetIdSessionEntries = ConstU64<0>;
 	type OnNewValidatorSet = BeefyMmrLeaf;
 	type AncestryHelper = BeefyMmrLeaf;
+	// Intentionally using placeholder weights: pallet_beefy's only dispatchable calls
+	// are equivocation reports (disabled via EquivocationReportSystem = ()) and
+	// set_new_genesis (root-only). The upstream pallet does not ship with a
+	// SubstrateWeight implementation. If equivocation reporting is enabled in the
+	// future, benchmarks must be run first.
 	type WeightInfo = ();
 	type KeyOwnerProof = sp_core::Void;
 	type EquivocationReportSystem = ();
@@ -421,6 +430,8 @@ impl pallet_mmr::Config for Runtime {
 	type LeafData = pallet_beefy_mmr::Pallet<Runtime>;
 	type OnNewRoot = pallet_beefy_mmr::DepositBeefyDigest<Runtime>;
 	type BlockHashProvider = pallet_mmr::DefaultBlockHashProvider<Runtime>;
+	// Upstream pallet_mmr does not publicly export its weights module.
+	// The Substrate node runtime also uses WeightInfo = () for this pallet.
 	type WeightInfo = ();
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
@@ -465,6 +476,8 @@ impl pallet_beefy_mmr::Config for Runtime {
 	type BeefyAuthorityToMerkleLeaf = RawBeefyId;
 	type LeafExtra = Vec<u8>;
 	type BeefyDataProvider = ();
+	// Upstream pallet_beefy_mmr's weights module is private (not pub re-exported).
+	// The Substrate node runtime also uses WeightInfo = () for this pallet.
 	type WeightInfo = ();
 }
 
@@ -473,7 +486,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = Aura;
 	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
-	type WeightInfo = ();
+	type WeightInfo = pallet_timestamp::weights::SubstrateWeight<Runtime>;
 }
 
 /// Existential deposit.
@@ -564,8 +577,7 @@ impl pallet_session_validator_management::Config for Runtime {
 		Sidechain::current_epoch_number()
 	}
 
-	// TODO: Benchmark all pallets
-	type WeightInfo = ();
+	type WeightInfo = pallet_session_validator_management::weights::SubstrateWeight<Runtime>;
 
 	type CommitteeMember = CommitteeMember<CrossChainPublic, SessionKeys>;
 
@@ -796,7 +808,7 @@ impl pallet_federated_authority::Config for Runtime {
 		FederatedAuthorityOriginManager<(CouncilApproval, TechnicalCommitteeApproval)>;
 	type MotionRevokeOrigin =
 		FederatedAuthorityOriginManager<(CouncilRevoke, TechnicalCommitteeRevoke)>;
-	type WeightInfo = ();
+	type WeightInfo = pallet_federated_authority::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_federated_authority_observation::Config for Runtime {
@@ -806,12 +818,12 @@ impl pallet_federated_authority_observation::Config for Runtime {
 		MembershipObservationHandler<Runtime, CouncilMembershipInstance>;
 	type TechnicalCommitteeMembershipHandler =
 		MembershipObservationHandler<Runtime, TechnicalCommitteeMembershipInstance>;
-	type WeightInfo = ();
+	type WeightInfo = pallet_federated_authority_observation::weights::SubstrateWeight<Runtime>;
 }
 
 impl pallet_system_parameters::Config for Runtime {
 	type SystemOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = ();
+	type WeightInfo = pallet_system_parameters::weights::SubstrateWeight<Runtime>;
 }
 
 parameter_types! {
@@ -1105,6 +1117,8 @@ mod benches {
 		[frame_benchmarking, BaselineBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_beefy_mmr, BeefyMmrLeaf]
+		[pallet_grandpa, Grandpa]
+		[pallet_mmr, Mmr]
 		[pallet_timestamp, Timestamp]
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_session_validator_management, SessionCommitteeManagement]
