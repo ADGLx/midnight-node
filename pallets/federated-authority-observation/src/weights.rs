@@ -37,6 +37,10 @@ use core::marker::PhantomData;
 
 /// Weight functions needed for `pallet_federated_authority_observation`.
 pub trait WeightInfo {
+	fn reset_members_only_council(a: u32, b: u32) -> Weight;
+	fn reset_members_only_technical_committee(a: u32, b: u32) -> Weight;
+	fn reset_members(a: u32, b: u32) -> Weight;
+	fn reset_members_none(a: u32, b: u32) -> Weight;
 	fn set_council_address() -> Weight;
 	fn set_technical_committee_address() -> Weight;
 	fn set_council_policy_id() -> Weight;
@@ -46,6 +50,145 @@ pub trait WeightInfo {
 /// Weights for `pallet_federated_authority_observation` using the Substrate node and recommended hardware.
 pub struct SubstrateWeight<T>(PhantomData<T>);
 impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
+	/// Storage: `CouncilMembership::Members` (r:1 w:1)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `Council::Proposals` (r:1 w:0)
+	/// Proof: `Council::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:1 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	/// Storage: `CouncilMembership::Prime` (r:1 w:0)
+	/// Proof: `CouncilMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Members` (r:0 w:1)
+	/// Proof: `Council::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Prime` (r:0 w:1)
+	/// Proof: `Council::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 9]`.
+	/// The range of component `b` is `[1, 9]`.
+	// NOTE: Weights for reset_members variants are not benchmarked with frame-omni-bencher because
+	// reset_members is a Mandatory inherent. Values are carried forward from the previous benchmark.
+	fn reset_members_only_council(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `694 + a * (101 ±0) + b * (60 ±0)`
+		//  Estimated: `3529 + a * (101 ±0) + b * (61 ±0)`
+		// Minimum execution time: 32_000_000 picoseconds.
+		Weight::from_parts(30_625_000, 3529)
+			// Standard Error: 0
+			.saturating_add(Weight::from_parts(125_000, 0).saturating_mul(a.into()))
+			// Standard Error: 0
+			.saturating_add(Weight::from_parts(250_000, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
+			.saturating_add(Weight::from_parts(0, 101).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 61).saturating_mul(b.into()))
+	}
+	/// Storage: `CouncilMembership::Members` (r:1 w:0)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:1)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `TechnicalCommittee::Proposals` (r:1 w:0)
+	/// Proof: `TechnicalCommittee::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:1 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	/// Storage: `TechnicalCommitteeMembership::Prime` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Members` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 9]`.
+	/// The range of component `b` is `[1, 9]`.
+	fn reset_members_only_technical_committee(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `665 + a * (60 ±0) + b * (92 ±0)`
+		//  Estimated: `3529 + a * (61 ±0) + b * (92 ±0)`
+		// Minimum execution time: 30_000_000 picoseconds.
+		Weight::from_parts(26_750_000, 3529)
+			// Standard Error: 108_253
+			.saturating_add(Weight::from_parts(312_500, 0).saturating_mul(a.into()))
+			// Standard Error: 108_253
+			.saturating_add(Weight::from_parts(437_500, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(7_u64))
+			.saturating_add(T::DbWeight::get().writes(5_u64))
+			.saturating_add(Weight::from_parts(0, 61).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 92).saturating_mul(b.into()))
+	}
+	/// Storage: `CouncilMembership::Members` (r:1 w:1)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `Council::Proposals` (r:1 w:0)
+	/// Proof: `Council::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:2 w:2)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	/// Storage: `CouncilMembership::Prime` (r:1 w:0)
+	/// Proof: `CouncilMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:1)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `TechnicalCommittee::Proposals` (r:1 w:0)
+	/// Proof: `TechnicalCommittee::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Prime` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Members` (r:0 w:1)
+	/// Proof: `Council::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Prime` (r:0 w:1)
+	/// Proof: `Council::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Members` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 9]`.
+	/// The range of component `b` is `[1, 9]`.
+	fn reset_members(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `896 + a * (101 ±0) + b * (92 ±0)`
+		//  Estimated: `6068 + a * (101 ±0) + b * (92 ±0)`
+		// Minimum execution time: 46_000_000 picoseconds.
+		Weight::from_parts(42_250_000, 6068)
+			// Standard Error: 433_012
+			.saturating_add(Weight::from_parts(375_000, 0).saturating_mul(a.into()))
+			// Standard Error: 433_012
+			.saturating_add(Weight::from_parts(375_000, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(10_u64))
+			.saturating_add(T::DbWeight::get().writes(10_u64))
+			.saturating_add(Weight::from_parts(0, 101).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 92).saturating_mul(b.into()))
+	}
+	/// Storage: `CouncilMembership::Members` (r:1 w:0)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 10]`.
+	/// The range of component `b` is `[1, 10]`.
+	fn reset_members_none(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `463 + a * (60 ±0) + b * (60 ±0)`
+		//  Estimated: `1948 + a * (60 ±0) + b * (60 ±0)`
+		// Minimum execution time: 15_000_000 picoseconds.
+		Weight::from_parts(14_277_777, 1948)
+			// Standard Error: 96_225
+			.saturating_add(Weight::from_parts(55_555, 0).saturating_mul(a.into()))
+			// Standard Error: 96_225
+			.saturating_add(Weight::from_parts(166_666, 0).saturating_mul(b.into()))
+			.saturating_add(T::DbWeight::get().reads(4_u64))
+			.saturating_add(Weight::from_parts(0, 60).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 60).saturating_mul(b.into()))
+	}
 	/// Storage: `FederatedAuthorityObservation::MainChainCouncilAddress` (r:0 w:1)
 	/// Proof: `FederatedAuthorityObservation::MainChainCouncilAddress` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	fn set_council_address() -> Weight {
@@ -90,6 +233,143 @@ impl<T: frame_system::Config> WeightInfo for SubstrateWeight<T> {
 
 // For backwards compatibility and tests.
 impl WeightInfo for () {
+	/// Storage: `CouncilMembership::Members` (r:1 w:1)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `Council::Proposals` (r:1 w:0)
+	/// Proof: `Council::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:1 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	/// Storage: `CouncilMembership::Prime` (r:1 w:0)
+	/// Proof: `CouncilMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Members` (r:0 w:1)
+	/// Proof: `Council::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Prime` (r:0 w:1)
+	/// Proof: `Council::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 9]`.
+	/// The range of component `b` is `[1, 9]`.
+	fn reset_members_only_council(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `694 + a * (101 ±0) + b * (60 ±0)`
+		//  Estimated: `3529 + a * (101 ±0) + b * (61 ±0)`
+		// Minimum execution time: 32_000_000 picoseconds.
+		Weight::from_parts(30_625_000, 3529)
+			// Standard Error: 0
+			.saturating_add(Weight::from_parts(125_000, 0).saturating_mul(a.into()))
+			// Standard Error: 0
+			.saturating_add(Weight::from_parts(250_000, 0).saturating_mul(b.into()))
+			.saturating_add(ParityDbWeight::get().reads(7_u64))
+			.saturating_add(ParityDbWeight::get().writes(5_u64))
+			.saturating_add(Weight::from_parts(0, 101).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 61).saturating_mul(b.into()))
+	}
+	/// Storage: `CouncilMembership::Members` (r:1 w:0)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:1)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `TechnicalCommittee::Proposals` (r:1 w:0)
+	/// Proof: `TechnicalCommittee::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:1 w:1)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	/// Storage: `TechnicalCommitteeMembership::Prime` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Members` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 9]`.
+	/// The range of component `b` is `[1, 9]`.
+	fn reset_members_only_technical_committee(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `665 + a * (60 ±0) + b * (92 ±0)`
+		//  Estimated: `3529 + a * (61 ±0) + b * (92 ±0)`
+		// Minimum execution time: 30_000_000 picoseconds.
+		Weight::from_parts(26_750_000, 3529)
+			// Standard Error: 108_253
+			.saturating_add(Weight::from_parts(312_500, 0).saturating_mul(a.into()))
+			// Standard Error: 108_253
+			.saturating_add(Weight::from_parts(437_500, 0).saturating_mul(b.into()))
+			.saturating_add(ParityDbWeight::get().reads(7_u64))
+			.saturating_add(ParityDbWeight::get().writes(5_u64))
+			.saturating_add(Weight::from_parts(0, 61).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 92).saturating_mul(b.into()))
+	}
+	/// Storage: `CouncilMembership::Members` (r:1 w:1)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `Council::Proposals` (r:1 w:0)
+	/// Proof: `Council::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `System::Account` (r:2 w:2)
+	/// Proof: `System::Account` (`max_values`: None, `max_size`: Some(64), added: 2539, mode: `MaxEncodedLen`)
+	/// Storage: `CouncilMembership::Prime` (r:1 w:0)
+	/// Proof: `CouncilMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:1)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `TechnicalCommittee::Proposals` (r:1 w:0)
+	/// Proof: `TechnicalCommittee::Proposals` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Prime` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Prime` (`max_values`: Some(1), `max_size`: Some(32), added: 527, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:1)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Members` (r:0 w:1)
+	/// Proof: `Council::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `Council::Prime` (r:0 w:1)
+	/// Proof: `Council::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Members` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Members` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommittee::Prime` (r:0 w:1)
+	/// Proof: `TechnicalCommittee::Prime` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 9]`.
+	/// The range of component `b` is `[1, 9]`.
+	fn reset_members(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `896 + a * (101 ±0) + b * (92 ±0)`
+		//  Estimated: `6068 + a * (101 ±0) + b * (92 ±0)`
+		// Minimum execution time: 46_000_000 picoseconds.
+		Weight::from_parts(42_250_000, 6068)
+			// Standard Error: 433_012
+			.saturating_add(Weight::from_parts(375_000, 0).saturating_mul(a.into()))
+			// Standard Error: 433_012
+			.saturating_add(Weight::from_parts(375_000, 0).saturating_mul(b.into()))
+			.saturating_add(ParityDbWeight::get().reads(10_u64))
+			.saturating_add(ParityDbWeight::get().writes(10_u64))
+			.saturating_add(Weight::from_parts(0, 101).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 92).saturating_mul(b.into()))
+	}
+	/// Storage: `CouncilMembership::Members` (r:1 w:0)
+	/// Proof: `CouncilMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::CouncilMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::CouncilMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// Storage: `TechnicalCommitteeMembership::Members` (r:1 w:0)
+	/// Proof: `TechnicalCommitteeMembership::Members` (`max_values`: Some(1), `max_size`: Some(321), added: 816, mode: `MaxEncodedLen`)
+	/// Storage: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (r:1 w:0)
+	/// Proof: `FederatedAuthorityObservation::TechnicalCommitteeMainchainMembers` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
+	/// The range of component `a` is `[1, 10]`.
+	/// The range of component `b` is `[1, 10]`.
+	fn reset_members_none(a: u32, b: u32) -> Weight {
+		// Proof Size summary in bytes:
+		//  Measured:  `463 + a * (60 ±0) + b * (60 ±0)`
+		//  Estimated: `1948 + a * (60 ±0) + b * (60 ±0)`
+		// Minimum execution time: 15_000_000 picoseconds.
+		Weight::from_parts(14_277_777, 1948)
+			// Standard Error: 96_225
+			.saturating_add(Weight::from_parts(55_555, 0).saturating_mul(a.into()))
+			// Standard Error: 96_225
+			.saturating_add(Weight::from_parts(166_666, 0).saturating_mul(b.into()))
+			.saturating_add(ParityDbWeight::get().reads(4_u64))
+			.saturating_add(Weight::from_parts(0, 60).saturating_mul(a.into()))
+			.saturating_add(Weight::from_parts(0, 60).saturating_mul(b.into()))
+	}
 	/// Storage: `FederatedAuthorityObservation::MainChainCouncilAddress` (r:0 w:1)
 	/// Proof: `FederatedAuthorityObservation::MainChainCouncilAddress` (`max_values`: Some(1), `max_size`: None, mode: `Measured`)
 	fn set_council_address() -> Weight {
