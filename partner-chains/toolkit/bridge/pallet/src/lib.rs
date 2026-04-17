@@ -57,14 +57,11 @@
 //! ```rust,ignore
 //! pub struct BridgeTransferHelper;
 //!
-//! impl pallet_partner_chains_bridge::TransferHandler<AccountId32, ()> for BridgeTransferHelper {
-//! 	fn handle_incoming_transfer(
-//!         transfer_index: u32,
-//!         transfer: BridgeTransferV1<AccountId32>
-//!     ) -> Option<()> {
+//! impl pallet_partner_chains_bridge::TransferHandler<AccountId32> for BridgeTransferHelper {
+//! 	fn handle_incoming_transfer(transfer: BridgeTransferV1<AccountId32>) {
 //! 		match transfer {
 //! 			BridgeTransferV1::InvalidTransfer { token_amount, utxo_id } => {
-//! 				log::warn!("⚠️ Discarded an invalid transfer [{transfer_index}] of {token_amount} (utxo {utxo_id})");
+//! 				log::warn!("⚠️ Discarded an invalid transfer of {token_amount} (utxo {utxo_id})");
 //! 			},
 //! 			BridgeTransferV1::UserTransfer { token_amount, recipient } => {
 //! 				log::info!("💸 Registered a tranfer of {token_amount} to {recipient:?}");
@@ -74,8 +71,7 @@
 //! 				log::info!("🏦 Registered a reserve transfer of {token_amount}.");
 //! 				let _ = Balances::deposit_creating(&T::ReserveAccount::get(), token_amount.into());
 //! 			},
-//! 		};
-//!         None
+//! 		}
 //! 	}
 //! }
 //! ```rust
@@ -99,7 +95,6 @@
 //! 	type GovernanceOrigin = EnsureRoot<Runtime>;
 //! 	type Recipient = AccountId;
 //! 	type TransferHandler = BridgeTransferHelper;
-//!     type HandlerResult = ();
 //! 	type MaxTransfersPerBlock = MaxTransfersPerBlock;
 //! 	type WeightInfo = ();
 //!
@@ -207,34 +202,18 @@ use sp_partner_chains_bridge::BridgeTransferV1;
 /// ledger structure. Calls to all functions defined by this trait should not return any errors
 /// as this would fail the block creation. Instead, any validation and business logic errors
 /// should be handled gracefully inside the handler code.
-pub trait TransferHandler<Recipient, HandlerResult> {
+pub trait TransferHandler<Recipient> {
 	/// Should handle an incoming token transfer of `token_mount` tokens to `recipient`
-	fn handle_incoming_transfer(
-		transfer_idx: u32,
-		transfer: BridgeTransferV1<Recipient>,
-	) -> Option<HandlerResult>;
-
-	/// Minimal transfer amount that can be handled
-	fn minimal_transfer_amount() -> u64;
+	fn handle_incoming_transfer(_transfer: BridgeTransferV1<Recipient>);
 }
 
 /// No-op implementation of `TransferHandler` for unit type.
-impl<Recipient> TransferHandler<Recipient, ()> for () {
-	fn handle_incoming_transfer(
-		_transfer_idx: u32,
-		_transfer: BridgeTransferV1<Recipient>,
-	) -> Option<()> {
-		None
-	}
-
-	fn minimal_transfer_amount() -> u64 {
-		0
-	}
+impl<Recipient> TransferHandler<Recipient> for () {
+	fn handle_incoming_transfer(_transfer: BridgeTransferV1<Recipient>) {}
 }
 
 #[frame_support::pallet]
 pub mod pallet {
-
 	use super::*;
 	use crate::weights::WeightInfo;
 	use frame_system::{
@@ -245,7 +224,7 @@ pub mod pallet {
 	use sidechain_domain::McTxHash;
 	use sp_partner_chains_bridge::{
 		BridgeDataCheckpoint, INHERENT_IDENTIFIER, InherentError, MainChainScripts,
-		SubminimalTransfersConfig, TokenBridgeTransfersV1, TransferRecipient,
+		TokenBridgeTransfersV1,
 	};
 
 	/// Current version of the pallet
@@ -264,11 +243,8 @@ pub mod pallet {
 		/// Transfer recipient
 		type Recipient: Member + Parameter + MaxEncodedLen;
 
-		/// User defined handler returns this type. Values are attached to pallet events.
-		type HandlerResult: Member + Parameter + MaxEncodedLen;
-
 		/// Handler for incoming token transfers
-		type TransferHandler: TransferHandler<Self::Recipient, Self::HandlerResult>;
+		type TransferHandler: TransferHandler<Self::Recipient>;
 
 		/// Maximum number of transfers that can be handled in one block for each transfer type
 		type MaxTransfersPerBlock: Get<u32>;
@@ -279,22 +255,6 @@ pub mod pallet {
 		/// Benchmark helper type used for running benchmarks
 		#[cfg(feature = "runtime-benchmarks")]
 		type BenchmarkHelper: benchmarking::BenchmarkHelper<Self>;
-	}
-
-	#[pallet::event]
-	#[pallet::generate_deposit(pub (super) fn deposit_event)]
-	pub enum Event<T: Config> {
-		/// For each handled transfer this event is emitted
-		Transfer {
-			/// Main chain transaction hash for correlation of PC with MC
-			mc_tx_hash: McTxHash,
-			/// Amount of tokens that were transferred
-			amount: u64,
-			/// Handler specific infomation passed to the event
-			result: <T as Config>::HandlerResult,
-			/// Beneficiary of the transfer
-			recipient: TransferRecipient<<T as Config>::Recipient>,
-		},
 	}
 
 	/// Error type used by the pallet's extrinsics
@@ -312,13 +272,6 @@ pub mod pallet {
 	pub type DataCheckpoint<T: Config> = StorageValue<_, BridgeDataCheckpoint, OptionQuery>;
 
 	#[pallet::storage]
-	pub type SubminimalTransfersConfiguration<T: Config> =
-		StorageValue<_, SubminimalTransfersConfig, ValueQuery>;
-
-	#[pallet::storage]
-	pub type SubminimalTransfersSum<T: Config> = StorageValue<_, u64, ValueQuery>;
-
-	#[pallet::storage]
 	pub type InherentExecutedThisBlock<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	/// Genesis configuration of the pallet
@@ -328,20 +281,13 @@ pub mod pallet {
 		pub main_chain_scripts: Option<MainChainScripts>,
 		/// The initial data checkpoint. Chain Genesis UTXO is a good candidate for it.
 		pub initial_checkpoint: Option<McTxHash>,
-		/// Value of subminimal transfers configuration,
-		pub subminimal_transfers_config: SubminimalTransfersConfig,
 		#[allow(missing_docs)]
 		pub _marker: PhantomData<T>,
 	}
 
 	impl<T: Config> Default for GenesisConfig<T> {
 		fn default() -> Self {
-			Self {
-				main_chain_scripts: None,
-				initial_checkpoint: None,
-				subminimal_transfers_config: SubminimalTransfersConfig::default(),
-				_marker: Default::default(),
-			}
+			Self { main_chain_scripts: None, initial_checkpoint: None, _marker: Default::default() }
 		}
 	}
 
@@ -378,49 +324,8 @@ pub mod pallet {
 			ensure_none(origin)?;
 			ensure!(!InherentExecutedThisBlock::<T>::get(), Error::<T>::InherentAlreadyExecuted);
 			InherentExecutedThisBlock::<T>::put(true);
-
-			let mut subminimal_transfers_sum = SubminimalTransfersSum::<T>::get();
-			let config = SubminimalTransfersConfiguration::<T>::get();
-
-			for (i, transfer) in transfers.into_iter().enumerate() {
-				let maybe_result = if transfer.amount < 500000 {
-					match subminimal_transfers_sum.checked_add(transfer.amount) {
-						Some(new_sum) => {
-							if new_sum > config.subminimal_transfers_flush_threshold {
-								subminimal_transfers_sum = 0;
-								T::TransferHandler::handle_incoming_transfer(
-									i as u32,
-									BridgeTransferV1::new_invalid(transfer.mc_tx_hash, new_sum),
-								)
-							} else {
-								subminimal_transfers_sum = new_sum;
-								None
-							}
-						},
-						None => {
-							// Could not add new transfer due overflow (should never happen for Midnight, because there isn't enough cNight in circulation)
-							let result = T::TransferHandler::handle_incoming_transfer(
-								i as u32,
-								BridgeTransferV1::new_invalid(
-									transfer.mc_tx_hash,
-									subminimal_transfers_sum,
-								),
-							);
-							subminimal_transfers_sum = transfer.amount;
-							result
-						},
-					}
-				} else {
-					T::TransferHandler::handle_incoming_transfer(i as u32, transfer.clone())
-				};
-				if let Some(result) = maybe_result {
-					Self::deposit_event(Event::Transfer {
-						mc_tx_hash: transfer.mc_tx_hash,
-						amount: transfer.amount,
-						result,
-						recipient: transfer.recipient,
-					})
-				}
+			for transfer in transfers {
+				T::TransferHandler::handle_incoming_transfer(transfer);
 			}
 			DataCheckpoint::<T>::put(data_checkpoint);
 			Ok(())
@@ -437,12 +342,10 @@ pub mod pallet {
 			origin: OriginFor<T>,
 			new_scripts: MainChainScripts,
 			data_checkpoint: BridgeDataCheckpoint,
-			subminimal_transfers_config: SubminimalTransfersConfig,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
 			MainChainScriptsConfiguration::<T>::put(new_scripts);
 			DataCheckpoint::<T>::put(data_checkpoint);
-			SubminimalTransfersConfiguration::<T>::put(subminimal_transfers_config);
 			Ok(())
 		}
 	}
@@ -513,11 +416,6 @@ pub mod pallet {
 		/// Returns the current data checkpoint
 		pub fn get_data_checkpoint() -> Option<BridgeDataCheckpoint> {
 			DataCheckpoint::<T>::get()
-		}
-
-		/// Returns the value of subminimal transfers flush threshold
-		pub fn get_subminimal_transfers_config() -> SubminimalTransfersConfig {
-			SubminimalTransfersConfiguration::<T>::get()
 		}
 	}
 }
