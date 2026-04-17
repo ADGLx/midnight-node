@@ -213,6 +213,9 @@ pub trait TransferHandler<Recipient, HandlerResult> {
 		transfer_idx: u32,
 		transfer: BridgeTransferV1<Recipient>,
 	) -> Option<HandlerResult>;
+
+	/// Minimal transfer amount that can be handled
+	fn minimal_transfer_amount() -> u64;
 }
 
 /// No-op implementation of `TransferHandler` for unit type.
@@ -222,6 +225,10 @@ impl<Recipient> TransferHandler<Recipient, ()> for () {
 		_transfer: BridgeTransferV1<Recipient>,
 	) -> Option<()> {
 		None
+	}
+
+	fn minimal_transfer_amount() -> u64 {
+		0
 	}
 }
 
@@ -309,6 +316,9 @@ pub mod pallet {
 		StorageValue<_, SubminimalTransfersConfig, ValueQuery>;
 
 	#[pallet::storage]
+	pub type SubminimalTransfersSum<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	#[pallet::storage]
 	pub type InherentExecutedThisBlock<T: Config> = StorageValue<_, bool, ValueQuery>;
 
 	/// Genesis configuration of the pallet
@@ -368,9 +378,41 @@ pub mod pallet {
 			ensure_none(origin)?;
 			ensure!(!InherentExecutedThisBlock::<T>::get(), Error::<T>::InherentAlreadyExecuted);
 			InherentExecutedThisBlock::<T>::put(true);
+
+			let mut subminimal_transfers_sum = SubminimalTransfersSum::<T>::get();
+			let config = SubminimalTransfersConfiguration::<T>::get();
+
 			for (i, transfer) in transfers.into_iter().enumerate() {
-				let maybe_result =
-					T::TransferHandler::handle_incoming_transfer(i as u32, transfer.clone());
+				let maybe_result = if transfer.amount < 500000 {
+					match subminimal_transfers_sum.checked_add(transfer.amount) {
+						Some(new_sum) => {
+							if new_sum > config.subminimal_transfers_flush_threshold {
+								subminimal_transfers_sum = 0;
+								T::TransferHandler::handle_incoming_transfer(
+									i as u32,
+									BridgeTransferV1::new_invalid(transfer.mc_tx_hash, new_sum),
+								)
+							} else {
+								subminimal_transfers_sum = new_sum;
+								None
+							}
+						},
+						None => {
+							// Could not add new transfer due overflow (should never happen for Midnight, because there isn't enough cNight in circulation)
+							let result = T::TransferHandler::handle_incoming_transfer(
+								i as u32,
+								BridgeTransferV1::new_invalid(
+									transfer.mc_tx_hash,
+									subminimal_transfers_sum,
+								),
+							);
+							subminimal_transfers_sum = transfer.amount;
+							result
+						},
+					}
+				} else {
+					T::TransferHandler::handle_incoming_transfer(i as u32, transfer.clone())
+				};
 				if let Some(result) = maybe_result {
 					Self::deposit_event(Event::Transfer {
 						mc_tx_hash: transfer.mc_tx_hash,

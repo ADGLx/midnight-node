@@ -1,4 +1,4 @@
-use crate::{LedgerApi, MidnightSystem, Runtime};
+use crate::{LedgerApi, Midnight, MidnightSystem, Runtime};
 use alloc::vec::Vec;
 use midnight_primitives::{BridgeRecipient, MidnightSystemTransactionExecutor};
 use sp_partner_chains_bridge::{BridgeTransferV1, TransferRecipient};
@@ -21,6 +21,8 @@ impl MidnightTokenTransferHandler {
 }
 
 pub(crate) type MidnightTxHash = [u8; 32];
+
+const STARS_PER_NIGHT: u128 = 1_000_000;
 
 impl pallet_partner_chains_bridge::TransferHandler<BridgeRecipient, MidnightTxHash>
 	for MidnightTokenTransferHandler
@@ -86,5 +88,14 @@ impl pallet_partner_chains_bridge::TransferHandler<BridgeRecipient, MidnightTxHa
 				None
 			},
 		}
+	}
+
+	fn minimal_transfer_amount() -> u64 {
+		Midnight::get_c_to_m_bridge_min_amount()
+			.map(|v| (v / STARS_PER_NIGHT) as u64)
+			.unwrap_or_else(|e| {
+				log::error!("Failed to read c_to_m_bridge_min_amount from ledger: {e:?}");
+				0
+			})
 	}
 }

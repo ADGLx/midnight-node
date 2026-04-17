@@ -42,6 +42,10 @@ pub mod mock_pallet {
 			Transfers::<Test>::append(transfer.clone());
 			Some((idx, transfer.amount))
 		}
+
+		fn minimal_transfer_amount() -> u64 {
+			100
+		}
 	}
 }
 
