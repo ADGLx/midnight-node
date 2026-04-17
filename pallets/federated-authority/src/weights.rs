@@ -8,7 +8,8 @@
 //! WASM-EXECUTION: `Compiled`, CHAIN: `None`, DB CACHE: `1024`
 
 // Executed Command:
-// ./target/release/midnight-node
+// frame-omni-bencher
+// v1
 // benchmark
 // pallet
 // --runtime
