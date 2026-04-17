@@ -1,11 +1,11 @@
 [package]
 name = "time-source"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 

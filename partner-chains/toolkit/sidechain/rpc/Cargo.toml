@@ -1,11 +1,11 @@
 [package]
 name = "pallet-sidechain-rpc"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,23 +13,23 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-jsonrpsee = { workspace = true }
-serde = { workspace = true }
-sp-core = { workspace = true, features = ['std'] }
-sp-runtime = { workspace = true, features = ['std'] }
-sp-api = { workspace = true, features = ['std'] }
-sp-blockchain = { workspace = true }
-sp-sidechain = { workspace = true, features = ['std'] }
-sidechain-domain = { workspace = true, features = ['std'] }
-sidechain-slots = { workspace = true, features = ['std', 'serde'] }
-tokio = { workspace = true, features = ["macros", "time", "parking_lot"] }
-time-source = { workspace = true }
-derive-new = { workspace = true }
+jsonrpsee = { version = "0.24.10", features = ["client-core", "server", "macros"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = [] }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = [] }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = [] }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-sidechain = { path = "../primitives", default-features = false, features = [] }
+sidechain-domain = { path = "../domain", default-features = false, features = [] }
+sidechain-slots = { path = "../sidechain-slots", default-features = false, features = [] }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util", "parking_lot"] }
+time-source = { path = "../../utils/time-source", default-features = false }
+derive-new = { version = "0.7.0", default-features = false }
 
 [dev-dependencies]
-pretty_assertions = { workspace = true }
-time-source = { workspace = true, features = ['mock'] }
-sp-consensus-slots = { workspace = true, features = ["std"] }
+pretty_assertions = { version = "1.4.1" }
+time-source = { path = "../../utils/time-source", default-features = false, features = [] }
+sp-consensus-slots = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
 
 [features]
 default = []

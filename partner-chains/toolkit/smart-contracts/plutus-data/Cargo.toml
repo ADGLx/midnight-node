@@ -1,29 +1,29 @@
 [package]
 name = "partner-chains-plutus-data"
-version.workspace = true
+version = "1.8.1"
 description = "Parsing and serialization of Plutus data schemas used by Partner Chains smart contracts."
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lints]
 workspace = true
 
 [dependencies]
-log = { workspace = true }
-sidechain-domain = { workspace = true, features = ["std"] }
-sp-core = { workspace = true }
-cardano-serialization-lib = { workspace = true }
-thiserror = { workspace = true }
-raw-scripts = { workspace = true }
+log = { version = "0.4.29", default-features = false }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false, features = ["std"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+cardano-serialization-lib = { version = "15.0.3", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
+raw-scripts = { git = "https://github.com/input-output-hk/partner-chains-smart-contracts.git", tag = "v8.1.0" }
 
 [dev-dependencies]
-serde_json = { workspace = true }
-hex = { workspace = true }
-hex-literal = { workspace = true }
-pretty_assertions = { workspace = true }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = { version = "1.1.0", default-features = false }
+pretty_assertions = { version = "1.4.1" }
 
 [lib]
 doctest = false

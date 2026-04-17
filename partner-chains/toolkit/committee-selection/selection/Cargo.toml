@@ -1,13 +1,13 @@
 [package]
 name = "selection"
-version.workspace = true
+version = "1.8.1"
 description = "Selection logic for sidechain validators"
 publish = false
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 readme = "README.md"
 
 [package.metadata.docs.rs]
@@ -17,12 +17,12 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dependencies]
-rand_chacha = { workspace = true }
-rand = { workspace = true }
+rand_chacha = { version = "0.10.0", default-features = false }
+rand = { version = "0.10.0", default-features = false }
 
 [dev-dependencies]
-quickcheck = { workspace = true }
-quickcheck_macros = { workspace = true }
+quickcheck = { version = "1.1.0" }
+quickcheck_macros = { version = "1" }
 
 [features]
 default = ["std"]

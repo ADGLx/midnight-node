@@ -1,11 +1,11 @@
 [package]
 name = "partner-chains-demo-node"
-version.workspace = true
+version = "1.8.1"
 description = "A reference implementation of a partner chain node"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 license = "Unlicense"
 publish = false
 build = "build.rs"
@@ -23,95 +23,79 @@ name = "partner-chains-demo-node"
 workspace = true
 
 [dependencies]
-clap = { workspace = true }
-log = { workspace = true }
-sc-cli = { workspace = true, features = ["rocksdb"] }
-sp-core = { workspace = true }
-sc-executor = { workspace = true }
-sc-network = { workspace = true }
-sc-service = { workspace = true }
-sc-telemetry = { workspace = true }
-sc-transaction-pool = { workspace = true }
-sc-transaction-pool-api = { workspace = true }
-sc-consensus-aura = { workspace = true }
-sc-partner-chains-consensus-aura = { workspace = true }
-sp-consensus-aura = { workspace = true }
-sp-partner-chains-consensus-aura = { workspace = true }
-sc-consensus = { workspace = true }
-sc-consensus-grandpa = { workspace = true }
-sc-consensus-grandpa-rpc = { workspace = true }
-sc-client-api = { workspace = true }
+clap = { version = "4.5", features = ["env", "derive"] }
+log = { version = "0.4.29", default-features = false }
+sc-cli = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["rocksdb"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-executor = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-network = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-service = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-telemetry = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-transaction-pool = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-transaction-pool-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-partner-chains-consensus-aura = { path = "../../substrate-extensions/aura/consensus", default-features = false }
+sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-partner-chains-consensus-aura = { path = "../../substrate-extensions/aura/primitives", default-features = false }
+sc-consensus = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-consensus-grandpa = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-consensus-grandpa-rpc = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-client-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 # This node template uses RocksDB as the storage backend by default.
-sc-client-db = { workspace = true, features = ["rocksdb"] }
-sp-runtime = { workspace = true }
-sp-io = { workspace = true }
-sp-timestamp = { workspace = true }
-sp-inherents = { workspace = true }
-authority-selection-inherents = { workspace = true }
-sp-block-production-log = { workspace = true }
-sidechain-domain = { workspace = true }
-sidechain-slots = { workspace = true }
-sp-sidechain = { workspace = true }
-pallet-sidechain-rpc = { workspace = true }
-sp-session-validator-management = { workspace = true }
-sp-session-validator-management-query = { workspace = true }
-pallet-session-validator-management-rpc = { workspace = true }
-serde_json = { workspace = true }
-time-source = { workspace = true }
-derive-new = { workspace = true }
-partner-chains-cli = { workspace = true }
-partner-chains-node-commands = { workspace = true }
-envy = { workspace = true }
-sp-partner-chains-bridge = { workspace = true }
+sc-client-db = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["rocksdb"] }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+authority-selection-inherents = { path = "../../toolkit/committee-selection/authority-selection-inherents", default-features = false }
+sp-block-production-log = { path = "../../toolkit/block-production-log/primitives", default-features = false }
+sidechain-domain = { path = "../../toolkit/sidechain/domain", default-features = false }
+sidechain-slots = { path = "../../toolkit/sidechain/sidechain-slots", default-features = false }
+sp-sidechain = { path = "../../toolkit/sidechain/primitives", default-features = false }
+pallet-sidechain-rpc = { path = "../../toolkit/sidechain/rpc", default-features = false }
+sp-session-validator-management = { path = "../../toolkit/committee-selection/primitives", default-features = false }
+sp-session-validator-management-query = { path = "../../toolkit/committee-selection/query", default-features = false }
+pallet-session-validator-management-rpc = { path = "../../toolkit/committee-selection/rpc", default-features = false }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+time-source = { path = "../../toolkit/utils/time-source", default-features = false }
+derive-new = { version = "0.7.0", default-features = false }
+partner-chains-cli = { path = "../../toolkit/partner-chains-cli", default-features = false }
+partner-chains-node-commands = { path = "../../toolkit/cli/node-commands", default-features = false }
+envy = { version = "0.4.2" }
+sp-partner-chains-bridge = { path = "../../toolkit/bridge/primitives", default-features = false }
 
 # These dependencies are used for the node template's RPCs
-jsonrpsee = { workspace = true }
-sc-rpc = { workspace = true }
-sp-api = { workspace = true }
-sp-blockchain = { workspace = true }
-sp-block-builder = { workspace = true }
-sc-basic-authorship = { workspace = true }
-substrate-frame-rpc-system = { workspace = true }
-pallet-block-producer-fees-rpc = { workspace = true }
-sp-block-producer-fees = { workspace = true }
-pallet-transaction-payment-rpc = { workspace = true }
+jsonrpsee = { version = "0.24.10", features = ["client-core", "server", "macros"] }
+sc-rpc = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sc-basic-authorship = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+substrate-frame-rpc-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+pallet-block-producer-fees-rpc = { path = "../../toolkit/block-producer-fees/rpc", default-features = false }
+sp-block-producer-fees = { path = "../../toolkit/block-producer-fees/primitives", default-features = false }
+pallet-transaction-payment-rpc = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
 # Local Dependencies
-partner-chains-demo-runtime = { workspace = true }
-sidechain-mc-hash = { workspace = true, features = ["mock"] }
-partner-chains-db-sync-data-sources = { workspace = true, features = [
-	"block-source",
-	"candidate-source",
-	"governed-map",
-	"mc-hash",
-	"sidechain-rpc",
-	"block-participation",
-	"bridge",
-] }
-partner-chains-mock-data-sources = { workspace = true, features = [
-	"block-source",
-	"candidate-source",
-	"governed-map",
-	"mc-hash",
-	"sidechain-rpc",
-	"block-participation",
-	"bridge",
-] }
-tokio = { workspace = true }
-sp-block-participation = { workspace = true, features = ["std"] }
-sp-block-producer-metadata = { workspace = true, features = ["std"] }
-pallet-block-producer-metadata-rpc = { workspace = true }
-sp-governed-map = { workspace = true, features = ["std"] }
+partner-chains-demo-runtime = { path = "../runtime" }
+sidechain-mc-hash = { path = "../../toolkit/sidechain/sidechain-mc-hash", default-features = false, features = ["mock"] }
+partner-chains-db-sync-data-sources = { path = "../../toolkit/data-sources/db-sync", default-features = false, features = ["block-source", "candidate-source", "governed-map", "mc-hash", "sidechain-rpc", "block-participation", "bridge"] }
+partner-chains-mock-data-sources = { path = "../../toolkit/data-sources/mock", default-features = false, features = ["block-source", "candidate-source", "governed-map", "mc-hash", "sidechain-rpc", "block-participation", "bridge"] }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+sp-block-participation = { path = "../../toolkit/block-participation/primitives", default-features = false, features = ["std"] }
+sp-block-producer-metadata = { path = "../../toolkit/block-producer-metadata/primitives", default-features = false, features = ["std"] }
+pallet-block-producer-metadata-rpc = { path = "../../toolkit/block-producer-metadata/rpc", default-features = false }
+sp-governed-map = { path = "../../toolkit/governed-map/primitives", default-features = false, features = ["std"] }
 
 [build-dependencies]
-substrate-build-script-utils = { workspace = true }
+substrate-build-script-utils = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
 [dev-dependencies]
-hex-literal = { workspace = true }
-time-source = { workspace = true, features = ["mock"] }
-assert_cmd = { workspace = true }
-pallet-sidechain-rpc = { workspace = true }
-authority-selection-inherents = { workspace = true, features = ["mock"] }
+hex-literal = { version = "1.1.0", default-features = false }
+time-source = { path = "../../toolkit/utils/time-source", default-features = false, features = ["mock"] }
+assert_cmd = { version = "2.2.0" }
+pallet-sidechain-rpc = { path = "../../toolkit/sidechain/rpc", default-features = false }
+authority-selection-inherents = { path = "../../toolkit/committee-selection/authority-selection-inherents", default-features = false, features = ["mock"] }
 
 [features]
 default = ["sidechain-domain/std"]

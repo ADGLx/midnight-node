@@ -1,12 +1,12 @@
 [package]
 name = "partner-chains-cli"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
 description = "Wizard style CLI for getting started as partner chains participant"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 readme = "README.md"
 
 [package.metadata.cargo-shear]
@@ -19,46 +19,46 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dependencies]
-sidechain-domain = { workspace = true, features = ["std"] }
-anyhow = { workspace = true }
-clap = { workspace = true }
-hex = { workspace = true }
-inquire = { workspace = true }
-libp2p-identity = { workspace = true, features = ["peerid", "ed25519"] }
-serde = { workspace = true }
-serde_json = { workspace = true, features = ["std"] }
-sp-core = { workspace = true, features = ["std"] }
-sp-runtime = { workspace = true, features = ["std"] }
-tempfile = { workspace = true }
-secp256k1 = { workspace = true, features = ["std"] }
-colored = { workspace = true }
-ogmios-client = { workspace = true, features = ["jsonrpsee-client"] }
-tokio = { workspace = true }
-partner-chains-cardano-offchain = { workspace = true }
-plutus = { workspace = true }
-plutus-datum-derive = { workspace = true }
-ed25519-zebra = { workspace = true }
-sp-session-validator-management = { workspace = true, features = ["std"] }
-pallet-session-validator-management = { workspace = true, features = ["std"] }
-pallet-partner-chains-bridge = { workspace = true, features = ["std"] }
-sp-partner-chains-bridge = { workspace = true, features = ["std"] }
-pallet-partner-chains-session = { workspace = true, features = ["std"] }
-pallet-sidechain = { workspace = true, features = ["std"] }
-pallet-governed-map = { workspace = true, features = ["std"] }
-sp-governed-map = { workspace = true, features = ["std"] }
-sidechain-slots = { workspace = true }
-authority-selection-inherents = { workspace = true, features = ["std"] }
+sidechain-domain = { path = "../sidechain/domain", default-features = false, features = ["std"] }
+anyhow = { version = "1.0.102" }
+clap = { version = "4.5", features = ["env", "derive"] }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+inquire = { version = "0.9.4" }
+libp2p-identity = { version = "0.2.13", features = ["peerid", "ed25519"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc", "std"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
+tempfile = { version = "3.27.0" }
+secp256k1 = { version = "0.30.0", default-features = false, features = ["std"] }
+colored = { version = "3.1.1" }
+ogmios-client = { path = "../utils/ogmios-client", default-features = false, features = ["jsonrpsee-client"] }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+partner-chains-cardano-offchain = { path = "../smart-contracts/offchain", default-features = false }
+plutus = { path = "../utils/plutus", default-features = false }
+plutus-datum-derive = { path = "../utils/plutus/plutus-datum-derive", default-features = false }
+ed25519-zebra = { version = "4.2.0" }
+sp-session-validator-management = { path = "../committee-selection/primitives", default-features = false, features = ["std"] }
+pallet-session-validator-management = { path = "../committee-selection/pallet", default-features = false, features = ["std"] }
+pallet-partner-chains-bridge = { path = "../bridge/pallet", default-features = false, features = ["std"] }
+sp-partner-chains-bridge = { path = "../bridge/primitives", default-features = false, features = ["std"] }
+pallet-partner-chains-session = { path = "../../substrate-extensions/partner-chains-session", default-features = false, features = ["pallet-session-compat", "std"] }
+pallet-sidechain = { path = "../sidechain/pallet", default-features = false, features = ["std"] }
+pallet-governed-map = { path = "../governed-map/pallet", default-features = false, features = ["std"] }
+sp-governed-map = { path = "../governed-map/primitives", default-features = false, features = ["std"] }
+sidechain-slots = { path = "../sidechain/sidechain-slots", default-features = false }
+authority-selection-inherents = { path = "../committee-selection/authority-selection-inherents", default-features = false, features = ["std"] }
 
 [dev-dependencies]
-frame-system = { workspace = true }
-frame-support = { workspace = true }
-hex-literal = { workspace = true }
-pallet-balances = { workspace = true }
-parity-scale-codec = { workspace = true }
-pretty_assertions = { workspace = true }
-scale-info = { workspace = true }
-sp-core = { workspace = true }
-sp-runtime = { workspace = true }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+hex-literal = { version = "1.1.0", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+pretty_assertions = { version = "1.4.1" }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
 [features]
 default = ["std"]

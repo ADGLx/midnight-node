@@ -1,11 +1,11 @@
 [package]
 name = "ogmios-client"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [package.metadata.docs.rs]
 targets = ["x86_64-unknown-linux-gnu"]
@@ -14,20 +14,20 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dependencies]
-fraction = { workspace = true, features = ["with-decimal", "with-serde-support"] }
-hex = { workspace = true }
-jsonrpsee = { workspace = true, optional = true, features = ["client-core", "http-client", "macros", "ws-client"] }
-serde = { workspace = true }
-serde_json = { workspace = true, features = ["raw_value", "arbitrary_precision"] }
-thiserror = { workspace = true }
-time = { workspace = true, features = ["std", "serde", "parsing"] }
-sidechain-domain = { workspace = true, features = ["std"] }
-log = { workspace = true, optional = true }
+fraction = { version = "0.15.3", default-features = false, features = ["with-decimal", "with-serde-support"] }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+jsonrpsee = { version = "0.24.10", optional = true, features = ["client-core", "server", "macros", "http-client", "ws-client"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc", "raw_value", "arbitrary_precision"] }
+thiserror = { version = "2.0.18", default-features = false }
+time = { version = "0.3.47", default-features = false, features = ["std", "serde", "parsing"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false, features = ["std"] }
+log = { version = "0.4.29", default-features = false, optional = true }
 
 [dev-dependencies]
-anyhow = { workspace = true }
-hex-literal = { workspace = true }
-tokio = { workspace = true }
+anyhow = { version = "1.0.102" }
+hex-literal = { version = "1.1.0", default-features = false }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
 
 [features]
 default = ["jsonrpsee-client"]

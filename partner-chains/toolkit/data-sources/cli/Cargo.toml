@@ -1,11 +1,11 @@
 [package]
 name = "partner-chains-data-sources-cli"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -14,12 +14,12 @@ readme = "README.md"
 workspace = true
 
 [dependencies]
-clap = { workspace = true }
-serde_json = { workspace = true }
-partner-chains-db-sync-data-sources = { workspace = true, features = ["block-source", "candidate-source"] }
-tokio = { workspace = true }
-env_logger = { workspace = true }
-log = { workspace = true }
-sidechain-domain = { workspace = true }
-authority-selection-inherents = { workspace = true }
-sp-timestamp = { workspace = true }
+clap = { version = "4.5", features = ["env", "derive"] }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+partner-chains-db-sync-data-sources = { path = "../db-sync", default-features = false, features = ["block-source", "candidate-source"] }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+env_logger = { version = "0.11.8" }
+log = { version = "0.4.29", default-features = false }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+authority-selection-inherents = { path = "../../committee-selection/authority-selection-inherents", default-features = false }
+sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }

@@ -226,6 +226,7 @@ sc-consensus-aura = { default-features = false, git = "https://github.com/parity
 sc-consensus-beefy = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sc-consensus-slots = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sc-client-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
+sc-client-db = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sc-cli = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sc-rpc = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sc-utils = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
@@ -246,20 +247,20 @@ scale-info-derive = { version = "2.11.1", default-features = false }
 env_logger = "0.11.8"
 itertools = { default-features = false, version = "0.14.0", features = ["use_alloc"] }
 
-jsonrpsee = { version = "0.24.7", features = ["client-core", "server", "macros"] }
+jsonrpsee = { version = "0.24.10", features = ["client-core", "server", "macros"] }
 
 async-trait = { default-features = false, version = "0.1.89" }
 futures = { default-features = false, version = "0.3.32", features = ["thread-pool"] }
 log = { default-features = false, version = "0.4.29" }
 tracing = { default-features = false, version = "0.1.44" }
 tracing-subscriber = { version = "=0.3.19", features = ["json", "env-filter"] }
-tokio = { version = "1.47.0", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
 assert_matches = "1.5.0"
 hex = { default-features = false, version = "0.4.3", features = ["alloc"] }
 hex-literal = { version = "1.1.0", default-features = false }
 schemars = { version = "0.8", default-features = false, features = ["derive"] }
-serde = { default-features = false, version = "1.0.209", features = ["derive", "alloc"] }
-serde_json = { default-features = false, version = '1.0.132', features = ["alloc"] }
+serde = { default-features = false, version = "1.0.228", features = ["derive", "alloc"] }
+serde_json = { default-features = false, version = '1.0.149', features = ["alloc"] }
 serde_valid = { default-features = false, version = "2.0.1" }
 clap = { version = "4.5", features = ["env", "derive"] }
 lazy_static = { version = "1.4.0", default-features = false }
@@ -268,13 +269,13 @@ figment = { version = "0.10.19", features = ["env", "test"] }
 lru = { version = "0.16.3" }
 subxt = "0.50.0"
 subxt-signer = "0.50.0"
-thiserror = { version = "2.0", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
 rand = { version = "0.10.0", default-features = false }
 rayon = "1.11"
 sha2 = "0.10.8"
 toml = "0.9.0"
 bip32 = "0.5.3"
-derive-where = "1.5.0"
+derive-where = { version = "1.6.1", default-features = false }
 tempfile = "3.27.0"
 impl-trait-for-tuples = "0.2.2"
 test-log = "0.2"
@@ -334,12 +335,29 @@ sp-governed-map = { path = "partner-chains/toolkit/governed-map/primitives", def
 
 # Substrate deps needed by partner-chains
 pallet-balances = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
+pallet-sudo = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
+pallet-transaction-payment = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
+pallet-transaction-payment-rpc = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
+pallet-transaction-payment-rpc-runtime-api = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sc-block-builder = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sc-network-test = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sp-application-crypto = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sp-consensus = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 sp-std = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
+sp-weights = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
 substrate-test-runtime-client = { default-features = false, git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603" }
+
+# Partner-chains local crates (members of the inner partner-chains workspace)
+assert_cmd = "2.2.0"
+pallet-block-participation = { path = "partner-chains/toolkit/block-participation/pallet", default-features = false }
+pallet-block-producer-fees = { path = "partner-chains/toolkit/block-producer-fees/pallet", default-features = false }
+pallet-block-producer-fees-rpc = { path = "partner-chains/toolkit/block-producer-fees/rpc", default-features = false }
+pallet-block-producer-metadata = { path = "partner-chains/toolkit/block-producer-metadata/pallet", default-features = false }
+pallet-block-producer-metadata-rpc = { path = "partner-chains/toolkit/block-producer-metadata/rpc", default-features = false }
+pallet-block-production-log = { path = "partner-chains/toolkit/block-production-log/pallet", default-features = false }
+partner-chains-demo-runtime = { path = "partner-chains/demo/runtime" }
+sp-block-producer-fees = { path = "partner-chains/toolkit/block-producer-fees/primitives", default-features = false }
+sp-block-production-log = { path = "partner-chains/toolkit/block-production-log/primitives", default-features = false }
 
 [profile.release]
 panic = "unwind"

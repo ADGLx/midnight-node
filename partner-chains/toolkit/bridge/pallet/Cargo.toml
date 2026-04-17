@@ -1,29 +1,29 @@
 [package]
 name = "pallet-partner-chains-bridge"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
-version.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
+version = "1.8.1"
 
 [package.metadata.cargo-shear]
 ignored = ["scale-info"]
 
 [dependencies]
-frame-benchmarking = { workspace = true, optional = true }
-frame-support = { workspace = true }
-frame-system = { workspace = true }
-log = { workspace = true }
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-sidechain-domain = { workspace = true }
-sp-partner-chains-bridge = { workspace = true }
-sp-core = { workspace = true, optional = true }
+frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+log = { version = "0.4.29", default-features = false }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+sp-partner-chains-bridge = { path = "../primitives", default-features = false }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
 
 [dev-dependencies]
-sp-core = { workspace = true }
-sp-io = { workspace = true }
-sp-runtime = { workspace = true }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
 [lints]
 workspace = true

@@ -1,21 +1,21 @@
 [package]
 name = "db-sync-sqlx"
-version.workspace = true
+version = "1.8.1"
 description = "sqlx support for Cardano Db-Sync queries"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lints]
 workspace = true
 
 [dependencies]
-sqlx = { workspace = true }
-sidechain-domain = { workspace = true, features = ["std"] }
-num-traits = { workspace = true }
-hex = { workspace = true }
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "chrono", "migrate", "bigdecimal"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false, features = ["std"] }
+num-traits = { version = "0.2.17", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
 
 [lib]
 test = false

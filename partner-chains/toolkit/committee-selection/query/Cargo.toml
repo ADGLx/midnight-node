@@ -1,40 +1,40 @@
 [package]
 name = "sp-session-validator-management-query"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lints]
 workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-async-trait = { workspace = true }
-serde = { workspace = true }
-derive-new = { workspace = true }
-serde_json = { workspace = true }
-sp-core = { workspace = true }
-sp-runtime = { workspace = true }
-sp-api = { workspace = true }
-sp-blockchain = { workspace = true }
-sp-session-validator-management = { workspace = true, features = ["std"] }
-sp-sidechain = { workspace = true, features = ["std"] }
-sidechain-domain = { workspace = true, features = ["std"] }
-sidechain-block-search = { workspace = true }
-authority-selection-inherents = { workspace = true, features = ["std"] }
-thiserror = { workspace = true }
-plutus = { workspace = true }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+async-trait = { version = "0.1.89", default-features = false }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+derive-new = { version = "0.7.0", default-features = false }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-session-validator-management = { path = "../primitives", default-features = false, features = ["std"] }
+sp-sidechain = { path = "../../sidechain/primitives", default-features = false, features = ["std"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false, features = ["std"] }
+sidechain-block-search = { path = "../../sidechain/sidechain-block-search", default-features = false }
+authority-selection-inherents = { path = "../authority-selection-inherents", default-features = false, features = ["std"] }
+thiserror = { version = "2.0.18", default-features = false }
+plutus = { path = "../../utils/plutus", default-features = false }
 
 [dev-dependencies]
-sp-std = { workspace = true }
-hex-literal = { workspace = true }
-minicbor = { workspace = true }
-tokio = { workspace = true }
-authority-selection-inherents = { workspace = true, features = ["mock"] }
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+hex-literal = { version = "1.1.0", default-features = false }
+minicbor = { version = "2.2.1", features = ["alloc"] }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+authority-selection-inherents = { path = "../authority-selection-inherents", default-features = false, features = ["mock"] }
 
 [lib]
 doctest = false

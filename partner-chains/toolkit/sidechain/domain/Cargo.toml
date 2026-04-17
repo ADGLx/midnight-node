@@ -1,11 +1,11 @@
 [package]
 name = "sidechain-domain"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [package.metadata.cargo-shear]
 ignored = ["num-traits"]
@@ -14,30 +14,30 @@ ignored = ["num-traits"]
 workspace = true
 
 [dependencies]
-sp-core = { workspace = true, features = ["serde"] }
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-plutus = { workspace = true }
-plutus-datum-derive = { workspace = true }
-serde = { workspace = true, optional = true }
-byte-string-derive = { workspace = true }
-hex = { workspace = true }
-derive_more = { workspace = true, features = ["from", "from_str", "into"] }
-num-traits = { workspace = true }
-num-derive = { workspace = true }
-sp-std = { workspace = true }
-blake2b_simd = { workspace = true }
-figment = { workspace = true, optional = true }
-thiserror = { workspace = true, optional = true }
-sp-io = { workspace = true }
-secp256k1 = { workspace = true, features = ["hashes", "alloc"] }
-ed25519-zebra = { workspace = true, optional = true }
-k256 = { workspace = true }
-derive-where = { workspace = true }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["serde"] }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+plutus = { path = "../../utils/plutus", default-features = false }
+plutus-datum-derive = { path = "../../utils/plutus/plutus-datum-derive", default-features = false }
+serde = { version = "1.0.228", default-features = false, optional = true, features = ["derive", "alloc"] }
+byte-string-derive = { path = "../../utils/byte-string-derivation", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+derive_more = { version = "2.1.1", default-features = false, features = ["from", "from_str", "into"] }
+num-traits = { version = "0.2.17", default-features = false }
+num-derive = { version = "0.4.2" }
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+blake2b_simd = { version = "1.0.2", default-features = false }
+figment = { version = "0.10.19", optional = true, features = ["env", "test"] }
+thiserror = { version = "2.0.18", default-features = false, optional = true }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+secp256k1 = { version = "0.30.0", default-features = false, features = ["hashes", "alloc"] }
+ed25519-zebra = { version = "4.2.0", optional = true }
+k256 = { version = "0.13.4", default-features = false }
+derive-where = { version = "1.6.1", default-features = false }
 
 [dev-dependencies]
-serde_json = { workspace = true }
-hex-literal = { workspace = true }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+hex-literal = { version = "1.1.0", default-features = false }
 
 [features]
 default = ["std"]

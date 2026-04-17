@@ -1,11 +1,11 @@
 [package]
 name = "authority-selection-inherents"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,31 +13,31 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true, optional = true }
-frame-support = { workspace = true }
-log = { workspace = true }
-minicbor = { workspace = true }
-sp-session-validator-management = { workspace = true }
-parity-scale-codec = { workspace = true }
-plutus = { workspace = true }
-plutus-datum-derive = { workspace = true }
-scale-info = { workspace = true }
-selection = { workspace = true }
-sidechain-domain = { workspace = true }
-sidechain-slots = { workspace = true, optional = true }
-sp-api = { workspace = true }
-sp-core = { workspace = true }
-sp-inherents = { workspace = true }
-sp-runtime = { workspace = true }
-thiserror = { workspace = true, optional = true }
-serde = { workspace = true }
-sp-consensus-slots = { workspace = true }
+async-trait = { version = "0.1.89", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+log = { version = "0.4.29", default-features = false }
+minicbor = { version = "2.2.1", features = ["alloc"] }
+sp-session-validator-management = { path = "../primitives", default-features = false }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+plutus = { path = "../../utils/plutus", default-features = false }
+plutus-datum-derive = { path = "../../utils/plutus/plutus-datum-derive", default-features = false }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+selection = { path = "../selection", default-features = false }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+sidechain-slots = { path = "../../sidechain/sidechain-slots", default-features = false, optional = true }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+thiserror = { version = "2.0.18", default-features = false, optional = true }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+sp-consensus-slots = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
 [dev-dependencies]
-hex = { workspace = true }
-hex-literal = { workspace = true }
-num-bigint = { workspace = true }
-tokio = { workspace = true }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = { version = "1.1.0", default-features = false }
+num-bigint = { version = "0.4.3", default-features = false }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
 
 [features]
 default = ["std"]

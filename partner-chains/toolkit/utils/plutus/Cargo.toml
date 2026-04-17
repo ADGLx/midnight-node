@@ -1,21 +1,21 @@
 [package]
 name = "plutus"
-version.workspace = true
+version = "1.8.1"
 publish = false
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lints]
 workspace = true
 
 [dependencies]
-hex = { workspace = true }
-minicbor = { workspace = true }
-num-bigint = { workspace = true }
-num-traits = { workspace = true }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+minicbor = { version = "2.2.1", features = ["alloc"] }
+num-bigint = { version = "0.4.3", default-features = false }
+num-traits = { version = "0.2.17", default-features = false }
 
 [lib]
 doctest = false

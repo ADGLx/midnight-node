@@ -1,29 +1,29 @@
 [package]
 name = "partner-chains-smart-contracts-commands"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lints]
 workspace = true
 
 [dependencies]
-clap = { workspace = true, features = ["derive", "env"] }
-sidechain-domain = { workspace = true }
-partner-chains-cardano-offchain = { workspace = true }
-hex = { workspace = true }
-ogmios-client = { workspace = true }
-tokio = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-anyhow = { workspace = true }
-sp-runtime = { workspace = true, features = ["std"] }
+clap = { version = "4.5", features = ["env", "derive"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+partner-chains-cardano-offchain = { path = "../offchain", default-features = false }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+ogmios-client = { path = "../../utils/ogmios-client", default-features = false }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+anyhow = { version = "1.0.102" }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
 
 [dev-dependencies]
-hex-literal = { workspace = true }
+hex-literal = { version = "1.1.0", default-features = false }
 
 [lib]
 doctest = false

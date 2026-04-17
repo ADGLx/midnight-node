@@ -1,32 +1,32 @@
 [package]
 name = "sidechain-mc-hash"
-version.workspace = true
+version = "1.8.1"
 description = "Logic for putting a main chain block reference in digest and inherent data"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lints]
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
-sp-consensus-slots = { workspace = true }
-sp-partner-chains-consensus-aura = { workspace = true, features = ["std"] }
-sidechain-domain = { workspace = true, features = ["std"] }
-sp-consensus = { workspace = true }
-sp-blockchain = { workspace = true }
-sp-inherents = { workspace = true, features = ["std"] }
-sp-runtime = { workspace = true, features = ["std"] }
-sp-timestamp = { workspace = true }
-thiserror = { workspace = true }
-derive-new = { workspace = true, optional = true }
+async-trait = { version = "0.1.89", default-features = false }
+sp-consensus-slots = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-partner-chains-consensus-aura = { path = "../../../substrate-extensions/aura/primitives", default-features = false, features = ["std"] }
+sidechain-domain = { path = "../domain", default-features = false, features = ["std"] }
+sp-consensus = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
+sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
+derive-new = { version = "0.7.0", default-features = false, optional = true }
 
 [dev-dependencies]
-tokio = { workspace = true }
-derive-new = { workspace = true }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+derive-new = { version = "0.7.0", default-features = false }
 
 [features]
 mock = ["derive-new"]

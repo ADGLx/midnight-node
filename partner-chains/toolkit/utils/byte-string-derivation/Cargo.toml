@@ -1,11 +1,11 @@
 [package]
 name = "byte-string-derive"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 description = "Proc macros for generating conversions for byte string wrapper types"
 
 [lib]
@@ -16,10 +16,10 @@ test = false
 workspace = true
 
 [dependencies]
-syn = { workspace = true }
-quote = { workspace = true }
+syn = { version = "2", features = ["full", "extra-traits"] }
+quote = { version = "1.0" }
 
 [dev-dependencies]
-sp-core = { workspace = true, features = ["std"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
 serde_test = "*"
-serde = { workspace = true }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }

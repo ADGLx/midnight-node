@@ -1,56 +1,50 @@
 [package]
 name = "partner-chains-db-sync-data-sources"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 description = "Db-Sync-based implementations of all data sources used by Partner Chains components"
 
 [lints]
 workspace = true
 
 [dependencies]
-sqlx = { workspace = true }
-db-sync-sqlx = { workspace = true }
-tokio = { workspace = true, features = ["full"] }
-futures = { workspace = true }
+sqlx = { version = "0.8.6", default-features = false, features = ["runtime-tokio-rustls", "postgres", "macros", "chrono", "migrate", "bigdecimal"] }
+db-sync-sqlx = { path = "../../utils/db-sync-sqlx", default-features = false }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util", "full"] }
+futures = { version = "0.3.32", default-features = false, features = ["thread-pool"] }
 chrono = "0.4.31"
-hex = { workspace = true }
-hex-literal = { workspace = true }
-itertools = { workspace = true }
-sidechain-domain = { workspace = true, features = ["std", "serde"] }
-serde = { workspace = true }
-bigdecimal = { workspace = true }
-async-trait = { workspace = true }
-log = { workspace = true }
-thiserror = { workspace = true }
-figment = { workspace = true }
-substrate-prometheus-endpoint = { workspace = true }
-derive-new = { workspace = true }
-lru = { workspace = true }
-sp-timestamp = { workspace = true, features = ["std"] }
-sp-governed-map = { workspace = true, features = [
-    "std",
-], optional = true }
-sidechain-mc-hash = { workspace = true, optional = true }
-pallet-sidechain-rpc = { workspace = true, optional = true }
-authority-selection-inherents = { workspace = true, features = [
-    "std",
-], optional = true }
-cardano-serialization-lib = { workspace = true }
-partner-chains-plutus-data = { workspace = true }
-sp-block-participation = { workspace = true, features = [
-    "std",
-], optional = true }
-sp-partner-chains-bridge = { workspace = true, optional = true, features = ["std"] }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = { version = "1.1.0", default-features = false }
+itertools = { version = "0.14.0", default-features = false, features = ["use_alloc"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false, features = ["std", "serde"] }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+bigdecimal = { version = "0.4" }
+async-trait = { version = "0.1.89", default-features = false }
+log = { version = "0.4.29", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
+figment = { version = "0.10.19", features = ["env", "test"] }
+substrate-prometheus-endpoint = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", package = "substrate-prometheus-endpoint" }
+derive-new = { version = "0.7.0", default-features = false }
+lru = { version = "0.16.3" }
+sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
+sp-governed-map = { path = "../../governed-map/primitives", default-features = false, optional = true, features = ["std"] }
+sidechain-mc-hash = { path = "../../sidechain/sidechain-mc-hash", default-features = false, optional = true }
+pallet-sidechain-rpc = { path = "../../sidechain/rpc", default-features = false, optional = true }
+authority-selection-inherents = { path = "../../committee-selection/authority-selection-inherents", default-features = false, optional = true, features = ["std"] }
+cardano-serialization-lib = { version = "15.0.3", default-features = false }
+partner-chains-plutus-data = { path = "../../smart-contracts/plutus-data", default-features = false }
+sp-block-participation = { path = "../../block-participation/primitives", default-features = false, optional = true, features = ["std"] }
+sp-partner-chains-bridge = { path = "../../bridge/primitives", default-features = false, optional = true, features = ["std"] }
 
 [dev-dependencies]
 tokio-test = "0.4.3"
 ctor = "0.5.0"
 testcontainers-modules = { version = "0.15", features = ["blocking", "postgres"] }
-pretty_assertions = { workspace = true }
+pretty_assertions = { version = "1.4.1" }
 
 [features]
 default = []

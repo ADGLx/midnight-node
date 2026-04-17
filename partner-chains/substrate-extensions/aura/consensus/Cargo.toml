@@ -1,12 +1,12 @@
 [package]
 name = "sc-partner-chains-consensus-aura"
-version.workspace = true
+version = "1.8.1"
 description = "Partner Chains modification to the Substrate Aura consensus engine"
-authors.workspace = true
-homepage.workspace = true
-edition.workspace = true
+authors = ["IOG"]
+homepage = "https://iohk.io/"
+edition = "2024"
 license = "GPL-3.0-or-later WITH Classpath-exception-2.0"
-repository.workspace = true
+repository = "https://github.com/input-output-hk/partner-chains.git"
 readme = "README.md"
 
 [package.metadata.docs.rs]
@@ -16,42 +16,42 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
-parity-scale-codec = { workspace = true, default-features = true }
-futures = { workspace = true }
-log = { workspace = true, default-features = true }
-parking_lot = { workspace = true, default-features = true }
-sc-client-api = { workspace = true, default-features = true }
-sc-consensus = { workspace = true, default-features = true }
-sc-consensus-aura = { workspace = true, default-features = true }
-sc-consensus-slots = { workspace = true, default-features = true }
-sc-telemetry = { workspace = true, default-features = true }
-sp-api = { workspace = true, default-features = true }
-sp-application-crypto = { workspace = true, default-features = true }
-sp-blockchain = { workspace = true, default-features = true }
-sp-block-builder = { workspace = true, default-features = true }
-sp-consensus = { workspace = true, default-features = true }
-sp-consensus-aura = { workspace = true, default-features = true }
-sp-consensus-slots = { workspace = true, default-features = true }
-sp-core = { workspace = true, default-features = true }
-sp-inherents = { workspace = true, default-features = true }
-sp-keystore = { workspace = true, default-features = true }
-sp-runtime = { workspace = true, default-features = true }
-sp-partner-chains-consensus-aura = { workspace = true, default-features = true }
+async-trait = { version = "0.1.89", default-features = false }
+parity-scale-codec = { version = "3.7.5", default-features = true, features = ["derive", "max-encoded-len"] }
+futures = { version = "0.3.32", default-features = false, features = ["thread-pool"] }
+log = { version = "0.4.29", default-features = true }
+parking_lot = { version = "0.12.5", default-features = true }
+sc-client-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sc-consensus = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sc-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sc-consensus-slots = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sc-telemetry = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-application-crypto = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-block-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-consensus = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-consensus-aura = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-consensus-slots = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-partner-chains-consensus-aura = { path = "../primitives", default-features = true }
 #thiserror = { workspace = true }
 
 [dev-dependencies]
-parking_lot = { workspace = true, default-features = true }
-tempfile = { workspace = true }
-sc-block-builder = { workspace = true, default-features = true }
-sc-keystore = { workspace = true, default-features = true }
+parking_lot = { version = "0.12.5", default-features = true }
+tempfile = { version = "3.27.0" }
+sc-block-builder = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sc-keystore = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
 #sc-network = { workspace = true, default-features = true }
-sc-network-test = { workspace = true }
-sp-keyring = { workspace = true, default-features = true }
-sp-timestamp = { workspace = true, default-features = true }
-sp-tracing = { workspace = true, default-features = true }
-substrate-test-runtime-client = { workspace = true }
-tokio = { workspace = true, default-features = true }
+sc-network-test = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-keyring = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+sp-tracing = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = true }
+substrate-test-runtime-client = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+tokio = { version = "1.50", default-features = true, features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
 
 [lib]
 doctest = false

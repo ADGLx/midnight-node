@@ -1,10 +1,10 @@
 [package]
 name = "sp-governed-map"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
-version.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
+version = "1.8.1"
 license = "Apache-2.0"
 description = "Primitives for tracking the governed key-value store on main chain"
 
@@ -15,21 +15,21 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true, optional = true }
-envy = { workspace = true, optional = true }
-log = { workspace = true }
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-serde = { workspace = true, optional = true }
-sidechain-domain = { workspace = true }
-sp-api = { workspace = true }
-sp-inherents = { workspace = true }
-sp-runtime = { workspace = true }
-thiserror = { workspace = true, optional = true }
+async-trait = { version = "0.1.89", default-features = false, optional = true }
+envy = { version = "0.4.2", optional = true }
+log = { version = "0.4.29", default-features = false }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+serde = { version = "1.0.228", default-features = false, optional = true, features = ["derive", "alloc"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-inherents = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+thiserror = { version = "2.0.18", default-features = false, optional = true }
 
 [dev-dependencies]
-tokio = { workspace = true }
-pretty_assertions = { workspace = true }
+tokio = { version = "1.50", features = ["net", "rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
+pretty_assertions = { version = "1.4.1" }
 
 [features]
 default = ["std"]

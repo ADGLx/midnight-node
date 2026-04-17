@@ -1,12 +1,12 @@
 [package]
 name = "partner-chains-mock-data-sources"
-version.workspace = true
+version = "1.8.1"
 publish = false
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 readme = "README.md"
 description = "Mock implementations of all data sources used by Partner Chains components"
 
@@ -14,19 +14,19 @@ description = "Mock implementations of all data sources used by Partner Chains c
 workspace = true
 
 [dependencies]
-async-trait = { workspace = true }
-hex-literal = { workspace = true }
-log = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-sidechain-domain = { workspace = true }
-sp-timestamp = { workspace = true }
-sp-governed-map = { workspace = true, optional = true }
-sidechain-mc-hash = { workspace = true, optional = true }
-sp-block-participation = { workspace = true, optional = true }
-pallet-sidechain-rpc = { workspace = true, optional = true }
-authority-selection-inherents = { workspace = true, optional = true }
-sp-partner-chains-bridge = { workspace = true, optional = true }
+async-trait = { version = "0.1.89", default-features = false }
+hex-literal = { version = "1.1.0", default-features = false }
+log = { version = "0.4.29", default-features = false }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+sp-timestamp = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-governed-map = { path = "../../governed-map/primitives", default-features = false, optional = true }
+sidechain-mc-hash = { path = "../../sidechain/sidechain-mc-hash", default-features = false, optional = true }
+sp-block-participation = { path = "../../block-participation/primitives", default-features = false, optional = true }
+pallet-sidechain-rpc = { path = "../../sidechain/rpc", default-features = false, optional = true }
+authority-selection-inherents = { path = "../../committee-selection/authority-selection-inherents", default-features = false, optional = true }
+sp-partner-chains-bridge = { path = "../../bridge/primitives", default-features = false, optional = true }
 
 [features]
 default = ["std", "block-source", "candidate-source", "governed-map"]

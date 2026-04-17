@@ -1,11 +1,11 @@
 [package]
 name = "plutus-datum-derive"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lib]
 proc-macro = true
@@ -16,5 +16,5 @@ doctest = false
 workspace = true
 
 [dependencies]
-syn = { workspace = true }
-quote = { workspace = true }
+syn = { version = "2", features = ["full", "extra-traits"] }
+quote = { version = "1.0" }

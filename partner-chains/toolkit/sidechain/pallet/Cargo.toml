@@ -1,11 +1,11 @@
 [package]
 name = "pallet-sidechain"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -16,20 +16,20 @@ ignored = ["parity-scale-codec", "scale-info"]
 workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-frame-support = { workspace = true }
-frame-system = { workspace = true }
-sp-std = { workspace = true }
-sp-core = { workspace = true }
-sp-runtime = { workspace = true }
-sp-sidechain = { workspace = true }
-sidechain-domain = { workspace = true }
-sidechain-slots = { workspace = true, features = ["serde"]}
-log = { workspace = true }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-sidechain = { path = "../primitives", default-features = false }
+sidechain-domain = { path = "../domain", default-features = false }
+sidechain-slots = { path = "../sidechain-slots", default-features = false, features = ["serde"] }
+log = { version = "0.4.29", default-features = false }
 
 [dev-dependencies]
-sp-io = { workspace = true }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
 [features]
 default = ["std"]

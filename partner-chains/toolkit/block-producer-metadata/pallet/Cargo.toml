@@ -1,38 +1,38 @@
 [package]
 name = "pallet-block-producer-metadata"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 [lints]
 workspace = true
 
 [dependencies]
-frame-benchmarking = { workspace = true, optional = true }
-frame-support = { workspace = true }
-frame-system = { workspace = true }
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-sidechain-domain = { workspace = true }
-hex-literal = { workspace = true, optional = true }
-sp-core = { workspace = true, optional = true }
-sp-block-producer-metadata = { workspace = true }
-sp-runtime = { workspace = true, optional = true }
-sp-io = { workspace = true, optional = true }
-k256 = { workspace = true, optional = true }
+frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+hex-literal = { version = "1.1.0", default-features = false, optional = true }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+sp-block-producer-metadata = { path = "../primitives", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+k256 = { version = "0.13.4", default-features = false, optional = true }
 
 [dev-dependencies]
-sp-core = { workspace = true }
-sp-io = { workspace = true }
-sp-runtime = { workspace = true }
-hex-literal = { workspace = true }
-k256 = { workspace = true }
-pallet-balances = { workspace = true }
-pretty_assertions = { workspace = true }
-sp-block-producer-metadata = { workspace = true, features = ["std"] }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+hex-literal = { version = "1.1.0", default-features = false }
+k256 = { version = "0.13.4", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+pretty_assertions = { version = "1.4.1" }
+sp-block-producer-metadata = { path = "../primitives", default-features = false, features = ["std"] }
 
 [features]
 default = ["std"]

@@ -1,11 +1,11 @@
 [package]
 name = "pallet-session-validator-management"
-version.workspace = true
+version = "1.8.1"
 description = "FRAME pallet for setting validators with InherentData using pallet-session"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 license = "Unlicense"
 publish = false
 
@@ -16,25 +16,25 @@ targets = ["x86_64-unknown-linux-gnu"]
 workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-log = { workspace = true }
-frame-support = { workspace = true }
-frame-system = { workspace = true }
-sp-std = { workspace = true }
-sp-runtime = { workspace = true }
-sp-core = { workspace = true }
-sp-session-validator-management = { workspace = true, features = ["serde"] }
-sp-io = { workspace = true, optional = true }
-sidechain-domain = { workspace = true }
-derive-new = { workspace = true, optional = true }
-pallet-session = { workspace = true, optional = true }
-pallet-partner-chains-session = { workspace = true, optional = true }
-frame-benchmarking = { workspace = true, optional = true }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+log = { version = "0.4.29", default-features = false }
+frame-support = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+frame-system = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-std = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-session-validator-management = { path = "../primitives", default-features = false, features = ["serde"] }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false }
+derive-new = { version = "0.7.0", default-features = false, optional = true }
+pallet-session = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+pallet-partner-chains-session = { path = "../../../substrate-extensions/partner-chains-session", default-features = false, optional = true, features = ["pallet-session-compat"] }
+frame-benchmarking = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
 
 [dev-dependencies]
-sp-io = { workspace = true }
-pallet-balances = { workspace = true }
+sp-io = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+pallet-balances = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
 [features]
 default = ["std"]

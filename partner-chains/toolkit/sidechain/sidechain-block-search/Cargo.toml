@@ -1,11 +1,11 @@
 [package]
 name = "sidechain-block-search"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,12 +13,12 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-sp-runtime = { workspace = true, features = ['std'] }
-sp-api = { workspace = true, features = ['std'] }
-sp-blockchain = { workspace = true }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = [] }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = [] }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
 
-sp-sidechain = { workspace = true, features = ['std'] }
-sidechain-domain = { workspace = true, features = ['std'] }
+sp-sidechain = { path = "../primitives", default-features = false, features = [] }
+sidechain-domain = { path = "../domain", default-features = false, features = [] }
 
 [dev-dependencies]
-proptest = { workspace = true }
+proptest = { version = "1.11.0" }

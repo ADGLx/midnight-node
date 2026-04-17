@@ -1,31 +1,31 @@
 [package]
 name = "sidechain-slots"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
 description = "Sidechain slots and epoch calcuations"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 readme = "README.md"
 
 [lints]
 workspace = true
 
 [dependencies]
-parity-scale-codec = { workspace = true }
-scale-info = { workspace = true }
-sidechain-domain = { workspace = true }
-sp-api = { workspace = true }
-sp-blockchain = { workspace = true, optional = true }
-sp-runtime = { workspace = true }
-sp-core = { workspace = true, features = ["serde"]}
-sp-consensus-slots = { workspace = true }
-serde = { workspace = true, optional = true }
-envy = { workspace = true, optional = true }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+scale-info = { version = "2.11.1", default-features = false, features = ["derive"] }
+sidechain-domain = { path = "../domain", default-features = false }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, optional = true }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+sp-core = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["serde"] }
+sp-consensus-slots = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+serde = { version = "1.0.228", default-features = false, optional = true, features = ["derive", "alloc"] }
+envy = { version = "0.4.2", optional = true }
 
 [dev-dependencies]
-proptest = { workspace = true }
+proptest = { version = "1.11.0" }
 
 [features]
 default = ['std']

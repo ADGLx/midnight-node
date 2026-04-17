@@ -1,11 +1,11 @@
 [package]
 name = "cli-commands"
-version.workspace = true
+version = "1.8.1"
 license = "Apache-2.0"
-authors.workspace = true
-edition.workspace = true
-homepage.workspace = true
-repository.workspace = true
+authors = ["IOG"]
+edition = "2024"
+homepage = "https://iohk.io/"
+repository = "https://github.com/input-output-hk/partner-chains.git"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -13,31 +13,31 @@ repository.workspace = true
 workspace = true
 
 [dependencies]
-anyhow = { workspace = true }
-clap = { workspace = true }
-ed25519-zebra = { workspace = true }
-hex = { workspace = true }
-hex-literal = { workspace = true }
-plutus = { workspace = true }
-plutus-datum-derive = { workspace = true }
-secp256k1 = { workspace = true, features = ["std", "global-context"] }
-k256 = { workspace = true, features = ["serde"] }
-sidechain-domain = { workspace = true, features = ["std"] }
-sp-api = { workspace = true, features = ["std"] }
-sp-runtime = { workspace = true, features = ["std"] }
-sp-sidechain = { workspace = true, features = ["std"] }
-sp-blockchain = { workspace = true }
-thiserror = { workspace = true }
-serde = { workspace = true }
-serde_json = { workspace = true }
-pallet-address-associations = { workspace = true, features = ["std"] }
-parity-scale-codec = { workspace = true }
-sp-block-producer-metadata = { workspace = true, features = ["std"] }
-time-source = { workspace = true }
+anyhow = { version = "1.0.102" }
+clap = { version = "4.5", features = ["env", "derive"] }
+ed25519-zebra = { version = "4.2.0" }
+hex = { version = "0.4.3", default-features = false, features = ["alloc"] }
+hex-literal = { version = "1.1.0", default-features = false }
+plutus = { path = "../../utils/plutus", default-features = false }
+plutus-datum-derive = { path = "../../utils/plutus/plutus-datum-derive", default-features = false }
+secp256k1 = { version = "0.30.0", default-features = false, features = ["std", "global-context"] }
+k256 = { version = "0.13.4", default-features = false, features = ["serde"] }
+sidechain-domain = { path = "../../sidechain/domain", default-features = false, features = ["std"] }
+sp-api = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
+sp-runtime = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false, features = ["std"] }
+sp-sidechain = { path = "../../sidechain/primitives", default-features = false, features = ["std"] }
+sp-blockchain = { git = "https://github.com/paritytech/polkadot-sdk.git", tag = "polkadot-stable2603", default-features = false }
+thiserror = { version = "2.0.18", default-features = false }
+serde = { version = "1.0.228", default-features = false, features = ["derive", "alloc"] }
+serde_json = { version = "1.0.149", default-features = false, features = ["alloc"] }
+pallet-address-associations = { path = "../../address-associations/pallet", default-features = false, features = ["std"] }
+parity-scale-codec = { version = "3.7.5", default-features = false, features = ["derive", "max-encoded-len"] }
+sp-block-producer-metadata = { path = "../../block-producer-metadata/primitives", default-features = false, features = ["std"] }
+time-source = { path = "../../utils/time-source", default-features = false }
 
 [dev-dependencies]
-pretty_assertions = { workspace = true }
-time-source = { workspace = true, features = ["mock"] }
+pretty_assertions = { version = "1.4.1" }
+time-source = { path = "../../utils/time-source", default-features = false, features = ["mock"] }
 
 [lib]
 doctest = false
