@@ -18,7 +18,9 @@ parity-scale-codec = { workspace = true }
 scale-info = { workspace = true }
 sidechain-domain = { workspace = true }
 sp-partner-chains-bridge = { workspace = true }
-sp-core = { workspace = true, optional = true }
+sp-core = { workspace = true }
+midnight-primitives = { workspace = true }
+midnight-node-ledger = { workspace = true }
 
 [dev-dependencies]
 sp-core = { workspace = true }
@@ -39,11 +41,13 @@ std = [
     "scale-info/std",
     "sidechain-domain/std",
     "sp-partner-chains-bridge/std",
+    "sp-core/std",
+    "midnight-primitives/std",
+    "midnight-node-ledger/std",
 ]
 runtime-benchmarks = [
     "frame-benchmarking/runtime-benchmarks",
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
-    "dep:sp-core"
 ]
 mock = []

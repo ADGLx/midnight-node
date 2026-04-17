@@ -4,48 +4,34 @@ use frame_support::{
 	traits::{ConstU16, ConstU64},
 };
 use frame_system::EnsureRoot;
+use midnight_node_ledger::types::active_version::LedgerApiError;
+use midnight_primitives::MidnightSystemTransactionExecutor;
 use sp_core::H256;
-use sp_partner_chains_bridge::BridgeTransferV1;
 use sp_runtime::{
-	AccountId32, BuildStorage,
+	AccountId32, BuildStorage, DispatchError,
 	traits::{BlakeTwo256, IdentityLookup},
 };
 
 pub type Block = frame_system::mocking::MockBlock<Test>;
 pub type AccountId = AccountId32;
-pub type RecipientAddress = AccountId32;
 pub type MaxTransfersPerBlock = ConstU32<32>;
 
-#[frame_support::pallet]
-pub mod mock_pallet {
-	use frame_support::pallet_prelude::*;
+/// Mock executor that returns a deterministic hash without touching the ledger.
+pub struct MockSystemTxExecutor;
+impl MidnightSystemTransactionExecutor for MockSystemTxExecutor {
+	fn execute_system_transaction(
+		serialized_system_transaction: Vec<u8>,
+	) -> Result<[u8; 32], DispatchError> {
+		Ok(sp_core::hashing::blake2_256(&serialized_system_transaction))
+	}
+}
 
-	use crate::TransferHandler;
-
-	use super::*;
-
-	#[pallet::pallet]
-	pub struct Pallet<T>(_);
-
-	#[pallet::config]
-	pub trait Config: frame_system::Config {}
-
-	#[pallet::storage]
-	#[pallet::unbounded]
-	pub type Transfers<T: Config> = StorageValue<_, Vec<BridgeTransferV1<RecipientAddress>>>;
-
-	impl<T> TransferHandler<RecipientAddress, (u32, u64)> for Pallet<T> {
-		fn handle_incoming_transfer(
-			idx: u32,
-			transfer: BridgeTransferV1<RecipientAddress>,
-		) -> Option<(u32, u64)> {
-			Transfers::<Test>::append(transfer.clone());
-			Some((idx, transfer.amount))
-		}
-
-		fn minimal_transfer_amount() -> u64 {
-			100
-		}
+/// Mock provider that returns a fixed minimum amount.
+pub struct MockMinBridgeAmount;
+impl crate::pallet::MinBridgeAmountProvider for MockMinBridgeAmount {
+	fn get_c_to_m_bridge_min_amount() -> Result<u128, LedgerApiError> {
+		// 500_000 * STARS_PER_NIGHT = 500_000_000_000
+		Ok(500_000_000_000)
 	}
 }
 
@@ -53,11 +39,8 @@ construct_runtime! {
 	pub enum Test {
 		System: frame_system,
 		Bridge: crate::pallet,
-		Mock: crate::mock::mock_pallet
 	}
 }
-
-impl mock_pallet::Config for Test {}
 
 impl frame_system::Config for Test {
 	type BaseCallFilter = frame_support::traits::Everything;
@@ -94,9 +77,8 @@ impl frame_system::Config for Test {
 
 impl crate::Config for Test {
 	type GovernanceOrigin = EnsureRoot<AccountId>;
-	type Recipient = RecipientAddress;
-	type HandlerResult = (u32, u64);
-	type TransferHandler = Mock;
+	type MidnightSystemTransactionExecutor = MockSystemTxExecutor;
+	type MinBridgeAmountProvider = MockMinBridgeAmount;
 	type MaxTransfersPerBlock = MaxTransfersPerBlock;
 	type WeightInfo = ();
 

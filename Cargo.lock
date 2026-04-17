@@ -9985,6 +9985,8 @@ dependencies = [
  "frame-support",
  "frame-system",
  "log",
+ "midnight-node-ledger",
+ "midnight-primitives",
  "parity-scale-codec",
  "scale-info",
  "sidechain-domain",

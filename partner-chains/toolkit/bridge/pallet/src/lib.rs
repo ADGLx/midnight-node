@@ -199,54 +199,30 @@ pub mod weights;
 
 use frame_support::pallet_prelude::*;
 pub use pallet::*;
-use sp_partner_chains_bridge::BridgeTransferV1;
 
-/// Runtime logic for handling incoming token bridge transfers from Cardano
-///
-/// The chain builder should implement in accordance with their particular business rules and
-/// ledger structure. Calls to all functions defined by this trait should not return any errors
-/// as this would fail the block creation. Instead, any validation and business logic errors
-/// should be handled gracefully inside the handler code.
-pub trait TransferHandler<Recipient, HandlerResult> {
-	/// Should handle an incoming token transfer of `token_mount` tokens to `recipient`
-	fn handle_incoming_transfer(
-		transfer_idx: u32,
-		transfer: BridgeTransferV1<Recipient>,
-	) -> Option<HandlerResult>;
-
-	/// Minimal transfer amount that can be handled
-	fn minimal_transfer_amount() -> u64;
-}
-
-/// No-op implementation of `TransferHandler` for unit type.
-impl<Recipient> TransferHandler<Recipient, ()> for () {
-	fn handle_incoming_transfer(
-		_transfer_idx: u32,
-		_transfer: BridgeTransferV1<Recipient>,
-	) -> Option<()> {
-		None
-	}
-
-	fn minimal_transfer_amount() -> u64 {
-		0
-	}
-}
+/// Hash of a Midnight ledger transaction.
+pub type MidnightTxHash = [u8; 32];
 
 #[frame_support::pallet]
 pub mod pallet {
-
 	use super::*;
+	use alloc::vec::Vec;
 	use crate::weights::WeightInfo;
 	use frame_system::{
 		ensure_none,
 		pallet_prelude::{BlockNumberFor, OriginFor},
 	};
-	use parity_scale_codec::MaxEncodedLen;
+	use midnight_node_ledger::types::{
+		active_ledger_bridge as LedgerApi, active_version::LedgerApiError,
+	};
+	use midnight_primitives::{BridgeRecipient, MidnightSystemTransactionExecutor};
 	use sidechain_domain::McTxHash;
 	use sp_partner_chains_bridge::{
-		BridgeDataCheckpoint, INHERENT_IDENTIFIER, InherentError, MainChainScripts,
-		SubminimalTransfersConfig, TokenBridgeTransfersV1, TransferRecipient,
+		BridgeDataCheckpoint, BridgeTransferV1, INHERENT_IDENTIFIER, InherentError,
+		MainChainScripts, SubminimalTransfersConfig, TokenBridgeTransfersV1, TransferRecipient,
 	};
+
+	const STARS_PER_NIGHT: u128 = 1_000_000;
 
 	/// Current version of the pallet
 	pub const PALLET_VERSION: u32 = 1;
@@ -257,18 +233,13 @@ pub mod pallet {
 	#[pallet::config]
 	pub trait Config: frame_system::Config {
 		/// Origin for governance extrinsic calls.
-		///
-		/// Typically the `EnsureRoot` type can be used unless a non-standard on-chain governance is used.
 		type GovernanceOrigin: EnsureOrigin<Self::RuntimeOrigin>;
 
-		/// Transfer recipient
-		type Recipient: Member + Parameter + MaxEncodedLen;
+		/// Provides access to the Midnight system transaction executor.
+		type MidnightSystemTransactionExecutor: MidnightSystemTransactionExecutor;
 
-		/// User defined handler returns this type. Values are attached to pallet events.
-		type HandlerResult: Member + Parameter + MaxEncodedLen;
-
-		/// Handler for incoming token transfers
-		type TransferHandler: TransferHandler<Self::Recipient, Self::HandlerResult>;
+		/// Provides access to the minimum bridge transfer amount from the Midnight ledger.
+		type MinBridgeAmountProvider: MinBridgeAmountProvider;
 
 		/// Maximum number of transfers that can be handled in one block for each transfer type
 		type MaxTransfersPerBlock: Get<u32>;
@@ -281,19 +252,25 @@ pub mod pallet {
 		type BenchmarkHelper: benchmarking::BenchmarkHelper<Self>;
 	}
 
+	/// Provides access to the minimum bridge transfer amount from the Midnight ledger.
+	pub trait MinBridgeAmountProvider {
+		/// Returns the minimum bridge transfer amount from ledger parameters.
+		fn get_c_to_m_bridge_min_amount() -> Result<u128, LedgerApiError>;
+	}
+
 	#[pallet::event]
 	#[pallet::generate_deposit(pub (super) fn deposit_event)]
 	pub enum Event<T: Config> {
-		/// For each handled transfer this event is emitted
+		/// Emitted for each successfully handled bridge transfer.
 		Transfer {
 			/// Main chain transaction hash for correlation of PC with MC
 			mc_tx_hash: McTxHash,
 			/// Amount of tokens that were transferred
 			amount: u64,
-			/// Handler specific infomation passed to the event
-			result: <T as Config>::HandlerResult,
+			/// Hash of the Midnight system transaction produced by the transfer
+			result: MidnightTxHash,
 			/// Beneficiary of the transfer
-			recipient: TransferRecipient<<T as Config>::Recipient>,
+			recipient: TransferRecipient<BridgeRecipient>,
 		},
 	}
 
@@ -317,6 +294,10 @@ pub mod pallet {
 
 	#[pallet::storage]
 	pub type SubminimalTransfersSum<T: Config> = StorageValue<_, u64, ValueQuery>;
+
+	/// Block-scoped counter for deterministic nonce generation per transfer.
+	#[pallet::storage]
+	pub type TransferCounter<T: Config> = StorageValue<_, u32, ValueQuery>;
 
 	#[pallet::storage]
 	pub type InherentExecutedThisBlock<T: Config> = StorageValue<_, bool, ValueQuery>;
@@ -356,12 +337,12 @@ pub mod pallet {
 	#[pallet::hooks]
 	impl<T: Config> Hooks<BlockNumberFor<T>> for Pallet<T> {
 		fn on_initialize(_n: BlockNumberFor<T>) -> Weight {
-			// Pre-account for on_finalize weight (storage write to reset inherent flag)
 			T::DbWeight::get().writes(1)
 		}
 
 		fn on_finalize(_n: BlockNumberFor<T>) {
 			InherentExecutedThisBlock::<T>::kill();
+			TransferCounter::<T>::kill();
 		}
 	}
 
@@ -372,7 +353,7 @@ pub mod pallet {
 		#[pallet::weight((T::WeightInfo::handle_transfers(transfers.len() as u32), DispatchClass::Mandatory))]
 		pub fn handle_transfers(
 			origin: OriginFor<T>,
-			transfers: BoundedVec<BridgeTransferV1<T::Recipient>, T::MaxTransfersPerBlock>,
+			transfers: BoundedVec<BridgeTransferV1<BridgeRecipient>, T::MaxTransfersPerBlock>,
 			data_checkpoint: BridgeDataCheckpoint,
 		) -> DispatchResult {
 			ensure_none(origin)?;
@@ -381,47 +362,39 @@ pub mod pallet {
 
 			let mut subminimal_transfers_sum = SubminimalTransfersSum::<T>::get();
 			let config = SubminimalTransfersConfiguration::<T>::get();
+			let min_amount = Self::minimal_transfer_amount();
 
-			for (i, transfer) in transfers.into_iter().enumerate() {
-				let maybe_result = if transfer.amount < 500000 {
+			for transfer in transfers.into_iter() {
+				let counter = Self::next_counter();
+				if transfer.amount < min_amount {
 					match subminimal_transfers_sum.checked_add(transfer.amount) {
 						Some(new_sum) => {
 							if new_sum > config.subminimal_transfers_flush_threshold {
 								subminimal_transfers_sum = 0;
-								T::TransferHandler::handle_incoming_transfer(
-									i as u32,
+								Self::execute_transfer(
+									counter,
 									BridgeTransferV1::new_invalid(transfer.mc_tx_hash, new_sum),
-								)
+								);
 							} else {
 								subminimal_transfers_sum = new_sum;
-								None
 							}
 						},
 						None => {
-							// Could not add new transfer due overflow (should never happen for Midnight, because there isn't enough cNight in circulation)
-							let result = T::TransferHandler::handle_incoming_transfer(
-								i as u32,
+							Self::execute_transfer(
+								counter,
 								BridgeTransferV1::new_invalid(
 									transfer.mc_tx_hash,
 									subminimal_transfers_sum,
 								),
 							);
 							subminimal_transfers_sum = transfer.amount;
-							result
 						},
 					}
 				} else {
-					T::TransferHandler::handle_incoming_transfer(i as u32, transfer.clone())
-				};
-				if let Some(result) = maybe_result {
-					Self::deposit_event(Event::Transfer {
-						mc_tx_hash: transfer.mc_tx_hash,
-						amount: transfer.amount,
-						result,
-						recipient: transfer.recipient,
-					})
+					Self::execute_transfer(counter, transfer);
 				}
 			}
+			SubminimalTransfersSum::<T>::put(subminimal_transfers_sum);
 			DataCheckpoint::<T>::put(data_checkpoint);
 			Ok(())
 		}
@@ -429,8 +402,6 @@ pub mod pallet {
 		/// Changes the main chain scripts used for observing native token transfers along with a new data checkpoint.
 		///
 		/// This extrinsic must be run either using `sudo` or some other chain governance mechanism.
-		///
-		///
 		#[pallet::call_index(1)]
 		#[pallet::weight(T::WeightInfo::set_main_chain_scripts())]
 		pub fn set_main_chain_scripts(
@@ -488,9 +459,116 @@ pub mod pallet {
 	impl<T: Config> Pallet<T> {
 		fn decode_inherent_data(
 			data: &InherentData,
-		) -> Option<TokenBridgeTransfersV1<T::Recipient>> {
+		) -> Option<TokenBridgeTransfersV1<BridgeRecipient>> {
 			data.get_data(&INHERENT_IDENTIFIER)
 				.expect("Bridge inherent data is not encoded correctly")
+		}
+
+		fn next_counter() -> u32 {
+			let counter = TransferCounter::<T>::get();
+			TransferCounter::<T>::put(counter + 1);
+			counter
+		}
+
+		/// Returns the minimum bridge transfer amount, read from ledger parameters.
+		fn minimal_transfer_amount() -> u64 {
+			T::MinBridgeAmountProvider::get_c_to_m_bridge_min_amount()
+				.map(|v| (v / STARS_PER_NIGHT) as u64)
+				.unwrap_or_else(|e| {
+					log::error!("Failed to read c_to_m_bridge_min_amount from ledger: {e:?}");
+					0
+				})
+		}
+
+		/// Generate a deterministic unique nonce for a bridge transfer.
+		fn generate_nonce(counter: u32) -> [u8; 32] {
+			let parent_hash = frame_system::Pallet::<T>::parent_hash();
+			let mut data = Vec::new();
+			data.extend(b"midnight:bridge-transfer-nonce:");
+			data.extend(parent_hash.as_ref());
+			data.extend(&counter.to_le_bytes());
+			sp_core::hashing::blake2_256(&data)
+		}
+
+		fn construct_and_execute(
+			counter: u32,
+			transfer: &BridgeTransferV1<BridgeRecipient>,
+		) -> Option<MidnightTxHash> {
+			let amount = transfer.amount;
+			let serialized_tx = match &transfer.recipient {
+				TransferRecipient::Address { recipient } => {
+					let nonce = Self::generate_nonce(counter);
+					match LedgerApi::construct_distribute_night_cardano_bridge_system_tx(
+						amount.into(),
+						recipient.as_bytes(),
+						nonce,
+					) {
+						Ok(tx) => {
+							log::debug!(
+								"Will execute distribute {amount} of Night to {:?}",
+								recipient.as_bytes()
+							);
+							tx
+						},
+						Err(e) => {
+							log::error!(
+								"Failed to construct bridge user transfer system tx: {e:?}"
+							);
+							return None;
+						},
+					}
+				},
+				TransferRecipient::Reserve => {
+					match LedgerApi::construct_distribute_reserve_system_tx(amount.into()) {
+						Ok(tx) => {
+							log::debug!("Will execute distribute {amount} of Night to reserve");
+							tx
+						},
+						Err(e) => {
+							log::debug!(
+								"Failed to construct bridge reserve transfer system tx: {e:?}"
+							);
+							return None;
+						},
+					}
+				},
+				TransferRecipient::Invalid => {
+					match LedgerApi::construct_distribute_treasury_system_tx(amount.into()) {
+						Ok(tx) => {
+							log::debug!("Will execute distribute {amount} of Night to treasury");
+							tx
+						},
+						Err(e) => {
+							log::error!(
+								"Failed to construct bridge treasury transfer system tx: {e:?}"
+							);
+							return None;
+						},
+					}
+				},
+			};
+			match T::MidnightSystemTransactionExecutor::execute_system_transaction(
+				serialized_tx.clone(),
+			) {
+				Ok(hash) => Some(hash),
+				Err(e) => {
+					log::error!(
+						"Failed to execute system transaction {serialized_tx:?}: {e:?}"
+					);
+					None
+				},
+			}
+		}
+
+		fn execute_transfer(counter: u32, transfer: BridgeTransferV1<BridgeRecipient>) {
+			if let Some(hash) = Self::construct_and_execute(counter, &transfer) {
+				Self::deposit_event(Event::Transfer {
+					mc_tx_hash: transfer.mc_tx_hash,
+					amount: transfer.amount,
+					result: hash,
+					recipient: transfer.recipient,
+				});
+			}
 		}
 	}
 

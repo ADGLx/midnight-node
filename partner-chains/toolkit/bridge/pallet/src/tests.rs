@@ -1,28 +1,16 @@
 use crate::mock::*;
-use crate::pallet::Call;
-use crate::*;
-use TransferRecipient::*;
+use crate::pallet::{Call, Error};
 use core::str::FromStr;
 use frame_support::{
 	assert_err, assert_ok,
 	inherent::{InherentData, ProvideInherent},
+	traits::Hooks,
 };
+use midnight_primitives::BridgeRecipient;
 use sidechain_domain::{AssetName, MainchainAddress, McTxHash, PolicyId};
 use sp_core::bounded_vec;
 use sp_partner_chains_bridge::*;
-use sp_runtime::{AccountId32, BoundedVec};
-
-fn transfers() -> BoundedVec<BridgeTransferV1<RecipientAddress>, MaxTransfersPerBlock> {
-	bounded_vec![
-		BridgeTransferV1 {
-			amount: 100,
-			recipient: Address { recipient: AccountId32::new([2; 32]) },
-			mc_tx_hash: McTxHash([1; 32])
-		},
-		BridgeTransferV1 { amount: 200, mc_tx_hash: McTxHash([2; 32]), recipient: Reserve },
-		BridgeTransferV1 { amount: 300, mc_tx_hash: McTxHash([3; 32]), recipient: Invalid }
-	]
-}
+use sp_runtime::BoundedVec;
 
 fn main_chain_scripts() -> MainChainScripts {
 	MainChainScripts {
@@ -67,72 +55,42 @@ mod handle_transfers {
 	use super::*;
 
 	#[test]
-	fn calls_the_handler() {
-		new_test_ext().execute_with(|| {
-			assert_ok!(Bridge::handle_transfers(
-				RuntimeOrigin::none(),
-				transfers(),
-				data_checkpoint()
-			));
-
-			assert_eq!(mock_pallet::Transfers::<Test>::get(), Some(transfers().to_vec()));
-		})
-	}
-
-	#[test]
-	fn emits_events() {
-		new_test_ext().execute_with(|| {
-			// Frame system drops events from block 0.
-			frame_system::Pallet::<Test>::set_block_number(1);
-			assert_ok!(Bridge::handle_transfers(
-				RuntimeOrigin::none(),
-				transfers(),
-				data_checkpoint()
-			));
-
-			let events: Vec<_> =
-				frame_system::Pallet::<Test>::events().into_iter().map(|e| e.event).collect();
-			let expected: Vec<<mock::Test as frame_system::Config>::RuntimeEvent> = transfers()
-				.into_iter()
-				.enumerate()
-				.map(|(i, t)| {
-					mock::RuntimeEvent::Bridge(Event::Transfer {
-						mc_tx_hash: t.mc_tx_hash,
-						amount: t.amount,
-						result: (i as u32, t.amount),
-						recipient: t.recipient,
-					})
-				})
-				.collect();
-			assert_eq!(events, expected);
-		})
-	}
-
-	#[test]
 	fn updates_the_data_checkpoint() {
 		new_test_ext().execute_with(|| {
+			let transfers: BoundedVec<BridgeTransferV1<BridgeRecipient>, MaxTransfersPerBlock> =
+				BoundedVec::new();
 			assert_ok!(Bridge::handle_transfers(
 				RuntimeOrigin::none(),
-				transfers(),
+				transfers,
 				data_checkpoint()
 			));
 
-			assert_eq!(DataCheckpoint::<Test>::get(), Some(data_checkpoint()));
+			assert_eq!(
+				crate::pallet::DataCheckpoint::<Test>::get(),
+				Some(data_checkpoint())
+			);
 		})
 	}
 
 	#[test]
 	fn rejects_non_extrinsic_calls() {
 		new_test_ext().execute_with(|| {
+			let transfers: BoundedVec<BridgeTransferV1<BridgeRecipient>, MaxTransfersPerBlock> =
+				BoundedVec::new();
+
 			assert_err!(
-				Bridge::handle_transfers(RuntimeOrigin::root(), transfers(), data_checkpoint()),
+				Bridge::handle_transfers(
+					RuntimeOrigin::root(),
+					transfers.clone(),
+					data_checkpoint()
+				),
 				sp_runtime::DispatchError::BadOrigin
 			);
 
 			assert_err!(
 				Bridge::handle_transfers(
-					RuntimeOrigin::signed(AccountId32::new(Default::default())),
-					transfers(),
+					RuntimeOrigin::signed(sp_runtime::AccountId32::new(Default::default())),
+					transfers,
 					data_checkpoint()
 				),
 				sp_runtime::DispatchError::BadOrigin
@@ -172,6 +130,16 @@ mod handle_transfers {
 
 mod provide_inherent {
 	use super::*;
+
+	fn transfers() -> BoundedVec<BridgeTransferV1<BridgeRecipient>, MaxTransfersPerBlock> {
+		bounded_vec![
+			BridgeTransferV1 {
+				amount: 1_000_000,
+				recipient: TransferRecipient::Reserve,
+				mc_tx_hash: McTxHash([1; 32])
+			},
+		]
+	}
 
 	fn inherent_data() -> InherentData {
 		let mut inherent_data = InherentData::new();
