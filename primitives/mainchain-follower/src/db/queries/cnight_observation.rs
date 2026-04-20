@@ -28,10 +28,10 @@ pub async fn get_registrations(
 	pool: &Pool<Postgres>,
 	smart_contract_address: &str,
 	auth_token_ident: i64,
-	query: &PagedQuery<'_>,
+	paged: &PagedQuery<'_>,
 ) -> Result<Vec<RegistrationRow>, SqlxError> {
-	assert!(query.limit < i32::MAX as usize);
-	assert!(query.offset < i32::MAX as usize);
+	assert!(paged.limit < i32::MAX as usize);
+	assert!(paged.offset < i32::MAX as usize);
 	sqlx::query_as!(
 		RegistrationRow,
 		r#"
@@ -62,18 +62,18 @@ LIMIT $7 OFFSET $8;
         "#,
 		smart_contract_address,
 		auth_token_ident,
-		query.start.block_number as i32,
-		query.start.tx_index_in_block as i32,
-		query.end.block_number as i32,
-		query.end.tx_index_in_block as i32,
-		query.limit as i32,
-		query.offset as i32,
-		query.low_bound.tx_id,
-		query.high_bound.tx_id,
-		query.low_bound.tx_out_id,
-		query.high_bound.tx_out_id,
-		query.low_bound.ma_tx_out_id,
-		query.high_bound.ma_tx_out_id,
+		paged.start.block_number as i32,
+		paged.start.tx_index_in_block as i32,
+		paged.end.block_number as i32,
+		paged.end.tx_index_in_block as i32,
+		paged.limit as i32,
+		paged.offset as i32,
+		paged.low_bound.tx_id,
+		paged.high_bound.tx_id,
+		paged.low_bound.tx_out_id,
+		paged.high_bound.tx_out_id,
+		paged.low_bound.ma_tx_out_id,
+		paged.high_bound.ma_tx_out_id,
 	)
 	.fetch_all(pool)
 	.await
@@ -82,10 +82,10 @@ LIMIT $7 OFFSET $8;
 pub async fn get_deregistrations(
 	pool: &Pool<Postgres>,
 	smart_contract_address: &str,
-	query: &PagedQuery<'_>,
+	paged: &PagedQuery<'_>,
 ) -> Result<Vec<DeregistrationRow>, SqlxError> {
-	assert!(query.limit < i32::MAX as usize);
-	assert!(query.offset < i32::MAX as usize);
+	assert!(paged.limit < i32::MAX as usize);
+	assert!(paged.offset < i32::MAX as usize);
 	// NOTE: Ordered by transaction index (i.e. index of transaction within block)
 	// Once one valid deregistration can occur in a single tx, so we don't have to worry about
 	// ordering within txs
@@ -119,16 +119,16 @@ ORDER BY block.block_no, tx.block_index
 LIMIT $6 OFFSET $7;
         "#,
 		smart_contract_address,
-		query.start.block_number as i32,
-		query.start.tx_index_in_block as i32,
-		query.end.block_number as i32,
-		query.end.tx_index_in_block as i32,
-		query.limit as i32,
-		query.offset as i32,
-		query.low_bound.tx_id,
-		query.high_bound.tx_id,
-		query.low_bound.tx_in_id,
-		query.high_bound.tx_in_id,
+		paged.start.block_number as i32,
+		paged.start.tx_index_in_block as i32,
+		paged.end.block_number as i32,
+		paged.end.tx_index_in_block as i32,
+		paged.limit as i32,
+		paged.offset as i32,
+		paged.low_bound.tx_id,
+		paged.high_bound.tx_id,
+		paged.low_bound.tx_in_id,
+		paged.high_bound.tx_in_id,
 	)
 	.fetch_all(pool)
 	.await
@@ -137,10 +137,10 @@ LIMIT $6 OFFSET $7;
 pub(crate) async fn get_asset_creates(
 	pool: &Pool<Postgres>,
 	ident: i64,
-	query: &PagedQuery<'_>,
+	paged: &PagedQuery<'_>,
 ) -> Result<Vec<AssetCreateRow>, SqlxError> {
-	assert!(query.limit < i32::MAX as usize);
-	assert!(query.offset < i32::MAX as usize);
+	assert!(paged.limit < i32::MAX as usize);
+	assert!(paged.offset < i32::MAX as usize);
 	sqlx::query_as!(
 		AssetCreateRow,
 		r#"
@@ -168,18 +168,18 @@ ORDER BY block.block_no, tx.block_index, tx_out.index
 LIMIT $6 OFFSET $7;
     "#,
 		ident,
-		query.start.block_number as i32,
-		query.start.tx_index_in_block as i32,
-		query.end.block_number as i32,
-		query.end.tx_index_in_block as i32,
-		query.limit as i32,
-		query.offset as i32,
-		query.low_bound.tx_id,
-		query.high_bound.tx_id,
-		query.low_bound.tx_out_id,
-		query.high_bound.tx_out_id,
-		query.low_bound.ma_tx_out_id,
-		query.high_bound.ma_tx_out_id,
+		paged.start.block_number as i32,
+		paged.start.tx_index_in_block as i32,
+		paged.end.block_number as i32,
+		paged.end.tx_index_in_block as i32,
+		paged.limit as i32,
+		paged.offset as i32,
+		paged.low_bound.tx_id,
+		paged.high_bound.tx_id,
+		paged.low_bound.tx_out_id,
+		paged.high_bound.tx_out_id,
+		paged.low_bound.ma_tx_out_id,
+		paged.high_bound.ma_tx_out_id,
 	)
 	.fetch_all(pool)
 	.await
@@ -188,10 +188,10 @@ LIMIT $6 OFFSET $7;
 pub(crate) async fn get_asset_spends(
 	pool: &Pool<Postgres>,
 	ident: i64,
-	query: &PagedQuery<'_>,
+	paged: &PagedQuery<'_>,
 ) -> Result<Vec<AssetSpendRow>, SqlxError> {
-	assert!(query.limit < i32::MAX as usize);
-	assert!(query.offset < i32::MAX as usize);
+	assert!(paged.limit < i32::MAX as usize);
+	assert!(paged.offset < i32::MAX as usize);
 	sqlx::query_as!(
 		AssetSpendRow,
 		r#"
@@ -222,16 +222,16 @@ ORDER BY spending_block.block_no, spending_tx.block_index, tx_out.index
 LIMIT $6 OFFSET $7;
     "#,
 		ident,
-		query.start.block_number as i32,
-		query.start.tx_index_in_block as i32,
-		query.end.block_number as i32,
-		query.end.tx_index_in_block as i32,
-		query.limit as i32,
-		query.offset as i32,
-		query.low_bound.tx_id,
-		query.high_bound.tx_id,
-		query.low_bound.tx_in_id,
-		query.high_bound.tx_in_id,
+		paged.start.block_number as i32,
+		paged.start.tx_index_in_block as i32,
+		paged.end.block_number as i32,
+		paged.end.tx_index_in_block as i32,
+		paged.limit as i32,
+		paged.offset as i32,
+		paged.low_bound.tx_id,
+		paged.high_bound.tx_id,
+		paged.low_bound.tx_in_id,
+		paged.high_bound.tx_in_id,
 	)
 	.fetch_all(pool)
 	.await

@@ -334,9 +334,9 @@ impl MidnightCNightObservationDataSourceImpl {
 		cardano_network: u8,
 		auth_token_ident: i64,
 		address: &str,
-		query: &PagedQuery<'_>,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = get_registrations(&self.pool, address, auth_token_ident, query).await?;
+		let rows = get_registrations(&self.pool, address, auth_token_ident, paged).await?;
 
 		let mut utxos = Vec::new();
 
@@ -387,9 +387,9 @@ impl MidnightCNightObservationDataSourceImpl {
 		&self,
 		cardano_network: u8,
 		address: &str,
-		query: &PagedQuery<'_>,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = get_deregistrations(&self.pool, address, query).await?;
+		let rows = get_deregistrations(&self.pool, address, paged).await?;
 
 		let mut utxos = Vec::new();
 
@@ -440,9 +440,9 @@ impl MidnightCNightObservationDataSourceImpl {
 		&self,
 		cardano_network: u8,
 		ident: i64,
-		query: &PagedQuery<'_>,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = crate::db::get_asset_creates(&self.pool, ident, query).await?;
+		let rows = crate::db::get_asset_creates(&self.pool, ident, paged).await?;
 
 		let mut utxos = Vec::new();
 
@@ -496,9 +496,9 @@ impl MidnightCNightObservationDataSourceImpl {
 		&self,
 		cardano_network: u8,
 		ident: i64,
-		query: &PagedQuery<'_>,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = crate::db::get_asset_spends(&self.pool, ident, query).await?;
+		let rows = crate::db::get_asset_spends(&self.pool, ident, paged).await?;
 
 		let mut utxos = Vec::new();
 
