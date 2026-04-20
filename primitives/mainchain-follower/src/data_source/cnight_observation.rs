@@ -28,6 +28,24 @@ use partner_chains_db_sync_data_sources::McFollowerMetrics;
 use sidechain_domain::{McBlockHash, McBlockNumber, McTxHash, McTxIndexInBlock, TX_HASH_SIZE};
 pub use sqlx::PgPool;
 use std::fmt::Debug;
+use std::sync::{Arc, Mutex};
+
+/// Last successful `get_utxos_up_to_capacity` call — returned directly when the
+/// next call has identical inputs (`start_position`, `current_tip`). During initial
+/// sync Cardano tip advances slower than Midnight (20 s vs 6 s blocks), so
+/// consecutive Midnight blocks routinely request the same Cardano window.
+#[derive(Clone)]
+struct LastObservation {
+	start_position: CardanoPosition,
+	current_tip: McBlockHash,
+	result: ObservedUtxos,
+	/// True iff the previous call returned all data up to the requested `end`
+	/// (i.e., not truncated by `tx_capacity`). Only full-window results are safe
+	/// to serve from the slice cache when `start_position` advances — if the
+	/// cached call truncated, data exists beyond `cache.result.end` that we
+	/// never fetched, and serving a filtered subset would stall the pallet.
+	full_window: bool,
+}
 
 #[derive(
 	Debug,
@@ -89,16 +107,19 @@ pub struct MidnightCNightObservationDataSourceImpl {
 	#[allow(dead_code)]
 	cache_size: u16,
 	multi_asset_cache: MultiAssetCache,
+	last_observation: Arc<Mutex<Option<LastObservation>>>,
 }
 
 impl MidnightCNightObservationDataSourceImpl {
-	pub fn new(
-		pool: PgPool,
-		metrics_opt: Option<McFollowerMetrics>,
-		cache_size: u16,
-	) -> Self {
+	pub fn new(pool: PgPool, metrics_opt: Option<McFollowerMetrics>, cache_size: u16) -> Self {
 		let multi_asset_cache = MultiAssetCache::new(pool.clone());
-		Self { pool, metrics_opt, cache_size, multi_asset_cache }
+		Self {
+			pool,
+			metrics_opt,
+			cache_size,
+			multi_asset_cache,
+			last_observation: Arc::new(Mutex::new(None)),
+		}
 	}
 }
 
@@ -111,6 +132,51 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 		current_tip: McBlockHash,
 		tx_capacity: usize,
 	) -> Result<ObservedUtxos, Box<dyn std::error::Error + Send + Sync>> {
+		// Fast path: if `current_tip` (→ `end`) is unchanged from the previous call,
+		// the set of Cardano UTXOs in the window is a deterministic function of the
+		// previous call's result. Serve directly from cache:
+		//
+		// * `start_position` unchanged → return last result verbatim.
+		// * `start_position` advanced  → filter last result to rows still in range.
+		//   The pallet commonly advances `start_position` by a few hundred Cardano
+		//   blocks per Midnight block while `current_tip` remains static for ~3
+		//   Midnight blocks; without this, we re-fetch 98% of the same rows each call.
+		if let Ok(guard) = self.last_observation.lock() {
+			if let Some(last) = guard.as_ref() {
+				if last.current_tip == current_tip {
+					if last.start_position == *start_position {
+						log::debug!(
+							"cNIGHT observation exact cache hit start={:?} tip={:?}",
+							start_position, current_tip,
+						);
+						return Ok(last.result.clone());
+					} else if last.full_window
+						&& *start_position >= last.start_position
+						&& *start_position <= last.result.end
+					{
+						let filtered: Vec<_> = last
+							.result
+							.utxos
+							.iter()
+							.filter(|u| u.header.tx_position >= *start_position)
+							.cloned()
+							.collect();
+						log::debug!(
+							"cNIGHT observation cache slice: {} → {} utxos for start={:?} tip={:?}",
+							last.result.utxos.len(), filtered.len(),
+							start_position, current_tip,
+						);
+						return Ok(ObservedUtxos {
+							start: start_position.clone(),
+							end: last.result.end.clone(),
+							utxos: filtered,
+						});
+					}
+				}
+			}
+		}
+
+		let cached_tip = current_tip.clone();
 		let cnight_asset_name = config.cnight_asset_name.as_bytes();
 
 		let mapping_validator_address = Address::from_bech32(&config.mapping_validator_address)
@@ -173,12 +239,17 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 		let high_bounds = high_bounds.expect("End position contains block hash that exists in database");
 		// Increment the end position to tx_index + 1 of the current mainchain position
 		let end = end.increment();
-		log::warn!("Bounds:\n{:?}\n{:?}\nfor positions:\n{:?}\n{:?}", low_bounds, high_bounds, start_position, end);
+		log::debug!("Bounds:\n{:?}\n{:?}\nfor positions:\n{:?}\n{:?}", low_bounds, high_bounds, start_position, end);
 
 		// The "capacity" argument is capacity in terms of TRANSACTIONS,
 		// but the various sql queries below want a capacity in terms of UTXOs.
-		// Use a generous overestimate of how many UTXOs each TX _may_ have.
-		let utxo_capacity = tx_capacity * 64;
+		// Use a small overestimate of how many UTXOs each TX _may_ have.
+		// The pallet post-truncates to `tx_capacity` whole transactions, so
+		// any rows fetched beyond that are discarded. The original 64×
+		// multiplier was a safety factor that produced ~32× overfetching for
+		// realistic cNIGHT activity (avg ~1-3 UTXOs per tx). 4× keeps a comfy
+		// margin while shrinking per-call result sets by ~16×.
+		let utxo_capacity = tx_capacity * 4;
 
 		// Call db methods to get UTXOs (offset + limit) until we reach our capacity
 		// TODO: (possibly) Replace this with grabbing from a queue that's filled async by an offchain thread
@@ -281,20 +352,32 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 			truncated_utxos.push(utxo);
 		}
 
-		if num_txs < tx_capacity {
+		let full_window = num_txs < tx_capacity;
+		let result = if full_window {
 			// We couldn't find enough UTXOs in the range, which means we're up-to-date with the
 			// current_tip
-			Ok(ObservedUtxos { start: start_position.clone(), end, utxos: truncated_utxos })
+			ObservedUtxos { start: start_position.clone(), end, utxos: truncated_utxos }
 		} else {
-			Ok(ObservedUtxos {
+			ObservedUtxos {
 				start: start_position.clone(),
 				end: truncated_utxos
 					.last()
 					.map_or(start_position.clone(), |u| u.header.tx_position.clone())
 					.increment(),
 				utxos: truncated_utxos,
-			})
+			}
+		};
+
+		if let Ok(mut guard) = self.last_observation.lock() {
+			*guard = Some(LastObservation {
+				start_position: start_position.clone(),
+				current_tip: cached_tip,
+				result: result.clone(),
+				full_window,
+			});
 		}
+
+		Ok(result)
 	}
 }
 );
@@ -345,7 +428,7 @@ impl MidnightCNightObservationDataSourceImpl {
 	}
 
 	#[allow(clippy::too_many_arguments)]
-	async fn get_registration_utxos(
+	pub async fn get_registration_utxos(
 		&self,
 		cardano_network: u8,
 		auth_token_ident: i64,
@@ -415,7 +498,7 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok(utxos)
 	}
 
-	async fn get_deregistration_utxos(
+	pub async fn get_deregistration_utxos(
 		&self,
 		cardano_network: u8,
 		address: &str,
@@ -484,7 +567,7 @@ impl MidnightCNightObservationDataSourceImpl {
 	}
 
 	#[allow(clippy::too_many_arguments)]
-	async fn get_asset_create_utxos(
+	pub async fn get_asset_create_utxos(
 		&self,
 		cardano_network: u8,
 		ident: i64,
@@ -556,7 +639,7 @@ impl MidnightCNightObservationDataSourceImpl {
 	}
 
 	#[allow(clippy::too_many_arguments)]
-	async fn get_asset_spend_utxos(
+	pub async fn get_asset_spend_utxos(
 		&self,
 		cardano_network: u8,
 		ident: i64,

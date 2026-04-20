@@ -2122,6 +2122,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "cnight-observation-generator"
+version = "0.1.0"
+dependencies = [
+ "clap",
+ "hex",
+ "midnight-primitives-cnight-observation",
+ "midnight-primitives-mainchain-follower",
+ "sqlx",
+ "tokio",
+]
+
+[[package]]
 name = "coarsetime"
 version = "0.1.36"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -8253,6 +8265,7 @@ dependencies = [
  "db-sync-sqlx",
  "derive-new",
  "figment",
+ "hex",
  "itertools 0.14.0",
  "log",
  "lru 0.16.3",
@@ -8264,6 +8277,7 @@ dependencies = [
  "rand 0.9.2",
  "scale-info",
  "serde",
+ "sha2 0.10.9",
  "sidechain-domain",
  "sp-api",
  "sp-blockchain",
@@ -8274,6 +8288,7 @@ dependencies = [
  "sqlx",
  "thiserror 1.0.69",
  "tokio",
+ "zstd 0.13.3",
 ]
 
 [[package]]
@@ -16649,6 +16664,7 @@ dependencies = [
  "indexmap 2.10.0",
  "log",
  "memchr",
+ "native-tls",
  "once_cell",
  "percent-encoding",
  "rustls",

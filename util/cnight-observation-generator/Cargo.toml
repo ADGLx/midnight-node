@@ -1,0 +1,17 @@
+[package]
+name = "cnight-observation-generator"
+version = "0.1.0"
+edition = "2024"
+license-file.workspace = true
+
+[[bin]]
+name = "cnight-observation-generator"
+path = "src/main.rs"
+
+[dependencies]
+midnight-primitives-mainchain-follower = { workspace = true, default-features = true }
+midnight-primitives-cnight-observation = { workspace = true, default-features = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+sqlx = { workspace = true, features = ["runtime-tokio-native-tls", "postgres"] }
+hex = { workspace = true, features = ["std"] }
+clap = { workspace = true, features = ["derive"] }

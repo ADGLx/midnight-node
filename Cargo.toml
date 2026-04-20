@@ -26,6 +26,7 @@ members = [
     "util/upgrader",
     "util/aiken-deployer",
     "util/aiken-contracts-lib",
+    "util/cnight-observation-generator",
     "tests/e2e",
     "relay",
     "docs",

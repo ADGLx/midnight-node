@@ -220,11 +220,42 @@ pub async fn create_cached_data_sources(
 
 	let cnight_observation_pool =
 		get_connection(postgres_uri, CNIGHT_OBSERVATION_POOL_CFG, cfg.allow_non_ssl).await?;
-	let cnight_observation = MidnightCNightObservationDataSourceImpl::new(
-		cnight_observation_pool,
-		metrics_opt.clone(),
-		1000,
-	);
+	let cnight_observation: Arc<dyn MidnightCNightObservationDataSource + Send + Sync> =
+		if let Ok(path) = std::env::var("CNIGHT_OBSERVATION_FILE") {
+			use midnight_primitives_mainchain_follower::data_source::{
+				CNightObservationSnapshot, FileBackedCNightObservationDataSource,
+			};
+			let cardano_network_magic: u32 = std::env::var("CARDANO_NETWORK_MAGIC")
+				.map_err(|_| {
+					"CARDANO_NETWORK_MAGIC must be set when CNIGHT_OBSERVATION_FILE is used"
+						.to_string()
+				})?
+				.parse()
+				.map_err(|e| format!("CARDANO_NETWORK_MAGIC must be u32: {e}"))?;
+			log::info!("loading cNIGHT observation snapshot from {path}");
+			let t0 = std::time::Instant::now();
+			let loaded = CNightObservationSnapshot::read_from_path(std::path::Path::new(&path))?;
+			log::info!(
+				"cNIGHT observation snapshot: {} events loaded in {:?} (inputs_hash={}, sha256={})",
+				loaded.snapshot.total_events(),
+				t0.elapsed(),
+				hex::encode(loaded.inputs_hash),
+				hex::encode(loaded.content_sha256),
+			);
+			Arc::new(FileBackedCNightObservationDataSource::new(
+				loaded.snapshot,
+				loaded.inputs_hash,
+				cardano_network_magic,
+				cnight_observation_pool,
+				metrics_opt.clone(),
+			))
+		} else {
+			Arc::new(MidnightCNightObservationDataSourceImpl::new(
+				cnight_observation_pool,
+				metrics_opt.clone(),
+				1000,
+			))
+		};
 
 	let federated_authority_observation_pool =
 		get_connection(postgres_uri, FEDERATED_AUTHORITY_OBSERVATION_POOL_CFG, cfg.allow_non_ssl)
@@ -248,7 +279,7 @@ pub async fn create_cached_data_sources(
 		sidechain_rpc: Arc::new(sidechain_rpc),
 		mc_hash: Arc::new(mc_hash),
 		authority_selection: Arc::new(candidates_data_source_cached),
-		cnight_observation: Arc::new(cnight_observation),
+		cnight_observation,
 		bridge: Arc::new(bridge),
 		federated_authority_observation: Arc::new(federated_authority_observation),
 	})
