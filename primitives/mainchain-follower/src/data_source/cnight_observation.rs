@@ -92,11 +92,7 @@ pub struct MidnightCNightObservationDataSourceImpl {
 }
 
 impl MidnightCNightObservationDataSourceImpl {
-	pub fn new(
-		pool: PgPool,
-		metrics_opt: Option<McFollowerMetrics>,
-		cache_size: u16,
-	) -> Self {
+	pub fn new(pool: PgPool, metrics_opt: Option<McFollowerMetrics>, cache_size: u16) -> Self {
 		let multi_asset_cache = MultiAssetCache::new(pool.clone());
 		Self { pool, metrics_opt, cache_size, multi_asset_cache }
 	}
