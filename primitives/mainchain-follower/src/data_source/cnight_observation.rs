@@ -12,7 +12,7 @@
 // limitations under the License.
 
 use crate::data_source::candidates_data_source::observed_async_trait;
-use crate::db::{get_deregistrations, get_registrations};
+use crate::db::{MultiAssetCache, PagedQuery, get_deregistrations, get_registrations};
 use crate::{
 	CreateData, DeregistrationData, MidnightCNightObservationDataSource, ObservedUtxo,
 	ObservedUtxoData, ObservedUtxoHeader, RegistrationData, SpendData, UtxoIndexInTx,
@@ -21,7 +21,6 @@ use cardano_serialization_lib::{
 	Address, BaseAddress, ConstrPlutusData, Credential, Ed25519KeyHash, EnterpriseAddress,
 	PlutusData, RewardAddress, ScriptHash,
 };
-use derive_new::new;
 use midnight_primitives_cnight_observation::{
 	CNightAddresses, CardanoPosition, CardanoRewardAddressBytes, DustPublicKeyBytes, ObservedUtxos,
 };
@@ -84,12 +83,19 @@ pub enum RegistrationDatumDecodeError {
 	DustAddressInvalidLength(usize),
 }
 
-#[derive(new)]
 pub struct MidnightCNightObservationDataSourceImpl {
 	pub pool: PgPool,
 	pub metrics_opt: Option<McFollowerMetrics>,
 	#[allow(dead_code)]
 	cache_size: u16,
+	multi_asset_cache: MultiAssetCache,
+}
+
+impl MidnightCNightObservationDataSourceImpl {
+	pub fn new(pool: PgPool, metrics_opt: Option<McFollowerMetrics>, cache_size: u16) -> Self {
+		let multi_asset_cache = MultiAssetCache::new(pool.clone());
+		Self { pool, metrics_opt, cache_size, multi_asset_cache }
+	}
 }
 
 observed_async_trait!(
@@ -127,13 +133,43 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 					"MappingValidator address does not contain a script hash".to_string(),
 				))?;
 
+		// Resolve multi_asset.id for auth token and cNight token (cached after first call)
+		let auth_token_ident = self
+			.multi_asset_cache
+			.resolve_ident(
+				&mapping_validator_policy_id.to_bytes(),
+				config.auth_token_asset_name.as_bytes(),
+			)
+			.await?;
+
+		let cnight_ident = self
+			.multi_asset_cache
+			.resolve_ident(&config.cnight_policy_id, cnight_asset_name)
+			.await?;
+
 		// Get end position from cardano block hash
 		let end: CardanoPosition = crate::db::get_block_by_hash(&self.pool, current_tip.clone())
 			.await?
 			.ok_or(MidnightCNightObservationDataSourceError::MissingBlockReference(current_tip))?
 			.into();
+
+		let (low_bounds, high_bounds) = tokio::try_join!(
+			async {
+				crate::db::get_low_bounds(&self.pool, start_position.block_number.into())
+					.await
+					.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)
+			},
+			async {
+				crate::db::get_high_bounds(&self.pool, end.block_number.into())
+					.await
+					.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)
+			},
+			)?;
+		let low_bounds = low_bounds.expect("Start position contains block hash that exists in database");
+		let high_bounds = high_bounds.expect("End position contains block hash that exists in database");
 		// Increment the end position to tx_index + 1 of the current mainchain position
 		let end = end.increment();
+		log::debug!("Bounds:\n{:?}\n{:?}\nfor positions:\n{:?}\n{:?}", low_bounds, high_bounds, start_position, end);
 
 		// The "capacity" argument is capacity in terms of TRANSACTIONS,
 		// but the various sql queries below want a capacity in terms of UTXOs.
@@ -144,58 +180,61 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 		// TODO: (possibly) Replace this with grabbing from a queue that's filled async by an offchain thread
 		// ^ We may not have to do the above if the queries are fast enough
 
+		let paged = PagedQuery {
+			start: start_position,
+			end: &end,
+			limit: utxo_capacity,
+			offset: 0,
+			low_bound: low_bounds,
+			high_bound: high_bounds,
+		};
+
 		let (registration_utxos, deregistration_utxos, asset_create_utxos, asset_spend_utxos) = tokio::try_join!(
 			async {
-				self.get_registration_utxos(
-					cardano_network,
-					&mapping_validator_policy_id,
-					&config.mapping_validator_address,
-					&config.auth_token_asset_name,
-					start_position,
-					&end,
-					utxo_capacity,
-					0,
-				)
-				.await
-				.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)
+				match auth_token_ident {
+					Some(ident) => self.get_registration_utxos(
+						cardano_network,
+						ident,
+						&config.mapping_validator_address,
+						&paged,
+					)
+					.await
+					.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into),
+					None => Ok(vec![]),
+				}
 			},
 			async {
 				self.get_deregistration_utxos(
 					cardano_network,
 					&config.mapping_validator_address,
-					start_position,
-					&end,
-					utxo_capacity,
-					0,
+					&paged,
 				)
 				.await
 				.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)
 			},
 			async {
-				self.get_asset_create_utxos(
-					cardano_network,
-					config.cnight_policy_id,
-					cnight_asset_name,
-					start_position,
-					&end,
-					utxo_capacity,
-					0,
-				)
-				.await
-				.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)
+				match cnight_ident {
+					Some(ident) => self.get_asset_create_utxos(
+						cardano_network,
+						ident,
+						&paged,
+					)
+					.await
+					.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into),
+					None => Ok(vec![]),
+				}
 			},
 			async {
-				self.get_asset_spend_utxos(
-					cardano_network,
-					config.cnight_policy_id,
-					cnight_asset_name,
-					start_position,
-					&end,
-					utxo_capacity,
-					0,
-				)
-				.await
-				.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into)
+				match cnight_ident {
+					Some(ident) => self.get_asset_spend_utxos(
+						cardano_network,
+						ident,
+						&paged,
+					)
+					.await
+					.map_err(Into::<Box<dyn std::error::Error + Send + Sync>>::into),
+					None => Ok(vec![]),
+				}
 			}
 		)?;
 
@@ -290,29 +329,14 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok((credential, dust_address))
 	}
 
-	#[allow(clippy::too_many_arguments)]
 	async fn get_registration_utxos(
 		&self,
 		cardano_network: u8,
-		mapping_validator_policy_id: &ScriptHash,
+		auth_token_ident: i64,
 		address: &str,
-		auth_asset_name: &str,
-		start: &CardanoPosition,
-		end: &CardanoPosition,
-		limit: usize,
-		offset: usize,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = get_registrations(
-			&self.pool,
-			address,
-			mapping_validator_policy_id,
-			auth_asset_name,
-			start,
-			end,
-			limit,
-			offset,
-		)
-		.await?;
+		let rows = get_registrations(&self.pool, address, auth_token_ident, paged).await?;
 
 		let mut utxos = Vec::new();
 
@@ -363,12 +387,9 @@ impl MidnightCNightObservationDataSourceImpl {
 		&self,
 		cardano_network: u8,
 		address: &str,
-		start: &CardanoPosition,
-		end: &CardanoPosition,
-		limit: usize,
-		offset: usize,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = get_deregistrations(&self.pool, address, start, end, limit, offset).await?;
+		let rows = get_deregistrations(&self.pool, address, paged).await?;
 
 		let mut utxos = Vec::new();
 
@@ -415,21 +436,13 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok(utxos)
 	}
 
-	#[allow(clippy::too_many_arguments)]
 	async fn get_asset_create_utxos(
 		&self,
 		cardano_network: u8,
-		policy_id: [u8; 28],
-		asset_name: &[u8],
-		start: &CardanoPosition,
-		end: &CardanoPosition,
-		limit: usize,
-		offset: usize,
+		ident: i64,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = crate::db::get_asset_creates(
-			&self.pool, policy_id, asset_name, start, end, limit, offset,
-		)
-		.await?;
+		let rows = crate::db::get_asset_creates(&self.pool, ident, paged).await?;
 
 		let mut utxos = Vec::new();
 
@@ -479,21 +492,13 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok(utxos)
 	}
 
-	#[allow(clippy::too_many_arguments)]
 	async fn get_asset_spend_utxos(
 		&self,
 		cardano_network: u8,
-		policy_id: [u8; 28],
-		asset_name: &[u8],
-		start: &CardanoPosition,
-		end: &CardanoPosition,
-		limit: usize,
-		offset: usize,
+		ident: i64,
+		paged: &PagedQuery<'_>,
 	) -> Result<Vec<ObservedUtxo>, MidnightCNightObservationDataSourceError> {
-		let rows = crate::db::get_asset_spends(
-			&self.pool, policy_id, asset_name, start, end, limit, offset,
-		)
-		.await?;
+		let rows = crate::db::get_asset_spends(&self.pool, ident, paged).await?;
 
 		let mut utxos = Vec::new();
 
