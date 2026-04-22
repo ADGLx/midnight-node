@@ -68,9 +68,6 @@ impl From<LedgerSystemTransactionError> for SystemTransactionError {
 			Lste::InvalidBasisPoints(_) => Ste::InvalidBasisPoints,
 			Lste::InvariantViolation(_) => Ste::InvariantViolation,
 			Lste::TreasuryDisabled => Ste::TreasuryDisabled,
-			// Not in ledger 7:
-			#[allow(unreachable_patterns)]
-			_ => Ste::MerkleTreeError,
 		}
 	}
 }
