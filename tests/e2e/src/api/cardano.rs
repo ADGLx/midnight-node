@@ -2,6 +2,7 @@ use crate::config::{Constants, OgmiosClientSettings};
 use aiken_contracts_lib::{
     FederatedOpsCandidate, GovernanceMember, build_federated_ops_datum,
     build_federated_ops_redeemer, build_governance_redeemer, build_versioned_multisig_datum,
+    convert_cost_models,
 };
 use bip39::{Language, Mnemonic, MnemonicType};
 use ogmios_client::OgmiosClientError;
@@ -60,7 +61,7 @@ impl CardanoClient {
     pub async fn new(ogmios_settings: OgmiosClientSettings, constants: Constants) -> Self {
         let wallet = Self::create_wallet();
         Self::print_addresses(&wallet, &Self::network_info(&ogmios_settings.network));
-        Self::from_wallet(ogmios_settings, constants, wallet)
+        Self::from_wallet(ogmios_settings, constants, wallet).await
     }
 
     pub async fn new_from_funded(
@@ -68,23 +69,38 @@ impl CardanoClient {
         constants: Constants,
     ) -> Self {
         let wallet = Self::wallet_for_funded(constants.payments.funded_address_skey_cbor.as_str());
-        Self::from_wallet(ogmios_settings, constants, wallet)
+        Self::from_wallet(ogmios_settings, constants, wallet).await
     }
 
-    fn from_wallet(
+    async fn from_wallet(
         ogmios_settings: OgmiosClientSettings,
         constants: Constants,
         wallet: Wallet,
     ) -> Self {
         let network_info = Self::network_info(&ogmios_settings.network);
+        let network = Self::fetch_network(&ogmios_settings).await;
 
         Self {
             ogmios_settings: ogmios_settings.clone(),
             constants,
             wallet,
-            network: ogmios_settings.network,
+            network,
             network_info,
         }
+    }
+
+    async fn fetch_network(config: &OgmiosClientSettings) -> Network {
+        let client = client_for_url(
+            &config.base_url,
+            Duration::from_secs(config.timeout_seconds),
+        )
+        .await
+        .expect("Failed to connect to ogmios");
+        let params = client
+            .query_protocol_parameters()
+            .await
+            .expect("Failed to query protocol parameters");
+        Network::Custom(convert_cost_models(&params.plutus_cost_models))
     }
 
     fn network_info(network: &Network) -> NetworkInfo {
@@ -273,10 +289,9 @@ impl CardanoClient {
             Asset::new_from_str(&mapping_validator_policy_id, "1"),
         ];
         let minting_script = policies.mapping_validator_cbor_double_encoding();
-        let network = Network::Custom(self.constants.cost_model.clone());
-
         let mut tx_builder = TxBuilder::new_core();
         tx_builder
+            .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
             .tx_in(
                 &hex::encode(tx_in.transaction.id),
@@ -353,7 +368,6 @@ impl CardanoClient {
         let mapping_validator_policy_id = policies.mapping_validator_policy_id();
         let send_assets = vec![Asset::new_from_str("lovelace", "2000000")];
         let minting_script = policies.mapping_validator_cbor_double_encoding();
-        let network = Network::Custom(self.constants.cost_model.clone());
         let mapping_validator_cbor = policies.mapping_validator_cbor_double_encoding();
         let register_asset_tx_vector = Self::build_asset_vector(register_tx);
         println!("Register tx assets: {:?}", register_asset_tx_vector);
@@ -362,6 +376,7 @@ impl CardanoClient {
 
         let mut tx_builder = TxBuilder::new_core();
         tx_builder
+            .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
             .tx_in(
                 &hex::encode(tx_in.transaction.id),
@@ -449,8 +464,6 @@ impl CardanoClient {
 
         let policy_id = policies.cnight_token_policy_id();
         let minting_script = policies.cnight_token_cbor_double_encoding();
-        let network = Network::Custom(self.constants.cost_model.clone());
-
         let payment_addr = self.address_as_bech32();
 
         let request = OgmiosRequest::QueryUtxo {
@@ -484,6 +497,7 @@ impl CardanoClient {
 
         let mut tx_builder = whisky::TxBuilder::new_core();
         tx_builder
+            .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
             .tx_in(
                 &input_tx_hash,
@@ -534,9 +548,9 @@ impl CardanoClient {
         let input_tx_hash = hex::encode(utxo.transaction.id);
         let input_index = utxo.index;
         let input_assets = &Self::build_asset_vector(utxo);
-        let network: Network = Network::Custom(self.constants.cost_model.clone());
         let mut tx_builder = whisky::TxBuilder::new_core();
         tx_builder
+            .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
             .tx_in(
                 &input_tx_hash,
@@ -818,10 +832,9 @@ impl CardanoClient {
             Asset::new_from_str(policy_id, "1"),        // The governance NFT
         ];
 
-        let network = Network::Custom(self.constants.cost_model.clone());
-
         let mut tx_builder = TxBuilder::new_core();
         tx_builder
+            .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
             // Add regular input for fees
             .tx_in(
@@ -956,10 +969,9 @@ impl CardanoClient {
             Asset::new_from_str(policy_id, "1"),
         ];
 
-        let network = Network::Custom(self.constants.cost_model.clone());
-
         let mut tx_builder = TxBuilder::new_core();
         tx_builder
+            .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
             .tx_in(
                 &hex::encode(tx_in.transaction.id),
@@ -1047,9 +1059,9 @@ impl CardanoClient {
         let input_index = utxo.index;
         let input_assets = &Self::build_asset_vector(utxo);
 
-        let network: Network = Network::Custom(self.constants.cost_model.clone());
         let mut tx_builder = whisky::TxBuilder::new_core();
         tx_builder
+            .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
             .tx_in(
                 &input_tx_hash,
