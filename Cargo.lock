@@ -8225,7 +8225,7 @@ dependencies = [
 [[package]]
 name = "midnight-storage-core"
 version = "1.2.0"
-source = "git+https://github.com/midnightntwrk/midnight-ledger?tag=storage-core-1.2.0-rc.2#cdfa4f94dedbe5a6b68fa196b9dda0a195c3aa72"
+source = "git+https://github.com/midnightntwrk/midnight-ledger?branch=tkerber%2Fstorage-core-1.2.0-rc.3-preview#99fe6629a1f50a8c3f62228274688100889620e6"
 dependencies = [
  "archery",
  "crypto",
