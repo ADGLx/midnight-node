@@ -2,6 +2,8 @@
 
 This document describes the genesis verification process for Midnight networks. Verification ensures that the generated chain specification is correct and matches the expected Cardano smart contract state.
 
+> **New to this process?** See [verification-quickstart.md](verification-quickstart.md) for a step-by-step guide that uses a pre-built Docker image — no Rust toolchain required.
+
 ## Overview
 
 Genesis verification validates the chain specification before network launch. The process involves seven verification steps:
