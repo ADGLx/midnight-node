@@ -112,14 +112,14 @@ generate-keys:
     SAVE ARTIFACT --if-exists secrets/keys-aws.json AS LOCAL secrets/$NETWORK-keys-aws.json
 
 subxt:
-    FROM rust:1.92-trixie
+    FROM rust:1.95-trixie
     RUN rustup component add rustfmt
     # Install cargo binstall:
     # RUN curl -L --proto '=https' --tlsv1.2 -sSf https://raw.githubusercontent.com/cargo-bins/cargo-binstall/main/install-from-binstall-release.sh | bash
     # RUN cargo install cargo-binstall --version 1.6.9
     COPY Cargo.toml deps.toml
     LET SUBXT_VERSION = "$(cat deps.toml | grep -m 1 subxt | sed 's/subxt *= *"\([^\"]*\)".*/\1/')"
-    RUN cargo install subxt-cli@${SUBXT_VERSION}
+    RUN cargo install subxt-cli@${SUBXT_VERSION} --locked
     ENTRYPOINT ["subxt"]
     SAVE IMAGE localhost/subxt
 
@@ -602,6 +602,7 @@ node-ci-image-single-platform:
         patch \
         tar \
         gzip \
+        docker \
         jq && \
         microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
         # gcc-aarch64-linux-gnu \
@@ -659,14 +660,14 @@ node-ci-image-single-platform:
         unzip /tmp/compactc.zip -d /compactc-bin && \
         chmod +x /compactc-bin/compactc && \
         rm /tmp/compactc.zip
-    ENV COMPACT_HOME=/compactc-bin
 
     ENV CARGO_PROFILE_RELEASE_BUILD_OVERRIDE_DEBUG=true
     ENV CARGO_TERM_COLOR=always
 
     # SAVE IMAGE under the rust version.
     # We rebuild the image weekly to apply security patches.
-    ENV IMAGE_TAG="${RUST_VERSION}"
+    ENV COMPACTC_VERSION=$(cat COMPACTC_VERSION)
+    ENV IMAGE_TAG="${RUST_VERSION}-${COMPACTC_VERSION}"
     LABEL org.opencontainers.image.source=https://github.com/midnightntwrk/midnight-node
     LABEL org.opencontainers.image.title=node-ci
     LABEL org.opencontainers.image.description="Midnight Node CI Image"
@@ -677,13 +678,14 @@ node-ci-image-single-platform:
 prep-no-copy:
     # Read versions from files (multi-FROM so we don't depend on env vars propagating)
     FROM alpine:3.20
-    COPY rust-toolchain.toml .
+    COPY rust-toolchain.toml COMPACTC_VERSION .
     ARG NATIVEARCH
     ARG RUST_VERSION=$(grep '^channel' rust-toolchain.toml | sed 's/.*"\(.*\)".*/\1/')
+    ARG COMPACTC_VERSION=$(cat COMPACTC_VERSION)
     # If you need to alter the CI image, here is where you can build it locally rather than
     # referring to the pre-built image:
     # FROM --platform=$NATIVEPLATFORM +node-ci-image-single-platform
-    FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-$NATIVEARCH
+    FROM midnightntwrk/midnight-node-ci:${RUST_VERSION}-${COMPACTC_VERSION}-$NATIVEARCH
 
     # ca-certificates and curl-minimal already present in the CI base image
 
@@ -736,7 +738,9 @@ toolkit-js-prep:
     RUN npm ci
     RUN npm run build
     # Compile compact contracts (fetch-compactc downloads compactc via COMPACTC_VERSION)
-    RUN npm run compact
+    # GITHUB_TOKEN is passed as an Earthly secret in CI to avoid GitHub API rate limits.
+    # Defaulting to empty allows local builds without the secret (at risk of rate-limiting).
+    RUN --secret GITHUB_TOKEN= npm run compact
     # Verify keys were generated
     RUN ls -la ./test/contract/managed/counter/keys/ && [ -s ./test/contract/managed/counter/keys/increment.verifier ]
 
@@ -1026,24 +1030,8 @@ build:
     RUN mkdir -p /artifacts-$NATIVEARCH/midnight-node-runtime/ \
         && mv /target/release/midnight-node /artifacts-$NATIVEARCH \
         && mv /target/release/midnight-node-toolkit /artifacts-$NATIVEARCH \
-        && mv /target/release/upgrader /artifacts-$NATIVEARCH \
         && mv /target/release/aiken-deployer /artifacts-$NATIVEARCH \
         && cp /target/release/wbuild/midnight-node-runtime/*.wasm /artifacts-$NATIVEARCH/midnight-node-runtime/
-
-    SAVE ARTIFACT /artifacts-$NATIVEARCH AS LOCAL artifacts
-
-build-fork:
-    FROM +prep
-    ARG NATIVEARCH
-    # CACHE --sharing shared --id cargo-git /usr/local/cargo/git
-    # CACHE --sharing shared --id cargo-reg /usr/local/cargo/registry
-    # CACHE /target
-    COPY --keep-ts --dir Cargo.lock Cargo.toml docs .sqlx \
-    ledger node pallets primitives res metadata runtime util tests relay partner-chains .
-
-    RUN mkdir -p /artifacts-$NATIVEARCH/test && mkdir -p /artifacts-$NATIVEARCH/rollback
-    RUN SKIP_WASM_BUILD=1 cargo build -p upgrader --locked --release \
-        && mv /target/release/upgrader /artifacts-$NATIVEARCH
 
     SAVE ARTIFACT /artifacts-$NATIVEARCH AS LOCAL artifacts
 

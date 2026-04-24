@@ -23,17 +23,48 @@ use rand::RngCore;
 use std::str::FromStr;
 use std::{
 	collections::HashMap,
+	fmt,
 	marker::PhantomData,
 	time::{SystemTime, UNIX_EPOCH},
 };
 use subxt_signer::{SecretUri, SecretUriError, sr25519};
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, Storable, Serializable)]
+/// Wallet seed for HD key derivation (BIP-32/44). Holds 16, 32, or 64 bytes
+/// of seed material from which all wallet keys are derived.
+///
+/// # Security: no `Default` implementation
+///
+/// `WalletSeed` intentionally does not implement [`Default`]. A previous
+/// implementation returned `Medium([0; 32])` — an all-zero seed that would
+/// produce predictable wallet keys. Removed per Least Authority audit
+/// finding A2-D (Feb 2026, PR #804).
+///
+/// ```compile_fail,E0599
+/// // WalletSeed must not implement Default — this must fail to compile.
+/// let _ = midnight_node_ledger_helpers::WalletSeed::default();
+/// ```
+#[derive(Clone, Copy, PartialEq, Eq, Hash, Storable, Serializable)]
 #[storable(base)]
 pub enum WalletSeed {
 	Short([u8; 16]),
 	Medium([u8; 32]),
 	Long([u8; 64]),
+}
+
+impl fmt::Debug for WalletSeed {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		match self {
+			Self::Short(_) => write!(f, "WalletSeed::Short(REDACTED)"),
+			Self::Medium(_) => write!(f, "WalletSeed::Medium(REDACTED)"),
+			Self::Long(_) => write!(f, "WalletSeed::Long(REDACTED)"),
+		}
+	}
+}
+
+impl fmt::Display for WalletSeed {
+	fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+		write!(f, "REDACTED")
+	}
 }
 
 #[derive(Clone, Debug, thiserror::Error)]

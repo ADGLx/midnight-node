@@ -74,9 +74,9 @@ use sp_consensus_beefy::{
 	mmr::{BeefyAuthoritySet, BeefyNextAuthoritySet, MmrLeafVersion},
 };
 use sp_core::{ByteArray, OpaqueMetadata, crypto::KeyTypeId};
-use sp_partner_chains_bridge::{
-	BridgeDataCheckpoint, BridgeTransferV1, MainChainScripts as BridgeMainChainScripts,
-};
+use sp_partner_chains_bridge::{BridgeDataCheckpoint, MainChainScripts as BridgeMainChainScripts};
+use sp_runtime::SaturatedConversion;
+use sp_runtime::traits::StaticLookup;
 
 //#[cfg(feature = "experimental")]
 //use sp_block_rewards::GetBlockRewardPoints;
@@ -275,12 +275,10 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	// The version of the runtime specification. A full node will not attempt to use its native
 	//   runtime in substitute for the on-chain Wasm runtime unless all of `spec_name`,
 	//   `spec_version`, and `authoring_version` are the same between Wasm and native.
-	// This value is set to 100 to notify Polkadot-JS App (https://polkadot.js.org/apps) to use
-	//   the compatible custom types.
-	spec_version: 000_022_000,
+	spec_version: 001_000_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 2,
+	transaction_version: 3,
 	system_version: 1,
 };
 
@@ -828,18 +826,8 @@ impl pallet_throttle::Config for Runtime {
 	type WindowSize = WindowSize;
 }
 
-pub struct MidnightTokenTransferHandler;
-
 parameter_types! {
 	pub const BridgeMaxTransfersPerBlock: u32 = 256;
-}
-
-impl pallet_partner_chains_bridge::TransferHandler<BridgeRecipient>
-	for MidnightTokenTransferHandler
-{
-	fn handle_incoming_transfer(transfer: BridgeTransferV1<BridgeRecipient>) {
-		log::debug!("Bridge token transfer received {:?}", transfer);
-	}
 }
 
 impl pallet_cnight_observation::Config for Runtime {
@@ -850,11 +838,16 @@ impl pallet_cnight_observation::Config for Runtime {
 impl pallet_partner_chains_bridge::Config for Runtime {
 	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type Recipient = BridgeRecipient;
-	type TransferHandler = MidnightTokenTransferHandler;
+	type TransferHandler = C2MBridge;
 	type MaxTransfersPerBlock = BridgeMaxTransfersPerBlock;
 	type WeightInfo = pallet_partner_chains_bridge::weights::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+}
+
+impl pallet_c2m_bridge::Config for Runtime {
+	type MidnightSystemTransactionExecutor = MidnightSystem;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -938,6 +931,9 @@ mod runtime {
 	#[runtime::pallet_index(32)]
 	pub type Bridge = pallet_partner_chains_bridge::Pallet<Runtime>;
 
+	#[runtime::pallet_index(33)]
+	pub type C2MBridge = pallet_c2m_bridge::Pallet<Runtime>;
+
 	// Governance
 	#[runtime::pallet_index(40)]
 	pub type Council = pallet_collective::Pallet<Runtime, Instance1>;
@@ -970,8 +966,9 @@ pub type Address = sp_runtime::MultiAddress<AccountId, ()>;
 pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type as expected by this runtime.
 pub type Block = generic::Block<Header, UncheckedExtrinsic>;
-/// The SignedExtension to the basic transaction logic.
-pub type SignedExtra = (
+/// The TransactionExtension to the basic transaction logic.
+pub type TxExtension = (
+	frame_system::AuthorizeCall<Runtime>,
 	frame_system::CheckNonZeroSender<Runtime>,
 	frame_system::CheckSpecVersion<Runtime>,
 	frame_system::CheckTxVersion<Runtime>,
@@ -981,13 +978,14 @@ pub type SignedExtra = (
 	frame_system::CheckWeight<Runtime>,
 	CheckCallFilter,
 	pallet_throttle::CheckThrottle<Runtime>,
+	frame_system::WeightReclaim<Runtime>,
 );
 
 /// Unchecked extrinsic type as expected by this runtime.
 pub type UncheckedExtrinsic =
-	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, SignedExtra>;
+	generic::UncheckedExtrinsic<Address, RuntimeCall, Signature, TxExtension>;
 /// The payload being signed in transactions.
-pub type SignedPayload = generic::SignedPayload<RuntimeCall, SignedExtra>;
+pub type SignedPayload = generic::SignedPayload<RuntimeCall, TxExtension>;
 /// Executive: handles dispatch to the various modules.
 pub type Executive = frame_executive::Executive<
 	Runtime,
@@ -998,8 +996,112 @@ pub type Executive = frame_executive::Executive<
 	Migrations,
 >;
 
+/// Extrinsic type that has already been checked.
+pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, TxExtension>;
 /// Migrations to apply on runtime upgrade.
 pub type Migrations = pallet_throttle::migration::ClearAccountUsageV1<Runtime>;
+
+impl<LocalCall> frame_system::offchain::CreateTransaction<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	type Extension = TxExtension;
+
+	fn create_transaction(call: RuntimeCall, extension: TxExtension) -> UncheckedExtrinsic {
+		generic::UncheckedExtrinsic::new_transaction(call, extension)
+	}
+}
+
+impl<LocalCall> frame_system::offchain::CreateBare<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_bare(call: RuntimeCall) -> UncheckedExtrinsic {
+		generic::UncheckedExtrinsic::new_bare(call)
+	}
+}
+
+impl frame_system::offchain::SigningTypes for Runtime {
+	type Public = <Signature as sp_runtime::traits::Verify>::Signer;
+	type Signature = Signature;
+}
+
+impl<C> frame_system::offchain::CreateTransactionBase<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	type Extrinsic = UncheckedExtrinsic;
+	type RuntimeCall = RuntimeCall;
+}
+
+impl<C> frame_system::offchain::CreateAuthorizedTransaction<C> for Runtime
+where
+	RuntimeCall: From<C>,
+{
+	fn create_extension() -> Self::Extension {
+		(
+			frame_system::AuthorizeCall::<Runtime>::new(),
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckEra::<Runtime>::from(generic::Era::Immortal),
+			frame_system::CheckNonce::<Runtime>::from(0),
+			frame_system::CheckWeight::<Runtime>::new(),
+			CheckCallFilter,
+			pallet_throttle::CheckThrottle::<Runtime>::new(),
+			frame_system::WeightReclaim::<Runtime>::new(),
+		)
+	}
+}
+
+impl<LocalCall> frame_system::offchain::CreateSignedTransaction<LocalCall> for Runtime
+where
+	RuntimeCall: From<LocalCall>,
+{
+	fn create_signed_transaction<
+		C: frame_system::offchain::AppCrypto<Self::Public, Self::Signature>,
+	>(
+		call: RuntimeCall,
+		public: <Signature as sp_runtime::traits::Verify>::Signer,
+		account: AccountId,
+		nonce: Nonce,
+	) -> Option<UncheckedExtrinsic> {
+		// take the biggest period possible.
+		let period =
+			BlockHashCount::get().checked_next_power_of_two().map(|c| c / 2).unwrap_or(2) as u64;
+		let current_block = System::block_number()
+			.saturated_into::<u64>()
+			// The `System::block_number` is initialized with `n+1`,
+			// so the actual block number is `n`.
+			.saturating_sub(1);
+		let era = generic::Era::mortal(period, current_block);
+		let tx_ext: TxExtension = (
+			frame_system::AuthorizeCall::<Runtime>::new(),
+			frame_system::CheckNonZeroSender::<Runtime>::new(),
+			frame_system::CheckSpecVersion::<Runtime>::new(),
+			frame_system::CheckTxVersion::<Runtime>::new(),
+			frame_system::CheckGenesis::<Runtime>::new(),
+			frame_system::CheckEra::<Runtime>::from(era),
+			frame_system::CheckNonce::<Runtime>::from(nonce),
+			frame_system::CheckWeight::<Runtime>::new(),
+			CheckCallFilter,
+			pallet_throttle::CheckThrottle::<Runtime>::new(),
+			frame_system::WeightReclaim::<Runtime>::new(),
+		);
+
+		let raw_payload = SignedPayload::new(call, tx_ext)
+			.map_err(|e| {
+				log::warn!("Unable to create signed payload: {:?}", e);
+			})
+			.ok()?;
+		let signature = raw_payload.using_encoded(|payload| C::sign(payload, public))?;
+		let address = <Runtime as frame_system::Config>::Lookup::unlookup(account);
+		let (call, tx_ext, _) = raw_payload.deconstruct();
+		let transaction = generic::UncheckedExtrinsic::new_signed(call, address, signature, tx_ext);
+		Some(transaction)
+	}
+}
 
 #[cfg(feature = "runtime-benchmarks")]
 mod benches {
@@ -1039,7 +1141,7 @@ impl_runtime_apis! {
 			VERSION
 		}
 
-		fn execute_block(block: Block) {
+		fn execute_block(block: <Block as BlockT>::LazyBlock) {
 			Executive::execute_block(block);
 		}
 
@@ -1129,7 +1231,7 @@ impl_runtime_apis! {
 		}
 
 		fn check_inherents(
-			block: Block,
+			block: <Block as BlockT>::LazyBlock,
 			data: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			data.check_extrinsics(&block)
@@ -1198,16 +1300,6 @@ impl_runtime_apis! {
 		) -> Option<()> {
 			None
 		}
-
-		fn generate_ancestry_proof(
-			prev_block_number: BlockNumber,
-			best_known_block_number: Option<BlockNumber>,
-		) -> Option<OpaqueValue> {
-			Mmr::generate_ancestry_proof(prev_block_number, best_known_block_number)
-				.map(|p| p.encode())
-				.map(OpaqueKeyOwnershipProof::new)
-				.ok()
-		}
 	}
 
 	// Collects the (Current BeefyStakes, Next BeefyStakes)
@@ -1237,6 +1329,7 @@ impl_runtime_apis! {
 		}
 	}
 
+	#[api_version(3)]
 	impl mmr::MmrApi<Block, Hash, BlockNumber> for Runtime {
 		fn mmr_root() -> Result<mmr::Hash, mmr::Error> {
 			Ok(Mmr::mmr_root())
@@ -1261,6 +1354,13 @@ impl_runtime_apis! {
 					)
 				},
 			)
+		}
+
+		fn generate_ancestry_proof(
+			prev_block_number: BlockNumber,
+			best_known_block_number: Option<BlockNumber>,
+		) -> Result<mmr::AncestryProof<mmr::Hash>, mmr::Error> {
+			Mmr::generate_ancestry_proof(prev_block_number, best_known_block_number)
 		}
 
 		fn verify_proof(leaves: Vec<mmr::EncodableOpaqueLeaf>, proof: mmr::LeafProof<mmr::Hash>)
@@ -1294,10 +1394,13 @@ impl_runtime_apis! {
 	}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
-		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
+		fn generate_session_keys(
+			owner: Vec<u8>,
+			seed: Option<Vec<u8>>,
+		) -> sp_session::OpaqueGeneratedSessionKeys {
 			// despite being named "generate" this function also adds generated keys to local keystore
-			CrossChainKey::generate(seed.clone());
-			SessionKeys::generate(seed)
+			let _ = CrossChainKey::generate(&owner, seed.clone());
+			SessionKeys::generate(&owner, seed).into()
 		}
 
 		fn decode_session_keys(

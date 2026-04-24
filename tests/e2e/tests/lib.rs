@@ -1,6 +1,6 @@
 use midnight_node_e2e::api::cardano::CardanoClient;
 use midnight_node_e2e::api::midnight::MidnightClient;
-use midnight_node_e2e::config::Settings;
+use midnight_node_e2e::config::{self, Settings};
 use midnight_node_e2e::faucet::FaucetManager;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation::events::{
@@ -13,8 +13,31 @@ use midnight_node_toolkit::tx_generator::source::{FetchCacheConfig, Source};
 use std::collections::HashMap;
 use std::collections::HashSet;
 use std::sync::Arc;
-use tokio::sync::OnceCell;
+use std::sync::LazyLock;
+use std::sync::atomic::{AtomicUsize, Ordering};
+use tokio::sync::{OnceCell, Semaphore};
 use tokio::time::{Duration, timeout};
+
+// Tests that must complete before any DEPLOY_TX submission.
+// IMPORTANT: --test-threads must be >= NUM_PRE_DEPLOY_TESTS + NUM_DEPLOY_TESTS (currently 4),
+// otherwise these tests cannot run concurrently and will deadlock.
+const NUM_PRE_DEPLOY_TESTS: usize = 2;
+const NUM_DEPLOY_TESTS: usize = 2;
+
+static PRE_DEPLOY_COUNT: AtomicUsize = AtomicUsize::new(0);
+static DEPLOY_GATE: LazyLock<Semaphore> = LazyLock::new(|| Semaphore::new(0));
+
+fn finished_pre_deploy_test() {
+    let prev = PRE_DEPLOY_COUNT.fetch_add(1, Ordering::SeqCst);
+    if prev == NUM_PRE_DEPLOY_TESTS - 1 {
+        DEPLOY_GATE.add_permits(NUM_DEPLOY_TESTS);
+    }
+}
+
+async fn wait_before_deploying() {
+    let permit = DEPLOY_GATE.acquire().await.unwrap();
+    permit.forget();
+}
 
 // -------- GLOBAL ASYNC FAUCET MANAGER --------
 
@@ -87,7 +110,7 @@ async fn register_for_dust_production() {
     let registration = registration_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Registration>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<Registration>().and_then(|r| r.ok()))
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -104,7 +127,7 @@ async fn register_for_dust_production() {
     let mapping_added = registration_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<MappingAdded>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<MappingAdded>().and_then(|r| r.ok()))
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address
                 && map.0.dust_public_key.0.0 == dust_bytes
@@ -132,18 +155,17 @@ async fn verify_governance_contracts_and_validate_membership_reset() {
     println!("=== Verifying Governance Contracts Deployed by midnight-setup ===");
 
     let settings = Settings::default();
-    let policies = settings.constants.policies.clone();
 
     let cardano_client =
         CardanoClient::new_from_funded(settings.ogmios_client, settings.constants).await;
     let midnight_client = MidnightClient::new(settings.node_client).await;
 
-    // Get expected addresses and policy IDs from config
-    let council_address = policies.council_forever_address();
-    let council_policy_id = policies.council_forever_policy_id();
+    // Get expected addresses and policy IDs from runtime-values
+    let council_address = config::council_forever_address();
+    let council_policy_id = config::council_forever_policy_id();
 
-    let tech_auth_address = policies.tech_auth_forever_address();
-    let tech_auth_policy_id = policies.tech_auth_forever_policy_id();
+    let tech_auth_address = config::tech_auth_forever_address();
+    let tech_auth_policy_id = config::tech_auth_forever_policy_id();
 
     println!("Council Forever:");
     println!("  Policy ID (expected): {}", council_policy_id);
@@ -241,14 +263,13 @@ async fn verify_federated_ops_contract_deployment() {
     println!("=== Verifying Federated Operators Contract Deployed by midnight-setup ===");
 
     let settings = Settings::default();
-    let policies = settings.constants.policies.clone();
 
     let cardano_client =
         CardanoClient::new_from_funded(settings.ogmios_client, settings.constants).await;
 
-    // Get expected address and policy ID from config
-    let federated_ops_address = policies.federated_ops_forever_address();
-    let federated_ops_policy_id = policies.federated_ops_forever_policy_id();
+    // Get expected address and policy ID from runtime-values
+    let federated_ops_address = config::federated_ops_forever_address();
+    let federated_ops_policy_id = config::federated_ops_forever_policy_id();
 
     println!("Federated Operators Forever:");
     println!("  Policy ID (expected): {}", federated_ops_policy_id);
@@ -372,7 +393,7 @@ async fn register_2_cardano_same_dust_address_production() {
     let registration_1 = registration_events_1
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Registration>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<Registration>().and_then(|r| r.ok()))
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address_1
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -381,7 +402,7 @@ async fn register_2_cardano_same_dust_address_production() {
     let registration_2 = registration_events_2
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Registration>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<Registration>().and_then(|r| r.ok()))
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address_2
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -410,7 +431,7 @@ async fn register_2_cardano_same_dust_address_production() {
     let mapping_added_1 = registration_events_1
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<MappingAdded>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<MappingAdded>().and_then(|r| r.ok()))
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address_1
                 && map.0.dust_public_key.0.0 == dust_bytes
@@ -420,7 +441,7 @@ async fn register_2_cardano_same_dust_address_production() {
     let mapping_added_2 = registration_events_2
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<MappingAdded>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<MappingAdded>().and_then(|r| r.ok()))
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address_2
                 && map.0.dust_public_key.0.0 == dust_bytes
@@ -735,10 +756,7 @@ async fn deregister_from_dust_production() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -776,7 +794,10 @@ async fn deregister_from_dust_production() {
     let deregistration = events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Deregistration>().ok().flatten())
+        .filter_map(|evt| {
+            evt.decode_fields_as::<Deregistration>()
+                .and_then(|r| r.ok())
+        })
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -794,9 +815,8 @@ async fn deregister_from_dust_production() {
         .iter()
         .filter_map(|e| e.ok())
         .filter_map(|evt| {
-            evt.as_event::<c_night_observation::events::MappingRemoved>()
-                .ok()
-                .flatten()
+            evt.decode_fields_as::<c_night_observation::events::MappingRemoved>()
+                .and_then(|r| r.ok())
         })
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address
@@ -879,7 +899,7 @@ async fn alice_cannot_deregister_bob() {
     );
 
     // Find Bob's registration UTXO
-    let validator_address = bob.constants.policies.mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = bob
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -968,7 +988,7 @@ async fn removing_excessive_registrations() {
     let registration = registration_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Registration>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<Registration>().and_then(|r| r.ok()))
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -985,7 +1005,7 @@ async fn removing_excessive_registrations() {
     let mapping_added = registration_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<MappingAdded>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<MappingAdded>().and_then(|r| r.ok()))
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address
                 && map.0.dust_public_key.0.0 == dust_address
@@ -1019,7 +1039,7 @@ async fn removing_excessive_registrations() {
     let second_mapping_added = second_registration_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<MappingAdded>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<MappingAdded>().and_then(|r| r.ok()))
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address
                 && map.0.dust_public_key.0.0 == second_dust_address
@@ -1037,7 +1057,10 @@ async fn removing_excessive_registrations() {
     let deregistration = second_registration_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Deregistration>().ok().flatten())
+        .filter_map(|evt| {
+            evt.decode_fields_as::<Deregistration>()
+                .and_then(|r| r.ok())
+        })
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -1051,10 +1074,7 @@ async fn removing_excessive_registrations() {
         deregistration.unwrap()
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -1082,9 +1102,8 @@ async fn removing_excessive_registrations() {
         .iter()
         .filter_map(|e| e.ok())
         .filter_map(|evt| {
-            evt.as_event::<c_night_observation::events::MappingRemoved>()
-                .ok()
-                .flatten()
+            evt.decode_fields_as::<c_night_observation::events::MappingRemoved>()
+                .and_then(|r| r.ok())
         })
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address
@@ -1103,7 +1122,7 @@ async fn removing_excessive_registrations() {
     let registration_after_removing_excessive_mapping = deregister_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Registration>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<Registration>().and_then(|r| r.ok()))
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address
                 && reg.0.dust_public_key.0.0 == second_dust_address
@@ -1166,10 +1185,7 @@ async fn create_hundred_registrations() {
     let collateral_utxo = faucet.request_tokens(&address_bech32, 5_000_000).await;
     let mut tx_in = faucet.request_tokens(&address_bech32, 500_000_000).await;
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
 
     let mut register_tx_id: [[u8; 32]; 101] = [[0; 32]; 101];
 
@@ -1270,7 +1286,7 @@ async fn create_hundred_registrations() {
     let registration = registration_events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Registration>().ok().flatten())
+        .filter_map(|evt| evt.decode_fields_as::<Registration>().and_then(|r| r.ok()))
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -1311,6 +1327,8 @@ async fn ddos_attack_transaction_rejected_at_rpc() {
     println!("Expected: Transaction rejected at pre_dispatch (ContractNotPresent)");
 
     let result = client.submit_expecting_rejection(STORE_TX.to_vec()).await;
+
+    finished_pre_deploy_test();
 
     assert!(
         result.is_ok(),
@@ -1366,6 +1384,8 @@ async fn ddos_batch_attack_all_rejected() {
         }
     }
 
+    finished_pre_deploy_test();
+
     assert_eq!(
         rejected_count, total_attacks,
         "All {} attack transactions should be rejected, but only {} were",
@@ -1392,6 +1412,8 @@ async fn replay_attack_rejected_via_rpc() {
 
     println!("=== PR367-TC-0003-02 E2E: Replay Attack Prevention Test ===");
 
+    wait_before_deploying().await;
+
     // First submission - may succeed or fail depending on node state
     // (contract may already be deployed from previous test runs)
     println!("Submitting DEPLOY_TX (first attempt)...");
@@ -1410,23 +1432,23 @@ async fn replay_attack_rejected_via_rpc() {
         println!("Waiting for first transaction to be included in block...");
         while let Some(status) = progress.next().await {
             match status {
-                Ok(subxt::tx::TxStatus::InBestBlock(info)) => {
+                Ok(subxt::tx::TransactionStatus::InBestBlock(info)) => {
                     println!("  First transaction in best block: {:?}", info.block_hash());
                     break;
                 }
-                Ok(subxt::tx::TxStatus::InFinalizedBlock(info)) => {
+                Ok(subxt::tx::TransactionStatus::InFinalizedBlock(info)) => {
                     println!("  First transaction finalized: {:?}", info.block_hash());
                     break;
                 }
-                Ok(subxt::tx::TxStatus::Error { message }) => {
+                Ok(subxt::tx::TransactionStatus::Error { message }) => {
                     println!("  First transaction error: {}", message);
                     break;
                 }
-                Ok(subxt::tx::TxStatus::Invalid { message }) => {
+                Ok(subxt::tx::TransactionStatus::Invalid { message }) => {
                     println!("  First transaction invalid: {}", message);
                     break;
                 }
-                Ok(subxt::tx::TxStatus::Dropped { message }) => {
+                Ok(subxt::tx::TransactionStatus::Dropped { message }) => {
                     println!("  First transaction dropped: {}", message);
                     break;
                 }
@@ -1480,6 +1502,7 @@ async fn valid_deploy_transaction_succeeds_via_rpc() {
     let client = MidnightClient::new(settings.node_client).await;
 
     println!("=== PR367-TC-0003-03 E2E: Valid Transaction Test ===");
+    wait_before_deploying().await;
     println!("Submitting valid DEPLOY_TX...");
 
     let result = client.submit_expecting_success(DEPLOY_TX.to_vec()).await;
@@ -1492,6 +1515,33 @@ async fn valid_deploy_transaction_succeeds_via_rpc() {
 
     println!("✓ PR367-TC-0003-03 E2E PASSED: Valid transaction accepted and included in block");
 }
+
+#[tokio::test]
+async fn get_contract_state_returns_error_if_not_present() {
+    let settings = Settings::default();
+    let client = MidnightClient::new(settings.node_client).await;
+
+    // Use a random contract address that is highly unlikely to be deployed
+    let random_address = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
+    let result = client.get_contract_state(random_address).await;
+
+    assert!(
+        result.is_err(),
+        "Expected error when getting state for non-existent contract, but got success"
+    );
+
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("Contract not present")
+            || err_msg.contains("Unable to get requested contract state")
+            || err_msg.contains("Unable to get contract state")
+            || err_msg.contains("UnableToGetContractState"),
+        "Error message should indicate contract is not present or unable to get state. Got: {}",
+        err_msg
+    );
+}
+
 #[tokio::test]
 async fn register_twice_with_same_cardano_address() {
     let settings = Settings::default();
@@ -1523,10 +1573,7 @@ async fn register_twice_with_same_cardano_address() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -1699,10 +1746,7 @@ async fn deregister_with_valid_cnight_utxo() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -1776,7 +1820,10 @@ async fn deregister_with_valid_cnight_utxo() {
     let deregistration = events
         .iter()
         .filter_map(|e| e.ok())
-        .filter_map(|evt| evt.as_event::<Deregistration>().ok().flatten())
+        .filter_map(|evt| {
+            evt.decode_fields_as::<Deregistration>()
+                .and_then(|r| r.ok())
+        })
         .find(|reg| {
             reg.0.cardano_reward_address.0 == reward_address
                 && reg.0.dust_public_key.0.0 == dust_address
@@ -1794,9 +1841,8 @@ async fn deregister_with_valid_cnight_utxo() {
         .iter()
         .filter_map(|e| e.ok())
         .filter_map(|evt| {
-            evt.as_event::<c_night_observation::events::MappingRemoved>()
-                .ok()
-                .flatten()
+            evt.decode_fields_as::<c_night_observation::events::MappingRemoved>()
+                .and_then(|r| r.ok())
         })
         .find(|map| {
             map.0.cardano_reward_address.0 == reward_address
@@ -2011,10 +2057,7 @@ async fn deregister_first_mapping() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -2480,10 +2523,7 @@ async fn stop_dust_producing_after_deregistration_and_rotation() {
         .max_by_key(|u| u.value.lovelace)
         .expect("No UTXO with lovelace found");
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await

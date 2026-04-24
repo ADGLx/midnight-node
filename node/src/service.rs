@@ -21,6 +21,7 @@ use crate::{
 	main_chain_follower::DataSources,
 	metrics_push::{MetricsPushConfig, run_metrics_push_task},
 	rpc::{BeefyDeps, GrandpaDeps},
+	subscription_bounds::{SubscriptionMetrics, SubscriptionTracker},
 };
 use futures::FutureExt;
 use midnight_node_runtime::storage::child::StateVersion;
@@ -46,6 +47,7 @@ use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
 use sp_consensus_beefy::ecdsa_crypto::AuthorityId as BeefyId;
 
 use crate::filtering_pool::{FilteringMetrics, FilteringTransactionPool, TxFilterConfig};
+use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use mmr_gadget::MmrGadget;
 use sc_rpc::SubscriptionTaskExecutor;
 use sp_core::storage::Storage;
@@ -479,7 +481,9 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	memory_monitor_params: crate::memory_monitor::MemoryMonitorParams,
 	storage_config: StorageInit,
 	metrics_push_config: Option<MetricsPushConfig>,
+	hwbench: Option<sc_sysinfo::HwBench>,
 	tx_filter_config: TxFilterConfig,
+	max_finality_subscriptions: u32,
 ) -> Result<(TaskManager, Arc<FullBackend>), ServiceError> {
 	let database_source = config.database.clone();
 	let new_partial_components =
@@ -559,6 +563,7 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			spawn_handle: task_manager.spawn_handle(),
+			spawn_essential_handle: task_manager.spawn_essential_handle(),
 			import_queue,
 			block_announce_validator_builder: None,
 			warp_sync_config: Some(WarpSyncConfig::WithProvider(warp_sync)),
@@ -606,6 +611,11 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	let prometheus_registry_for_push = prometheus_registry.clone();
 	let shared_voter_state = SharedVoterState::empty();
 
+	let subscription_metrics =
+		prometheus_registry.as_ref().and_then(|r| SubscriptionMetrics::register(r).ok());
+	let subscription_tracker =
+		SubscriptionTracker::new(max_finality_subscriptions, subscription_metrics);
+
 	let rpc_extensions_builder = {
 		let client = client.clone();
 		let pool = transaction_pool.clone();
@@ -617,7 +627,9 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 		let epoch_config = epoch_config.clone();
 		let network_for_rpc = network.clone();
 		let system_rpc_tx_for_rpc = system_rpc_tx.clone();
+		let subscription_tracker = subscription_tracker.clone();
 
+		#[allow(clippy::result_large_err)]
 		move |subscription_executor: SubscriptionTaskExecutor| {
 			let grandpa = GrandpaDeps {
 				shared_voter_state: shared_voter_state.clone(),
@@ -647,6 +659,7 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 				backend: backend.clone(),
 				network: network_for_rpc.clone(),
 				system_rpc_tx: system_rpc_tx_for_rpc.clone(),
+				subscription_tracker: subscription_tracker.clone(),
 			};
 			crate::rpc::create_full(deps).map_err(Into::into)
 		}
@@ -665,7 +678,30 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 		sync_service: sync_service.clone(),
 		config,
 		telemetry: telemetry.as_mut(),
+		tracing_execute_block: None,
 	})?;
+
+	if let Some(hwbench) = hwbench {
+		sc_sysinfo::print_hwbench(&hwbench);
+		match SUBSTRATE_REFERENCE_HARDWARE.check_hardware(&hwbench, false) {
+			Err(err) if role.is_authority() => {
+				log::warn!(
+					"⚠️  The hardware does not meet the minimal requirements {} for role 'Authority'.",
+					err
+				);
+			},
+			_ => {},
+		}
+
+		if let Some(ref mut telemetry) = telemetry {
+			let telemetry_handle = telemetry.handle();
+			task_manager.spawn_handle().spawn(
+				"telemetry_hwbench",
+				None,
+				sc_sysinfo::initialize_hwbench_telemetry(telemetry_handle, hwbench),
+			);
+		}
+	}
 
 	if role.is_authority() {
 		let basic_authorship_proposer_factory = sc_basic_authorship::ProposerFactory::new(
