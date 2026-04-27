@@ -84,6 +84,7 @@ impl MidnightCNightObservationDataSource for CNightObservationDataSourceMock {
 		start: &CardanoPosition,
 		_current_tip: McBlockHash,
 		_capacity: usize,
+		_block_window_size: u32,
 	) -> Result<ObservedUtxos, Box<dyn std::error::Error + Send + Sync>> {
 		let mut end = start.clone();
 		end.block_number += 1;
