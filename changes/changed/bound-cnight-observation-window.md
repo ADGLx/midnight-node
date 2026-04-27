@@ -7,4 +7,4 @@ The `CardanoBlockWindowSize` storage value already existed and was already expos
 
 Backport of #1432 to release/node-0.22.5.
 
-PR:
+PR: https://github.com/midnightntwrk/midnight-node/pull/1433
