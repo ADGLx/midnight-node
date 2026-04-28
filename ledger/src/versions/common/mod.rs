@@ -90,14 +90,37 @@ use {lazy_static::lazy_static, moka::sync::Cache};
 pub const LOG_TARGET: &str = "midnight::ledger_v2";
 pub const MINT_COINS_DOMAIN_SEPARATOR: &[u8; 10] = b"mint_coins";
 
+/// Key for the strict VerifiedTransaction cache.
+///
+/// `ref_anchor` identifies the reference state against which `well_formed`
+/// was (or would be) evaluated. We use the parent block hash rather than
+/// the rolling `state_hash` because `well_formed` only reads parameters /
+/// verifier keys / etc. from the reference state, which is stable across
+/// *all* extrinsics within a block. Keying on `parent_block_hash` lets
+/// host-side code (e.g. the `MidnightPreVerifier`) pre-populate the cache
+/// for every tx in a block in parallel before the runtime runs — the key
+/// it can compute (parent block hash) matches the one the runtime will
+/// look up for each extrinsic.
 #[derive(PartialEq, Eq, Hash)]
 pub struct StrictTxValidationKey {
-	state_hash: Hash,
+	ref_anchor: Hash,
 	tx_hash: Hash,
 }
 #[derive(PartialEq, Eq, Hash)]
 pub struct SoftTxValidationKey {
 	tx_hash: Hash,
+}
+
+/// Convert the variable-length `parent_block_hash` (SCALE-encoded block-hash
+/// bytes from `BlockContext`) into the 32-byte `Hash` used in cache keys.
+/// Substrate block hashes are 32 bytes; if for any reason the length differs
+/// we pad/truncate, since this is only a cache key (not cryptographically
+/// material — a mismatch just means a cache miss).
+fn anchor_from_parent_hash(parent_block_hash: &[u8]) -> Hash {
+	let mut out = Hash::default();
+	let n = parent_block_hash.len().min(out.len());
+	out[..n].copy_from_slice(&parent_block_hash[..n]);
+	out
 }
 
 /// Set this high to ensure that even large mempool sizes don't cause performance issues due to
@@ -878,9 +901,10 @@ where
 	where
 		VerifiedTransaction<D>: Send + Sync + 'static,
 	{
-		let state_hash = ledger.state.state_hash();
-		let strict_key =
-			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
+		let strict_key = StrictTxValidationKey {
+			ref_anchor: anchor_from_parent_hash(&block_context.parent_block_hash),
+			tx_hash: tx_hash.0,
+		};
 
 		// Check strict cache
 		if let Some(cached) = STRICT_TX_VALIDATION_CACHE.get(&strict_key) {
@@ -996,10 +1020,13 @@ where
 		// Invalidate soft cache — tx must re-validate after a block authoring attempt
 		SOFT_TX_VALIDATION_CACHE.invalidate(&SoftTxValidationKey { tx_hash: tx_hash.0 });
 
-		// Check strict cache to determine if this is a cache hit
-		let state_hash = ledger.state.state_hash();
-		let strict_key =
-			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
+		// Check strict cache to determine if this is a cache hit.
+		// Key is (parent_block_hash, tx_hash) — see comment on
+		// `StrictTxValidationKey`.
+		let strict_key = StrictTxValidationKey {
+			ref_anchor: anchor_from_parent_hash(&block_context.parent_block_hash),
+			tx_hash: tx_hash.0,
+		};
 		let was_cached = STRICT_TX_VALIDATION_CACHE.get(&strict_key).is_some();
 
 		let verified_tx = Self::get_verified_transaction(ledger, tx, block_context, tx_hash)?;
