@@ -341,7 +341,7 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok((credential, dust_address))
 	}
 
-	async fn get_registration_utxos(
+	pub async fn get_registration_utxos(
 		&self,
 		cardano_network: u8,
 		auth_token_ident: i64,
@@ -395,7 +395,7 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok(utxos)
 	}
 
-	async fn get_deregistration_utxos(
+	pub async fn get_deregistration_utxos(
 		&self,
 		cardano_network: u8,
 		address: &str,
@@ -448,7 +448,7 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok(utxos)
 	}
 
-	async fn get_asset_create_utxos(
+	pub async fn get_asset_create_utxos(
 		&self,
 		cardano_network: u8,
 		ident: i64,
@@ -505,7 +505,7 @@ impl MidnightCNightObservationDataSourceImpl {
 		Ok(utxos)
 	}
 
-	async fn get_asset_spend_utxos(
+	pub async fn get_asset_spend_utxos(
 		&self,
 		cardano_network: u8,
 		ident: i64,

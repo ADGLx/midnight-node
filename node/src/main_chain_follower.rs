@@ -272,11 +272,76 @@ pub async fn create_cached_data_sources(
 		log::warn!("Failed to connect to database for cnight_observation data source: {e}");
 		e
 	})?;
-	let cnight_observation = MidnightCNightObservationDataSourceImpl::new(
-		cnight_observation_pool,
-		midnight_metrics_opt.clone(),
-		1000,
-	);
+	let cnight_observation = {
+		use midnight_primitives_mainchain_follower::data_source::{
+			BulkCachedCNightObservationDataSource, CNightObservationSnapshot,
+		};
+
+		// Read the cNIGHT addresses from the chainspec's cnight-config.json
+		// — the same file the runtime is configured against — to drive the
+		// bulk read against db-sync.
+		let cnight_genesis_path = cfg
+			.chainspec_cnight_genesis
+			.clone()
+			.ok_or_else(|| missing("chainspec_cnight_genesis"))?;
+		let cnight_genesis_str = std::fs::read_to_string(&cnight_genesis_path).map_err(|e| {
+			format!("failed to read chainspec_cnight_genesis ({cnight_genesis_path}): {e}")
+		})?;
+		let cnight_genesis: pallet_cnight_observation::config::CNightGenesis =
+			serde_json::from_str(&cnight_genesis_str).map_err(|e| {
+				format!(
+					"failed to parse chainspec_cnight_genesis ({cnight_genesis_path}): {e}"
+				)
+			})?;
+		let cnight_addresses = cnight_genesis.addresses;
+
+		// Resolve db-sync's processed Cardano tip and use it directly as the
+		// bulk-read horizon. The runtime only ever asks for `current_tip`s
+		// already past the security window (the partner-chains follower
+		// hides unstable blocks), so any in-memory data that turned out to
+		// be on a brief Cardano fork would never actually be served.
+		let bulk_end_block: u32 = {
+			let tip_block_no: i32 = sqlx::query_scalar(
+				"SELECT block_no FROM block \
+				 WHERE block_no IS NOT NULL ORDER BY block_no DESC LIMIT 1",
+			)
+			.fetch_one(&cnight_observation_pool)
+			.await
+			.map_err(|e| format!("failed to query Cardano tip from db-sync: {e}"))?;
+			tip_block_no.try_into().map_err(|_| {
+				format!("Cardano tip block_no out of u32 range: {tip_block_no}")
+			})?
+		};
+
+		log::info!(
+			"loading cNIGHT observation cache from db-sync (horizon = Cardano block {bulk_end_block}, ~2 min)..."
+		);
+		let t0 = std::time::Instant::now();
+		let snapshot = CNightObservationSnapshot::generate(
+			cnight_observation_pool.clone(),
+			&cnight_addresses,
+			bulk_end_block,
+		)
+		.await
+		.map_err(|e| format!("cNIGHT observation bulk read failed: {e}"))?;
+		log::info!(
+			"cNIGHT observation cache: {} events loaded in {:?}",
+			snapshot.total_events(),
+			t0.elapsed(),
+		);
+
+		let db_fallback = Arc::new(MidnightCNightObservationDataSourceImpl::new(
+			cnight_observation_pool.clone(),
+			midnight_metrics_opt.clone(),
+			1000,
+		));
+		BulkCachedCNightObservationDataSource::new(
+			snapshot,
+			cnight_observation_pool,
+			db_fallback,
+			midnight_metrics_opt.clone(),
+		)
+	};
 
 	let federated_authority_observation_pool = get_connection(
 		postgres_uri,

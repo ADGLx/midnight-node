@@ -7727,6 +7727,7 @@ dependencies = [
  "moka 0.11.3",
  "parity-db 0.5.4",
  "parity-scale-codec",
+ "rayon",
  "scale-info",
  "scale-info-derive",
  "serde",
