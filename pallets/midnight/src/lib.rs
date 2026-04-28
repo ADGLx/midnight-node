@@ -336,13 +336,19 @@ pub mod pallet {
 			let state_key = StateKey::<T>::get();
 			let block_context = Self::get_block_context();
 
-			let state_root = LedgerApi::post_block_update(&state_key, block_context.clone())
-				.expect("Post block update failed");
-
-			StateKey::<T>::put(state_root);
-
-			// Flush ledger storage changes to disk
-			LedgerApi::flush_storage();
+			match LedgerApi::post_block_update(&state_key, block_context.clone()) {
+				Ok(state_root) => {
+					StateKey::<T>::put(state_root);
+					LedgerApi::flush_storage();
+				},
+				Err(e) => {
+					log::error!(
+						"on_finalize: post_block_update failed at block {:?}: {:?}; preserving previous state key",
+						_block,
+						e
+					);
+				},
+			}
 		}
 
 		fn on_runtime_upgrade() -> Weight {
