@@ -1,6 +1,16 @@
-#ledger #node
-# Unpersist intermediate ledger states during block construction
+#ledger #node #runtime
+# Un-persist transient ledger states to allow for garbage collection
 
-`apply_transaction` and `apply_system_transaction` now unpersist their predecessor state after persisting the new state, so within-block intermediate per-tx states drop to refcount 0 and become GC-eligible instead of piling up as GC roots forever. `post_block_update` double-persists its output (and `alloc_with_initial_state` likewise double-persists genesis), so post-block tips stay at refcount 1 across the next block's first apply — preserving history for RPC queries. Net effect: only post-block tips remain rooted; intermediate states no longer accumulate.
+Replace the raw `Vec<u8>` ledger state key encoding with a typed enum so the Bridge distinguishes states that must be retained for history (post-block tips, genesis) from intra-block intermediates that can be cleaned up by their successor — at the type level rather than by convention.
+
+```rust
+pub enum LedgerStateKey {
+    Anchored(Vec<u8>),  // never unpersisted on input
+    Transient(Vec<u8>), // unpersisted by successor
+}
+```
+
+`apply_transaction` and `apply_system_transaction` take `&LedgerStateKey`, return `Transient`, and only unpersist the input when it's `Transient`. `post_block_update` returns `Anchored`. Anchored inputs are left alone, which makes sibling forks safe (importing two blocks built on the same Anchored parent does not unpersist it twice) and shrinks the failed-block leak from K states to 1. The previous "extra persist" in `post_block_update` and the genesis double-persist are no longer needed: Anchored states sit at rc=1 and the Bridge never unpersists them.
 
 Issue: https://github.com/midnightntwrk/midnight-node/issues/1442
+PR: 
