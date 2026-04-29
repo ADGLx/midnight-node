@@ -3,4 +3,4 @@
 Allows for garbage collecting transient ledger states - see associated change in node.
 
 Issue: https://github.com/midnightntwrk/midnight-node/issues/1442
-PR: 
+PR: https://github.com/midnightntwrk/midnight-node/pull/1443
