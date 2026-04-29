@@ -165,16 +165,25 @@ lazy_static! {
 		std::sync::Mutex::new(None);
 }
 
-/// How often (in blocks) to drop `INTRA_BLOCK_LEDGER_PIN` so arena retention
-/// does not grow unbounded. The pin only matters within a block; clearing it
-/// at block boundaries every N blocks pays one block's worth of arena cache
-/// misses to free retained memory.
+/// How often (in blocks) to drop `INTRA_BLOCK_LEDGER_PIN` so retained arena
+/// subtrees can be released. Each clear pays one block's worth of arena
+/// cache misses on the next block, so during major sync (where blocks are
+/// processed back-to-back) we clear far less often.
 #[cfg(feature = "std")]
-const LEDGER_PIN_RESET_BLOCKS: u64 = 200;
+const LEDGER_PIN_RESET_BLOCKS_NORMAL: u64 = 200;
+#[cfg(feature = "std")]
+const LEDGER_PIN_RESET_BLOCKS_MAJOR_SYNC: u64 = 20_000;
 
 #[cfg(feature = "std")]
 static LEDGER_PIN_BLOCK_COUNTER: std::sync::atomic::AtomicU64 =
 	std::sync::atomic::AtomicU64::new(0);
+
+/// Probe set by the node service so the ledger can ask "are we major-syncing
+/// right now?" without taking a dependency on `sp_consensus::SyncOracle`.
+/// Used to widen `INTRA_BLOCK_LEDGER_PIN`'s reset cadence during catch-up.
+#[cfg(feature = "std")]
+pub static MAJOR_SYNCING_PROBE: std::sync::OnceLock<Box<dyn Fn() -> bool + Send + Sync>> =
+	std::sync::OnceLock::new();
 
 #[cfg(feature = "std")]
 pub struct Bridge<S: SignatureKind<D>, D: DB> {
@@ -309,10 +318,18 @@ where
 
 		// Periodically drop the intra-block ledger pin so retained arena
 		// subtrees can be released. The pin only matters within a block;
-		// clearing it at a block boundary costs at most one block's worth
-		// of arena cache misses on the next block.
+		// clearing at a block boundary costs at most one block's worth of
+		// arena cache misses. Cadence widens during major sync — back-to-back
+		// blocks make those cache misses expensive — and tightens at tip,
+		// where memory turnover matters more than per-block latency.
+		let major_syncing = MAJOR_SYNCING_PROBE.get().is_some_and(|f| f());
+		let cadence = if major_syncing {
+			LEDGER_PIN_RESET_BLOCKS_MAJOR_SYNC
+		} else {
+			LEDGER_PIN_RESET_BLOCKS_NORMAL
+		};
 		let n = LEDGER_PIN_BLOCK_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-		if n.is_multiple_of(LEDGER_PIN_RESET_BLOCKS)
+		if n.is_multiple_of(cadence)
 			&& let Ok(mut guard) = INTRA_BLOCK_LEDGER_PIN.lock()
 		{
 			*guard = None;
