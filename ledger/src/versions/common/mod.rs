@@ -233,6 +233,17 @@ where
 		}
 	}
 
+	/// Apply the post-block transformation and produce the post-block ledger
+	/// state.
+	///
+	/// # Persist refcount contract
+	///
+	/// On success, the input `state_key` is **unpersisted once** (its refcount
+	/// is decremented by 1) and the returned state-root is **persisted twice**.
+	/// The double-persist leaves the post-block state at rc=2 so it survives
+	/// the next block's first `apply_transaction` (which will unpersist it
+	/// once), preserving the post-block ledger state at rc=1 for RPC and history.
+	/// On error, refcounts are unchanged.
 	pub fn post_block_update(
 		mut _externalities: &mut dyn Externalities,
 		state_key: &[u8],
@@ -279,6 +290,11 @@ where
 			start_tx_processing_time.elapsed().as_millis()
 		);
 		ledger.persist();
+		// Drop the persist on the previous (last apply tx) state — no longer needed.
+		Self::unpersist_state(&api, state_key)?;
+		// Extra persist so the post-block state survives the next block's first
+		// apply_transaction unpersist; net rc=1 keeps it alive for RPC/history.
+		ledger.persist();
 		log::trace!(
 			target: LOG_TARGET,
 			"⏱️  Ledger persisted (elapsed_ms={})",
@@ -292,6 +308,24 @@ where
 		crate::utils::find_crate_version(super::CRATE_NAME).unwrap_or(b"unknown".into())
 	}
 
+	/// Apply a user transaction and produce the resulting ledger state.
+	///
+	/// # Persist refcount contract
+	///
+	/// On success, the input `state_key` is **unpersisted once** and the
+	/// returned state-root is **persisted once**. Net change across a block of
+	/// applies is therefore zero: of the states produced *within the current
+	/// block*, only the current intermediate ledger state is rooted; previously
+	/// applied per-tx states drop to rc=0 and become GC-eligible. Historical
+	/// post-block states from prior blocks remain rooted at rc=1 — they're
+	/// independently retained by `post_block_update`'s extra persist for RPC
+	/// and history queries, and are unaffected by this call.
+	///
+	/// The caller must ensure the input `state_key` is currently rooted
+	/// (refcount ≥ 1) — `post_block_update` guarantees this for the prior
+	/// block's ledger state.
+	///
+	/// On error, refcounts are unchanged.
 	pub fn apply_transaction(
 		mut externalities: &mut dyn Externalities,
 		state_key: &[u8],
@@ -472,6 +506,9 @@ where
 			start_tx_processing_time.elapsed().as_millis()
 		);
 		new_ledger.persist();
+		// Drop the persist on the predecessor: only the post-block state needs to
+		// survive across blocks (handled in post_block_update).
+		Self::unpersist_state(&api, state_key)?;
 		log::trace!(
 			target: LOG_TARGET,
 			"⏱️  Ledger persisted (elapsed_ms={})",
@@ -496,6 +533,13 @@ where
 		Ok(event)
 	}
 
+	/// Apply a system transaction and produce the resulting ledger state.
+	///
+	/// # Persist refcount contract
+	///
+	/// Same as [`Self::apply_transaction`]: on success the input `state_key`
+	/// is **unpersisted once** and the returned state-root is **persisted
+	/// once** (net zero across a block). On error, refcounts are unchanged.
 	pub fn apply_system_transaction(
 		mut externalities: &mut dyn Externalities,
 		state_key: &[u8],
@@ -527,6 +571,9 @@ where
 
 		// Only update state after no errors
 		ledger.persist();
+		// Drop the persist on the predecessor: only the post-block state needs to
+		// survive across blocks (handled in post_block_update).
+		Self::unpersist_state(&api, state_key)?;
 
 		// Write Prometheus metrics
 		let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
@@ -781,6 +828,21 @@ where
 			log::error!(target: LOG_TARGET, "Error loading Ledger State: {e:?}");
 			LedgerApiError::NoLedgerState
 		})
+	}
+
+	/// Decrement the persist refcount on a previously-persisted ledger state.
+	///
+	/// During block construction every successful tx apply adds one persist on the
+	/// resulting ledger state. Without a matching unpersist on the predecessor,
+	/// every intermediate within-block state would remain a GC root forever. This
+	/// helper is the symmetric companion: after persisting the new state, unpersist
+	/// the old one so only ledger states from historical blocks and the latest ledger
+	/// state stays rooted by default.
+	fn unpersist_state(api: &api::Api, state_key: &[u8]) -> Result<(), LedgerApiError> {
+		let typed_key: TypedArenaKey<Ledger<D>, D::Hasher> = api.tagged_deserialize(state_key)?;
+		let key: ArenaKey<D::Hasher> = typed_key.into();
+		default_storage::<D>().with_backend(|backend| backend.unpersist(key.hash()));
+		Ok(())
 	}
 
 	fn get_transaction_details(

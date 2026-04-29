@@ -28,8 +28,8 @@ pub use midnight_primitives::{
 	LedgerMutFn, LedgerStateProviderMut, TransactionType, TransactionTypeV2,
 };
 
-#[cfg(test)]
-mod mock;
+#[cfg(any(test, feature = "test-utils"))]
+pub mod mock;
 
 #[cfg(test)]
 mod tests;
