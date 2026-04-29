@@ -1036,7 +1036,7 @@ where
 		// Invalidate soft cache — tx must re-validate after a block authoring attempt
 		SOFT_TX_VALIDATION_CACHE.invalidate(&SoftTxValidationKey { tx_hash: tx_hash.0 });
 
-		// Check strict cache to determine if this is a cache hit.
+		// Check strict cache to determine if this is a cache hit
 		let state_hash = ledger.state.state_hash();
 		let strict_key =
 			StrictTxValidationKey { state_hash: state_hash.0.into(), tx_hash: tx_hash.0 };
