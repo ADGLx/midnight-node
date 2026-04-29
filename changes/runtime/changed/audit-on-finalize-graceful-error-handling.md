@@ -9,4 +9,5 @@ on the last known-good state instead of halting the network on transient or
 recoverable ledger errors. Addresses security audit finding R-012.
 
 PR: https://github.com/midnightntwrk/midnight-node/pull/1438
+Issue: https://github.com/shieldedtech/shielded-security-engineering/issues/116
 JIRA: https://shielded.atlassian.net/browse/PM-21802
