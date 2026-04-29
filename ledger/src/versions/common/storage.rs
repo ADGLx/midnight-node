@@ -93,10 +93,9 @@ where
 	let state = Ledger::new(state);
 
 	let mut state = default_storage::<D>().arena.alloc(state);
-	// Genesis is the block-0 post-block state — persist twice (matching
-	// `post_block_update`'s rc=2 contract) so it survives block 1's first
-	// `apply_transaction` unpersist and is retained at rc=1 for history.
-	state.persist();
+	// Genesis is treated as `LedgerStateKey::Anchored` — persist once at rc=1
+	// and rely on the Bridge never unpersisting Anchored inputs to retain it
+	// for history.
 	state.persist();
 	default_storage::<D>().with_backend(|backend| backend.flush_all_changes_to_db());
 	let mut bytes = vec![];

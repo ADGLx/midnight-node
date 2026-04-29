@@ -59,14 +59,14 @@ pub mod pallet {
 	use sp_runtime::Weight;
 
 	impl<T: Config> super::LedgerStateProviderMut for Pallet<T> {
-		fn get_ledger_state_key() -> Vec<u8> {
+		fn get_ledger_state_key() -> LedgerTypes::LedgerStateKey {
 			StateKey::<T>::get()
 		}
 
 		#[allow(clippy::unwrap_in_result)] // generic error type E cannot be constructed here
 		fn mut_ledger_state<F, E, R>(f: F) -> Result<R, E>
 		where
-			F: FnOnce(Vec<u8>) -> Result<(Vec<u8>, R), E>,
+			F: FnOnce(LedgerTypes::LedgerStateKey) -> Result<(LedgerTypes::LedgerStateKey, R), E>,
 		{
 			let state_key = StateKey::<T>::get();
 
@@ -97,7 +97,9 @@ pub mod pallet {
 		}
 	}
 
-	const STORAGE_VERSION: StorageVersion = StorageVersion::new(1);
+	/// v2: `StateKey<T>` is `LedgerStateKey` (was `Vec<u8>` in v1). Migration
+	/// at `on_runtime_upgrade` wraps the prior bytes as `LedgerStateKey::Anchored`.
+	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	// Manually add ~1% of block weight
 	pub const EXTRA_WEIGHT_TX_SIZE: Weight = Weight::from_parts(20_000_000_000, 0);
@@ -152,7 +154,7 @@ pub mod pallet {
 	/// We might want still to verify the bounded length for genesis build due it may be not set by a ledger.
 	/// Handling of the case that state key will go out of boundaries during runtime operation is unrecoverable.
 	#[pallet::unbounded]
-	pub type StateKey<T> = StorageValue<_, Vec<u8>, ValueQuery>;
+	pub type StateKey<T> = StorageValue<_, midnight_node_ledger::types::LedgerStateKey, ValueQuery>;
 
 	#[pallet::type_value]
 	pub fn DefaultParentTimestamp() -> u64 {
@@ -336,7 +338,7 @@ pub mod pallet {
 			let state_key = StateKey::<T>::get();
 			let block_context = Self::get_block_context();
 
-			let state_root = LedgerApi::post_block_update(&state_key, block_context.clone())
+			let state_root = LedgerApi::post_block_update(state_key, block_context.clone())
 				.expect("Post block update failed");
 
 			StateKey::<T>::put(state_root);
@@ -352,6 +354,10 @@ pub mod pallet {
 			if reinitialized {
 				log::info!("Ledger storage (re)initialized");
 			}
+
+			// Note: storage migrations (e.g. `migrations::v2`) are wired into
+			// `frame_system::Config::SingleBlockMigrations` at the runtime level,
+			// not invoked here.
 
 			ConfigurableOnRuntimeUpgradeWeight::<T>::get()
 		}
@@ -371,7 +377,7 @@ pub mod pallet {
 			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 
 			let result = LedgerApi::apply_transaction(
-				&state_key,
+				state_key,
 				&midnight_tx,
 				block_context,
 				runtime_version,
@@ -471,7 +477,7 @@ pub mod pallet {
 			let runtime_version = <frame_system::Pallet<T>>::runtime_version().spec_version;
 
 			LedgerApi::validate_guaranteed_execution(
-				&state_key,
+				state_key.bytes(),
 				midnight_tx,
 				block_context,
 				runtime_version,
@@ -486,9 +492,11 @@ pub mod pallet {
 		pub fn initialize_state(network_id: &str, state_key: &[u8]) {
 			//todo add checks
 			// It is correct to call expect for genesis initialization
-			let genesis_state_key: BoundedVec<u8, StateKeyLength> =
+			let _: BoundedVec<u8, StateKeyLength> =
 				state_key.to_vec().try_into().expect("Genesis state key size out of boundaries");
-			StateKey::<T>::put(genesis_state_key);
+			// Genesis is the block-0 post-block state — wrap as Anchored so the
+			// Bridge never unpersists it on transition.
+			StateKey::<T>::put(LedgerTypes::LedgerStateKey::Anchored(state_key.to_vec()));
 
 			// It is correct to call expect for genesis initialization
 			let network_id = BoundedString::<MaxNetworkIdLength>::try_from(network_id)
@@ -498,7 +506,7 @@ pub mod pallet {
 
 		pub fn get_contract_state(contract_address: &[u8]) -> Result<Vec<u8>, LedgerApiError> {
 			let state_key = StateKey::<T>::get();
-			LedgerApi::get_contract_state(&state_key, contract_address)
+			LedgerApi::get_contract_state(state_key.bytes(), contract_address)
 		}
 
 		pub fn get_decoded_transaction(
@@ -518,7 +526,7 @@ pub mod pallet {
 
 		pub fn get_zswap_chain_state(contract_address: &[u8]) -> Result<Vec<u8>, LedgerApiError> {
 			let state_key = StateKey::<T>::get();
-			LedgerApi::get_zswap_chain_state(&state_key, contract_address)
+			LedgerApi::get_zswap_chain_state(state_key.bytes(), contract_address)
 		}
 		// grcov-excl-stop
 
@@ -568,7 +576,7 @@ pub mod pallet {
 				let max_weight = T::BlockWeights::get().max_block.ref_time();
 
 				let tx_hash = LedgerApi::validate_transaction(
-					&state_key,
+					state_key.bytes(),
 					midnight_tx,
 					block_context,
 					runtime_version,
@@ -590,29 +598,29 @@ pub mod pallet {
 
 		pub fn get_unclaimed_amount(beneficiary: &[u8]) -> Result<u128, LedgerApiError> {
 			let state_key = StateKey::<T>::get();
-			LedgerApi::get_unclaimed_amount(&state_key, beneficiary)
+			LedgerApi::get_unclaimed_amount(state_key.bytes(), beneficiary)
 		}
 
 		pub fn get_ledger_parameters() -> Result<Vec<u8>, LedgerApiError> {
 			let state_key = StateKey::<T>::get();
-			LedgerApi::get_ledger_parameters(&state_key)
+			LedgerApi::get_ledger_parameters(state_key.bytes())
 		}
 
 		pub fn get_transaction_cost(tx: &[u8]) -> Result<GasCost, LedgerApiError> {
 			let state_key = StateKey::<T>::get();
 			let block_context = Self::get_block_context();
 			let max_weight = T::BlockWeights::get().max_block.ref_time();
-			LedgerApi::get_transaction_cost(&state_key, tx, block_context, max_weight)
+			LedgerApi::get_transaction_cost(state_key.bytes(), tx, block_context, max_weight)
 		}
 
 		pub fn get_zswap_state_root() -> Result<Vec<u8>, LedgerApiError> {
 			let state_key = StateKey::<T>::get();
-			LedgerApi::get_zswap_state_root(&state_key)
+			LedgerApi::get_zswap_state_root(state_key.bytes())
 		}
 
 		pub fn get_ledger_state_root() -> Result<Vec<u8>, LedgerApiError> {
 			let state_key = StateKey::<T>::get();
-			LedgerApi::get_ledger_state_root(&state_key)
+			LedgerApi::get_ledger_state_root(state_key.bytes())
 		}
 
 		// Helper for the weight macro

@@ -31,6 +31,50 @@ impl From<Hash128> for WrappedHash {
 	}
 }
 
+/// Variant tag carried alongside a serialized ledger state-key, telling the
+/// Bridge whether the addressed state may be unpersisted on transition.
+///
+/// - `Anchored` — a finalized state that must be retained for history (chain
+///   tip after `post_block_update`, or genesis). The Bridge never unpersists
+///   these on input; multiple sibling forks built on the same Anchored parent
+///   leave it untouched.
+/// - `Transient` — an intra-block intermediate state produced by
+///   `apply_transaction` / `apply_system_transaction`. The Bridge unpersists
+///   these when they're consumed as input to a successor call.
+#[derive(Encode, Decode, DecodeWithMemTracking, TypeInfo, Clone, Eq, PartialEq, Debug)]
+pub enum LedgerStateKey {
+	Anchored(Vec<u8>),
+	Transient(Vec<u8>),
+}
+
+impl Default for LedgerStateKey {
+	/// `Default` is `Anchored(Vec::new())` — never an actual chain state, only
+	/// the placeholder before the pallet's `initialize_state` runs at genesis.
+	/// Anchored is chosen so an accidentally-defaulted value can't trigger an
+	/// unpersist on transition.
+	fn default() -> Self {
+		LedgerStateKey::Anchored(Vec::new())
+	}
+}
+
+impl LedgerStateKey {
+	pub fn bytes(&self) -> &[u8] {
+		match self {
+			LedgerStateKey::Anchored(b) | LedgerStateKey::Transient(b) => b,
+		}
+	}
+
+	pub fn into_bytes(self) -> Vec<u8> {
+		match self {
+			LedgerStateKey::Anchored(b) | LedgerStateKey::Transient(b) => b,
+		}
+	}
+
+	pub fn is_transient(&self) -> bool {
+		matches!(self, LedgerStateKey::Transient(_))
+	}
+}
+
 #[derive(Encode, Decode, DecodeWithMemTracking)]
 pub struct TransactionApplied {
 	pub tx_hash: Hash,
@@ -44,7 +88,7 @@ pub struct TransactionApplied {
 
 #[derive(Encode, Decode, DecodeWithMemTracking)]
 pub struct TransactionAppliedStateRoot {
-	pub state_root: Vec<u8>,
+	pub state_root: LedgerStateKey,
 	pub tx_hash: Hash,
 	pub all_applied: bool,
 	pub call_addresses: Vec<Vec<u8>>,
@@ -57,7 +101,7 @@ pub struct TransactionAppliedStateRoot {
 
 #[derive(Encode, Decode, DecodeWithMemTracking)]
 pub struct SystemTransactionAppliedStateRoot {
-	pub state_root: Vec<u8>,
+	pub state_root: LedgerStateKey,
 	pub tx_hash: Hash,
 	pub tx_type: String,
 }

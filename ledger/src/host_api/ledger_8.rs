@@ -2,7 +2,8 @@
 use crate::ledger_8::Bridge;
 use crate::{
 	common::types::{
-		GasCost, Hash, SystemTransactionAppliedStateRoot, TransactionAppliedStateRoot, Tx,
+		GasCost, Hash, LedgerStateKey, SystemTransactionAppliedStateRoot,
+		TransactionAppliedStateRoot, Tx,
 	},
 	ledger_8::{BlockContext, types::LedgerApiError},
 };
@@ -31,10 +32,10 @@ pub trait Ledger8Bridge {
 
 	fn post_block_update(
 		&mut self,
-		state_key: PassFatPointerAndRead<&[u8]>,
+		state_key: PassFatPointerAndDecode<LedgerStateKey>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
-	) -> AllocateAndReturnByCodec<Result<Vec<u8>, LedgerApiError>> {
-		Bridge::<Signature, Database>::post_block_update(*self, state_key, block_context)
+	) -> AllocateAndReturnByCodec<Result<LedgerStateKey, LedgerApiError>> {
+		Bridge::<Signature, Database>::post_block_update(*self, &state_key, block_context)
 	}
 
 	// Current Enabled Version
@@ -47,14 +48,14 @@ pub trait Ledger8Bridge {
 	 */
 	fn apply_transaction(
 		&mut self,
-		state_key: PassFatPointerAndRead<&[u8]>,
+		state_key: PassFatPointerAndDecode<LedgerStateKey>,
 		tx: PassFatPointerAndRead<&[u8]>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
 		runtime_version: u32,
 	) -> AllocateAndReturnByCodec<Result<TransactionAppliedStateRoot, LedgerApiError>> {
 		Bridge::<Signature, Database>::apply_transaction(
 			*self,
-			state_key,
+			&state_key,
 			tx,
 			block_context,
 			true,
@@ -64,12 +65,17 @@ pub trait Ledger8Bridge {
 
 	fn apply_system_transaction(
 		&mut self,
-		state_key: PassFatPointerAndRead<&[u8]>,
+		state_key: PassFatPointerAndDecode<LedgerStateKey>,
 		tx: PassFatPointerAndRead<&[u8]>,
 		block_context: PassFatPointerAndDecode<BlockContext>,
 		_runtime_version: u32,
 	) -> AllocateAndReturnByCodec<Result<SystemTransactionAppliedStateRoot, LedgerApiError>> {
-		Bridge::<Signature, Database>::apply_system_transaction(*self, state_key, tx, block_context)
+		Bridge::<Signature, Database>::apply_system_transaction(
+			*self,
+			&state_key,
+			tx,
+			block_context,
+		)
 	}
 
 	/*

@@ -77,9 +77,9 @@ use {
 };
 
 use crate::common::types::{
-	ContractCallsDetails, FallibleCoinsDetails, GasCost, GuaranteedCoinsDetails, Hash, Op,
-	SystemTransactionAppliedStateRoot, TransactionAppliedStateRoot, TransactionDetails, Tx,
-	WrappedHash,
+	ContractCallsDetails, FallibleCoinsDetails, GasCost, GuaranteedCoinsDetails, Hash,
+	LedgerStateKey, Op, SystemTransactionAppliedStateRoot, TransactionAppliedStateRoot,
+	TransactionDetails, Tx, WrappedHash,
 };
 
 use super::BlockContext;
@@ -238,17 +238,22 @@ where
 	///
 	/// # Persist refcount contract
 	///
-	/// On success, the input `state_key` is **unpersisted once** (its refcount
-	/// is decremented by 1) and the returned state-root is **persisted twice**.
-	/// The double-persist leaves the post-block state at rc=2 so it survives
-	/// the next block's first `apply_transaction` (which will unpersist it
-	/// once), preserving the post-block ledger state at rc=1 for RPC and history.
+	/// On success, the returned state-root is **persisted once**. The caller
+	/// should treat the returned bytes as `LedgerStateKey::Anchored` — Anchored
+	/// states are never unpersisted by subsequent Bridge calls, so they remain
+	/// rooted at rc=1 forever (preserved for RPC and history).
+	///
+	/// If the input was `LedgerStateKey::Transient` (the last apply_tx output
+	/// of this block), it is **unpersisted once**, dropping it to rc=0.
+	/// `Anchored` inputs are left alone (this should be unreachable in practice
+	/// since the chain tip prior to finalize is always Transient).
+	///
 	/// On error, refcounts are unchanged.
 	pub fn post_block_update(
 		mut _externalities: &mut dyn Externalities,
-		state_key: &[u8],
+		state_key: &LedgerStateKey,
 		block_context: BlockContext,
-	) -> Result<Vec<u8>, LedgerApiError> {
+	) -> Result<LedgerStateKey, LedgerApiError> {
 		let start_tx_processing_time = Instant::now();
 		log::trace!(
 			target: LOG_TARGET,
@@ -261,7 +266,7 @@ where
 			"⏱️  API ready (elapsed_ms={})",
 			start_tx_processing_time.elapsed().as_millis()
 		);
-		let ledger = Self::get_ledger(&api, state_key)?;
+		let ledger = Self::get_ledger(&api, state_key.bytes())?;
 
 		log::trace!(
 			target: LOG_TARGET,
@@ -290,18 +295,16 @@ where
 			start_tx_processing_time.elapsed().as_millis()
 		);
 		ledger.persist();
-		// Drop the persist on the previous (last apply tx) state — no longer needed.
-		Self::unpersist_state(&api, state_key)?;
-		// Extra persist so the post-block state survives the next block's first
-		// apply_transaction unpersist; net rc=1 keeps it alive for RPC/history.
-		ledger.persist();
+		if state_key.is_transient() {
+			Self::unpersist_state(&api, state_key.bytes())?;
+		}
 		log::trace!(
 			target: LOG_TARGET,
 			"⏱️  Ledger persisted (elapsed_ms={})",
 			start_tx_processing_time.elapsed().as_millis()
 		);
 
-		Ok(state_root)
+		Ok(LedgerStateKey::Anchored(state_root))
 	}
 
 	pub fn get_version() -> Vec<u8> {
@@ -312,23 +315,22 @@ where
 	///
 	/// # Persist refcount contract
 	///
-	/// On success, the input `state_key` is **unpersisted once** and the
-	/// returned state-root is **persisted once**. Net change across a block of
-	/// applies is therefore zero: of the states produced *within the current
-	/// block*, only the current intermediate ledger state is rooted; previously
-	/// applied per-tx states drop to rc=0 and become GC-eligible. Historical
-	/// post-block states from prior blocks remain rooted at rc=1 — they're
-	/// independently retained by `post_block_update`'s extra persist for RPC
-	/// and history queries, and are unaffected by this call.
+	/// On success, the returned state-root is **persisted once**. The caller
+	/// should treat the returned bytes as `LedgerStateKey::Transient` — the
+	/// next Bridge call that consumes them will unpersist them in turn.
 	///
-	/// The caller must ensure the input `state_key` is currently rooted
-	/// (refcount ≥ 1) — `post_block_update` guarantees this for the prior
-	/// block's ledger state.
+	/// If the input was `LedgerStateKey::Transient` (the prior intra-block
+	/// intermediate), it is **unpersisted once**, dropping to rc=0 (net zero
+	/// per call within a block; intermediate per-tx states are GC-eligible).
+	/// If the input was `LedgerStateKey::Anchored` (a prior post-block tip or
+	/// genesis), it is left alone — Anchored states are retained for history
+	/// and shared by sibling forks. The caller must ensure the input is
+	/// currently rooted (refcount ≥ 1).
 	///
 	/// On error, refcounts are unchanged.
 	pub fn apply_transaction(
 		mut externalities: &mut dyn Externalities,
-		state_key: &[u8],
+		state_key: &LedgerStateKey,
 		tx_serialized: &[u8],
 		block_context: BlockContext,
 		should_skip_failed_segments: bool,
@@ -359,7 +361,7 @@ where
 			"📥 Applying transaction {}",
 			hex::encode(tx_hash)
 		);
-		let ledger = Self::get_ledger(&api, state_key)?;
+		let ledger = Self::get_ledger(&api, state_key.bytes())?;
 		utxo_ordering_override::set_network_id(&ledger.state.network_id);
 		log::trace!(
 			target: LOG_TARGET,
@@ -446,7 +448,9 @@ where
 		);
 
 		let mut event = TransactionAppliedStateRoot {
-			state_root: api.tagged_serialize(&new_ledger.as_typed_key())?,
+			state_root: LedgerStateKey::Transient(
+				api.tagged_serialize(&new_ledger.as_typed_key())?,
+			),
 			tx_hash,
 			all_applied,
 			call_addresses: vec![],
@@ -506,9 +510,12 @@ where
 			start_tx_processing_time.elapsed().as_millis()
 		);
 		new_ledger.persist();
-		// Drop the persist on the predecessor: only the post-block state needs to
-		// survive across blocks (handled in post_block_update).
-		Self::unpersist_state(&api, state_key)?;
+		// Drop the persist on the predecessor only if it's Transient — Anchored
+		// states (post-block tips, genesis) are retained for history and may be
+		// shared by sibling forks, so we never unpersist them on input.
+		if state_key.is_transient() {
+			Self::unpersist_state(&api, state_key.bytes())?;
+		}
 		log::trace!(
 			target: LOG_TARGET,
 			"⏱️  Ledger persisted (elapsed_ms={})",
@@ -537,12 +544,13 @@ where
 	///
 	/// # Persist refcount contract
 	///
-	/// Same as [`Self::apply_transaction`]: on success the input `state_key`
-	/// is **unpersisted once** and the returned state-root is **persisted
-	/// once** (net zero across a block). On error, refcounts are unchanged.
+	/// Same as [`Self::apply_transaction`]: on success the returned state-root
+	/// is **persisted once** (callers should treat it as
+	/// `LedgerStateKey::Transient`); a `Transient` input is unpersisted once;
+	/// `Anchored` inputs are left alone. On error, refcounts are unchanged.
 	pub fn apply_system_transaction(
 		mut externalities: &mut dyn Externalities,
-		state_key: &[u8],
+		state_key: &LedgerStateKey,
 		tx_serialized: &[u8],
 		block_context: BlockContext,
 	) -> Result<SystemTransactionAppliedStateRoot, LedgerApiError> {
@@ -558,22 +566,22 @@ where
 			"⚙️  Processing SystemTx {tx:?}"
 		);
 		let tx_hash = tx.transaction_hash().0.0;
-		let ledger = Self::get_ledger(&api, state_key)?;
+		let ledger = Self::get_ledger(&api, state_key.bytes())?;
 
 		let mut ledger =
 			Ledger::apply_system_tx(ledger, &tx, Timestamp::from_secs(block_context.tblock))?;
 
 		let event = SystemTransactionAppliedStateRoot {
-			state_root: api.tagged_serialize(&ledger.as_typed_key())?,
+			state_root: LedgerStateKey::Transient(api.tagged_serialize(&ledger.as_typed_key())?),
 			tx_hash,
 			tx_type: tx_type.to_string(),
 		};
 
 		// Only update state after no errors
 		ledger.persist();
-		// Drop the persist on the predecessor: only the post-block state needs to
-		// survive across blocks (handled in post_block_update).
-		Self::unpersist_state(&api, state_key)?;
+		if state_key.is_transient() {
+			Self::unpersist_state(&api, state_key.bytes())?;
+		}
 
 		// Write Prometheus metrics
 		let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
