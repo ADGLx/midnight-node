@@ -411,17 +411,6 @@ pub fn new_partial(
 	let time_source = Arc::new(SystemTimeSource);
 	let inherent_config = CreateInherentDataConfig::new(epoch_config, sc_slot_config, time_source);
 
-	// Wrap the grandpa block-import with our host-side pre-verifier. This
-	// decodes each incoming block's body on the way in and runs
-	// `well_formed` for every midnight tx in parallel (rayon), stuffing the
-	// results into `STRICT_TX_VALIDATION_CACHE` so the runtime's serial
-	// `apply_transaction` path gets cache hits instead of re-running the ZK
-	// proof checks. See `midnight_pre_verifier` for correctness notes.
-	let pre_verified_block_import = crate::midnight_pre_verifier::MidnightPreVerifier::new(
-		grandpa_block_import.clone(),
-		client.clone(),
-	);
-
 	let import_queue = partner_chains_aura_import_queue::import_queue::<
 		AuraPair,
 		_,
@@ -431,7 +420,7 @@ pub fn new_partial(
 		_,
 		McHashInherentDigest,
 	>(ImportQueueParams {
-		block_import: pre_verified_block_import,
+		block_import: grandpa_block_import.clone(),
 		justification_import: Some(Box::new(grandpa_block_import.clone())),
 		client: client.clone(),
 		create_inherent_data_providers: VerifierCIDP::new(

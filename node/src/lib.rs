@@ -26,7 +26,6 @@ pub mod genesis;
 pub mod inherent_data;
 pub mod main_chain_follower;
 pub mod memory_monitor;
-pub mod midnight_pre_verifier;
 pub mod metrics_push;
 pub mod openrpc;
 pub mod partner_chains;
