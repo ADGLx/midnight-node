@@ -88,14 +88,6 @@ pub struct MidnightCfg {
 	#[validate(custom = |s| maybe(s, path_exists))]
 	pub federated_authority_config_file: Option<String>,
 
-	/// Path to the chainspec's cNIGHT genesis JSON. The cNIGHT observation
-	/// data source reads `addresses` from this file at startup to drive
-	/// its bulk read against db-sync — must agree with the chainspec's
-	/// `chainspec_cnight_genesis`. Same key as ChainSpecCfg's field, so a
-	/// single toml/env entry populates both.
-	#[validate(custom = |s| maybe(s, path_exists))]
-	pub chainspec_cnight_genesis: Option<String>,
-
 	/// Size of ledger storage cache (number of nodes)
 	pub storage_cache_size: usize,
 

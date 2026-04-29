@@ -265,6 +265,7 @@ pub fn new_partial(
 	config: &Configuration,
 	epoch_config: MainchainEpochConfig,
 	midnight_cfg: MidnightCfg,
+	cnight_genesis_path: Option<String>,
 	storage_config: StorageInit,
 	tx_filter_config: TxFilterConfig,
 ) -> Result<MidnightService, ServiceError> {
@@ -274,6 +275,7 @@ pub fn new_partial(
 	let data_sources = tokio::task::block_in_place(|| {
 		config.tokio_handle.block_on(create_cached_main_chain_follower_data_sources(
 			midnight_cfg.clone(),
+			cnight_genesis_path,
 			mc_follower_metrics.clone(),
 			midnight_metrics.clone(),
 		))
@@ -466,6 +468,7 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	config: Configuration,
 	epoch_config: MainchainEpochConfig,
 	midnight_cfg: MidnightCfg,
+	cnight_genesis_path: Option<String>,
 	storage_monitor_params: sc_storage_monitor::StorageMonitorParams,
 	memory_monitor_params: crate::memory_monitor::MemoryMonitorParams,
 	storage_config: StorageInit,
@@ -475,8 +478,14 @@ pub async fn new_full<Network: sc_network::NetworkBackend<Block, <Block as Block
 	max_finality_subscriptions: u32,
 ) -> Result<(TaskManager, Arc<FullBackend>), ServiceError> {
 	let database_source = config.database.clone();
-	let new_partial_components =
-		new_partial(&config, epoch_config.clone(), midnight_cfg, storage_config, tx_filter_config)?;
+	let new_partial_components = new_partial(
+		&config,
+		epoch_config.clone(),
+		midnight_cfg,
+		cnight_genesis_path,
+		storage_config,
+		tx_filter_config,
+	)?;
 
 	let sc_service::PartialComponents {
 		client,

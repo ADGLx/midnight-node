@@ -62,6 +62,7 @@ pub struct DbPoolCfg {
 
 pub(crate) async fn create_cached_main_chain_follower_data_sources(
 	cfg: MidnightCfg,
+	cnight_genesis_path: Option<String>,
 	mc_metrics_opt: Option<McFollowerMetrics>,
 	midnight_metrics_opt: Option<MidnightDataSourceMetrics>,
 ) -> std::result::Result<DataSources, ServiceError> {
@@ -75,7 +76,7 @@ pub(crate) async fn create_cached_main_chain_follower_data_sources(
 
 		Ok(mock)
 	} else {
-		create_cached_data_sources(cfg, mc_metrics_opt, midnight_metrics_opt)
+		create_cached_data_sources(cfg, cnight_genesis_path, mc_metrics_opt, midnight_metrics_opt)
 			.await
 			.map_err(|err| {
 				ServiceError::Application(
@@ -164,6 +165,7 @@ const ICS_POOL_CFG: DbPoolCfg =
 
 pub async fn create_cached_data_sources(
 	cfg: MidnightCfg,
+	cnight_genesis_path: Option<String>,
 	mc_metrics_opt: Option<McFollowerMetrics>,
 	midnight_metrics_opt: Option<MidnightDataSourceMetrics>,
 ) -> Result<DataSources, Box<dyn Error + Send + Sync + 'static>> {
@@ -280,10 +282,8 @@ pub async fn create_cached_data_sources(
 		// Read the cNIGHT addresses from the chainspec's cnight-config.json
 		// — the same file the runtime is configured against — to drive the
 		// bulk read against db-sync.
-		let cnight_genesis_path = cfg
-			.chainspec_cnight_genesis
-			.clone()
-			.ok_or_else(|| missing("chainspec_cnight_genesis"))?;
+		let cnight_genesis_path =
+			cnight_genesis_path.ok_or_else(|| missing("chainspec_cnight_genesis"))?;
 		let cnight_genesis_str = std::fs::read_to_string(&cnight_genesis_path).map_err(|e| {
 			format!("failed to read chainspec_cnight_genesis ({cnight_genesis_path}): {e}")
 		})?;
