@@ -238,15 +238,16 @@ where
 	///
 	/// # Persist refcount contract
 	///
-	/// On success, the returned state-root is **persisted once**. The caller
-	/// should treat the returned bytes as `LedgerStateKey::Anchored` — Anchored
-	/// states are never unpersisted by subsequent Bridge calls, so they remain
-	/// rooted at rc=1 forever (preserved for RPC and history).
+	/// On success, returns `LedgerStateKey::Anchored` at rc=1. Anchored states
+	/// are never unpersisted on input by subsequent Bridge calls, so the
+	/// post-block tip remains rooted forever — preserved for RPC and history,
+	/// and safe across sibling forks (a second fork built on the same parent
+	/// does not unpersist it).
 	///
-	/// If the input was `LedgerStateKey::Transient` (the last apply_tx output
-	/// of this block), it is **unpersisted once**, dropping it to rc=0.
-	/// `Anchored` inputs are left alone (this should be unreachable in practice
-	/// since the chain tip prior to finalize is always Transient).
+	/// If the input was `LedgerStateKey::Transient` (the last `apply_transaction`
+	/// output of this block), it is unpersisted once, dropping to rc=0.
+	/// `Anchored` inputs are left alone — though in practice the chain tip
+	/// prior to finalize is always Transient, so this branch is unreachable.
 	///
 	/// On error, refcounts are unchanged.
 	pub fn post_block_update(
@@ -315,16 +316,18 @@ where
 	///
 	/// # Persist refcount contract
 	///
-	/// On success, the returned state-root is **persisted once**. The caller
-	/// should treat the returned bytes as `LedgerStateKey::Transient` — the
-	/// next Bridge call that consumes them will unpersist them in turn.
+	/// On success, the returned `state_root` field on `TransactionAppliedStateRoot`
+	/// is `LedgerStateKey::Transient` at rc=1 — the next Bridge call that
+	/// consumes it will unpersist it in turn.
 	///
 	/// If the input was `LedgerStateKey::Transient` (the prior intra-block
-	/// intermediate), it is **unpersisted once**, dropping to rc=0 (net zero
-	/// per call within a block; intermediate per-tx states are GC-eligible).
+	/// intermediate), it is unpersisted once, dropping to rc=0 — so within a
+	/// block, only the current intermediate tip from this block stays rooted;
+	/// older intermediates become GC-eligible.
+	///
 	/// If the input was `LedgerStateKey::Anchored` (a prior post-block tip or
-	/// genesis), it is left alone — Anchored states are retained for history
-	/// and shared by sibling forks. The caller must ensure the input is
+	/// genesis), it is left alone. Anchored states are retained for history
+	/// and shared across sibling forks. The caller must ensure the input is
 	/// currently rooted (refcount ≥ 1).
 	///
 	/// On error, refcounts are unchanged.
@@ -544,10 +547,10 @@ where
 	///
 	/// # Persist refcount contract
 	///
-	/// Same as [`Self::apply_transaction`]: on success the returned state-root
-	/// is **persisted once** (callers should treat it as
-	/// `LedgerStateKey::Transient`); a `Transient` input is unpersisted once;
-	/// `Anchored` inputs are left alone. On error, refcounts are unchanged.
+	/// Same contract as [`Self::apply_transaction`]: returns
+	/// `LedgerStateKey::Transient` at rc=1; a `Transient` input is unpersisted
+	/// once; `Anchored` inputs are left alone. On error, refcounts are
+	/// unchanged.
 	pub fn apply_system_transaction(
 		mut externalities: &mut dyn Externalities,
 		state_key: &LedgerStateKey,
