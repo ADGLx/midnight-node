@@ -274,7 +274,7 @@ pub async fn create_cached_data_sources(
 	})?;
 	let cnight_observation = {
 		use midnight_primitives_mainchain_follower::data_source::{
-			BulkCachedCNightObservationDataSource, CNightObservationSnapshot,
+			BulkCachedCNightObservationDataSource, bulk_pull,
 		};
 
 		// Read the cNIGHT addresses from the chainspec's cnight-config.json
@@ -317,16 +317,12 @@ pub async fn create_cached_data_sources(
 			"loading cNIGHT observation cache from db-sync (horizon = Cardano block {bulk_end_block}, ~2 min)..."
 		);
 		let t0 = std::time::Instant::now();
-		let snapshot = CNightObservationSnapshot::generate(
-			cnight_observation_pool.clone(),
-			&cnight_addresses,
-			bulk_end_block,
-		)
-		.await
-		.map_err(|e| format!("cNIGHT observation bulk read failed: {e}"))?;
+		let events = bulk_pull(&cnight_observation_pool, &cnight_addresses, 0, bulk_end_block)
+			.await
+			.map_err(|e| format!("cNIGHT observation bulk read failed: {e}"))?;
 		log::info!(
 			"cNIGHT observation cache: {} events loaded in {:?}",
-			snapshot.total_events(),
+			events.len(),
 			t0.elapsed(),
 		);
 
@@ -336,9 +332,10 @@ pub async fn create_cached_data_sources(
 			1000,
 		));
 		BulkCachedCNightObservationDataSource::new(
-			snapshot,
+			events,
 			cnight_observation_pool,
 			db_fallback,
+			cnight_addresses,
 			midnight_metrics_opt.clone(),
 		)
 	};

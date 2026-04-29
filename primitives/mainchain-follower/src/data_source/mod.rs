@@ -30,9 +30,7 @@ pub use cnight_observation::{
 	MidnightCNightObservationDataSourceError, MidnightCNightObservationDataSourceImpl, TxHash,
 	TxPosition,
 };
-pub use cnight_observation_bulk::{
-	BulkCachedCNightObservationDataSource, CNightObservationSnapshot,
-};
+pub use cnight_observation_bulk::{BulkCachedCNightObservationDataSource, bulk_pull};
 pub use cnight_observation_mock::CNightObservationDataSourceMock;
 pub use federated_authority_observation::FederatedAuthorityObservationDataSourceImpl;
 pub use federated_authority_observation_mock::FederatedAuthorityObservationDataSourceMock;
