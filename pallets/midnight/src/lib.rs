@@ -97,8 +97,6 @@ pub mod pallet {
 		}
 	}
 
-	/// v2: `StateKey<T>` is `LedgerStateKey` (was `Vec<u8>` in v1). Migration
-	/// at `on_runtime_upgrade` wraps the prior bytes as `LedgerStateKey::Anchored`.
 	const STORAGE_VERSION: StorageVersion = StorageVersion::new(2);
 
 	// Manually add ~1% of block weight
@@ -354,10 +352,6 @@ pub mod pallet {
 			if reinitialized {
 				log::info!("Ledger storage (re)initialized");
 			}
-
-			// Note: storage migrations (e.g. `migrations::v2`) are wired into
-			// `frame_system::Config::SingleBlockMigrations` at the runtime level,
-			// not invoked here.
 
 			ConfigurableOnRuntimeUpgradeWeight::<T>::get()
 		}
