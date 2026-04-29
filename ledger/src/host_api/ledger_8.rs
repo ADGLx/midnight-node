@@ -279,3 +279,27 @@ pub trait Ledger8Bridge {
 		true
 	}
 }
+
+/// Host-side helper for [`Bridge::prevalidate_block`] bound to the concrete
+/// ledger-8 `Signature` + `ParityDb` types. Called from a Substrate
+/// `BlockImport` wrapper (see `midnight_pre_verifier` in the node crate) to
+/// prewarm `STRICT_TX_VALIDATION_CACHE` in parallel before the WASM runtime
+/// dispatches extrinsics.
+///
+/// `tblock_millis` is the `pallet_timestamp` inherent value (ms since epoch);
+/// it is converted to the seconds-granularity `Timestamp` the ledger expects.
+#[cfg(feature = "std")]
+pub fn prevalidate_block(
+	parent_block_hash: Hash,
+	tblock_millis: u64,
+	runtime_version: u32,
+	tx_bytes_list: &[&[u8]],
+) {
+	use crate::ledger_8::base_crypto_local::time::Timestamp;
+	Bridge::<Signature, Database>::prevalidate_block(
+		parent_block_hash,
+		Timestamp::from_secs(tblock_millis / 1000),
+		runtime_version,
+		tx_bytes_list,
+	);
+}

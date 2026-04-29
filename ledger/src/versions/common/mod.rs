@@ -175,6 +175,97 @@ lazy_static! {
 			.time_to_idle(TX_VALIDATION_CACHE_TTI)
 			.time_to_live(SOFT_TX_VALIDATION_CACHE_TTL)
 			.build();
+
+	/// Latest fully-applied ledger state from the previous block. Published
+	/// at the end of `apply_transaction` so the host-side `prevalidate_block`
+	/// can use it as the reference state for the next block's
+	/// parallel `well_formed` checks.
+	///
+	/// Type-erased (`Arc<dyn Any + Send + Sync>`) so a single static covers
+	/// all `(Signature, Database)` instantiations of `Bridge`. The reader
+	/// downcasts to its expected concrete type and bails if the type ID
+	/// differs (DB switch / ledger version mismatch).
+	pub static ref PARENT_BLOCK_POST_LEDGER_STATE: std::sync::Mutex<Option<Arc<dyn Any + Send + Sync>>> =
+		std::sync::Mutex::new(None);
+
+	/// Within a block, keep the in-flight ledger state's arena subtrees hot
+	/// across consecutive `apply_transaction` calls. Without this pin, the
+	/// substrate storage cache may evict subtrees mid-block under pressure
+	/// and the next tx pays the disk-fetch cost.
+	pub static ref INTRA_BLOCK_LEDGER_PIN: std::sync::Mutex<Option<Arc<dyn Any + Send + Sync>>> =
+		std::sync::Mutex::new(None);
+
+	/// In-flight prevalidations indexed by parent block hash. The pre-verifier
+	/// inserts an entry before spawning the rayon work and removes it after the
+	/// work completes (and notifies waiters). `get_verified_transaction` looks
+	/// up the parent on a strict-cache MISS and blocks once on the Notify
+	/// before retrying the cache, so the runtime can ride the parallel
+	/// prevalidate's result instead of duplicating `well_formed`.
+	static ref IN_FLIGHT_PREVALIDATIONS: std::sync::Mutex<std::collections::HashMap<Hash, Arc<InFlightPrevalidation>>> =
+		std::sync::Mutex::new(std::collections::HashMap::new());
+}
+
+/// Per-block notification primitive: the pre-verifier marks `done` after the
+/// rayon par_iter finishes; consumers wait on the Condvar.
+#[cfg(feature = "std")]
+pub struct InFlightPrevalidation {
+	parent_anchor: Hash,
+	done: std::sync::Mutex<bool>,
+	cond: std::sync::Condvar,
+}
+
+#[cfg(feature = "std")]
+impl InFlightPrevalidation {
+	/// Mark the prevalidate work complete + wake all waiters + remove our
+	/// own entry from the registry. Called once by the spawned rayon thread.
+	pub fn mark_done(&self) {
+		{
+			let mut g = self.done.lock().expect("done lock");
+			*g = true;
+		}
+		self.cond.notify_all();
+		if let Ok(mut map) = IN_FLIGHT_PREVALIDATIONS.lock() {
+			map.remove(&self.parent_anchor);
+		}
+	}
+
+	/// Block (briefly) until the prevalidate finishes for this parent block,
+	/// or until `timeout` elapses (defensive — never block forever, and never
+	/// block if the prevalidate spawned but its thread died for some reason).
+	fn wait_done_with_timeout(&self, timeout: std::time::Duration) {
+		let g = self.done.lock().expect("done lock");
+		if *g {
+			return;
+		}
+		let _ = self.cond.wait_timeout(g, timeout);
+	}
+}
+
+/// Register an in-flight prevalidate marker for `parent_anchor`. Called by
+/// the host-side `MidnightPreVerifier` BEFORE spawning the prevalidate
+/// thread, so any concurrent runtime call to `get_verified_transaction` for
+/// a tx in this block sees the pending state and waits.
+#[cfg(feature = "std")]
+pub fn register_in_flight_prevalidation(parent_anchor: Hash) -> Arc<InFlightPrevalidation> {
+	let entry = Arc::new(InFlightPrevalidation {
+		parent_anchor,
+		done: std::sync::Mutex::new(false),
+		cond: std::sync::Condvar::new(),
+	});
+	if let Ok(mut map) = IN_FLIGHT_PREVALIDATIONS.lock() {
+		// If a previous entry for the same parent exists (e.g., a rejected
+		// duplicate-block import), drop the old one. We hold the new Arc
+		// regardless, so the spawned thread always has its own handle.
+		map.insert(parent_anchor, entry.clone());
+	}
+	entry
+}
+
+/// Look up an in-flight prevalidate for `parent_anchor`. Internal — used by
+/// `get_verified_transaction`'s MISS path.
+#[cfg(feature = "std")]
+fn lookup_in_flight_prevalidation(parent_anchor: &Hash) -> Option<Arc<InFlightPrevalidation>> {
+	IN_FLIGHT_PREVALIDATIONS.lock().ok()?.get(parent_anchor).cloned()
 }
 
 #[cfg(feature = "std")]
@@ -308,11 +399,135 @@ where
 			start_tx_processing_time.elapsed().as_millis()
 		);
 
+		// Per-block publish of PARENT_BLOCK_POST_LEDGER_STATE for the
+		// pre-verifier of the next block.
+		if let Ok(mut guard) = PARENT_BLOCK_POST_LEDGER_STATE.lock() {
+			*guard = Some(Arc::new(ledger.state.clone()) as Arc<dyn Any + Send + Sync>);
+		}
+
 		Ok(state_root)
 	}
 
 	pub fn get_version() -> Vec<u8> {
 		crate::utils::find_crate_version(super::CRATE_NAME).unwrap_or(b"unknown".into())
+	}
+
+	/// Host-side parallel pre-validation of a block's transactions.
+	///
+	/// Used by a Substrate `BlockImport` wrapper (`midnight_pre_verifier`) to
+	/// farm out `well_formed` checks across a rayon thread pool BEFORE the
+	/// WASM runtime starts applying extrinsics serially. Each verified tx is
+	/// stuffed into `STRICT_TX_VALIDATION_CACHE` keyed by `(parent_block_hash,
+	/// tx_hash)`; when the runtime later calls `apply_transaction` for each
+	/// tx, `get_verified_transaction` hits the cache and skips the ZK proof
+	/// rerun.
+	///
+	/// Bails (no-op) if `PARENT_BLOCK_POST_LEDGER_STATE` hasn't been
+	/// populated by a previous block's `apply_transaction` (first-block
+	/// after startup, or DB-type mismatch from a swap).
+	#[cfg(feature = "std")]
+	pub fn prevalidate_block(
+		parent_block_hash: Hash,
+		tblock: Timestamp,
+		runtime_version: u32,
+		tx_bytes_list: &[&[u8]],
+	) where
+		VerifiedTransaction<D>: Send + Sync + 'static,
+	{
+		use rayon::prelude::*;
+
+		// Grab the latest-observed LedgerState matching our D.
+		type LS<D> = mn_ledger_local::structure::LedgerState<D>;
+		let ledger_state: Arc<LS<D>> = {
+			let guard = match PARENT_BLOCK_POST_LEDGER_STATE.lock() {
+				Ok(g) => g,
+				Err(_) => return,
+			};
+			match guard.as_ref() {
+				Some(any) => match Arc::clone(any).downcast::<LS<D>>() {
+					Ok(ls) => ls,
+					Err(_) => {
+						log::info!(
+							target: LOG_TARGET,
+							"prevalidate_block: BAIL — latest state is for a different DB type"
+						);
+						return;
+					},
+				},
+				None => {
+					log::info!(
+						target: LOG_TARGET,
+						"prevalidate_block: BAIL — no ledger state observed yet"
+					);
+					return;
+				},
+			}
+		};
+
+		let strictness = mn_ledger_local::verify::WellFormedStrictness::default();
+
+		let hits = std::sync::atomic::AtomicUsize::new(0);
+		let misses = std::sync::atomic::AtomicUsize::new(0);
+		let api = api::new();
+
+		tx_bytes_list.par_iter().for_each(|tx_serialized: &&[u8]| {
+			let tx_bytes: &[u8] = *tx_serialized;
+			let wrapped_hash = Self::tx_validation_cache_key(runtime_version, tx_bytes);
+
+			// Skip if already cached — another thread / earlier block may
+			// have already verified this tx.
+			let strict_key = StrictTxValidationKey {
+				ref_anchor: parent_block_hash,
+				tx_hash: wrapped_hash.0,
+			};
+			if STRICT_TX_VALIDATION_CACHE.get(&strict_key).is_some() {
+				hits.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+				return;
+			}
+
+			// Deserialise.
+			let tx: Transaction<S, D> = match api.tagged_deserialize(tx_bytes) {
+				Ok(t) => t,
+				Err(e) => {
+					log::debug!(
+						target: LOG_TARGET,
+						"prevalidate_block: tx deserialise failed, skipping: {e:?}"
+					);
+					return;
+				},
+			};
+
+			// well_formed against the latest observed state.
+			let verified_tx = match tx.0.well_formed(&*ledger_state, strictness, tblock) {
+				Ok(v) => v,
+				Err(e) => {
+					log::debug!(
+						target: LOG_TARGET,
+						"prevalidate_block: well_formed failed (will be re-run by runtime): {e:?}"
+					);
+					return;
+				},
+			};
+
+			STRICT_TX_VALIDATION_CACHE.insert(
+				strict_key,
+				Arc::new(verified_tx) as Arc<dyn Any + Send + Sync>,
+			);
+			misses.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+		});
+
+		let hit = hits.load(std::sync::atomic::Ordering::Relaxed);
+		let miss = misses.load(std::sync::atomic::Ordering::Relaxed);
+		if hit + miss > 0 {
+			log::info!(
+				target: LOG_TARGET,
+				"prevalidate_block: parent={} txs={} prewarmed={} already_cached={}",
+				hex::encode(parent_block_hash),
+				tx_bytes_list.len(),
+				miss,
+				hit,
+			);
+		}
 	}
 
 	pub fn apply_transaction(
@@ -500,6 +715,12 @@ where
 			"⏱️  Ledger persisted (elapsed_ms={})",
 			start_tx_processing_time.elapsed().as_millis()
 		);
+
+		// Intra-block cache-pin to keep arena subtrees hot across apply_tx
+		// calls.
+		if let Ok(mut guard) = INTRA_BLOCK_LEDGER_PIN.lock() {
+			*guard = Some(Arc::new(new_ledger.state.clone()) as Arc<dyn Any + Send + Sync>);
+		}
 
 		// Write Prometheus metrics
 		let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
@@ -913,6 +1134,32 @@ where
 			}
 			// Downcast failed - fall through to recompute
 			log::warn!(target: LOG_TARGET, "VerifiedTransaction cache downcast failed");
+		}
+
+		// Cache miss — but a prevalidate may be in flight for this block.
+		// Block once on its Notify (with a short defensive timeout), then
+		// re-check the cache before falling through to a serial compute.
+		// This recovers the parallel pre-verifier's work even when the
+		// runtime arrives at apply_transaction before the rayon thread has
+		// finished. If the prevalidate was never spawned (or never ran due
+		// to a missing PARENT_BLOCK_POST_LEDGER_STATE on first block), the
+		// lookup returns None and we go straight to the serial compute.
+		if let Some(in_flight) =
+			lookup_in_flight_prevalidation(&strict_key.ref_anchor)
+		{
+			let wait_start = Instant::now();
+			in_flight.wait_done_with_timeout(std::time::Duration::from_secs(30));
+			log::trace!(
+				target: LOG_TARGET,
+				"get_verified_transaction: waited {}us on in-flight prevalidate (tx={:x?})",
+				wait_start.elapsed().as_micros(),
+				&tx_hash.0[..4],
+			);
+			if let Some(cached) = STRICT_TX_VALIDATION_CACHE.get(&strict_key) {
+				if let Some(vt) = cached.downcast_ref::<VerifiedTransaction<D>>() {
+					return Ok(vt.clone());
+				}
+			}
 		}
 
 		// Cache miss: compute VerifiedTransaction
