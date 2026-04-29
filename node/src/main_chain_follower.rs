@@ -329,11 +329,15 @@ pub async fn create_cached_data_sources(
 			midnight_metrics_opt.clone(),
 			1000,
 		));
+		let stability_margin = db_sync_block_data_source_config
+			.cardano_security_parameter
+			.saturating_add(db_sync_block_data_source_config.block_stability_margin);
 		BulkCachedCNightObservationDataSource::new(
 			events,
 			cnight_observation_pool,
 			db_fallback,
 			cnight_addresses,
+			stability_margin,
 			midnight_metrics_opt.clone(),
 		)
 	};

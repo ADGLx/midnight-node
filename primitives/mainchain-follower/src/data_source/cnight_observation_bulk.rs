@@ -43,11 +43,6 @@ const LARGE_LIMIT: usize = 5_000_000;
 /// `end_block`, kick off an async refresh to extend the in-memory window.
 const REFRESH_THRESHOLD: u32 = 10_000;
 
-/// How many cardano blocks past the requested target to leave un-fetched
-/// (re-org safety). The follower never asks for queries past the stable
-/// horizon anyway, so this is mostly belt-and-braces.
-const REFRESH_STABILITY_MARGIN: u32 = 2_170;
-
 /// Pull every cnight observation event in `[from_block, to_block]` (inclusive)
 /// and return them sorted ascending by `tx_position`.
 ///
@@ -174,6 +169,9 @@ pub struct BulkCachedCNightObservationDataSource {
 	/// cNIGHT addresses cached so the sliding-window refresh can re-run the
 	/// observation queries without re-reading the chainspec JSON.
 	cnight_addresses: CNightAddresses,
+	/// Cardano blocks to leave un-fetched past the requested target
+	/// (re-org safety). Equals `cardano_security_parameter + block_stability_margin`.
+	stability_margin: u32,
 	/// Single-flight gate for sliding-window refreshes.
 	refresh_in_flight: Arc<Mutex<bool>>,
 	#[allow(dead_code)]
@@ -186,6 +184,7 @@ impl BulkCachedCNightObservationDataSource {
 		pool: PgPool,
 		db_fallback: Arc<MidnightCNightObservationDataSourceImpl>,
 		cnight_addresses: CNightAddresses,
+		stability_margin: u32,
 		metrics_opt: Option<MidnightDataSourceMetrics>,
 	) -> Self {
 		let snapshot_end_block = events.last().map(|e| e.header.tx_position.block_number);
@@ -197,6 +196,7 @@ impl BulkCachedCNightObservationDataSource {
 			snapshot_end_block: Arc::new(std::sync::RwLock::new(snapshot_end_block)),
 			db_fallback,
 			cnight_addresses,
+			stability_margin,
 			refresh_in_flight: Arc::new(Mutex::new(false)),
 			metrics_opt,
 		}
@@ -359,7 +359,7 @@ impl MidnightCNightObservationDataSource for BulkCachedCNightObservationDataSour
 				let target_end = tip_pos
 					.block_number
 					.saturating_add(REFRESH_THRESHOLD)
-					.saturating_add(REFRESH_STABILITY_MARGIN);
+					.saturating_add(self.stability_margin);
 				self.maybe_kick_refresh(target_end);
 			}
 			if tip_pos.block_number > horizon {
