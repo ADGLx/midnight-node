@@ -192,7 +192,8 @@ lazy_static! {
 const LEDGER_PIN_RESET_BLOCKS: u64 = 200;
 
 #[cfg(feature = "std")]
-static LEDGER_PIN_BLOCK_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+static LEDGER_PIN_BLOCK_COUNTER: std::sync::atomic::AtomicU64 =
+	std::sync::atomic::AtomicU64::new(0);
 
 #[cfg(feature = "std")]
 pub struct Bridge<S: SignatureKind<D>, D: DB> {
@@ -329,8 +330,7 @@ where
 		// subtrees can be released. The pin only matters within a block;
 		// clearing it at a block boundary costs at most one block's worth
 		// of arena cache misses on the next block.
-		let n = LEDGER_PIN_BLOCK_COUNTER
-			.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+		let n = LEDGER_PIN_BLOCK_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
 		if n.is_multiple_of(LEDGER_PIN_RESET_BLOCKS)
 			&& let Ok(mut guard) = INTRA_BLOCK_LEDGER_PIN.lock()
 		{

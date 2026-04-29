@@ -263,9 +263,8 @@ async fn refresh_window(
 	let t0 = std::time::Instant::now();
 	let extension = bulk_pull(pool, cfg, from_block, target_end).await?;
 	{
-		let mut events_guard = all_events
-			.write()
-			.map_err(|e| format!("all_events write poisoned: {e}"))?;
+		let mut events_guard =
+			all_events.write().map_err(|e| format!("all_events write poisoned: {e}"))?;
 		let mut new_vec: Vec<ObservedUtxo> =
 			Vec::with_capacity(events_guard.len() + extension.len());
 		new_vec.extend_from_slice(events_guard.as_slice());

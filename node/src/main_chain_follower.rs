@@ -289,9 +289,7 @@ pub async fn create_cached_data_sources(
 		})?;
 		let cnight_genesis: pallet_cnight_observation::config::CNightGenesis =
 			serde_json::from_str(&cnight_genesis_str).map_err(|e| {
-				format!(
-					"failed to parse chainspec_cnight_genesis ({cnight_genesis_path}): {e}"
-				)
+				format!("failed to parse chainspec_cnight_genesis ({cnight_genesis_path}): {e}")
 			})?;
 		let cnight_addresses = cnight_genesis.addresses;
 
@@ -308,9 +306,9 @@ pub async fn create_cached_data_sources(
 			.fetch_one(&cnight_observation_pool)
 			.await
 			.map_err(|e| format!("failed to query Cardano tip from db-sync: {e}"))?;
-			tip_block_no.try_into().map_err(|_| {
-				format!("Cardano tip block_no out of u32 range: {tip_block_no}")
-			})?
+			tip_block_no
+				.try_into()
+				.map_err(|_| format!("Cardano tip block_no out of u32 range: {tip_block_no}"))?
 		};
 
 		log::info!(
