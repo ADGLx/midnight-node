@@ -1,4 +1,4 @@
-#ledger #node #runtime
+#storage
 # Un-persist transient ledger states to allow for garbage collection
 
 Replace the raw `Vec<u8>` ledger state key encoding with a typed enum so the Bridge distinguishes states that must be retained for history (post-block tips, genesis) from intra-block intermediates that can be cleaned up by their successor — at the type level rather than by convention.
