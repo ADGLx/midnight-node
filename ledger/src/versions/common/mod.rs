@@ -171,7 +171,28 @@ lazy_static! {
 			.time_to_idle(TX_VALIDATION_CACHE_TTI)
 			.time_to_live(SOFT_TX_VALIDATION_CACHE_TTL)
 			.build();
+
+	/// Within a block, hold a strong reference to the in-flight ledger state
+	/// across consecutive `apply_transaction` calls. Without this pin the
+	/// substrate storage cache may evict arena subtrees mid-block under
+	/// pressure and the next tx pays a disk-fetch cost.
+	///
+	/// Cleared in `post_block_update` every `LEDGER_PIN_RESET_BLOCKS`
+	/// blocks so retained arena subtrees can be released — otherwise the
+	/// pin holds them indefinitely and memory grows without bound.
+	static ref INTRA_BLOCK_LEDGER_PIN: std::sync::Mutex<Option<Arc<dyn Any + Send + Sync>>> =
+		std::sync::Mutex::new(None);
 }
+
+/// How often (in blocks) to drop `INTRA_BLOCK_LEDGER_PIN` so arena retention
+/// does not grow unbounded. The pin only matters within a block; clearing it
+/// at block boundaries every N blocks pays one block's worth of arena cache
+/// misses to free retained memory.
+#[cfg(feature = "std")]
+const LEDGER_PIN_RESET_BLOCKS: u64 = 200;
+
+#[cfg(feature = "std")]
+static LEDGER_PIN_BLOCK_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
 
 #[cfg(feature = "std")]
 pub struct Bridge<S: SignatureKind<D>, D: DB> {
@@ -303,6 +324,18 @@ where
 			"⏱️  Ledger persisted (elapsed_ms={})",
 			start_tx_processing_time.elapsed().as_millis()
 		);
+
+		// Periodically drop the intra-block ledger pin so retained arena
+		// subtrees can be released. The pin only matters within a block;
+		// clearing it at a block boundary costs at most one block's worth
+		// of arena cache misses on the next block.
+		let n = LEDGER_PIN_BLOCK_COUNTER
+			.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+		if n.is_multiple_of(LEDGER_PIN_RESET_BLOCKS)
+			&& let Ok(mut guard) = INTRA_BLOCK_LEDGER_PIN.lock()
+		{
+			*guard = None;
+		}
 
 		Ok(state_root)
 	}
@@ -496,6 +529,13 @@ where
 			"⏱️  Ledger persisted (elapsed_ms={})",
 			start_tx_processing_time.elapsed().as_millis()
 		);
+
+		// Keep the in-flight ledger state alive across consecutive
+		// apply_transaction calls so the substrate storage cache does not
+		// evict arena subtrees we'll need for the next tx in this block.
+		if let Ok(mut guard) = INTRA_BLOCK_LEDGER_PIN.lock() {
+			*guard = Some(Arc::new(new_ledger.state.clone()) as Arc<dyn Any + Send + Sync>);
+		}
 
 		// Write Prometheus metrics
 		let maybe_metrics = externalities.extension::<LedgerMetricsExt>();
