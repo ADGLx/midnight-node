@@ -262,7 +262,7 @@ where
 				target: LOG_TARGET,
 				"Post Block Update error: {e:?}"
 			);
-			LedgerApiError::NoLedgerState
+			e
 		})?;
 		log::trace!(
 			target: LOG_TARGET,
@@ -286,6 +286,18 @@ where
 		);
 
 		Ok(state_root)
+	}
+
+	fn verify_post_block_update(
+		api: &api::Api,
+		ledger: &Ledger<D>,
+		block_context: &BlockContext,
+	) -> Result<(), LedgerApiError> {
+		let post_block_state =
+			ledger.prepare_post_block_update(block_context, "pre_post_block_update")?;
+		let post_block_ledger = default_storage::<D>().arena.alloc(Ledger::new(post_block_state));
+		api.tagged_serialize(&post_block_ledger.as_typed_key())?;
+		Ok(())
 	}
 
 	pub fn get_version() -> Vec<u8> {
@@ -411,6 +423,13 @@ where
 			start_tx_processing_time.elapsed().as_millis()
 		);
 
+		Self::verify_post_block_update(&api, &new_ledger, &block_context)?;
+		log::trace!(
+			target: LOG_TARGET,
+			"⏱️  Post block update verified (elapsed_ms={})",
+			start_tx_processing_time.elapsed().as_millis()
+		);
+
 		let mut event = TransactionAppliedStateRoot {
 			state_root: api.tagged_serialize(&new_ledger.as_typed_key())?,
 			tx_hash,
@@ -518,6 +537,13 @@ where
 
 		let mut ledger =
 			Ledger::apply_system_tx(ledger, &tx, Timestamp::from_secs(block_context.tblock))?;
+
+		Self::verify_post_block_update(&api, &ledger, &block_context)?;
+		log::trace!(
+			target: LOG_TARGET,
+			"⏱️  SystemTx post block update verified (elapsed_ms={})",
+			start_system_tx_processing_time.elapsed().as_millis()
+		);
 
 		let event = SystemTransactionAppliedStateRoot {
 			state_root: api.tagged_serialize(&ledger.as_typed_key())?,

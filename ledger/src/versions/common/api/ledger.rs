@@ -167,23 +167,31 @@ impl<D: DB> Ledger<D> {
 		sp: Sp<Self, D>,
 		block_context: BlockContext,
 	) -> Result<Sp<Self, D>, LedgerApiError> {
-		let block_fullness: SyntheticCost = sp.block_fullness.clone().into();
-		let block_limits = sp.state.parameters.limits.block_limits;
+		let next_state = sp.prepare_post_block_update(&block_context, "post_block_update")?;
+		let new_sp = default_storage::<D>()
+			.arena
+			.alloc(Ledger { state: next_state, block_fullness: SyntheticCost::ZERO.into() });
+		Ok(new_sp)
+	}
+
+	pub(crate) fn prepare_post_block_update(
+		&self,
+		block_context: &BlockContext,
+		context: &str,
+	) -> Result<LedgerState<D>, LedgerApiError> {
+		let block_fullness: SyntheticCost = self.block_fullness.clone().into();
+		let block_limits = self.state.parameters.limits.block_limits;
 		let normalized_fullness =
-			helpers_local::clamp_and_normalize(&block_fullness, &block_limits, "post_block_update");
+			helpers_local::clamp_and_normalize(&block_fullness, &block_limits, context);
 		let overall_fullness = compute_overall_fullness(&normalized_fullness);
-		let next_state = sp
-			.state
+
+		self.state
 			.post_block_update(
 				Timestamp::from_secs(block_context.tblock),
 				normalized_fullness,
 				overall_fullness,
 			)
-			.map_err(|_| LedgerApiError::BlockLimitExceededError)?;
-		let new_sp = default_storage::<D>()
-			.arena
-			.alloc(Ledger { state: next_state, block_fullness: SyntheticCost::ZERO.into() });
-		Ok(new_sp)
+			.map_err(|_| LedgerApiError::BlockLimitExceededError)
 	}
 
 	pub(crate) fn apply_system_tx(
