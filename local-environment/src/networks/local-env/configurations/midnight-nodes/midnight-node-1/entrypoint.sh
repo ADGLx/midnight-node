@@ -24,6 +24,8 @@ set -euxo pipefail
   --chain=/shared/chain-spec.json \
   --node-key=0000000000000000000000000000000000000000000000000000000000000001 \
   --public-addr=/dns/midnight-node-1/tcp/30333/p2p/12D3KooWEyoppNCUx8Yx66oV9fJnriXwCcXwDDUA2kj6vnc6iDEp \
+  --listen-addr=/ip4/0.0.0.0/tcp/30333 \
+  --listen-addr=/ip4/0.0.0.0/tcp/30343/ws \
   --base-path=/data \
   --unsafe-rpc-external \
   --rpc-methods=Unsafe \

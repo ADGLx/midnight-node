@@ -336,6 +336,7 @@ services:
     entrypoint: ["/bin/bash", "/entrypoint.sh"]
     ports:
       - "30333:30333"
+      - "30343:30343"
       - "9933:9933"
       - "9615:9615"
     restart: always

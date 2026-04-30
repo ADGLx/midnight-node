@@ -36,6 +36,10 @@ PLUTUS_JSON="${CONTRACTS_DIR}/plutus-local.json"
 echo "Copying contracts to writable location..."
 cp -r $CONTRACTS_SRC /tmp
 cp /.env $CONTRACTS_DIR
+# Strip any host-side node_modules that came along for the ride. On macOS hosts
+# it brings in Mach-O binaries (notably node_modules/.bin/bun) that the Linux
+# container can't exec, surfacing as "Exec format error" on the first bun run.
+rm -rf "${CONTRACTS_DIR}/node_modules"
 echo "✓ Contracts copied to ${CONTRACTS_DIR}"
 
 # Clean any existing build artifacts to ensure fresh compilation
