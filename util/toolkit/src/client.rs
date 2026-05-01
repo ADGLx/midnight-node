@@ -16,7 +16,10 @@ use std::time::Duration;
 use backoff::ExponentialBackoff;
 use backoff::future::retry;
 use midnight_node_ledger_helpers::{LedgerParameters, deserialize};
-use midnight_node_metadata::midnight_metadata_latest as mn_meta;
+use midnight_node_metadata::{
+	midnight_metadata_0_22_0 as mn_meta_0_22_0, midnight_metadata_1_0_0 as mn_meta_1_0_0,
+	midnight_metadata_latest as mn_meta,
+};
 use parity_scale_codec::Decode;
 use subxt::config::HashFor;
 use subxt::rpcs::methods::legacy::{BlockNumber, SystemProperties};
@@ -28,25 +31,11 @@ use subxt::{
 };
 use thiserror::Error;
 
+use crate::fetcher::runtimes::{RuntimeVersion, RuntimeVersionError};
+
 /// Maximum time to wait for a client connection before giving up.
 /// Set generously to handle rate-limiting (429) during concurrent connection attempts.
 const CLIENT_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
-
-/// Local mirror of `midnight_node_ledger::types::LedgerStateKey` for decoding the
-/// pallet's `StateKey` storage. Variant order must match the on-chain definition.
-#[derive(Decode)]
-enum LedgerStateKey {
-	Anchored(Vec<u8>),
-	Transient(Vec<u8>),
-}
-
-impl LedgerStateKey {
-	fn into_bytes(self) -> Vec<u8> {
-		match self {
-			LedgerStateKey::Anchored(b) | LedgerStateKey::Transient(b) => b,
-		}
-	}
-}
 
 #[derive(Clone, Debug, Default)]
 pub struct MidnightNodeClientConfig;
@@ -112,28 +101,64 @@ impl MidnightNodeClient {
 	pub async fn get_state_root_at(
 		&self,
 		at: Option<HashFor<MidnightNodeClientConfig>>,
+		runtime_version: Option<RuntimeVersion>,
 	) -> Result<Option<Vec<u8>>, ClientError> {
-		// Use a raw storage query to avoid IncompatibleCodegen errors when the
-		// toolkit is compiled against a different runtime version than the node.
-		// The storage key is stable: twox_128("Midnight") ++ twox_128("StateKey").
-		let key =
-			[sp_crypto_hashing::twox_128(b"Midnight"), sp_crypto_hashing::twox_128(b"StateKey")]
-				.concat();
 		let at_block = match at {
 			Some(hash) => self.api.at_block(hash).await?,
 			None => self.api.at_current_block().await?,
 		};
-		let storage = at_block.storage();
-		let raw = match storage.fetch_raw(key).await {
-			Ok(bytes) => Some(bytes),
-			Err(subxt::error::StorageError::NoValueFound) => None,
-			Err(e) => return Err(e.into()),
+
+		let runtime_version = match runtime_version {
+			Some(v) => v,
+			None => {
+				let header = at_block.block_header().await?;
+				RuntimeVersion::from_header(&header)?
+			},
 		};
-		Ok(raw.map(|bytes| {
-			LedgerStateKey::decode(&mut &bytes[..])
-				.expect("failed to decode StateKey")
-				.into_bytes()
-		}))
+
+		match runtime_version {
+			RuntimeVersion::V0_21_0 => {
+				// V0_21_0 has no `get_ledger_state_root` runtime API; fall back to raw
+				// storage. On V0_21_0 the `Midnight::StateKey` value is `Vec<u8>` (the
+				// `LedgerStateKey` enum was introduced in V1_0_0), so we decode as such.
+				let key = [
+					sp_crypto_hashing::twox_128(b"Midnight"),
+					sp_crypto_hashing::twox_128(b"StateKey"),
+				]
+				.concat();
+				let raw = match at_block.storage().fetch_raw(key).await {
+					Ok(bytes) => Some(bytes),
+					Err(subxt::error::StorageError::NoValueFound) => None,
+					Err(e) => return Err(e.into()),
+				};
+				Ok(raw
+					.map(|bytes| Vec::<u8>::decode(&mut &bytes[..]))
+					.transpose()
+					.map_err(ClientError::DecodeStateKey)?)
+			},
+			RuntimeVersion::V0_22_0 => {
+				let call = mn_meta_0_22_0::runtime_apis::RuntimeApi
+					.midnight_runtime_api()
+					.get_ledger_state_root();
+				let root = at_block
+					.runtime_apis()
+					.call(call)
+					.await?
+					.map_err(|e| ClientError::LedgerApi(format!("{e:?}")))?;
+				Ok(Some(root))
+			},
+			RuntimeVersion::V1_0_0 => {
+				let call = mn_meta_1_0_0::runtime_apis::RuntimeApi
+					.midnight_runtime_api()
+					.get_ledger_state_root();
+				let root = at_block
+					.runtime_apis()
+					.call(call)
+					.await?
+					.map_err(|e| ClientError::LedgerApi(format!("{e:?}")))?;
+				Ok(Some(root))
+			},
+		}
 	}
 
 	pub async fn get_block_one_hash(
@@ -180,6 +205,14 @@ pub enum ClientError {
 	RuntimeApiError(#[from] subxt::error::RuntimeApiError),
 	#[error("storage error: {0}")]
 	StorageError(#[from] subxt::error::StorageError),
+	#[error("block error: {0}")]
+	BlockError(#[from] subxt::error::BlockError),
+	#[error("runtime version error: {0}")]
+	RuntimeVersion(#[from] RuntimeVersionError),
+	#[error("failed to decode raw StateKey storage: {0}")]
+	DecodeStateKey(parity_scale_codec::Error),
+	#[error("ledger runtime API returned an error: {0}")]
+	LedgerApi(String),
 	#[error("midnight node client received an unsupported network id")]
 	UnsupportedNetworkId(Vec<u8>),
 	#[error("failed to get block hash for block {0}")]
