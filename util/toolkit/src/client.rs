@@ -32,6 +32,22 @@ use thiserror::Error;
 /// Set generously to handle rate-limiting (429) during concurrent connection attempts.
 const CLIENT_CONNECT_TIMEOUT: Duration = Duration::from_secs(60);
 
+/// Local mirror of `midnight_node_ledger::types::LedgerStateKey` for decoding the
+/// pallet's `StateKey` storage. Variant order must match the on-chain definition.
+#[derive(Decode)]
+enum LedgerStateKey {
+	Anchored(Vec<u8>),
+	Transient(Vec<u8>),
+}
+
+impl LedgerStateKey {
+	fn into_bytes(self) -> Vec<u8> {
+		match self {
+			LedgerStateKey::Anchored(b) | LedgerStateKey::Transient(b) => b,
+		}
+	}
+}
+
 #[derive(Clone, Debug, Default)]
 pub struct MidnightNodeClientConfig;
 
@@ -113,7 +129,11 @@ impl MidnightNodeClient {
 			Err(subxt::error::StorageError::NoValueFound) => None,
 			Err(e) => return Err(e.into()),
 		};
-		Ok(raw.map(|bytes| Vec::<u8>::decode(&mut &bytes[..]).expect("failed to decode StateKey")))
+		Ok(raw.map(|bytes| {
+			LedgerStateKey::decode(&mut &bytes[..])
+				.expect("failed to decode StateKey")
+				.into_bytes()
+		}))
 	}
 
 	pub async fn get_block_one_hash(
