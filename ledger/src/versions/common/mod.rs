@@ -952,13 +952,11 @@ where
 			},
 		};
 
-		// Dry-run apply to validate guaranteed execution against current state
+		// Dry-run only the guaranteed segment against the current state.
 		let ctx = ledger.get_transaction_context(block_context.clone())?;
-		let (_next_state, result) = ledger.state.apply(&verified_tx, &ctx);
 
-		match result {
-			mn_ledger_local::semantics::TransactionResult::Success(_)
-			| mn_ledger_local::semantics::TransactionResult::PartialSuccess(_, _) => {
+		match ledger.state.apply_guaranteed_only(verified_tx, &ctx) {
+			Ok(_) => {
 				log::info!(
 					target: LOG_TARGET,
 					"📋 Validated transaction {} for mempool",
@@ -967,8 +965,8 @@ where
 				// Cache the success (only successes are cached)
 				SOFT_TX_VALIDATION_CACHE.insert(soft_key, Ok(()));
 				Ok(false)
-			},
-			mn_ledger_local::semantics::TransactionResult::Failure(reason) => {
+			}
+			Err(reason) => {
 				log::warn!(
 					target: LOG_TARGET,
 					"🚫 Rejected transaction {} from mempool: guaranteed execution would fail: {reason:?}",
@@ -983,8 +981,8 @@ where
 	/// Validates transaction application, with caching.
 	///
 	/// Uses `get_verified_transaction` to get a cached or freshly computed
-	/// `VerifiedTransaction`, then performs a dry-run `apply()` to validate
-	/// the guaranteed part will succeed.
+	/// `VerifiedTransaction`, then applies only the guaranteed segment in a dry-run
+	/// to validate that the transaction can enter a block.
 	///
 	/// Returns `true` if validation was served from the strict cache, `false` otherwise.
 	fn do_validate_guaranteed_execution(
@@ -1008,12 +1006,10 @@ where
 		let verified_tx = Self::get_verified_transaction(ledger, tx, block_context, tx_hash)?;
 
 		let ctx = ledger.get_transaction_context(block_context.clone())?;
-		let (_next_state, result) = ledger.state.apply(&verified_tx, &ctx);
 
-		match result {
-			mn_ledger_local::semantics::TransactionResult::Success(_)
-			| mn_ledger_local::semantics::TransactionResult::PartialSuccess(_, _) => Ok(was_cached),
-			mn_ledger_local::semantics::TransactionResult::Failure(reason) => {
+		match ledger.state.apply_guaranteed_only(verified_tx, &ctx) {
+			Ok(_) => Ok(was_cached),
+			Err(reason) => {
 				log::warn!(
 					target: LOG_TARGET,
 					"🚫 Rejecting transaction {} at pre-dispatch: guaranteed execution would fail: {reason:?}",
