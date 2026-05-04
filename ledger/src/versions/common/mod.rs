@@ -965,7 +965,7 @@ where
 				// Cache the success (only successes are cached)
 				SOFT_TX_VALIDATION_CACHE.insert(soft_key, Ok(()));
 				Ok(false)
-			}
+			},
 			Err(reason) => {
 				log::warn!(
 					target: LOG_TARGET,
