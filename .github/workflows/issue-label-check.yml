@@ -1,10 +1,11 @@
 name: Issue Label Check
 
 on:
-  issues:
-    types: [opened, labeled, unlabeled]
-  schedule:
-    - cron: "0 8 * * 1-5"
+  # TODO: re-enable `issues` and `schedule` triggers after testing via `workflow_dispatch`.
+  # issues:
+  #   types: [opened, labeled, unlabeled]
+  # schedule:
+  #   - cron: "0 8 * * 1-5"
   workflow_dispatch:
 
 # no top level default permissions for security reasons
