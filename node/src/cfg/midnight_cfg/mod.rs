@@ -88,6 +88,12 @@ pub struct MidnightCfg {
 	#[validate(custom = |s| maybe(s, path_exists))]
 	pub federated_authority_config_file: Option<String>,
 
+	/// Cardano blocks to keep in the cNIGHT observation sliding window.
+	/// Bigger = fewer cache misses during sync but more memory; smaller =
+	/// less memory but more db-fallback calls. Defaults to
+	/// `DEFAULT_WINDOW_SIZE` (100k) when unset.
+	pub cnight_observation_window_size: Option<u32>,
+
 	/// Size of ledger storage cache (number of nodes)
 	pub storage_cache_size: usize,
 

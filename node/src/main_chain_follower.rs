@@ -275,9 +275,7 @@ pub async fn create_cached_data_sources(
 		e
 	})?;
 	let cnight_observation: Arc<dyn MidnightCNightObservationDataSource + Send + Sync> = {
-		use midnight_primitives_mainchain_follower::data_source::{
-			BulkCachedCNightObservationDataSource, bulk_pull,
-		};
+		use midnight_primitives_mainchain_follower::data_source::BulkCachedCNightObservationDataSource;
 
 		// Bulk-read is gated on `chainspec_cnight_genesis` — without it we
 		// can't resolve the cNIGHT addresses to query db-sync. Fall back to
@@ -292,48 +290,37 @@ pub async fn create_cached_data_sources(
 						format!("failed to parse chainspec_cnight_genesis ({path}): {e}")
 					})?;
 				let cnight_addresses = cnight_genesis.addresses;
+				// Anchor the cache at the cardano position the runtime
+				// observes from. Setting snapshot_end = next - 1 makes the
+				// first refresh's `from_block = old_end + 1` land exactly on
+				// `next` (inclusive of the boundary event).
+				let next_pos: u32 = cnight_genesis.next_cardano_position.block_number;
+				let init_horizon = next_pos.saturating_sub(1);
+				use midnight_primitives_mainchain_follower::data_source::DEFAULT_WINDOW_SIZE;
+				let window_size: u32 =
+					cfg.cnight_observation_window_size.unwrap_or(DEFAULT_WINDOW_SIZE);
 
-				// Resolve db-sync's processed Cardano tip as the bulk-read
-				// horizon. The runtime only asks for `current_tip`s past the
-				// security window (the follower hides unstable blocks), so any
-				// in-memory data on a brief Cardano fork is never served.
-				let bulk_end_block: u32 = {
-					let tip_block_no: i32 = sqlx::query_scalar(
-						"SELECT block_no FROM block \
-						 WHERE block_no IS NOT NULL ORDER BY block_no DESC LIMIT 1",
-					)
-					.fetch_one(&cnight_observation_pool)
-					.await
-					.map_err(|e| format!("failed to query Cardano tip from db-sync: {e}"))?;
-					tip_block_no.try_into().map_err(|_| {
-						format!("Cardano tip block_no out of u32 range: {tip_block_no}")
-					})?
-				};
-
+				// Empty initial cache so the node starts up immediately. The
+				// first follower call will see `tip_pos > horizon`, delegate
+				// to db_fallback for that one call, and kick a background
+				// refresh that populates the window. Subsequent calls hit
+				// the cache.
 				log::info!(
-					"loading cNIGHT observation cache from db-sync (horizon = Cardano block {bulk_end_block}, ~2 min)..."
+					"cNIGHT observation: sliding window cache (anchor = Cardano block {next_pos}, window = {window_size})"
 				);
-				let t0 = std::time::Instant::now();
-				let events =
-					bulk_pull(&cnight_observation_pool, &cnight_addresses, 0, bulk_end_block)
-						.await
-						.map_err(|e| format!("cNIGHT observation bulk read failed: {e}"))?;
-				log::info!(
-					"cNIGHT observation cache: {} events loaded in {:?}",
-					events.len(),
-					t0.elapsed(),
-				);
-
+				let stability_margin = db_sync_block_data_source_config
+					.cardano_security_parameter
+					.saturating_add(db_sync_block_data_source_config.block_stability_margin);
 				let db_fallback = Arc::new(MidnightCNightObservationDataSourceImpl::new(
 					cnight_observation_pool.clone(),
 					midnight_metrics_opt.clone(),
 					1000,
 				));
-				let stability_margin = db_sync_block_data_source_config
-					.cardano_security_parameter
-					.saturating_add(db_sync_block_data_source_config.block_stability_margin);
 				Arc::new(BulkCachedCNightObservationDataSource::new(
-					events,
+					Vec::new(),
+					init_horizon,
+					init_horizon,
+					window_size,
 					cnight_observation_pool,
 					db_fallback,
 					cnight_addresses,

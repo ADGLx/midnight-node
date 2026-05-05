@@ -39,8 +39,14 @@ use std::sync::{Arc, Mutex};
 /// one shot.
 const LARGE_LIMIT: usize = 5_000_000;
 
-/// If the resolved tip comes within this many cardano blocks of the snapshot's
-/// `end_block`, kick off an async refresh to extend the in-memory window.
+/// Default number of cardano blocks to keep in the sliding window when the
+/// node config doesn't override it. Memory cost ≈ 5 KB × events-per-block,
+/// so 100k blocks ≈ a few hundred MB on a busy chain.
+pub const DEFAULT_WINDOW_SIZE: u32 = 100_000;
+
+/// If the next-needed cardano position (`start_position`) is within this many
+/// blocks of the cache's `end`, kick an async refresh that slides the window
+/// forward.
 const REFRESH_THRESHOLD: u32 = 10_000;
 
 /// Pull every cnight observation event in `[from_block, to_block]` (inclusive)
@@ -87,7 +93,12 @@ pub async fn bulk_pull(
 		block_hash: McBlockHash([0u8; 32]),
 		block_number: to_block,
 		block_timestamp: Default::default(),
-		tx_index_in_block: u32::MAX,
+		// `tx.block_index` is a signed 32-bit column. The SQL query path
+		// casts this field to `i32` before binding, so we must pick a
+		// sentinel that survives the round-trip: `u32::MAX as i32 == -1`
+		// would silently exclude every event at `block.block_no = to_block`.
+		// `i32::MAX` always fits in `u32` so the conversion is infallible.
+		tx_index_in_block: u32::try_from(i32::MAX).expect("i32::MAX is non-negative"),
 	};
 
 	let (low_bounds, high_bounds) = tokio::try_join!(
@@ -109,26 +120,33 @@ pub async fn bulk_pull(
 	};
 
 	let mut all = Vec::new();
+	let mut counts = (0usize, 0usize, 0usize, 0usize);
 	if let Some(ident) = auth_token_ident {
-		all.extend(
-			ds.get_registration_utxos(
-				cardano_network,
-				ident,
-				&cfg.mapping_validator_address,
-				&paged,
-			)
-			.await?,
-		);
+		let v = ds
+			.get_registration_utxos(cardano_network, ident, &cfg.mapping_validator_address, &paged)
+			.await?;
+		counts.0 = v.len();
+		all.extend(v);
 	}
-	all.extend(
-		ds.get_deregistration_utxos(cardano_network, &cfg.mapping_validator_address, &paged)
-			.await?,
-	);
+	let v = ds
+		.get_deregistration_utxos(cardano_network, &cfg.mapping_validator_address, &paged)
+		.await?;
+	counts.1 = v.len();
+	all.extend(v);
 	if let Some(ident) = cnight_ident {
-		all.extend(ds.get_asset_create_utxos(cardano_network, ident, &paged).await?);
-		all.extend(ds.get_asset_spend_utxos(cardano_network, ident, &paged).await?);
+		let v = ds.get_asset_create_utxos(cardano_network, ident, &paged).await?;
+		counts.2 = v.len();
+		all.extend(v);
+		let v = ds.get_asset_spend_utxos(cardano_network, ident, &paged).await?;
+		counts.3 = v.len();
+		all.extend(v);
 	}
 	all.sort();
+	log::info!(
+		target: "cnight::sliding-window",
+		"bulk_pull [{from_block}, {to_block}] -> reg={} dereg={} create={} spend={} (auth_ident={:?} cnight_ident={:?})",
+		counts.0, counts.1, counts.2, counts.3, auth_token_ident, cnight_ident,
+	);
 	Ok(all)
 }
 
@@ -161,9 +179,12 @@ pub struct BulkCachedCNightObservationDataSource {
 	/// so without this every call would do a postgres round-trip.
 	block_position_cache: Arc<Mutex<HashMap<McBlockHash, CardanoPosition>>>,
 	last_observation: Arc<Mutex<Option<LastObservation>>>,
+	/// Smallest cardano block number for which we have events. Anything
+	/// older has been trimmed by a previous refresh.
+	snapshot_start_block: Arc<std::sync::RwLock<Option<u32>>>,
 	/// Largest cardano block number for which we have events. Queries whose
-	/// resolved tip goes past this delegate to `db_fallback` AND trigger an
-	/// async refresh.
+	/// `start_position` goes past this delegate to `db_fallback` AND trigger
+	/// an async refresh.
 	snapshot_end_block: Arc<std::sync::RwLock<Option<u32>>>,
 	db_fallback: Arc<MidnightCNightObservationDataSourceImpl>,
 	/// cNIGHT addresses cached so the sliding-window refresh can re-run the
@@ -172,6 +193,8 @@ pub struct BulkCachedCNightObservationDataSource {
 	/// Cardano blocks to leave un-fetched past the requested target
 	/// (re-org safety). Equals `cardano_security_parameter + block_stability_margin`.
 	stability_margin: u32,
+	/// Cardano blocks to keep in the sliding window.
+	window_size: u32,
 	/// Single-flight gate for sliding-window refreshes.
 	refresh_in_flight: Arc<Mutex<bool>>,
 	#[allow(dead_code)]
@@ -181,22 +204,29 @@ pub struct BulkCachedCNightObservationDataSource {
 impl BulkCachedCNightObservationDataSource {
 	pub fn new(
 		events: Vec<ObservedUtxo>,
+		window_start_block: u32,
+		window_end_block: u32,
+		window_size: u32,
 		pool: PgPool,
 		db_fallback: Arc<MidnightCNightObservationDataSourceImpl>,
 		cnight_addresses: CNightAddresses,
 		stability_margin: u32,
 		metrics_opt: Option<MidnightDataSourceMetrics>,
 	) -> Self {
-		let snapshot_end_block = events.last().map(|e| e.header.tx_position.block_number);
+		// Initial window covers `[window_start_block, window_end_block]`.
+		// Caller is responsible for bulk-pulling that range; we just record
+		// the bookkeeping.
 		Self {
 			all_events: Arc::new(std::sync::RwLock::new(Arc::new(events))),
 			pool,
 			block_position_cache: Arc::new(Mutex::new(HashMap::new())),
 			last_observation: Arc::new(Mutex::new(None)),
-			snapshot_end_block: Arc::new(std::sync::RwLock::new(snapshot_end_block)),
+			snapshot_start_block: Arc::new(std::sync::RwLock::new(Some(window_start_block))),
+			snapshot_end_block: Arc::new(std::sync::RwLock::new(Some(window_end_block))),
 			db_fallback,
 			cnight_addresses,
 			stability_margin,
+			window_size,
 			refresh_in_flight: Arc::new(Mutex::new(false)),
 			metrics_opt,
 		}
@@ -219,12 +249,24 @@ impl BulkCachedCNightObservationDataSource {
 		let pool = self.pool.clone();
 		let cfg = self.cnight_addresses.clone();
 		let all_events = Arc::clone(&self.all_events);
+		let last_observation = Arc::clone(&self.last_observation);
+		let snapshot_start_block = Arc::clone(&self.snapshot_start_block);
 		let snapshot_end_block = Arc::clone(&self.snapshot_end_block);
 		let in_flight = Arc::clone(&self.refresh_in_flight);
+		let window_size = self.window_size;
 
 		tokio::spawn(async move {
-			if let Err(e) =
-				refresh_window(&pool, &cfg, &all_events, &snapshot_end_block, target_end).await
+			if let Err(e) = refresh_window(
+				&pool,
+				&cfg,
+				&all_events,
+				&last_observation,
+				&snapshot_start_block,
+				&snapshot_end_block,
+				target_end,
+				window_size,
+			)
+			.await
 			{
 				log::warn!(
 					target: "cnight::sliding-window",
@@ -238,15 +280,22 @@ impl BulkCachedCNightObservationDataSource {
 	}
 }
 
-/// Pull events in `(old_end, target_end]` and atomically extend the shared
-/// events vec. New events sort strictly after every existing event, so we
-/// don't need a global re-sort.
+/// Extend the cache forward to `target_end`, pulling events in `(old_end,
+/// target_end]`. Trim happens *behind the follower*, not behind the tip —
+/// dropping events older than `last_observation.start_position - window_size`
+/// is safe (the follower will never re-read that far back), but trimming
+/// behind `target_end - window_size` would drop events the runtime still
+/// needs during catchup, breaking consensus. New events sort strictly after
+/// every retained event, so no global re-sort is needed.
 async fn refresh_window(
 	pool: &PgPool,
 	cfg: &CNightAddresses,
 	all_events: &Arc<std::sync::RwLock<Arc<Vec<ObservedUtxo>>>>,
+	last_observation: &Arc<Mutex<Option<LastObservation>>>,
+	snapshot_start_block: &Arc<std::sync::RwLock<Option<u32>>>,
 	snapshot_end_block: &Arc<std::sync::RwLock<Option<u32>>>,
 	target_end: u32,
+	window_size: u32,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
 	let old_end = snapshot_end_block
 		.read()
@@ -256,30 +305,70 @@ async fn refresh_window(
 		return Ok(());
 	}
 	let from_block = old_end.saturating_add(1);
+	// Anchor the trim point on the follower's last-seen position. During
+	// catchup the follower can be hundreds of thousands of blocks behind tip
+	// and still needs that history, so trimming behind `target_end - W`
+	// would silently drop required events.
+	//
+	// On the first refresh we may not have seen a follower call yet
+	// (everything has gone to db_fallback while waiting for this very
+	// fetch), so fall back to the existing `snapshot_start` — never move it
+	// backward, otherwise we'd lie about coverage.
+	let existing_start = snapshot_start_block
+		.read()
+		.map_err(|e| format!("snapshot_start_block read poisoned: {e}"))?
+		.unwrap_or(from_block);
+	let new_window_start = match last_observation
+		.lock()
+		.ok()
+		.and_then(|g| g.as_ref().map(|last| last.start_position.block_number))
+	{
+		Some(anchor) => existing_start.max(anchor.saturating_sub(window_size)),
+		None => existing_start,
+	};
 	log::info!(
 		target: "cnight::sliding-window",
-		"refresh kicked off: extending window [{from_block}, {target_end}] (old end_block={old_end})"
+		"refresh kicked off: extending to {target_end} (was end={old_end}); trim behind {new_window_start}"
 	);
 	let t0 = std::time::Instant::now();
 	let extension = bulk_pull(pool, cfg, from_block, target_end).await?;
 	{
 		let mut events_guard =
 			all_events.write().map_err(|e| format!("all_events write poisoned: {e}"))?;
-		let mut new_vec: Vec<ObservedUtxo> =
-			Vec::with_capacity(events_guard.len() + extension.len());
-		new_vec.extend_from_slice(events_guard.as_slice());
-		new_vec.extend(extension);
+		let new_vec = slide_events(&events_guard, extension, new_window_start);
 		*events_guard = Arc::new(new_vec);
 	}
+	*snapshot_start_block
+		.write()
+		.map_err(|e| format!("snapshot_start_block write poisoned: {e}"))? = Some(new_window_start);
 	*snapshot_end_block
 		.write()
 		.map_err(|e| format!("snapshot_end_block write poisoned: {e}"))? = Some(target_end);
 	log::info!(
 		target: "cnight::sliding-window",
-		"refresh done: end_block now {target_end} (took {:?})",
+		"refresh done: window now [{new_window_start}, {target_end}] (took {:?})",
 		t0.elapsed()
 	);
 	Ok(())
+}
+
+/// Build a fresh sorted vec covering `[new_window_start, ...]`: take retained
+/// events from `existing` (those at or after `new_window_start`), then append
+/// `extension` (events strictly after the existing end). Pure helper for unit
+/// testing.
+fn slide_events(
+	existing: &[ObservedUtxo],
+	extension: Vec<ObservedUtxo>,
+	new_window_start: u32,
+) -> Vec<ObservedUtxo> {
+	// `existing` is sorted ascending by tx_position.block_number, so a
+	// partition_point gives the first retained index in O(log n).
+	let trim_at =
+		existing.partition_point(|u| u.header.tx_position.block_number < new_window_start);
+	let mut out: Vec<ObservedUtxo> = Vec::with_capacity(existing.len() - trim_at + extension.len());
+	out.extend_from_slice(&existing[trim_at..]);
+	out.extend(extension);
+	out
 }
 
 /// From a sorted vec, return the slice `[a..b)` covering events whose
@@ -352,9 +441,23 @@ impl MidnightCNightObservationDataSource for BulkCachedCNightObservationDataSour
 			},
 		};
 
-		// Sliding-window refresh + horizon delegation.
+		// CORRECTNESS: the runtime expects every event in
+		// `[start_position, tip_pos]`. The cache only covers
+		// `[snapshot_start, snapshot_end]`. If either endpoint of the query
+		// falls outside, we'd return a strict subset of the block author's
+		// observations and `CheckInherents` would reject the block. So we
+		// serve from cache only when `[start_position, tip_pos] ⊂ [snapshot_start,
+		// snapshot_end]`; otherwise delegate to db_fallback (which always has
+		// the complete picture).
+		//
+		// Note `tip_pos` is the cardano tip from the *importing block's*
+		// mc-hash digest — not real-time. So during catchup it advances with
+		// the midnight chain, making a sliding window viable: the cache only
+		// needs to track `tip_pos`, not the live cardano tip.
 		let horizon_opt = self.snapshot_end_block.read().ok().and_then(|g| *g);
+		let snapshot_start_opt = self.snapshot_start_block.read().ok().and_then(|g| *g);
 		if let Some(horizon) = horizon_opt {
+			// Refresh proactively when tip_pos is closing on horizon.
 			if tip_pos.block_number.saturating_add(REFRESH_THRESHOLD) >= horizon {
 				let target_end = tip_pos
 					.block_number
@@ -362,16 +465,26 @@ impl MidnightCNightObservationDataSource for BulkCachedCNightObservationDataSour
 					.saturating_add(self.stability_margin);
 				self.maybe_kick_refresh(target_end);
 			}
-			if tip_pos.block_number > horizon {
+			let tip_past_horizon = tip_pos.block_number > horizon;
+			let start_below_snapshot_start = snapshot_start_opt
+				.is_some_and(|ss| start_position.block_number < ss);
+			if tip_past_horizon || start_below_snapshot_start {
 				log::debug!(
-					"cNIGHT observation: tip cardano block {} past snapshot horizon {}, delegating to DB",
-					tip_pos.block_number, horizon,
+					"cNIGHT observation: query [{} .. {}] outside cache window [{:?} .. {}], delegating to DB",
+					start_position.block_number, tip_pos.block_number, snapshot_start_opt, horizon,
 				);
 				return self
 					.db_fallback
 					.get_utxos_up_to_capacity(config, start_position, current_tip, tx_capacity)
 					.await;
 			}
+		} else {
+			// No horizon yet — cache hasn't been populated. Delegate while
+			// we wait for the first refresh to complete.
+			return self
+				.db_fallback
+				.get_utxos_up_to_capacity(config, start_position, current_tip, tx_capacity)
+				.await;
 		}
 
 		let end = tip_pos.increment();
@@ -429,3 +542,105 @@ impl MidnightCNightObservationDataSource for BulkCachedCNightObservationDataSour
 	}
 }
 );
+
+#[cfg(test)]
+mod tests {
+	use super::*;
+	use crate::{ObservedUtxoData, ObservedUtxoHeader, RegistrationData, UtxoIndexInTx};
+	use midnight_primitives_cnight_observation::CardanoRewardAddressBytes;
+	use sidechain_domain::{McBlockHash, McTxHash};
+
+	/// Minimal `ObservedUtxo` at `(block_number, tx_index_in_block)`. Just
+	/// enough to drive tx_position-based comparisons.
+	fn utxo(block_number: u32, tx_index: u32) -> ObservedUtxo {
+		ObservedUtxo {
+			header: ObservedUtxoHeader {
+				tx_position: CardanoPosition {
+					block_hash: McBlockHash([0u8; 32]),
+					block_number,
+					block_timestamp: Default::default(),
+					tx_index_in_block: tx_index,
+				},
+				tx_hash: McTxHash([0u8; 32]),
+				utxo_tx_hash: McTxHash([0u8; 32]),
+				utxo_index: UtxoIndexInTx(0),
+			},
+			data: ObservedUtxoData::Registration(RegistrationData {
+				cardano_reward_address: CardanoRewardAddressBytes([0u8; 29]),
+				dust_public_key: vec![0u8; 33].try_into().unwrap(),
+			}),
+		}
+	}
+
+	fn pos(block_number: u32, tx_index: u32) -> CardanoPosition {
+		CardanoPosition {
+			block_hash: McBlockHash([0u8; 32]),
+			block_number,
+			block_timestamp: Default::default(),
+			tx_index_in_block: tx_index,
+		}
+	}
+
+	#[test]
+	fn slice_range_returns_half_open_subrange() {
+		let events: Vec<_> = (0..10).map(|n| utxo(n, 0)).collect();
+		let got = slice_range(&events, &pos(2, 0), &pos(7, 0));
+		let block_numbers: Vec<u32> =
+			got.iter().map(|u| u.header.tx_position.block_number).collect();
+		// Half-open: block 7 excluded.
+		assert_eq!(block_numbers, vec![2, 3, 4, 5, 6]);
+	}
+
+	#[test]
+	fn slice_range_empty_when_start_eq_end() {
+		let events: Vec<_> = (0..10).map(|n| utxo(n, 0)).collect();
+		assert!(slice_range(&events, &pos(5, 0), &pos(5, 0)).is_empty());
+	}
+
+	#[test]
+	fn slice_range_empty_when_above_data() {
+		let events: Vec<_> = (0..10).map(|n| utxo(n, 0)).collect();
+		assert!(slice_range(&events, &pos(20, 0), &pos(30, 0)).is_empty());
+	}
+
+	#[test]
+	fn slide_events_trims_front_and_appends_back() {
+		// Existing window covers blocks [10..30); slide to new_start=15
+		// while appending blocks [30..35).
+		let existing: Vec<_> = (10..30).map(|n| utxo(n, 0)).collect();
+		let extension: Vec<_> = (30..35).map(|n| utxo(n, 0)).collect();
+		let result = slide_events(&existing, extension, 15);
+		let block_numbers: Vec<u32> =
+			result.iter().map(|u| u.header.tx_position.block_number).collect();
+		assert_eq!(block_numbers, (15..35).collect::<Vec<_>>());
+	}
+
+	#[test]
+	fn slide_events_no_trim_when_start_below_existing() {
+		let existing: Vec<_> = (10..15).map(|n| utxo(n, 0)).collect();
+		let extension: Vec<_> = (15..18).map(|n| utxo(n, 0)).collect();
+		let result = slide_events(&existing, extension, 5);
+		assert_eq!(result.len(), 8);
+		assert_eq!(result[0].header.tx_position.block_number, 10);
+	}
+
+	#[test]
+	fn slide_events_full_trim_when_start_above_existing() {
+		let existing: Vec<_> = (10..15).map(|n| utxo(n, 0)).collect();
+		let extension: Vec<_> = (20..25).map(|n| utxo(n, 0)).collect();
+		let result = slide_events(&existing, extension, 100);
+		// Everything from `existing` is dropped; only extension survives.
+		let block_numbers: Vec<u32> =
+			result.iter().map(|u| u.header.tx_position.block_number).collect();
+		assert_eq!(block_numbers, vec![20, 21, 22, 23, 24]);
+	}
+
+	#[test]
+	fn slide_events_empty_extension_just_trims() {
+		let existing: Vec<_> = (10..20).map(|n| utxo(n, 0)).collect();
+		let result = slide_events(&existing, vec![], 14);
+		let block_numbers: Vec<u32> =
+			result.iter().map(|u| u.header.tx_position.block_number).collect();
+		assert_eq!(block_numbers, (14..20).collect::<Vec<_>>());
+	}
+}
