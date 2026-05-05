@@ -25,13 +25,12 @@ jobs:
             const labels = context.payload.issue.labels.map(l => l.name);
             const issueNumber = context.payload.issue.number;
 
-            const workflowLabels = ["TO DO", "IN PROGRESS", "IN REVIEW", "IN QA", "DONE"];
-            const hasWorkflow = labels.some(l => workflowLabels.includes(l));
+            const hasOrigin = labels.some(l => l.startsWith("origin:"));
             const hasPriority = labels.some(l => l.startsWith("priority:"));
             const hasComponent = labels.some(l => l.startsWith("component:"));
 
             const missing = [];
-            if (!hasWorkflow) missing.push(`workflow (${workflowLabels.map(l => `\`${l}\``).join(", ")})`);
+            if (!hasOrigin) missing.push("`origin:*`");
             if (!hasPriority) missing.push("`priority:*`");
             if (!hasComponent) missing.push("`component:*`");
 
@@ -46,7 +45,7 @@ jobs:
                 "<summary>Details</summary>",
                 "",
                 "All required labels are present:",
-                `- Workflow: ${labels.find(l => workflowLabels.includes(l))}`,
+                `- Origin: ${labels.find(l => l.startsWith("origin:"))}`,
                 `- Priority: ${labels.find(l => l.startsWith("priority:"))}`,
                 `- Component: ${labels.find(l => l.startsWith("component:"))}`,
                 "",
@@ -61,7 +60,7 @@ jobs:
                 "",
                 "Every issue must have all of the following label types:",
                 "",
-                `- [${hasWorkflow ? "x" : " "}] **Workflow** — one of: ${workflowLabels.map(l => `\`${l}\``).join(", ")}`,
+                `- [${hasOrigin ? "x" : " "}] **Origin** — any label prefixed with \`origin:\``,
                 `- [${hasPriority ? "x" : " "}] **Priority** — any label prefixed with \`priority:\``,
                 `- [${hasComponent ? "x" : " "}] **Component** — any label prefixed with \`component:\``,
                 "",
@@ -104,8 +103,6 @@ jobs:
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
         with:
           script: |
-            const workflowLabels = ["TO DO", "IN PROGRESS", "IN REVIEW", "IN QA", "DONE"];
-
             const issues = await github.paginate(github.rest.issues.listForRepo, {
               owner: context.repo.owner,
               repo: context.repo.repo,
@@ -117,12 +114,12 @@ jobs:
               if (issue.pull_request) continue;
 
               const labels = issue.labels.map(l => l.name);
-              const hasWorkflow = labels.some(l => workflowLabels.includes(l));
+              const hasOrigin = labels.some(l => l.startsWith("origin:"));
               const hasPriority = labels.some(l => l.startsWith("priority:"));
               const hasComponent = labels.some(l => l.startsWith("component:"));
 
               const missing = [];
-              if (!hasWorkflow) missing.push(`workflow (${workflowLabels.map(l => `\`${l}\``).join(", ")})`);
+              if (!hasOrigin) missing.push("`origin:*`");
               if (!hasPriority) missing.push("`priority:*`");
               if (!hasComponent) missing.push("`component:*`");
 
@@ -137,7 +134,7 @@ jobs:
                   "<summary>Details</summary>",
                   "",
                   "All required labels are present:",
-                  `- Workflow: ${labels.find(l => workflowLabels.includes(l))}`,
+                  `- Origin: ${labels.find(l => l.startsWith("origin:"))}`,
                   `- Priority: ${labels.find(l => l.startsWith("priority:"))}`,
                   `- Component: ${labels.find(l => l.startsWith("component:"))}`,
                   "",
@@ -152,7 +149,7 @@ jobs:
                   "",
                   "Every issue must have all of the following label types:",
                   "",
-                  `- [${hasWorkflow ? "x" : " "}] **Workflow** — one of: ${workflowLabels.map(l => `\`${l}\``).join(", ")}`,
+                  `- [${hasOrigin ? "x" : " "}] **Origin** — any label prefixed with \`origin:\``,
                   `- [${hasPriority ? "x" : " "}] **Priority** — any label prefixed with \`priority:\``,
                   `- [${hasComponent ? "x" : " "}] **Component** — any label prefixed with \`component:\``,
                   "",
