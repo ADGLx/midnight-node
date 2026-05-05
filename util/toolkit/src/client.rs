@@ -20,7 +20,6 @@ use midnight_node_metadata::{
 	midnight_metadata_0_22_0 as mn_meta_0_22_0, midnight_metadata_1_0_0 as mn_meta_1_0_0,
 	midnight_metadata_latest as mn_meta,
 };
-use parity_scale_codec::Decode;
 use subxt::config::HashFor;
 use subxt::rpcs::methods::legacy::{BlockNumber, SystemProperties};
 use subxt::utils::{AccountId32, MultiAddress, MultiSignature};
@@ -118,23 +117,16 @@ impl MidnightNodeClient {
 
 		match runtime_version {
 			RuntimeVersion::V0_21_0 => {
-				// V0_21_0 has no `get_ledger_state_root` runtime API; fall back to raw
-				// storage. On V0_21_0 the `Midnight::StateKey` value is `Vec<u8>` (the
-				// `LedgerStateKey` enum was introduced in V1_0_0), so we decode as such.
-				let key = [
-					sp_crypto_hashing::twox_128(b"Midnight"),
-					sp_crypto_hashing::twox_128(b"StateKey"),
-				]
-				.concat();
-				let raw = match at_block.storage().fetch_raw(key).await {
-					Ok(bytes) => Some(bytes),
-					Err(subxt::error::StorageError::NoValueFound) => None,
-					Err(e) => return Err(e.into()),
-				};
-				Ok(raw
-					.map(|bytes| Vec::<u8>::decode(&mut &bytes[..]))
-					.transpose()
-					.map_err(ClientError::DecodeStateKey)?)
+				// V0_21_0 predates the `get_ledger_state_root` runtime API and stores
+				// `tagged_serialize(&Ledger::as_typed_key())` in `Midnight::StateKey`
+				// — i.e., the typed-key hash of `Ledger<D>` (which wraps `LedgerState`
+				// with a `block_fullness` field). The consumer (`LedgerContext::
+				// compute_state_root`) hashes `LedgerState<D>` directly to match the
+				// V0_22_0+ runtime API, so V0_21_0's stored hash is over a different
+				// struct and cannot be transformed to match. We have no way to derive
+				// the pure `LedgerState` typed key without the runtime API, so skip
+				// verification for V0_21_0 blocks.
+				Ok(None)
 			},
 			RuntimeVersion::V0_22_0 => {
 				let call = mn_meta_0_22_0::runtime_apis::RuntimeApi
@@ -209,8 +201,6 @@ pub enum ClientError {
 	BlockError(#[from] subxt::error::BlockError),
 	#[error("runtime version error: {0}")]
 	RuntimeVersion(#[from] RuntimeVersionError),
-	#[error("failed to decode raw StateKey storage: {0}")]
-	DecodeStateKey(parity_scale_codec::Error),
 	#[error("ledger runtime API returned an error: {0}")]
 	LedgerApi(String),
 	#[error("midnight node client received an unsupported network id")]

@@ -12,15 +12,13 @@
 // limitations under the License.
 
 use super::{
-	ArenaKey, BlockContext, DB, DUST_EXPECTED_FILES, DustResolver, Event, FetchMode, LedgerState,
-	Loader, MidnightDataProvider, Offer, OutputMode, PUBLIC_PARAMS, ProofKind,
-	PureGeneratorPedersen, Resolver, SerdeTransaction, SignatureKind, Sp, Storable, SyntheticCost,
-	Tagged, Timestamp, Transaction, TransactionContext, TransactionResult, Utxo,
-	VerifiedTransaction, Wallet, WalletAddress, WalletSeed, WellFormedStrictness,
-	clamp_and_normalize, compute_overall_fullness, default_storage, deserialize,
-	mn_ledger_serialize as serialize, mn_ledger_storage as storage, types::StorableSyntheticCost,
+	BlockContext, DB, DUST_EXPECTED_FILES, DustResolver, Event, FetchMode, LedgerState,
+	MidnightDataProvider, Offer, OutputMode, PUBLIC_PARAMS, ProofKind, PureGeneratorPedersen,
+	Resolver, SerdeTransaction, SignatureKind, Sp, SyntheticCost, Tagged, Timestamp, Transaction,
+	TransactionContext, TransactionResult, Utxo, VerifiedTransaction, Wallet, WalletAddress,
+	WalletSeed, WellFormedStrictness, clamp_and_normalize, compute_overall_fullness,
+	default_storage, deserialize,
 };
-use derive_where::derive_where;
 use hex::encode as hex_encode;
 use lazy_static::lazy_static;
 use std::{
@@ -71,30 +69,6 @@ pub struct LedgerContext<D: DB + Clone> {
 	pub latest_block_context: Mutex<Option<BlockContext>>,
 	pub wallets: Mutex<HashMap<WalletSeed, Wallet<D>>>,
 	pub resolver: MutexTokio<&'static Resolver>,
-}
-
-#[derive(Debug, Storable)]
-#[derive_where(Clone)]
-#[storable(db = D)]
-struct StorableLedgerState<D: DB> {
-	state: LedgerState<D>,
-	block_fullness: StorableSyntheticCost<D>,
-}
-
-impl<D: DB> StorableLedgerState<D> {
-	fn new(state: LedgerState<D>) -> Self {
-		Self { state, block_fullness: StorableSyntheticCost::zero() }
-	}
-}
-
-impl<D: DB> Tagged for StorableLedgerState<D> {
-	fn tag() -> std::borrow::Cow<'static, str> {
-		<LedgerState<D> as Tagged>::tag()
-	}
-
-	fn tag_unique_factor() -> String {
-		<LedgerState<D> as Tagged>::tag_unique_factor()
-	}
 }
 
 impl<D: DB + Clone> LedgerContext<D> {
@@ -294,9 +268,8 @@ impl<D: DB + Clone> LedgerContext<D> {
 
 	fn compute_state_root(state: &LedgerState<D>) -> Option<Vec<u8>> {
 		let storage = default_storage::<D>();
-		let ledger = StorableLedgerState::new(state.clone());
-		let sp = storage.arena.alloc(ledger);
-		super::serialize(&sp.as_typed_key()).ok()
+		let sp = storage.arena.alloc(state.clone());
+		super::serialize_untagged(&sp.as_typed_key()).ok()
 	}
 
 	pub fn update_from_tx<S: SignatureKind<D>, P: ProofKind<D> + std::fmt::Debug>(
@@ -513,6 +486,7 @@ impl<D: DB + Clone> LedgerContext<D> {
 
 #[cfg(test)]
 mod tests {
+	use super::super::mn_ledger_storage as storage;
 	use super::*;
 	use std::sync::{
 		Arc,
