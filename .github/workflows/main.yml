@@ -51,7 +51,7 @@ jobs:
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Checkout Season action repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -202,7 +202,7 @@ jobs:
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
       - name: Install Cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Run Node and toolkit builds
         run: |
@@ -349,42 +349,66 @@ jobs:
   sbom-scan-node-amd64:
     name: SBOM/Scan Node (amd64)
     needs: [publish-amd64]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-amd64
       sbom-artifact-name: sbom-midnight-node-amd64
+      skip-attestation: true
     secrets: inherit
 
   sbom-scan-node-arm64:
     name: SBOM/Scan Node (arm64)
     needs: [publish-amd64, publish-arm64]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-arm64
       sbom-artifact-name: sbom-midnight-node-arm64
+      skip-attestation: true
     secrets: inherit
 
   sbom-scan-toolkit-amd64:
     name: SBOM/Scan Toolkit (amd64)
     needs: [publish-amd64]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-amd64
       sbom-artifact-name: sbom-midnight-node-toolkit-amd64
+      skip-attestation: true
     secrets: inherit
 
   sbom-scan-toolkit-arm64:
     name: SBOM/Scan Toolkit (arm64)
     needs: [publish-amd64, publish-arm64]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     uses: ./.github/workflows/sbom-scan-image.yml
     with:
       image: ghcr.io/midnight-ntwrk/midnight-node-toolkit:${{ needs.publish-amd64.outputs.IMAGE_TAG }}-arm64
       sbom-artifact-name: sbom-midnight-node-toolkit-arm64
+      skip-attestation: true
     secrets: inherit
 
   sbom-scan-indexer-images:
     name: SBOM/Scan Indexer (${{ matrix.image }})
     needs: [build-indexer-images]
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
     strategy:
       matrix:
         image:
@@ -395,6 +419,7 @@ jobs:
     with:
       image: ghcr.io/midnight-ntwrk/${{ matrix.image }}:${{ needs.build-indexer-images.outputs.INDEXER_IMAGE_TAG }}
       sbom-artifact-name: sbom-${{ matrix.image }}
+      skip-attestation: true
     secrets: inherit
 
   publish-multi-arch:
@@ -407,7 +432,7 @@ jobs:
       id-token: write  # Required for keyless signing with Cosign
     steps:
       - name: Install Cosign
-        uses: sigstore/cosign-installer@faadad0cce49287aee09b3a48701e75088a2c6ad # v4.0.0
+        uses: sigstore/cosign-installer@dc72c7d5c4d10cd6bcb8cf6e3fd625a9e5e537da # v3.7.0
 
       - name: Login to GHCR
         uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 #v3.7.0
