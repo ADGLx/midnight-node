@@ -284,6 +284,10 @@ pub mod pallet {
 		NetworkIdNotString,
 		#[codec(index = 12)]
 		GetTransactionContextError,
+		#[codec(index = 13)]
+		ContractNotPresent,
+		#[codec(index = 14)]
+		BeneficiaryNotFound,
 	}
 	// grcov-excl-stop
 
@@ -305,6 +309,8 @@ pub mod pallet {
 				LedgerApiError::GetTransactionContextError => {
 					Error::<T>::GetTransactionContextError
 				},
+				LedgerApiError::ContractNotPresent => Error::<T>::ContractNotPresent,
+				LedgerApiError::BeneficiaryNotFound => Error::<T>::BeneficiaryNotFound,
 			}
 		}
 	}

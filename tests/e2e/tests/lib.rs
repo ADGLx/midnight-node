@@ -1,6 +1,6 @@
 use midnight_node_e2e::api::cardano::CardanoClient;
 use midnight_node_e2e::api::midnight::MidnightClient;
-use midnight_node_e2e::config::Settings;
+use midnight_node_e2e::config::{self, Settings};
 use midnight_node_e2e::faucet::FaucetManager;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation;
 use midnight_node_metadata::midnight_metadata_latest::c_night_observation::events::{
@@ -155,18 +155,17 @@ async fn verify_governance_contracts_and_validate_membership_reset() {
     println!("=== Verifying Governance Contracts Deployed by midnight-setup ===");
 
     let settings = Settings::default();
-    let policies = settings.constants.policies.clone();
 
     let cardano_client =
         CardanoClient::new_from_funded(settings.ogmios_client, settings.constants).await;
     let midnight_client = MidnightClient::new(settings.node_client).await;
 
-    // Get expected addresses and policy IDs from config
-    let council_address = policies.council_forever_address();
-    let council_policy_id = policies.council_forever_policy_id();
+    // Get expected addresses and policy IDs from runtime-values
+    let council_address = config::council_forever_address();
+    let council_policy_id = config::council_forever_policy_id();
 
-    let tech_auth_address = policies.tech_auth_forever_address();
-    let tech_auth_policy_id = policies.tech_auth_forever_policy_id();
+    let tech_auth_address = config::tech_auth_forever_address();
+    let tech_auth_policy_id = config::tech_auth_forever_policy_id();
 
     println!("Council Forever:");
     println!("  Policy ID (expected): {}", council_policy_id);
@@ -264,14 +263,13 @@ async fn verify_federated_ops_contract_deployment() {
     println!("=== Verifying Federated Operators Contract Deployed by midnight-setup ===");
 
     let settings = Settings::default();
-    let policies = settings.constants.policies.clone();
 
     let cardano_client =
         CardanoClient::new_from_funded(settings.ogmios_client, settings.constants).await;
 
-    // Get expected address and policy ID from config
-    let federated_ops_address = policies.federated_ops_forever_address();
-    let federated_ops_policy_id = policies.federated_ops_forever_policy_id();
+    // Get expected address and policy ID from runtime-values
+    let federated_ops_address = config::federated_ops_forever_address();
+    let federated_ops_policy_id = config::federated_ops_forever_policy_id();
 
     println!("Federated Operators Forever:");
     println!("  Policy ID (expected): {}", federated_ops_policy_id);
@@ -322,7 +320,7 @@ async fn register_2_cardano_same_dust_address_production() {
     println!("Second Cardano wallet created: {:?}", address_bech_32_2);
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     let dust_bytes: [u8; 33] = hex::decode(&dust_hex).unwrap().try_into().unwrap();
     println!(
         "Registering First Cardano wallet {} with DUST address {}",
@@ -602,7 +600,7 @@ async fn cnight_produces_dust() {
         "Midnight wallet seed: {}",
         hex::encode(midnight_wallet_seed.as_bytes())
     );
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     println!(
         "Registering Cardano wallet {} with DUST address {}",
         bech32_address, dust_hex
@@ -681,7 +679,7 @@ async fn cnight_produces_dust() {
             fetch_compute_concurrency: None,
             ledger_state_db: "".to_string(),
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed.clone(),
         dry_run: false,
     };
 
@@ -736,7 +734,7 @@ async fn deregister_from_dust_production() {
     println!("New Cardano wallet created: {:?}", address_bech32);
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     let dust_bytes: Vec<u8> = hex::decode(&dust_hex).unwrap().try_into().unwrap();
     println!(
         "Registering Cardano wallet {} with DUST address {}",
@@ -758,10 +756,7 @@ async fn deregister_from_dust_production() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -904,7 +899,7 @@ async fn alice_cannot_deregister_bob() {
     );
 
     // Find Bob's registration UTXO
-    let validator_address = bob.constants.policies.mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = bob
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -1079,10 +1074,7 @@ async fn removing_excessive_registrations() {
         deregistration.unwrap()
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -1193,10 +1185,7 @@ async fn create_hundred_registrations() {
     let collateral_utxo = faucet.request_tokens(&address_bech32, 5_000_000).await;
     let mut tx_in = faucet.request_tokens(&address_bech32, 500_000_000).await;
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
 
     let mut register_tx_id: [[u8; 32]; 101] = [[0; 32]; 101];
 
@@ -1526,6 +1515,33 @@ async fn valid_deploy_transaction_succeeds_via_rpc() {
 
     println!("✓ PR367-TC-0003-03 E2E PASSED: Valid transaction accepted and included in block");
 }
+
+#[tokio::test]
+async fn get_contract_state_returns_error_if_not_present() {
+    let settings = Settings::default();
+    let client = MidnightClient::new(settings.node_client).await;
+
+    // Use a random contract address that is highly unlikely to be deployed
+    let random_address = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff";
+
+    let result = client.get_contract_state(random_address).await;
+
+    assert!(
+        result.is_err(),
+        "Expected error when getting state for non-existent contract, but got success"
+    );
+
+    let err_msg = result.unwrap_err().to_string();
+    assert!(
+        err_msg.contains("Contract not present")
+            || err_msg.contains("Unable to get requested contract state")
+            || err_msg.contains("Unable to get contract state")
+            || err_msg.contains("UnableToGetContractState"),
+        "Error message should indicate contract is not present or unable to get state. Got: {}",
+        err_msg
+    );
+}
+
 #[tokio::test]
 async fn register_twice_with_same_cardano_address() {
     let settings = Settings::default();
@@ -1536,7 +1552,7 @@ async fn register_twice_with_same_cardano_address() {
     println!("New Cardano wallet created: {:?}", address_bech32);
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     println!(
         "Registering Cardano wallet {} with DUST address {}",
         address_bech32, dust_hex
@@ -1557,10 +1573,7 @@ async fn register_twice_with_same_cardano_address() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -1607,7 +1620,7 @@ async fn register_twice_with_same_cardano_address() {
     let tx_in2 = faucet.request_tokens(&address_bech32, 10_000_000).await;
 
     let midnight_wallet_seed2 = MidnightClient::new_seed();
-    let dust_hex2 = MidnightClient::new_dust_hex(midnight_wallet_seed2);
+    let dust_hex2 = MidnightClient::new_dust_hex(midnight_wallet_seed2.clone());
     let register_tx_id2 = cardano_client
         .register(&dust_hex2, &tx_in2, &collateral_utxo)
         .await
@@ -1711,7 +1724,7 @@ async fn deregister_with_valid_cnight_utxo() {
     println!("New Cardano wallet created: {:?}", address_bech32);
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     let dust_bytes: Vec<u8> = hex::decode(&dust_hex).unwrap().try_into().unwrap();
     println!(
         "Registering Cardano wallet {} with DUST address {}",
@@ -1733,10 +1746,7 @@ async fn deregister_with_valid_cnight_utxo() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -1860,7 +1870,7 @@ async fn deregister_with_valid_cnight_utxo() {
             fetch_compute_concurrency: None,
             ledger_state_db: "".to_string(),
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed.clone(),
         dry_run: false,
     };
 
@@ -2026,7 +2036,7 @@ async fn deregister_first_mapping() {
     println!("New Cardano wallet created: {:?}", address_bech32);
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     println!(
         "Registering Cardano wallet {} with DUST address {}",
         address_bech32, dust_hex
@@ -2047,10 +2057,7 @@ async fn deregister_first_mapping() {
         hex::encode(register_tx_id)
     );
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -2106,7 +2113,7 @@ async fn deregister_first_mapping() {
             fetch_compute_concurrency: None,
             ledger_state_db: "".to_string(),
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed.clone(),
         dry_run: false,
     };
 
@@ -2124,7 +2131,7 @@ async fn deregister_first_mapping() {
     let tx_in2 = faucet.request_tokens(&address_bech32, 10_000_000).await;
 
     let midnight_wallet_seed2 = MidnightClient::new_seed();
-    let dust_hex2 = MidnightClient::new_dust_hex(midnight_wallet_seed2);
+    let dust_hex2 = MidnightClient::new_dust_hex(midnight_wallet_seed2.clone());
     let register_tx_id2 = cardano_client
         .register(&dust_hex2, &tx_in2, &collateral_utxo)
         .await
@@ -2249,7 +2256,7 @@ async fn deregister_first_mapping() {
             fetch_compute_concurrency: None,
             ledger_state_db: "".to_string(),
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed.clone(),
         dry_run: false,
     };
 
@@ -2309,7 +2316,7 @@ async fn produce_dust_from_tokens_owned_before_registration() {
     faucet.request_tokens(&address_bech32, 7_000_000).await;
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     let dust_bytes: Vec<u8> = hex::decode(&dust_hex).unwrap().try_into().unwrap();
     println!(
         "Registering Cardano wallet {} with DUST address {}",
@@ -2361,7 +2368,7 @@ async fn produce_dust_from_tokens_owned_before_registration() {
             fetch_compute_concurrency: None,
             ledger_state_db: "".to_string(),
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed.clone(),
         dry_run: false,
     };
 
@@ -2457,7 +2464,7 @@ async fn stop_dust_producing_after_deregistration_and_rotation() {
     faucet.request_tokens(&address_bech32, 7_000_000).await;
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     println!(
         "Registering Cardano wallet {} with DUST address {}",
         address_bech32, dust_hex
@@ -2516,10 +2523,7 @@ async fn stop_dust_producing_after_deregistration_and_rotation() {
         .max_by_key(|u| u.value.lovelace)
         .expect("No UTXO with lovelace found");
 
-    let validator_address = cardano_client
-        .constants
-        .policies
-        .mapping_validator_address();
+    let validator_address = config::mapping_validator_address();
     let register_tx = cardano_client
         .find_utxo_by_tx_id(&validator_address, hex::encode(register_tx_id))
         .await
@@ -2549,7 +2553,7 @@ async fn stop_dust_producing_after_deregistration_and_rotation() {
             fetch_compute_concurrency: None,
             ledger_state_db: "".to_string(),
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed.clone(),
         dry_run: false,
     };
 
@@ -2626,7 +2630,7 @@ async fn spend_cnight_producing_dust() {
     println!("Bob's Cardano wallet created: {:?}", bob_bech32);
 
     let midnight_wallet_seed = MidnightClient::new_seed();
-    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed);
+    let dust_hex = MidnightClient::new_dust_hex(midnight_wallet_seed.clone());
     println!(
         "Registering Cardano wallet {} with DUST address {}",
         bech32_address, dust_hex
@@ -2706,7 +2710,7 @@ async fn spend_cnight_producing_dust() {
             fetch_compute_concurrency: None,
             ledger_state_db: "".to_string(),
         },
-        seed: midnight_wallet_seed,
+        seed: midnight_wallet_seed.clone(),
         dry_run: false,
     };
 
