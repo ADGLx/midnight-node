@@ -577,6 +577,19 @@ async fn cnight_produces_dust() {
 }
 
 #[tokio::test]
+#[ignore = "operational task: opt-in with `cargo test --ignored consolidate_faucet`"]
+async fn consolidate_faucet() {
+    let settings = Settings::default();
+    let faucet =
+        CardanoClient::new_from_funded(settings.ogmios_client, settings.constants).await;
+    let tx_ids = faucet
+        .consolidate_utxos(50)
+        .await
+        .expect("Failed to consolidate faucet UTXOs");
+    println!("Submitted {} consolidation transactions", tx_ids.len());
+}
+
+#[tokio::test]
 async fn cnight_deregister_from_dust_production() {
     let settings = Settings::default();
     let cardano_client = CardanoClient::new(settings.ogmios_client, settings.constants).await;

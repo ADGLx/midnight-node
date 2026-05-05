@@ -621,6 +621,80 @@ impl CardanoClient {
         }
     }
 
+    pub async fn consolidate_utxos(
+        &self,
+        batch_size: usize,
+    ) -> Result<Vec<String>, OgmiosClientError> {
+        let payment_addr = self.address_as_bech32();
+        let utxos = self.utxos().await;
+        println!(
+            "Consolidating {} UTXOs at {} (batch size {})",
+            utxos.len(),
+            payment_addr,
+            batch_size
+        );
+
+        let mut tx_ids = Vec::new();
+        for (i, chunk) in utxos.chunks(batch_size).enumerate() {
+            if chunk.len() < 2 {
+                println!("Batch {}: skipping (only {} UTXO)", i, chunk.len());
+                continue;
+            }
+
+            let mut tx_builder = TxBuilder::new_core();
+            for utxo in chunk {
+                tx_builder.tx_in(
+                    &hex::encode(utxo.transaction.id),
+                    utxo.index.into(),
+                    &Self::build_asset_vector(utxo),
+                    payment_addr.as_str(),
+                );
+            }
+            tx_builder
+                .change_address(&payment_addr)
+                .complete_sync(None)
+                .unwrap();
+
+            let signed_tx = self
+                .wallet
+                .sign_tx(&tx_builder.tx_hex())
+                .expect("Failed to sign tx");
+            let tx_bytes = hex::decode(signed_tx).expect("Failed to decode hex string");
+            let request = OgmiosRequest::SubmitTx { tx_bytes };
+            let response = Self::ogmios_request(&self.ogmios_settings, request).await?;
+            match response {
+                OgmiosResponse::SubmitTx(res) => {
+                    let tx_id_hex = hex::encode(res.transaction.id);
+                    println!(
+                        "Batch {}: consolidated {} UTXOs in tx {}",
+                        i,
+                        chunk.len(),
+                        tx_id_hex
+                    );
+                    tx_ids.push(tx_id_hex);
+                }
+                _ => {
+                    return Err(OgmiosClientError::RequestError(
+                        "Unexpected response type".into(),
+                    ));
+                }
+            }
+        }
+
+        if let Some(last) = tx_ids.last() {
+            self.find_utxo_by_tx_id(&payment_addr, last.clone()).await;
+            let after = self.utxos().await;
+            println!(
+                "Consolidation complete: {} UTXOs -> {} UTXOs ({} txs submitted)",
+                utxos.len(),
+                after.len(),
+                tx_ids.len()
+            );
+        }
+
+        Ok(tx_ids)
+    }
+
     pub async fn find_utxo_by_tx_id(&self, address: &str, tx_id_hex: String) -> Option<OgmiosUtxo> {
         const MAX_ATTEMPTS: u32 = 120;
         const PAUSE: Duration = Duration::from_secs(2);
