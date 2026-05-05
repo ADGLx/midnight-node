@@ -179,11 +179,11 @@ impl CardanoClient {
 
     pub async fn fund_wallet(
         &self,
-        tx_in: &OgmiosUtxo,
+        tx_ins: &[OgmiosUtxo],
         tx_out_addr: &str,
         assets: Vec<Asset>,
     ) -> Option<OgmiosUtxo> {
-        let tx_id_hex = match self.send(tx_in, tx_out_addr, assets).await {
+        let tx_id_hex = match self.send(tx_ins, tx_out_addr, assets).await {
             Ok(response) => hex::encode(response.transaction.id),
             Err(e) => panic!("Failed to send assets: {:?}", e),
         };
@@ -578,28 +578,29 @@ impl CardanoClient {
 
     pub async fn send(
         &self,
-        tx_in: &OgmiosUtxo,
+        tx_ins: &[OgmiosUtxo],
         tx_out_addr: &str,
         assets: Vec<Asset>,
     ) -> Result<SubmitTransactionResponse, OgmiosClientError> {
         let payment_addr = self.address_as_bech32();
         println!(
-            "Sending assets from {} to address: {}",
-            payment_addr, tx_out_addr
+            "Sending assets from {} ({} input UTXOs) to address: {}",
+            payment_addr,
+            tx_ins.len(),
+            tx_out_addr,
         );
 
-        let input_tx_hash = hex::encode(tx_in.transaction.id);
-
-        let address_as_bech32 = tx_out_addr.to_string();
         let mut tx_builder = TxBuilder::new_core();
-        tx_builder
-            .tx_in(
-                &input_tx_hash,
+        for tx_in in tx_ins {
+            tx_builder.tx_in(
+                &hex::encode(tx_in.transaction.id),
                 tx_in.index.into(),
                 &Self::build_asset_vector(tx_in),
-                address_as_bech32.as_str(),
-            )
-            .tx_out(address_as_bech32.as_str(), &assets)
+                payment_addr.as_str(),
+            );
+        }
+        tx_builder
+            .tx_out(tx_out_addr, &assets)
             .change_address(&payment_addr)
             .complete_sync(None)
             .unwrap();

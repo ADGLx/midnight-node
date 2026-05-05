@@ -4,37 +4,33 @@ use ogmios_client::types::OgmiosUtxo;
 use tokio::sync::Mutex;
 use whisky::Asset;
 
+const MAX_INPUT_UTXOS: usize = 20;
+
 pub struct FaucetManager {
     pub ogmios_settings: OgmiosClientSettings,
     pub faucet: CardanoClient,
-    manager_utxo: Mutex<OgmiosUtxo>,
     locked_utxos: Mutex<Vec<OgmiosUtxo>>,
     utxo_lock: Mutex<()>,
 }
 
 impl FaucetManager {
     pub async fn new(ogmios_settings: OgmiosClientSettings, faucet: CardanoClient) -> Self {
-        let manager_utxo = faucet
-            .utxo_with_max_lovelace()
-            .await
-            .expect("Faucet has no UTXOs");
-
         FaucetManager {
-            ogmios_settings: ogmios_settings.clone(),
+            ogmios_settings,
             faucet,
-            manager_utxo: Mutex::new(manager_utxo),
             locked_utxos: Mutex::new(Vec::new()),
             utxo_lock: Mutex::new(()),
         }
     }
 
     pub async fn request_tokens(&self, address: &str, lovelace: u64) -> OgmiosUtxo {
-        let tx_in = Self::lock_utxo(self, lovelace)
+        let tx_ins = self
+            .lock_utxos(lovelace)
             .await
-            .expect("Failed to lock UTXO for faucet request");
+            .expect("Failed to lock UTXOs for faucet request");
         let assets = vec![Asset::new_from_str("lovelace", &lovelace.to_string())];
         self.faucet
-            .fund_wallet(&tx_in, address, assets)
+            .fund_wallet(&tx_ins, address, assets)
             .await
             .expect("Failed to request tokens from faucet")
     }
@@ -43,59 +39,66 @@ impl FaucetManager {
         (u.transaction.id, u.index)
     }
 
-    async fn lock_utxo(&self, lovelace: u64) -> Option<OgmiosUtxo> {
-        self.lock_utxo_with_fee(lovelace, 10_000_000).await
+    async fn lock_utxos(&self, lovelace: u64) -> Option<Vec<OgmiosUtxo>> {
+        // 2 ADA covers the tx fee (~0.25 ADA) and keeps the change UTXO above
+        // Cardano's min-UTXO threshold (~1 ADA without native tokens).
+        self.lock_utxos_with_buffer(lovelace, 2_000_000).await
     }
 
-    async fn lock_utxo_with_fee(&self, lovelace: u64, fee: u64) -> Option<OgmiosUtxo> {
+    async fn lock_utxos_with_buffer(
+        &self,
+        lovelace: u64,
+        buffer: u64,
+    ) -> Option<Vec<OgmiosUtxo>> {
         let _guard = self.utxo_lock.lock().await;
-        let expected_lovelace = lovelace + fee;
-        let manager_utxo = self.manager_utxo.lock().await.clone();
-        let locked = self.locked_utxos.lock().await;
-        let locked_utxos: Vec<_> = locked.iter().map(Self::utxo).collect();
-        drop(locked);
+        let expected = lovelace + buffer;
 
-        // pick eligible UTXO
-        let utxos = self.faucet.utxos().await;
-        let utxo = utxos
+        let locked_ids: Vec<_> = self
+            .locked_utxos
+            .lock()
+            .await
+            .iter()
+            .map(Self::utxo)
+            .collect();
+
+        let mut available: Vec<_> = self
+            .faucet
+            .utxos()
+            .await
             .into_iter()
-            .filter(|u| {
-                let id = Self::utxo(u);
-                id != Self::utxo(&manager_utxo)
-                    && !locked_utxos.contains(&id)
-                    && u.value.lovelace >= expected_lovelace
-            })
-            .max_by_key(|u| u.value.lovelace);
+            .filter(|u| !locked_ids.contains(&Self::utxo(u)))
+            .collect();
 
-        match utxo {
-            Some(u) => {
-                self.locked_utxos.lock().await.push(u.clone());
-                Some(u)
+        // Smallest-first: cleans up fragmented change UTXOs left behind by previous sends.
+        available.sort_by_key(|u| u.value.lovelace);
+
+        let mut selected = Vec::new();
+        let mut sum: u64 = 0;
+        for u in available {
+            if selected.len() >= MAX_INPUT_UTXOS {
+                break;
             }
-            None => {
-                println!(
-                    "No eligible UTXO found with {} lovelace. Creating new one...",
-                    expected_lovelace
-                );
-
-                let assets = vec![Asset::new_from_str(
-                    "lovelace",
-                    &expected_lovelace.to_string(),
-                )];
-                let new_utxo = self
-                    .faucet
-                    .fund_wallet(&manager_utxo, &self.faucet.address_as_bech32(), assets)
-                    .await
-                    .unwrap();
-
-                self.locked_utxos.lock().await.push(new_utxo.clone());
-
-                let new_manager = self.faucet.utxo_with_max_lovelace().await.unwrap();
-
-                *self.manager_utxo.lock().await = new_manager;
-
-                Some(new_utxo)
+            sum = sum.saturating_add(u.value.lovelace);
+            selected.push(u);
+            if sum >= expected {
+                break;
             }
         }
+
+        if sum < expected {
+            println!(
+                "Faucet exhausted or too fragmented: {} unlocked UTXOs sum to {} lovelace, need {}",
+                selected.len(),
+                sum,
+                expected,
+            );
+            return None;
+        }
+
+        self.locked_utxos
+            .lock()
+            .await
+            .extend(selected.iter().cloned());
+        Some(selected)
     }
 }
