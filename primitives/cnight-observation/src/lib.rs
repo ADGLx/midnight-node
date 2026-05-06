@@ -34,6 +34,13 @@ use sqlx::types::chrono::{DateTime, Utc};
 pub const CARDANO_BECH32_ADDRESS_MAX_LENGTH: u32 = 108;
 pub const CARDANO_REWARD_ADDRESS_LENGTH: usize = 29;
 
+/// Cardano native-asset policy ID length in bytes (fixed-width per Cardano protocol).
+pub const CNIGHT_POLICY_ID_LENGTH: u32 = 28;
+
+/// Cardano native-asset name maximum length in bytes.
+/// [Cardano Source](https://github.com/IntersectMBO/cardano-ledger/blob/683bef2e40cbd10339452c9f2009867c855baf1a/shelley-ma/shelley-ma-test/cddl-files/shelley-ma.cddl#L252)
+pub const CARDANO_ASSET_NAME_MAX_LENGTH: u32 = 32;
+
 #[derive(
 	Encode,
 	Decode,

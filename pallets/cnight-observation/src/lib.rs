@@ -84,7 +84,8 @@ pub mod pallet {
 	use frame_support::sp_runtime::traits::Hash;
 	use midnight_primitives::MidnightSystemTransactionExecutor;
 	use midnight_primitives_cnight_observation::{
-		CARDANO_BECH32_ADDRESS_MAX_LENGTH, CardanoRewardAddressBytes, DustPublicKeyBytes,
+		CARDANO_ASSET_NAME_MAX_LENGTH, CARDANO_BECH32_ADDRESS_MAX_LENGTH, CNIGHT_POLICY_ID_LENGTH,
+		CardanoRewardAddressBytes, DustPublicKeyBytes,
 	};
 	use midnight_primitives_mainchain_follower::{
 		CreateData, DeregistrationData, ObservedUtxo, ObservedUtxoData, ObservedUtxoHeader,
@@ -231,7 +232,7 @@ pub mod pallet {
 	#[pallet::storage]
 	// Asset name for auth token used in MappingValidator
 	pub type MainChainAuthTokenAssetName<T: Config> =
-		StorageValue<_, BoundedVec<u8, ConstU32<32>>, ValueQuery>;
+		StorageValue<_, BoundedVec<u8, ConstU32<CARDANO_ASSET_NAME_MAX_LENGTH>>, ValueQuery>;
 
 	#[pallet::storage]
 	pub type Mappings<T: Config> =
@@ -252,9 +253,9 @@ pub mod pallet {
 		_,
 		(
 			// Policy ID
-			BoundedVec<u8, ConstU32<28>>,
+			BoundedVec<u8, ConstU32<CNIGHT_POLICY_ID_LENGTH>>,
 			// Asset Name
-			BoundedVec<u8, ConstU32<32>>,
+			BoundedVec<u8, ConstU32<CARDANO_ASSET_NAME_MAX_LENGTH>>,
 		),
 		ValueQuery,
 	>;
@@ -295,42 +296,60 @@ pub mod pallet {
 			// cannot propagate errors via Result. Panicking on invalid configuration values
 			// is the standard Substrate genesis fail-fast convention — an invalid chain spec
 			// must halt node startup rather than silently produce incorrect chain state.
-			// Each expect() below validates a bounded-length conversion from the chain spec;
-			// failure indicates a misconfigured genesis that must be corrected before launch.
+			// Each panic message names the chain-spec field path, the supplied byte length,
+			// and the maximum permitted length expressed via a named constant, so an operator
+			// reading the failure log can locate and correct the offending field directly.
+			let mapping_validator_bytes =
+				self.config.addresses.mapping_validator_address.as_bytes().to_vec();
+			let mapping_validator_len = mapping_validator_bytes.len();
 			MainChainMappingValidatorAddress::<T>::set(
-				self.config
-					.addresses
-					.mapping_validator_address
-					.as_bytes()
-					.to_vec()
-					.try_into()
-					.expect("Mapping Validator address longer than expected"),
+				mapping_validator_bytes.try_into().unwrap_or_else(|_| {
+					panic!(
+						"genesis: cnight_observation.addresses.mapping_validator_address \
+						 length {} bytes exceeds maximum {} (CARDANO_BECH32_ADDRESS_MAX_LENGTH)",
+						mapping_validator_len, CARDANO_BECH32_ADDRESS_MAX_LENGTH
+					)
+				}),
 			);
 
+			let cnight_policy_id_bytes = self.config.addresses.cnight_policy_id.to_vec();
+			let cnight_policy_id_len = cnight_policy_id_bytes.len();
+			let cnight_asset_name_bytes =
+				self.config.addresses.cnight_asset_name.as_bytes().to_vec();
+			let cnight_asset_name_len = cnight_asset_name_bytes.len();
 			CNightIdentifier::<T>::set((
-				self.config
-					.addresses
-					.cnight_policy_id
-					.to_vec()
-					.try_into()
-					.expect("Policy ID too long"),
-				self.config
-					.addresses
-					.cnight_asset_name
-					.as_bytes()
-					.to_vec()
-					.try_into()
-					.expect("Asset name too long"),
+				// Defence-in-depth: the source field `cnight_policy_id` is a fixed-size
+				// `[u8; 28]`, so this branch is unreachable from chain-spec deserialization
+				// (serde rejects mismatched lengths before reaching genesis build). The
+				// diagnostic panic is retained so a future change to the source type does
+				// not silently lose the operator-facing failure detail.
+				cnight_policy_id_bytes.try_into().unwrap_or_else(|_| {
+					panic!(
+						"genesis: cnight_observation.addresses.cnight_policy_id \
+						 length {} bytes exceeds maximum {} (CNIGHT_POLICY_ID_LENGTH)",
+						cnight_policy_id_len, CNIGHT_POLICY_ID_LENGTH
+					)
+				}),
+				cnight_asset_name_bytes.try_into().unwrap_or_else(|_| {
+					panic!(
+						"genesis: cnight_observation.addresses.cnight_asset_name \
+						 length {} bytes exceeds maximum {} (CARDANO_ASSET_NAME_MAX_LENGTH)",
+						cnight_asset_name_len, CARDANO_ASSET_NAME_MAX_LENGTH
+					)
+				}),
 			));
 
+			let auth_token_asset_name_bytes =
+				self.config.addresses.auth_token_asset_name.as_bytes().to_vec();
+			let auth_token_asset_name_len = auth_token_asset_name_bytes.len();
 			MainChainAuthTokenAssetName::<T>::set(
-				self.config
-					.addresses
-					.auth_token_asset_name
-					.as_bytes()
-					.to_vec()
-					.try_into()
-					.expect("Auth Token asset name longer than expected"),
+				auth_token_asset_name_bytes.try_into().unwrap_or_else(|_| {
+					panic!(
+						"genesis: cnight_observation.addresses.auth_token_asset_name \
+						 length {} bytes exceeds maximum {} (CARDANO_ASSET_NAME_MAX_LENGTH)",
+						auth_token_asset_name_len, CARDANO_ASSET_NAME_MAX_LENGTH
+					)
+				}),
 			);
 
 			for (k, v) in &self.config.mappings {
