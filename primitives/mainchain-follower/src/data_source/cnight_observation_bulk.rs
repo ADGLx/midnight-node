@@ -49,16 +49,17 @@ pub const DEFAULT_WINDOW_SIZE: u32 = 100_000;
 /// forward.
 const REFRESH_THRESHOLD: u32 = 10_000;
 
-/// Pull every cnight observation event in `[from_block, to_block]` (inclusive)
-/// and return them sorted ascending by `tx_position`.
+/// Pull every cnight observation event in `[start, end]` (inclusive) and
+/// return them sorted ascending by `tx_position`.
 ///
-/// Used at startup (`from_block = 0`) and by the sliding-window refresh
-/// (`from_block = old_end + 1`).
+/// Both endpoints are full `CardanoPosition`s so the per-call data source can
+/// pass exact `(block_number, tx_index_in_block)` boundaries while the bulk
+/// /sliding-window paths can pass whole-block ranges via `whole_block_range`.
 pub async fn bulk_pull(
 	pool: &PgPool,
 	cfg: &CNightAddresses,
-	from_block: u32,
-	to_block: u32,
+	start: &CardanoPosition,
+	end: &CardanoPosition,
 ) -> Result<Vec<ObservedUtxo>, Box<dyn std::error::Error + Send + Sync>> {
 	let ds = MidnightCNightObservationDataSourceImpl::new(pool.clone(), None, 0);
 
@@ -83,36 +84,18 @@ pub async fn bulk_pull(
 		.resolve_ident(&cfg.cnight_policy_id, cfg.cnight_asset_name.as_bytes())
 		.await?;
 
-	let start = CardanoPosition {
-		block_hash: McBlockHash([0u8; 32]),
-		block_number: from_block,
-		block_timestamp: Default::default(),
-		tx_index_in_block: 0,
-	};
-	let end = CardanoPosition {
-		block_hash: McBlockHash([0u8; 32]),
-		block_number: to_block,
-		block_timestamp: Default::default(),
-		// `tx.block_index` is a signed 32-bit column. The SQL query path
-		// casts this field to `i32` before binding, so we must pick a
-		// sentinel that survives the round-trip: `u32::MAX as i32 == -1`
-		// would silently exclude every event at `block.block_no = to_block`.
-		// `i32::MAX` always fits in `u32` so the conversion is infallible.
-		tx_index_in_block: u32::try_from(i32::MAX).expect("i32::MAX is non-negative"),
-	};
-
 	let (low_bounds, high_bounds) = tokio::try_join!(
-		crate::db::get_low_bounds(pool, from_block.into()),
-		crate::db::get_high_bounds(pool, to_block.into()),
+		crate::db::get_low_bounds(pool, start.block_number.into()),
+		crate::db::get_high_bounds(pool, end.block_number.into()),
 	)?;
-	let low_bounds =
-		low_bounds.ok_or_else(|| format!("get_low_bounds({from_block}) returned None"))?;
-	let high_bounds =
-		high_bounds.ok_or_else(|| format!("get_high_bounds({to_block}) returned None"))?;
+	let low_bounds = low_bounds
+		.ok_or_else(|| format!("get_low_bounds({}) returned None", start.block_number))?;
+	let high_bounds = high_bounds
+		.ok_or_else(|| format!("get_high_bounds({}) returned None", end.block_number))?;
 
 	let paged = crate::db::PagedQuery {
-		start: &start,
-		end: &end,
+		start,
+		end,
 		limit: LARGE_LIMIT,
 		offset: 0,
 		low_bound: low_bounds,
@@ -144,10 +127,69 @@ pub async fn bulk_pull(
 	all.sort();
 	log::info!(
 		target: "cnight::sliding-window",
-		"bulk_pull [{from_block}, {to_block}] -> reg={} dereg={} create={} spend={} (auth_ident={:?} cnight_ident={:?})",
+		"bulk_pull [{}/{}, {}/{}] -> reg={} dereg={} create={} spend={} (auth_ident={:?} cnight_ident={:?})",
+		start.block_number, start.tx_index_in_block,
+		end.block_number, end.tx_index_in_block,
 		counts.0, counts.1, counts.2, counts.3, auth_token_ident, cnight_ident,
 	);
 	Ok(all)
+}
+
+/// Build a `[from_block, to_block]` whole-block `CardanoPosition` range,
+/// suitable for `bulk_pull`. The `to` endpoint uses `i32::MAX as u32` so the
+/// SQL bind path's `as i32` cast doesn't underflow to `-1`.
+pub fn whole_block_range(from_block: u32, to_block: u32) -> (CardanoPosition, CardanoPosition) {
+	let max_tx_index = u32::try_from(i32::MAX).expect("i32::MAX is non-negative");
+	let start = CardanoPosition {
+		block_hash: McBlockHash([0u8; 32]),
+		block_number: from_block,
+		block_timestamp: Default::default(),
+		tx_index_in_block: 0,
+	};
+	let end = CardanoPosition {
+		block_hash: McBlockHash([0u8; 32]),
+		block_number: to_block,
+		block_timestamp: Default::default(),
+		tx_index_in_block: max_tx_index,
+	};
+	(start, end)
+}
+
+/// Truncate a sorted, unique-position event list to at most `tx_capacity`
+/// whole transactions. Returns the truncated `ObservedUtxos` plus a flag
+/// indicating whether the full input fit (`true`: all events accepted up to
+/// `fallback_end`; `false`: capacity hit and `result.end` is the position
+/// just past the last accepted event).
+pub fn truncate_to_tx_capacity(
+	events: Vec<ObservedUtxo>,
+	tx_capacity: usize,
+	start_position: &CardanoPosition,
+	fallback_end: CardanoPosition,
+) -> (ObservedUtxos, bool) {
+	let mut truncated: Vec<ObservedUtxo> = Vec::with_capacity(events.len().min(tx_capacity * 64));
+	let mut num_txs: usize = 0;
+	let mut cur_tx: Option<CardanoPosition> = None;
+	for utxo in events {
+		if cur_tx.as_ref().is_none_or(|tx| tx < &utxo.header.tx_position) {
+			num_txs += 1;
+			cur_tx = Some(utxo.header.tx_position.clone());
+		}
+		if num_txs == tx_capacity {
+			break;
+		}
+		truncated.push(utxo);
+	}
+	let full_window = num_txs < tx_capacity;
+	let end = if full_window {
+		fallback_end
+	} else {
+		truncated
+			.last()
+			.map(|u| u.header.tx_position.clone())
+			.unwrap_or_else(|| start_position.clone())
+			.increment()
+	};
+	(ObservedUtxos { start: start_position.clone(), end, utxos: truncated }, full_window)
 }
 
 /// Cached result of the previous `get_utxos_up_to_capacity` call. During
@@ -331,7 +373,8 @@ async fn refresh_window(
 		"refresh kicked off: extending to {target_end} (was end={old_end}); trim behind {new_window_start}"
 	);
 	let t0 = std::time::Instant::now();
-	let extension = bulk_pull(pool, cfg, from_block, target_end).await?;
+	let (start, end) = whole_block_range(from_block, target_end);
+	let extension = bulk_pull(pool, cfg, &start, &end).await?;
 	{
 		let mut events_guard =
 			all_events.write().map_err(|e| format!("all_events write poisoned: {e}"))?;
@@ -495,39 +538,10 @@ impl MidnightCNightObservationDataSource for BulkCachedCNightObservationDataSour
 			.read()
 			.map(|g| Arc::clone(&g))
 			.unwrap_or_else(|_| Arc::new(Vec::new()));
-		let window = slice_range(&events_snapshot, start_position, &end);
-
-		// Truncate to `tx_capacity` whole transactions.
-		let mut truncated: Vec<ObservedUtxo> = Vec::with_capacity(window.len());
-		let mut num_txs: usize = 0;
-		let mut cur_tx: Option<CardanoPosition> = None;
-		for utxo in window {
-			if cur_tx.as_ref().is_none_or(|tx| tx < &utxo.header.tx_position) {
-				num_txs += 1;
-				cur_tx = Some(utxo.header.tx_position.clone());
-			}
-			if num_txs == tx_capacity {
-				break;
-			}
-			truncated.push(utxo.clone());
-		}
-
-		let full_window = num_txs < tx_capacity;
-		let result_end = if full_window {
-			end
-		} else {
-			truncated
-				.last()
-				.map(|u| u.header.tx_position.clone())
-				.unwrap_or_else(|| start_position.clone())
-				.increment()
-		};
-
-		let result = ObservedUtxos {
-			start: start_position.clone(),
-			end: result_end,
-			utxos: truncated,
-		};
+		let window: Vec<ObservedUtxo> =
+			slice_range(&events_snapshot, start_position, &end).to_vec();
+		let (result, full_window) =
+			truncate_to_tx_capacity(window, tx_capacity, start_position, end);
 
 		if let Ok(mut guard) = self.last_observation.lock() {
 			*guard = Some(LastObservation {
