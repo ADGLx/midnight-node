@@ -17,8 +17,8 @@
 # `update-ledger-parameters` call and a `runtime-upgrade` (authorize_upgrade) call
 # are encoded, batched via `Utility::batch_all`, dispatched through one
 # federated-authority motion, and the upgrade is then applied. The runtime WASM
-# is fetched live from the node (`:code`) so the upgrade is a no-op same-bytes
-# swap that still exercises the full authorize → apply → CodeUpdated path.
+# is extracted from the node image so the upgrade is a no-op same-bytes swap
+# that still exercises the full authorize → apply → CodeUpdated path.
 
 set -euxo pipefail
 
@@ -49,6 +49,20 @@ cleanup() {
 trap cleanup EXIT
 
 docker network create "$NETWORK" || true
+
+# Extract runtime WASM from the node image. The image stores it under
+# /artifacts-<arch>/, so glob to remain arch-agnostic.
+echo "📥 Extracting runtime WASM from node image..."
+docker run --rm --entrypoint sh "$NODE_IMAGE" \
+    -c 'cat /artifacts-*/midnight_node_runtime.compact.compressed.wasm' \
+    > "$WASM_FILE"
+chmod 644 "$WASM_FILE"
+WASM_BYTES=$(wc -c < "$WASM_FILE")
+echo "📥 Wrote $WASM_BYTES bytes to $WASM_FILE"
+if [ "$WASM_BYTES" -lt 1000 ]; then
+    echo "❌ Runtime WASM looks too small — likely an extraction error"
+    exit 1
+fi
 
 echo "🚀 Starting node container..."
 docker run -d \
@@ -95,26 +109,6 @@ sleep 10
 echo "📦 Toolkit version:"
 docker run --rm --network "$NETWORK" "$TOOLKIT_IMAGE" version
 
-# Fetch the live runtime WASM via state_getStorage of the `:code` key (0x3a636f6465).
-# Re-applying the same bytes is a no-op but still exercises the
-# authorize_upgrade → apply_authorized_upgrade → CodeUpdated path end-to-end.
-echo "📥 Fetching runtime WASM from running node..."
-docker run --rm --network "$NETWORK" curlimages/curl:latest \
-    --silent --fail \
-    -H "Content-Type: application/json" \
-    -d '{"jsonrpc":"2.0","method":"state_getStorage","params":["0x3a636f6465"],"id":1}' \
-    "http://${NODE_NAME}:9944" \
-    | grep -oE '"result":"0x[0-9a-fA-F]+"' \
-    | sed -E 's/.*"0x([0-9a-fA-F]+)".*/\1/' \
-    | xxd -r -p > "$WASM_FILE"
-chmod 644 "$WASM_FILE"
-WASM_BYTES=$(wc -c < "$WASM_FILE")
-echo "📥 Wrote $WASM_BYTES bytes to $WASM_FILE"
-if [ "$WASM_BYTES" -lt 1000 ]; then
-    echo "❌ Runtime WASM looks too small — likely a fetch error"
-    exit 1
-fi
-
 # Capture initial ledger params
 INITIAL_PARAMS=$(
     docker run --rm --network "$NETWORK" "$TOOLKIT_IMAGE" \
@@ -130,7 +124,7 @@ HEX_LEDGER=$(
 )
 echo "   → ${#HEX_LEDGER} hex chars"
 
-# Step 2: encode runtime-upgrade against the live WASM.
+# Step 2: encode runtime-upgrade against the WASM extracted from the image.
 echo "🧮 Encoding runtime-upgrade..."
 HEX_UPGRADE=$(
     docker run --rm --network "$NETWORK" -v "$WASM_DIR:/wasm" "$TOOLKIT_IMAGE" --quiet \
