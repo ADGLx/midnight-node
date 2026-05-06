@@ -14,26 +14,31 @@
 #![allow(clippy::result_large_err)]
 
 use crate::{
-	cfg::Cfg,
+	cfg::{Cfg, midnight_cfg::StorageSeparation},
 	cli::{self, Cli, RunMidnight, Subcommand},
 	filtering_pool::TxFilterConfig,
-	genesis::creation::{
-		cnight_genesis::generate_cnight_genesis,
-		federated_authority_genesis::generate_federated_authority_genesis,
-		ics_genesis::{IcsAddresses, generate_ics_genesis},
-		permissioned_candidates_genesis::{
-			PcChainConfig, PermissionedCandidatesAddresses,
-			generate_permissioned_candidates_genesis,
+	genesis::{
+		creation::{
+			cnight_genesis::generate_cnight_genesis,
+			federated_authority_genesis::generate_federated_authority_genesis,
+			ics_genesis::{IcsAddresses, generate_ics_genesis},
+			permissioned_candidates_genesis::{
+				PcChainConfig, PermissionedCandidatesAddresses,
+				generate_permissioned_candidates_genesis,
+			},
+			reserve_genesis::{ReserveAddresses, generate_reserve_genesis},
 		},
-		reserve_genesis::{ReserveAddresses, generate_reserve_genesis},
-	},
-	genesis::verification::{
-		verify_auth_script_common, verify_federated_authority_auth_script, verify_ics_auth_script,
-		verify_ledger_state_genesis, verify_permissioned_candidates_auth_script,
+		verification::{
+			verify_auth_script_common, verify_federated_authority_auth_script,
+			verify_genesis_message, verify_genesis_timestamp, verify_ics_auth_script,
+			verify_ledger_state_genesis, verify_permissioned_candidates_auth_script,
+			verify_reserve_auth_script,
+		},
 	},
 	service::{self, StorageInit},
 };
 use clap::Parser;
+use frame_benchmarking_cli::SUBSTRATE_REFERENCE_HARDWARE;
 use midnight_node_runtime::Block;
 use midnight_primitives_cnight_observation::CNightAddresses;
 use midnight_primitives_federated_authority_observation::FederatedAuthorityAddresses;
@@ -147,7 +152,10 @@ fn decode_genesis_state(
 }
 
 fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
-	let run_cmd: RunCmd = cfg.substrate_cfg.clone().try_into()?;
+	let run_cmd: RunCmd = cfg
+		.substrate_cfg
+		.clone()
+		.into_run_cmd(&Cfg::safe_read_opts().map_err(|e| sc_cli::Error::Input(e.to_string()))?)?;
 	let run_midnight = RunMidnight::try_parse_from(cfg.substrate_cfg.clone().argv())
 		.map_err(|e| sc_cli::Error::Input(format!("invalid node run arguments: {e}")))?;
 	let tx_filter_config = if run_midnight.filter_deploy_txs {
@@ -174,8 +182,13 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 
 	let properties = chain_spec.properties();
 	let genesis_state = decode_genesis_state(&properties)?;
-	let storage_config =
-		StorageInit { genesis_state, cache_size: cfg.midnight_cfg.storage_cache_size };
+	let ledger_db_path = base_path.path().join("ledger_storage");
+	let storage_config = StorageInit {
+		separation: cfg.midnight_cfg.storage_separation,
+		db_path: ledger_db_path,
+		genesis_state,
+		cache_size: cfg.midnight_cfg.storage_cache_size,
+	};
 
 	let keystore: KeystorePtr = {
 		let res = run_cmd.keystore_params().unwrap().keystore_config(&config_dir)?;
@@ -245,6 +258,14 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 	let run_result = runner.run_node_until_exit(|config| async move {
 		let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 		let midnight_cfg = cfg.midnight_cfg.clone();
+		let hwbench = (!run_midnight.no_hardware_benchmarks)
+			.then(|| {
+				config.database.path().map(|database_path| {
+					let _ = std::fs::create_dir_all(database_path);
+					sc_sysinfo::gather_hwbench(Some(database_path), &SUBSTRATE_REFERENCE_HARDWARE)
+				})
+			})
+			.flatten();
 
 		// Build Prometheus push config if endpoint is configured
 		log::debug!(
@@ -278,7 +299,9 @@ fn run_node(cfg: Cfg) -> sc_cli::Result<()> {
 			cfg.memory_monitor_cfg.into(),
 			storage_config,
 			metrics_push_config,
+			hwbench,
 			tx_filter_config,
+			run_midnight.rpc_max_finality_subscriptions,
 		)
 		.await
 		.map_err(sc_cli::Error::Service)?;
@@ -334,16 +357,21 @@ fn genesis_state_from_chain_spec(
 fn storage_init_from_chain_spec(
 	config: &sc_service::Configuration,
 	cache_size: usize,
+	separation: StorageSeparation,
 ) -> sc_cli::Result<StorageInit> {
+	let db_path = config.base_path.path().join("ledger_storage");
 	Ok(StorageInit {
-		genesis_state: genesis_state_from_chain_spec(&*config.chain_spec)?,
+		separation,
 		cache_size,
+		genesis_state: genesis_state_from_chain_spec(&*config.chain_spec)?,
+		db_path,
 	})
 }
 
 fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 	let epoch_config: MainchainEpochConfig = cfg.midnight_cfg.clone().into();
 	let cache_size = cfg.midnight_cfg.storage_cache_size;
+	let separation = cfg.midnight_cfg.storage_separation;
 	let tx_filter_config = TxFilterConfig::disabled();
 
 	match subcommand {
@@ -351,8 +379,8 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::PartnerChains(cmd) => {
 			let midnight_cfg = cfg.midnight_cfg.clone();
 			let make_dependencies = |config: sc_service::Configuration| {
-				let storage_config =
-					storage_init_from_chain_spec(&config, cache_size).map_err(|e| e.to_string())?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size, separation)
+					.map_err(|e| e.to_string())?;
 				let PartialComponents { client, task_manager, other, .. } = service::new_partial(
 					&config,
 					epoch_config,
@@ -376,7 +404,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::CheckBlock(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size, separation)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
 					service::new_partial(
 						&config,
@@ -391,7 +419,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::ExportBlocks(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size, separation)?;
 				let PartialComponents { client, task_manager, .. } = service::new_partial(
 					&config,
 					epoch_config,
@@ -405,7 +433,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::ExportState(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size, separation)?;
 				let PartialComponents { client, task_manager, .. } = service::new_partial(
 					&config,
 					epoch_config,
@@ -419,7 +447,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::ImportBlocks(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size, separation)?;
 				let PartialComponents { client, task_manager, import_queue, .. } =
 					service::new_partial(
 						&config,
@@ -438,7 +466,7 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 		Subcommand::Revert(ref cmd) => {
 			let runner = cfg.create_runner(cmd)?;
 			runner.async_run(|config| {
-				let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+				let storage_config = storage_init_from_chain_spec(&config, cache_size, separation)?;
 				let PartialComponents { client, task_manager, backend, .. } = service::new_partial(
 					&config,
 					epoch_config,
@@ -476,7 +504,8 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						))
 					},
 					BenchmarkCmd::Block(cmd) => {
-						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+						let storage_config =
+							storage_init_from_chain_spec(&config, cache_size, separation)?;
 
 						let partial = service::new_partial(
 							&config,
@@ -495,7 +524,8 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					),
 					#[cfg(feature = "runtime-benchmarks")]
 					BenchmarkCmd::Storage(cmd) => {
-						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+						let storage_config =
+							storage_init_from_chain_spec(&config, cache_size, separation)?;
 
 						let partial = service::new_partial(
 							&config,
@@ -510,7 +540,8 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						cmd.run(config, partial.client, db, storage, None)
 					},
 					BenchmarkCmd::Overhead(cmd) => {
-						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+						let storage_config =
+							storage_init_from_chain_spec(&config, cache_size, separation)?;
 
 						let partial = service::new_partial(
 							&config,
@@ -531,7 +562,8 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 						)
 					},
 					BenchmarkCmd::Extrinsic(cmd) => {
-						let storage_config = storage_init_from_chain_spec(&config, cache_size)?;
+						let storage_config =
+							storage_init_from_chain_spec(&config, cache_size, separation)?;
 
 						let partial = service::new_partial(
 							&config,
@@ -1016,12 +1048,15 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 			// Init logging
 			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
 
-			// Parse genesis timestamp from cardano-tip.json (if provided)
-			let genesis_timestamp: Option<u64> = if let Some(ref path) = cmd.cardano_tip_config {
-				#[derive(serde::Deserialize)]
-				struct CardanoTipConfig {
-					timestamp: String,
-				}
+			// Parse genesis timestamp from cardano-tip.json
+			let genesis_timestamp: u64 = {
+				let path = cmd.cardano_tip_config.as_ref().ok_or_else(|| {
+					sc_cli::Error::Input(
+						"--cardano-tip-config is required for genesis timestamp verification"
+							.to_string(),
+					)
+				})?;
+				use crate::genesis::CardanoTipConfig;
 				let json_str = std::fs::read_to_string(path).map_err(|e| {
 					sc_cli::Error::Input(format!(
 						"Failed to read cardano-tip config {:?}: {}",
@@ -1031,11 +1066,9 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				let config: CardanoTipConfig = serde_json::from_str(&json_str).map_err(|e| {
 					sc_cli::Error::Input(format!("Failed to parse cardano-tip config: {}", e))
 				})?;
-				Some(config.timestamp.parse::<u64>().map_err(|e| {
+				config.timestamp.parse::<u64>().map_err(|e| {
 					sc_cli::Error::Input(format!("Invalid timestamp in cardano-tip config: {}", e))
-				})?)
-			} else {
-				None
+				})?
 			};
 
 			let result = verify_ledger_state_genesis::verify_ledger_state_genesis(
@@ -1162,6 +1195,10 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 				.permissioned_candidates_addresses
 				.clone()
 				.unwrap_or_else(|| res_dir.join("permissioned-candidates-addresses.json"));
+			let reserve_addresses = cmd
+				.reserve_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("reserve-addresses.json"));
 			let authorization_addresses = cmd
 				.authorization_addresses
 				.clone()
@@ -1227,6 +1264,22 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					})?;
 				pc_result.print_summary();
 				if !pc_result.all_passed() {
+					all_passed = false;
+				}
+
+				// 4. Verify Reserve
+				let reserve_result = verify_reserve_auth_script::verify_reserve_auth_script(
+					&reserve_addresses,
+					Some(&authorization_addresses),
+					&pool,
+					&cmd.cardano_tip,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!("Reserve auth script verification failed: {e}"))
+				})?;
+				reserve_result.print_summary();
+				if !reserve_result.all_passed() {
 					all_passed = false;
 				}
 
@@ -1369,6 +1422,100 @@ fn run_subcommand(subcommand: Subcommand, cfg: Cfg) -> sc_cli::Result<()> {
 					Err(sc_cli::Error::Input("Some verification checks failed".to_string()))
 				}
 			})
+		},
+		Subcommand::VerifyReserveAuthScript(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default paths based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let reserve_addresses = cmd
+				.reserve_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("reserve-addresses.json"));
+			let authorization_addresses = cmd
+				.authorization_addresses
+				.clone()
+				.unwrap_or_else(|| res_dir.join("authorization-addresses.json"));
+
+			// Init tokio runtime
+			let tokio_handle = sc_cli::build_runtime()?;
+			tokio_handle.block_on(async {
+				let pool =
+					crate::main_chain_follower::create_ics_genesis_pool(cfg.midnight_cfg.clone())
+						.await?;
+
+				let result = verify_reserve_auth_script::verify_reserve_auth_script(
+					&reserve_addresses,
+					Some(&authorization_addresses),
+					&pool,
+					&cmd.cardano_tip,
+				)
+				.await
+				.map_err(|e| {
+					sc_cli::Error::Input(format!("Reserve auth script verification failed: {e}"))
+				})?;
+
+				result.print_summary();
+
+				if result.all_passed() {
+					Ok(())
+				} else {
+					Err(sc_cli::Error::Input("Some verification checks failed".to_string()))
+				}
+			})
+		},
+		Subcommand::VerifyGenesisMessage(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default message-config path based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let message_config = cmd
+				.message_config
+				.clone()
+				.unwrap_or_else(|| res_dir.join("message-config.json"));
+
+			let result =
+				verify_genesis_message::verify_genesis_message(&cmd.chain_spec, &message_config)
+					.map_err(|e| {
+						sc_cli::Error::Input(format!("Genesis message verification failed: {e}"))
+					})?;
+
+			result.print_summary();
+
+			if result.all_passed() {
+				Ok(())
+			} else {
+				Err(sc_cli::Error::Input("Genesis message verification failed".to_string()))
+			}
+		},
+		Subcommand::VerifyGenesisTimestamp(ref cmd) => {
+			// Init logging
+			LoggerBuilder::new(std::env::var("RUST_LOG").unwrap_or("".to_string())).init()?;
+
+			// Resolve default cardano-tip-config path based on CFG_PRESET
+			let res_dir = get_res_preset_dir();
+			let cardano_tip_config = cmd
+				.cardano_tip_config
+				.clone()
+				.unwrap_or_else(|| res_dir.join("cardano-tip.json"));
+
+			let result = verify_genesis_timestamp::verify_genesis_timestamp(
+				&cmd.chain_spec,
+				&cardano_tip_config,
+			)
+			.map_err(|e| {
+				sc_cli::Error::Input(format!("Genesis timestamp verification failed: {e}"))
+			})?;
+
+			result.print_summary();
+
+			if result.all_passed() {
+				Ok(())
+			} else {
+				Err(sc_cli::Error::Input("Genesis timestamp verification failed".to_string()))
+			}
 		},
 	}
 }

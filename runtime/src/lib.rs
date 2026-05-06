@@ -74,9 +74,7 @@ use sp_consensus_beefy::{
 	mmr::{BeefyAuthoritySet, BeefyNextAuthoritySet, MmrLeafVersion},
 };
 use sp_core::{ByteArray, OpaqueMetadata, crypto::KeyTypeId};
-use sp_partner_chains_bridge::{
-	BridgeDataCheckpoint, BridgeTransferV1, MainChainScripts as BridgeMainChainScripts,
-};
+use sp_partner_chains_bridge::{BridgeDataCheckpoint, MainChainScripts as BridgeMainChainScripts};
 use sp_runtime::SaturatedConversion;
 use sp_runtime::traits::StaticLookup;
 
@@ -280,7 +278,7 @@ pub const VERSION: RuntimeVersion = RuntimeVersion {
 	spec_version: 001_000_000,
 	impl_version: 0,
 	apis: RUNTIME_API_VERSIONS,
-	transaction_version: 2,
+	transaction_version: 3,
 	system_version: 1,
 };
 
@@ -835,18 +833,8 @@ impl pallet_throttle::Config for Runtime {
 	type WindowSize = WindowSize;
 }
 
-pub struct MidnightTokenTransferHandler;
-
 parameter_types! {
 	pub const BridgeMaxTransfersPerBlock: u32 = 256;
-}
-
-impl pallet_partner_chains_bridge::TransferHandler<BridgeRecipient>
-	for MidnightTokenTransferHandler
-{
-	fn handle_incoming_transfer(transfer: BridgeTransferV1<BridgeRecipient>) {
-		log::debug!("Bridge token transfer received {:?}", transfer);
-	}
 }
 
 impl pallet_cnight_observation::Config for Runtime {
@@ -857,11 +845,16 @@ impl pallet_cnight_observation::Config for Runtime {
 impl pallet_partner_chains_bridge::Config for Runtime {
 	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 	type Recipient = BridgeRecipient;
-	type TransferHandler = MidnightTokenTransferHandler;
+	type TransferHandler = C2MBridge;
 	type MaxTransfersPerBlock = BridgeMaxTransfersPerBlock;
 	type WeightInfo = pallet_partner_chains_bridge::weights::SubstrateWeight<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
+}
+
+impl pallet_c2m_bridge::Config for Runtime {
+	type MidnightSystemTransactionExecutor = MidnightSystem;
+	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 }
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
@@ -945,6 +938,9 @@ mod runtime {
 
 	#[runtime::pallet_index(32)]
 	pub type Bridge = pallet_partner_chains_bridge::Pallet<Runtime>;
+
+	#[runtime::pallet_index(33)]
+	pub type C2MBridge = pallet_c2m_bridge::Pallet<Runtime>;
 
 	// Governance
 	#[runtime::pallet_index(40)]
@@ -1153,7 +1149,7 @@ impl_runtime_apis! {
 			VERSION
 		}
 
-		fn execute_block(block: Block) {
+		fn execute_block(block: <Block as BlockT>::LazyBlock) {
 			Executive::execute_block(block);
 		}
 
@@ -1243,7 +1239,7 @@ impl_runtime_apis! {
 		}
 
 		fn check_inherents(
-			block: Block,
+			block: <Block as BlockT>::LazyBlock,
 			data: sp_inherents::InherentData,
 		) -> sp_inherents::CheckInherentsResult {
 			data.check_extrinsics(&block)
@@ -1312,16 +1308,6 @@ impl_runtime_apis! {
 		) -> Option<()> {
 			None
 		}
-
-		fn generate_ancestry_proof(
-			prev_block_number: BlockNumber,
-			best_known_block_number: Option<BlockNumber>,
-		) -> Option<OpaqueValue> {
-			Mmr::generate_ancestry_proof(prev_block_number, best_known_block_number)
-				.map(|p| p.encode())
-				.map(OpaqueKeyOwnershipProof::new)
-				.ok()
-		}
 	}
 
 	// Collects the (Current BeefyStakes, Next BeefyStakes)
@@ -1351,6 +1337,7 @@ impl_runtime_apis! {
 		}
 	}
 
+	#[api_version(3)]
 	impl mmr::MmrApi<Block, Hash, BlockNumber> for Runtime {
 		fn mmr_root() -> Result<mmr::Hash, mmr::Error> {
 			Ok(Mmr::mmr_root())
@@ -1375,6 +1362,13 @@ impl_runtime_apis! {
 					)
 				},
 			)
+		}
+
+		fn generate_ancestry_proof(
+			prev_block_number: BlockNumber,
+			best_known_block_number: Option<BlockNumber>,
+		) -> Result<mmr::AncestryProof<mmr::Hash>, mmr::Error> {
+			Mmr::generate_ancestry_proof(prev_block_number, best_known_block_number)
 		}
 
 		fn verify_proof(leaves: Vec<mmr::EncodableOpaqueLeaf>, proof: mmr::LeafProof<mmr::Hash>)
@@ -1408,10 +1402,13 @@ impl_runtime_apis! {
 	}
 
 	impl sp_session::SessionKeys<Block> for Runtime {
-		fn generate_session_keys(seed: Option<Vec<u8>>) -> Vec<u8> {
+		fn generate_session_keys(
+			owner: Vec<u8>,
+			seed: Option<Vec<u8>>,
+		) -> sp_session::OpaqueGeneratedSessionKeys {
 			// despite being named "generate" this function also adds generated keys to local keystore
-			CrossChainKey::generate(seed.clone());
-			SessionKeys::generate(seed)
+			let _ = CrossChainKey::generate(&owner, seed.clone());
+			SessionKeys::generate(&owner, seed).into()
 		}
 
 		fn decode_session_keys(
@@ -1511,7 +1508,7 @@ impl_runtime_apis! {
 		}
 
 		fn execute_block(
-			block: Block,
+			block: <Block as BlockT>::LazyBlock,
 			state_root_check: bool,
 			signature_check: bool,
 			select: frame_try_runtime::TryStateSelect
