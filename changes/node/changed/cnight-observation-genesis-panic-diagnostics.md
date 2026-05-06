@@ -8,4 +8,5 @@ length when a value exceeds its bounded-vector cap, replacing four short
 a startup-failure log.
 
 PR: https://github.com/midnightntwrk/midnight-node/pull/1466
+Issue: https://github.com/shieldedtech/shielded-security-engineering/issues/365
 JIRA: https://shielded.atlassian.net/browse/PM-19896
