@@ -84,6 +84,20 @@ pub enum RegistrationDatumDecodeError {
 	DustAddressInvalidLength(usize),
 }
 
+/// Maximum cardano blocks the live (uncached) path will pull in a single
+/// `get_utxos_up_to_capacity` call. Each midnight block is allowed to consume
+/// at most `tx_capacity` cardano txs (today: 200), so on a typical chain a
+/// 64-block window comfortably covers that budget while keeping the SQL
+/// scan bounded — both the DB-Sync round-trip and the in-memory truncate stay
+/// proportional to the budget instead of to `tip - start_position`.
+///
+/// Tradeoffs:
+/// - Smaller → bounded work per call but more midnight blocks needed to drain
+///   a backlog (catch-up takes longer in midnight-block count, not wall-time).
+/// - Larger → fewer round-trips but worse worst-case latency when the gap
+///   between `start_position` and tip is large (eg. cold restart).
+pub const LIVE_PULL_BLOCK_DELTA: u32 = 64;
+
 pub struct MidnightCNightObservationDataSourceImpl {
 	pub pool: PgPool,
 	pub metrics_opt: Option<MidnightDataSourceMetrics>,
@@ -108,16 +122,41 @@ impl MidnightCNightObservationDataSource for MidnightCNightObservationDataSource
 		current_tip: McBlockHash,
 		tx_capacity: usize,
 	) -> Result<ObservedUtxos, Box<dyn std::error::Error + Send + Sync>> {
-		// Resolve current_tip → CardanoPosition (the inclusive end of the
-		// query range). The `.increment()` brings it to the half-open
-		// upper bound the truncate helper expects.
+		// Resolve current_tip → CardanoPosition.
 		let _block_timer = start_sub_query_timer(&self.metrics_opt, "cnight_get_block_by_hash");
-		let end: CardanoPosition = crate::db::get_block_by_hash(&self.pool, current_tip.clone())
+		let tip_pos: CardanoPosition = crate::db::get_block_by_hash(&self.pool, current_tip.clone())
 			.await?
 			.ok_or(MidnightCNightObservationDataSourceError::MissingBlockReference(current_tip))?
 			.into();
 		drop(_block_timer);
-		let end = end.increment();
+
+		// Bounds the SQL window to LIVE_PULL_BLOCK_DELTA cardano blocks.
+		// Without this, a stale NextCardanoPosition (cold restart, dense
+		// backlog) would pull the full [start, tip] range only to truncate
+		// to tx_capacity in memory. Clipping by block_number — not per-stream
+		// LIMIT — cuts all four observation streams at the same cardano
+		// boundary so the merged result has no stream-specific gaps.
+		//
+		// We synthesise the clipped end rather than do a second round-trip:
+		// CardanoPosition's hash/timestamp are "mostly informational" (see
+		// its doc comment), and the SQL bounds plus the runtime's regression
+		// check only key off (block_number, tx_index_in_block). The
+		// genesis-creation loop's `block_hash == cardano_tip` exit still
+		// fires, because the final unclipped iteration returns the real tip
+		// hash. tx_index_in_block = i32::MAX is the same sentinel
+		// `whole_block_range` uses; it survives the `as i32` cast in the SQL
+		// bind path.
+		let clip_block_no = start_position.block_number.saturating_add(LIVE_PULL_BLOCK_DELTA);
+		let end = if tip_pos.block_number > clip_block_no {
+			CardanoPosition {
+				block_hash: McBlockHash([0u8; 32]),
+				block_number: clip_block_no,
+				block_timestamp: Default::default(),
+				tx_index_in_block: u32::try_from(i32::MAX).expect("i32::MAX is non-negative"),
+			}
+		} else {
+			tip_pos.increment()
+		};
 
 		let utxos = bulk_pull(&self.pool, config, start_position, &end).await?;
 		let (result, _full_window) = truncate_to_tx_capacity(
