@@ -656,7 +656,10 @@ mod tests {
 	#[should_panic(expected = "origin_seed and destination_seed must differ")]
 	fn with_wallets_from_seeds_panics_on_aliased_seed() {
 		let seed_a = WalletSeed::Medium([0x01; 32]);
-		let ctx = LedgerContext::<TestDB>::new_from_wallet_seeds("test-net", &[seed_a.clone()]);
+		let ctx = LedgerContext::<TestDB>::new_from_wallet_seeds(
+			"test-net",
+			std::slice::from_ref(&seed_a),
+		);
 		ctx.with_wallets_from_seeds(seed_a.clone(), seed_a, |_, _| ());
 	}
 
@@ -670,7 +673,10 @@ mod tests {
 	fn with_wallets_from_seeds_panics_on_missing_seed() {
 		let seed_a = WalletSeed::Medium([0x01; 32]);
 		let seed_b = WalletSeed::Medium([0x02; 32]);
-		let ctx = LedgerContext::<TestDB>::new_from_wallet_seeds("test-net", &[seed_a.clone()]);
+		let ctx = LedgerContext::<TestDB>::new_from_wallet_seeds(
+			"test-net",
+			std::slice::from_ref(&seed_a),
+		);
 		ctx.with_wallets_from_seeds(seed_a, seed_b, |_, _| ());
 	}
 }
