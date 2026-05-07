@@ -499,15 +499,14 @@ impl<D: DB + Clone> LedgerContext<D> {
 
 		let mut wallet_guard = self.wallets.lock().expect("Error locking `LedgerContext` wallets");
 
-		let [origin_wallet, destination_wallet] =
-			wallet_guard.get_disjoint_mut([&origin_seed, &destination_seed]).map(|opt| {
-				opt.unwrap_or_else(|| {
-					panic!(
-						"Wallet with seed does not exist in the `LedgerContext` \
-						 (origin: {origin_seed:?}, destination: {destination_seed:?})"
-					)
-				})
-			});
+		let [origin_opt, destination_opt] =
+			wallet_guard.get_disjoint_mut([&origin_seed, &destination_seed]);
+		let origin_wallet = origin_opt.unwrap_or_else(|| {
+			panic!("Wallet with seed {origin_seed:?} does not exist in the `LedgerContext`")
+		});
+		let destination_wallet = destination_opt.unwrap_or_else(|| {
+			panic!("Wallet with seed {destination_seed:?} does not exist in the `LedgerContext`")
+		});
 
 		f(origin_wallet, destination_wallet)
 	}
