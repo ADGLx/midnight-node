@@ -56,7 +56,7 @@ jobs:
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Login to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 #v4.0.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
         with:
           registry: ghcr.io
           username: MidnightCI
@@ -164,7 +164,7 @@ jobs:
           submodules: true
 
       - name: Login to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 #v4.0.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
         with:
           registry: ghcr.io
           username: MidnightCI
@@ -272,7 +272,7 @@ jobs:
           submodules: true
 
       - name: Login to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 #v4.0.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
         with:
           registry: ghcr.io
           username: MidnightCI
@@ -348,7 +348,7 @@ jobs:
           submodules: true
 
       - name: Login to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 #v4.0.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
         with:
           registry: ghcr.io
           username: MidnightCI
@@ -468,7 +468,7 @@ jobs:
           github-token: ${{ github.token }}
           use-cache: false
       - name: Login to GHCR
-        uses: docker/login-action@b45d80f862d83dbcd57f89517bcf500b2ab88fb2 #v4.0.0
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
         with:
           registry: ghcr.io
           username: MidnightCI
@@ -483,6 +483,53 @@ jobs:
           . ./.envrc && earthly --ci -P \
             --build-arg "NODE_IMAGE=ghcr.io/midnight-ntwrk/midnight-node:${{ needs.run.outputs.node_image_tag }}" \
             +check-metadata
+
+  mainnet-sync-test:
+    permissions:
+      contents: read
+      packages: read
+    name: Mainnet Sync (1000 blocks)
+    needs: [run]
+    runs-on: ubuntu-latest-8-core-x64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
+
+      - name: Login to GHCR
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
+        with:
+          registry: ghcr.io
+          username: MidnightCI
+          password: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
+
+      - name: Sync first 1000 blocks of mainnet
+        env:
+          NODE_IMAGE: ghcr.io/midnight-ntwrk/midnight-node:${{ needs.run.outputs.node_image_tag }}
+          SNAPSHOT: static/sync-test/snapshot.sql.xz
+          CFG_PRESET: mainnet
+          SYNC_UNTIL: "1000"
+          SYNC_TIMEOUT_SECS: "1800"
+        run: bash scripts/sync-test/run-sync.sh
+
+      - name: Print sync logs
+        if: always()
+        run: |
+          echo "::group::midnight-node.log"
+          cat /tmp/midnight-node.log 2>/dev/null || echo "(no node log)"
+          echo "::endgroup::"
+          echo "::group::midnight-pg.log"
+          cat /tmp/midnight-pg.log 2>/dev/null || echo "(no postgres log)"
+          echo "::endgroup::"
+
+      - name: Upload sync logs on failure
+        if: failure()
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f #v7.0.0
+        with:
+          name: mainnet-sync-logs
+          path: |
+            /tmp/midnight-node.log
+            /tmp/midnight-pg.log
+          if-no-files-found: ignore
 
   toolkit-contracts-e2e:
     permissions:
@@ -595,7 +642,7 @@ jobs:
 
       - name: Install just
         if: steps.image_meta.outputs.skip_build != 'true'
-        uses: taiki-e/install-action@94a7388bec5d4c8dd93e3ebf09e0ff448f3f6f4d #v2.68.35
+        uses: taiki-e/install-action@6e4b50d359005dacdb018fa32c03bc35522c6616 #v2.75.12
         with:
           tool: just
 
