@@ -699,7 +699,12 @@ impl pallet_collective::Config<CouncilCollectiveInstance> for Runtime {
 	type MaxProposals = ConstU32<MAX_PROPOSALS>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>; // Should be same as `pallet_membership`
 	type DefaultVote = AlwaysNo;
-	type SetMembersOrigin = NeverEnsureOrigin<()>; // Should be managed from `pallet_membership`
+	// Production: managed from `pallet_membership`. Benchmarks need an origin
+	// whose `try_successful_origin` succeeds so setup helpers can install members.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SetMembersOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type DisapproveOrigin = EnsureRoot<Self::AccountId>;
 	type KillOrigin = EnsureRoot<Self::AccountId>;
@@ -710,11 +715,25 @@ impl pallet_collective::Config<CouncilCollectiveInstance> for Runtime {
 type CouncilMembershipInstance = pallet_membership::Instance1;
 impl pallet_membership::Config<CouncilMembershipInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = NeverEnsureOrigin<()>; // Members only managed by `ResetOrigin`
-	type RemoveOrigin = NeverEnsureOrigin<()>; // Members only managed by `ResetOrigin`
-	type SwapOrigin = NeverEnsureOrigin<()>; // Members only managed by `ResetOrigin`
+	// Production: members managed only by `ResetOrigin`. Benchmarks need successful
+	// origins so the upstream `set_members`/`set_prime` helpers don't panic.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type AddOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type AddOrigin = EnsureRoot<Self::AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type RemoveOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type RemoveOrigin = EnsureRoot<Self::AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SwapOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SwapOrigin = EnsureRoot<Self::AccountId>;
 	type ResetOrigin = EnsureNone<Self::AccountId>; // To be called by an Inherent with `RawOrigin::None`
-	type PrimeOrigin = NeverEnsureOrigin<()>; // No Prime member. Members only managed by `ResetOrigin`
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type PrimeOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type PrimeOrigin = EnsureRoot<Self::AccountId>;
 	type MembershipInitialized = MembershipHandler<Runtime, Council>;
 	type MembershipChanged = MembershipHandler<Runtime, Council>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>;
@@ -731,7 +750,11 @@ impl pallet_collective::Config<TechnicalCommitteeCollectiveInstance> for Runtime
 	type MaxProposals = ConstU32<MAX_PROPOSALS>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>; // Should be same as `pallet_membership`
 	type DefaultVote = AlwaysNo;
-	type SetMembersOrigin = NeverEnsureOrigin<()>; // Should be managed from `pallet_membership`
+	// See Council instance above for rationale.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SetMembersOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SetMembersOrigin = EnsureRoot<Self::AccountId>;
 	type MaxProposalWeight = MaxProposalWeight;
 	type DisapproveOrigin = EnsureRoot<Self::AccountId>;
 	type KillOrigin = EnsureRoot<Self::AccountId>;
@@ -742,11 +765,24 @@ impl pallet_collective::Config<TechnicalCommitteeCollectiveInstance> for Runtime
 type TechnicalCommitteeMembershipInstance = pallet_membership::Instance2;
 impl pallet_membership::Config<TechnicalCommitteeMembershipInstance> for Runtime {
 	type RuntimeEvent = RuntimeEvent;
-	type AddOrigin = NeverEnsureOrigin<()>; // Members only managed by `ResetOrigin`
-	type RemoveOrigin = NeverEnsureOrigin<()>; // Members only managed by `ResetOrigin`
-	type SwapOrigin = NeverEnsureOrigin<()>; // Members only managed by `ResetOrigin`
+	// See CouncilMembership instance above for rationale.
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type AddOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type AddOrigin = EnsureRoot<Self::AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type RemoveOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type RemoveOrigin = EnsureRoot<Self::AccountId>;
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type SwapOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type SwapOrigin = EnsureRoot<Self::AccountId>;
 	type ResetOrigin = EnsureNone<Self::AccountId>; // To be called by an Inherent with `RawOrigin::None`
-	type PrimeOrigin = NeverEnsureOrigin<()>; // No Prime member. Members only managed by `ResetOrigin`
+	#[cfg(not(feature = "runtime-benchmarks"))]
+	type PrimeOrigin = NeverEnsureOrigin<()>;
+	#[cfg(feature = "runtime-benchmarks")]
+	type PrimeOrigin = EnsureRoot<Self::AccountId>;
 	type MembershipInitialized = MembershipHandler<Runtime, TechnicalCommittee>;
 	type MembershipChanged = MembershipHandler<Runtime, TechnicalCommittee>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>;
@@ -1121,8 +1157,16 @@ mod benches {
 		[frame_benchmarking, BaselineBench::<Runtime>]
 		[frame_system, SystemBench::<Runtime>]
 		[pallet_beefy_mmr, BeefyMmrLeaf]
+		[pallet_grandpa, Grandpa]
 		[pallet_timestamp, Timestamp]
 		[pallet_migrations, MultiBlockMigrations]
+		[pallet_preimage, Preimage]
+		[pallet_scheduler, Scheduler]
+		[pallet_tx_pause, TxPause]
+		[pallet_collective, Council]
+		[pallet_collective, TechnicalCommittee]
+		[pallet_membership, CouncilMembership]
+		[pallet_membership, TechnicalCommitteeMembership]
 		[pallet_session_validator_management, SessionCommitteeManagement]
 		[pallet_midnight, Midnight]
 		[pallet_federated_authority, FederatedAuthority]
