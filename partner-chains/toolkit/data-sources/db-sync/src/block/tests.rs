@@ -4,6 +4,7 @@ use chrono::{NaiveDateTime, TimeDelta};
 use hex_literal::hex;
 use sidechain_domain::mainchain_epoch::{Duration, MainchainEpochConfig, Timestamp};
 use sidechain_domain::{McBlockHash, McBlockNumber, McEpochNumber, McSlotNumber};
+use sidechain_mc_hash::StableBlockByHashResult;
 use sqlx::PgPool;
 use std::str::FromStr;
 
@@ -65,10 +66,10 @@ async fn test_get_stable_block_at(pool: PgPool) {
 	let source = mk_datasource(pool, security_parameter);
 	let exact_ts = BLOCK_4_TS_MILLIS.into();
 	let block = source.get_stable_block_for(block_2().hash, exact_ts).await.unwrap();
-	assert_eq!(block, Some(block_2()));
+	assert_eq!(block, StableBlockByHashResult::BlockStable { info: block_2() });
 	let greater_ts = (BLOCK_4_TS_MILLIS + 1).into();
 	let block = source.get_stable_block_for(block_2().hash, greater_ts).await.unwrap();
-	assert_eq!(block, Some(block_2()));
+	assert_eq!(block, StableBlockByHashResult::BlockStable { info: block_2() });
 }
 
 #[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
@@ -83,7 +84,7 @@ async fn test_get_stable_block_at_returns_block_that_dont_have_k_blocks_on_them_
 		.get_stable_block_for(block_2().hash, BLOCK_4_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(block, Some(block_2()));
+	assert_eq!(block, StableBlockByHashResult::BlockStable { info: block_2() });
 }
 
 #[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
@@ -102,7 +103,7 @@ async fn test_get_stable_block_at_filters_out_by_min_slots_boundary(pool: PgPool
 		.get_stable_block_for(block_2().hash, BLOCK_4_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(block, None);
+	assert_eq!(block, StableBlockByHashResult::BlockNotStable { info: block_2() });
 }
 
 #[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
@@ -121,7 +122,7 @@ async fn test_get_stable_block_at_filters_out_by_max_slots_boundary(pool: PgPool
 		.get_stable_block_for(block_2().hash, BLOCK_4_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(block, None);
+	assert_eq!(block, StableBlockByHashResult::BlockNotStable { info: block_2() });
 }
 
 #[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
@@ -133,7 +134,7 @@ async fn test_get_stable_block_info_by_hash_for_unknown_hash(pool: PgPool) {
 		.get_stable_block_for(unknown_hash, BLOCK_4_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(result, None)
+	assert_eq!(result, StableBlockByHashResult::BlockNotFound)
 }
 
 #[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
@@ -223,7 +224,7 @@ async fn test_get_stable_block_caching(pool: PgPool) {
 		.get_stable_block_for(block_0().hash, BLOCK_5_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(result, Some(block_0()));
+	assert_eq!(result, StableBlockByHashResult::BlockStable { info: block_0() });
 
 	update_block_hash_in_db(&pool, 0).await;
 	update_block_hash_in_db(&pool, 1).await;
@@ -234,25 +235,30 @@ async fn test_get_stable_block_caching(pool: PgPool) {
 		.get_stable_block_for(block_1().hash, BLOCK_5_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(result, Some(block_1()));
+	assert_eq!(result, StableBlockByHashResult::BlockStable { info: block_1() });
 
 	let result = source
 		.get_stable_block_for(block_2().hash, BLOCK_5_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(result, Some(block_2()));
+	assert_eq!(result, StableBlockByHashResult::BlockStable { info: block_2() });
 
 	let result = source
 		.get_stable_block_for(block_3().hash, BLOCK_5_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(result, None);
+	assert_eq!(result, StableBlockByHashResult::BlockNotFound);
 
 	let result = source
 		.get_stable_block_for(dummy_hash(3), BLOCK_5_TS_MILLIS.into())
 		.await
 		.unwrap();
-	assert_eq!(result, Some(MainchainBlock { hash: dummy_hash(3), ..block_3() }))
+	assert_eq!(
+		result,
+		StableBlockByHashResult::BlockStable {
+			info: MainchainBlock { hash: dummy_hash(3), ..block_3() }
+		}
+	)
 }
 
 #[sqlx::test(migrations = "./testdata/migrations-tx-in-consumed")]
@@ -266,7 +272,7 @@ async fn test_records_cardano_block_metrics(pool: PgPool) {
 		.await
 		.unwrap();
 
-	assert_eq!(result, Some(block_2()));
+	assert_eq!(result, StableBlockByHashResult::BlockStable { info: block_2() });
 	assert_eq!(metrics.latest_cardano_block_number().get(), 5,);
 	assert_eq!(metrics.latest_cardano_block_slot().get(), 193500,);
 	assert_eq!(metrics.referenced_cardano_block_number().get(), 2,);
@@ -281,9 +287,11 @@ fn mk_datasource(pool: PgPool, security_parameter: u32) -> BlockDataSourceImpl {
 		max_slot_boundary_as_seconds: TimeDelta::seconds(5000),
 		mainchain_epoch_config: mainchain_epoch_config(),
 		block_stability_margin: 0,
+		max_latest_block_age_seconds: 100,
 		cache_size: 100,
 		stable_blocks_cache: BlocksCache::new_arc_mutex(),
 		metrics_opt: None,
+		time_source: std::sync::Arc::new(time_source::SystemTimeSource),
 	}
 }
 

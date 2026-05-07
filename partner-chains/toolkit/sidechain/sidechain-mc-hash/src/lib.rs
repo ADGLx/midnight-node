@@ -267,6 +267,27 @@ impl Deref for McHashInherentDataProvider {
 	}
 }
 
+/// Outcome of looking up a Cardano block by hash and checking whether it is stable
+/// against a reference timestamp.
+#[derive(Debug, Clone, PartialEq)]
+pub enum StableBlockByHashResult {
+	/// No block with the requested hash is known to the data source.
+	BlockNotFound,
+	/// The block exists but is not yet stable: either insufficient confirmations have been
+	/// observed on top of it, or its timestamp is outside the allowed range relative to the
+	/// reference timestamp.
+	BlockNotStable {
+		/// Information about the block that was found but is not yet considered stable.
+		info: MainchainBlock,
+	},
+	/// The block exists, has enough confirmations, and its timestamp is within the allowed
+	/// range relative to the reference timestamp.
+	BlockStable {
+		/// Information about the stable block.
+		info: MainchainBlock,
+	},
+}
+
 /// Data source API used by [McHashInherentDataProvider]
 #[async_trait]
 pub trait McHashDataSource {
@@ -283,19 +304,20 @@ pub trait McHashDataSource {
 		reference_timestamp: Timestamp,
 	) -> Result<Option<MainchainBlock>, Box<dyn std::error::Error + Send + Sync>>;
 
-	/// Find block by hash, filtered by block timestamp being in `allowable_range(reference_timestamp)`
+	/// Find block by hash and classify it relative to `reference_timestamp`.
 	/// # Arguments
 	/// * `hash` - the hash of the block
 	/// * `reference_timestamp` - restricts the timestamp of the MC block
 	///
 	/// # Returns
-	/// * `Some(block)` - the block with given hash, with timestamp in the allowable range
-	/// * `None` - no stable block with given hash and timestamp in the allowable range exists
+	/// A [StableBlockByHashResult] distinguishing between an unknown block, a block that
+	/// exists but is not yet stable, and a block that is stable in reference to the given
+	/// timestamp.
 	async fn get_stable_block_for(
 		&self,
 		hash: McBlockHash,
 		reference_timestamp: Timestamp,
-	) -> Result<Option<MainchainBlock>, Box<dyn std::error::Error + Send + Sync>>;
+	) -> Result<StableBlockByHashResult, Box<dyn std::error::Error + Send + Sync>>;
 
 	/// Find block by hash.
 	/// # Arguments
@@ -308,6 +330,16 @@ pub trait McHashDataSource {
 		&self,
 		hash: McBlockHash,
 	) -> Result<Option<MainchainBlock>, Box<dyn std::error::Error + Send + Sync>>;
+
+	/// *Heuristic* for our Cardano view being in sync with the network.
+	///
+	/// Because it can happen that Cardano block production stalls across the network for some duration,
+	/// use this only as a secondary check, when there is another suspicition that our observability lags.
+	async fn is_cardano_tip_fresh(&self) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
+
+	/// Checks if the head of the main chain has allowable chain density.
+	/// According to Praos rules it has to be a least active_slots_coeff/3 in the latest security_parameter blocks.
+	async fn is_cardano_ok(&self) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
 }
 
 impl McHashInherentDataProvider {
@@ -387,13 +419,60 @@ impl McHashInherentDataProvider {
 	where
 		Header: HeaderT,
 	{
-		let mc_state_reference_block = get_mc_state_reference(
-			verified_block_slot,
-			mc_state_reference_hash.clone(),
-			slot_duration,
-			block_source,
-		)
-		.await?;
+		let timestamp = verified_block_slot
+			.timestamp(slot_duration)
+			.ok_or(McHashInherentError::SlotTooBig)?;
+		let mc_state_reference_block = loop {
+			match get_mc_state_reference(mc_state_reference_hash.clone(), timestamp, block_source)
+				.await?
+			{
+				StableBlockByHashResult::BlockStable { info } => break info,
+				StableBlockByHashResult::BlockNotStable { .. } => {
+					if block_source
+						.is_cardano_tip_fresh()
+						.await
+						.map_err(|e| McHashInherentError::DataSourceError(e))?
+					{
+						log::info!(
+							"Main chain reference found, but in not stable part of chain when Main Chain tip looks fresh."
+						);
+						return Err(McHashInherentError::McStateReferenceInvalid(
+							mc_state_reference_hash,
+							verified_block_slot,
+							timestamp,
+						));
+					} else {
+						log::error!(
+							"Main chain tip looks stale when verifying state reference: {mc_state_reference_hash}"
+						);
+						tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+					}
+				},
+				// Unknown reference. If Main Chain is OK, then it is surely dishonest reference.
+				// Otherwise hold verification until Main Chain is healthy.
+				StableBlockByHashResult::BlockNotFound => {
+					if block_source
+						.is_cardano_ok()
+						.await
+						.map_err(|e| McHashInherentError::DataSourceError(e))?
+					{
+						log::info!(
+							"Main chain reference {mc_state_reference_hash} not found when Main Chain is OK."
+						);
+						return Err(McHashInherentError::McStateReferenceInvalid(
+							mc_state_reference_hash,
+							verified_block_slot,
+							timestamp,
+						));
+					} else {
+						log::error!(
+							"Main chain is not OK. Cannot verify state reference: {mc_state_reference_hash}"
+						);
+						tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+					}
+				},
+			}
+		};
 
 		let Some(parent_slot) = parent_slot else {
 			// genesis block doesn't contain MC reference
@@ -402,9 +481,28 @@ impl McHashInherentDataProvider {
 
 		let parent_mc_hash = McHashInherentDigest::value_from_digest(&parent_header.digest().logs)
 			.map_err(|err| McHashInherentError::DigestError(err.to_string()))?;
-		let parent_mc_state_reference_block =
-			get_mc_state_reference(parent_slot, parent_mc_hash, slot_duration, block_source)
-				.await?;
+		let parent_timestamp =
+			parent_slot.timestamp(slot_duration).ok_or(McHashInherentError::SlotTooBig)?;
+
+		let parent_mc_state_reference_block = match get_mc_state_reference(
+			parent_mc_hash.clone(),
+			parent_timestamp,
+			block_source,
+		)
+		.await?
+		{
+			StableBlockByHashResult::BlockStable { info } => info,
+			_ => {
+				log::info!(
+					"Parent reference {parent_mc_hash} is not stable when verified block reference {mc_state_reference_hash} is."
+				);
+				return Err(McHashInherentError::McStateReferenceInvalid(
+					parent_mc_hash,
+					parent_slot,
+					parent_timestamp,
+				));
+			},
+		};
 
 		if mc_state_reference_block.number < parent_mc_state_reference_block.number {
 			Err(McHashInherentError::McStateReferenceRegressed(
@@ -443,23 +541,14 @@ impl McHashInherentDataProvider {
 }
 
 async fn get_mc_state_reference(
-	verified_block_slot: Slot,
 	verified_block_mc_hash: McBlockHash,
-	slot_duration: SlotDuration,
+	timestamp: Timestamp,
 	data_source: &(dyn McHashDataSource + Send + Sync),
-) -> Result<MainchainBlock, McHashInherentError> {
-	let timestamp = verified_block_slot
-		.timestamp(slot_duration)
-		.ok_or(McHashInherentError::SlotTooBig)?;
+) -> Result<StableBlockByHashResult, McHashInherentError> {
 	data_source
 		.get_stable_block_for(verified_block_mc_hash.clone(), timestamp)
 		.await
-		.map_err(McHashInherentError::DataSourceError)?
-		.ok_or(McHashInherentError::McStateReferenceInvalid(
-			verified_block_mc_hash,
-			verified_block_slot,
-			timestamp,
-		))
+		.map_err(McHashInherentError::DataSourceError)
 }
 
 #[async_trait::async_trait]
@@ -616,8 +705,15 @@ pub mod mock {
 			&self,
 			hash: McBlockHash,
 			_reference_timestamp: Timestamp,
-		) -> Result<Option<MainchainBlock>, Box<dyn std::error::Error + Send + Sync>> {
-			Ok(self.stable_blocks.iter().find(|b| b.hash == hash).cloned())
+		) -> Result<StableBlockByHashResult, Box<dyn std::error::Error + Send + Sync>> {
+			if let Some(info) = self.stable_blocks.iter().find(|b| b.hash == hash).cloned() {
+				Ok(StableBlockByHashResult::BlockStable { info })
+			} else if let Some(info) = self.unstable_blocks.iter().find(|b| b.hash == hash).cloned()
+			{
+				Ok(StableBlockByHashResult::BlockNotStable { info })
+			} else {
+				Ok(StableBlockByHashResult::BlockNotFound)
+			}
 		}
 
 		async fn get_block_by_hash(
@@ -630,6 +726,16 @@ pub mod mock {
 				.find(|b| b.hash == hash)
 				.cloned()
 				.or_else(|| self.unstable_blocks.iter().find(|b| b.hash == hash).cloned()))
+		}
+
+		async fn is_cardano_tip_fresh(
+			&self,
+		) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+			Ok(true)
+		}
+
+		async fn is_cardano_ok(&self) -> Result<bool, Box<dyn std::error::Error + Send + Sync>> {
+			Ok(true)
 		}
 	}
 }

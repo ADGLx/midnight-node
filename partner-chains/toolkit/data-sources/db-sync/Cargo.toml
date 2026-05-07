@@ -31,6 +31,7 @@ substrate-prometheus-endpoint = { workspace = true }
 derive-new = { workspace = true }
 lru = { workspace = true }
 sp-timestamp = { workspace = true, features = ["std"] }
+time-source = { workspace = true }
 sp-governed-map = { workspace = true, features = [
     "std",
 ], optional = true }
@@ -54,10 +55,10 @@ pretty_assertions = { workspace = true }
 
 [features]
 default = []
-block-source = []
+block-source = ["sidechain-mc-hash"]
 candidate-source = ["authority-selection-inherents"]
 governed-map = ["sp-governed-map"]
-mc-hash = ["sidechain-mc-hash", "block-source"]
+mc-hash = ["block-source"]
 sidechain-rpc = ["pallet-sidechain-rpc", "block-source"]
 block-participation = ["sp-block-participation"]
 bridge = ["sp-partner-chains-bridge"]

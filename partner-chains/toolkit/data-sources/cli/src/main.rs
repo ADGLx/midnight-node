@@ -118,7 +118,16 @@ mod data_source {
 			hash: McBlockHash,
 			reference_timestamp: u64,
 		) -> Result<Option<MainchainBlock>> {
-			self.inner.get_stable_block_for(hash, Timestamp::new(reference_timestamp)).await
+			use partner_chains_db_sync_data_sources::StableBlockByHashResult;
+			match self
+				.inner
+				.get_stable_block_for(hash, Timestamp::new(reference_timestamp))
+				.await?
+			{
+				StableBlockByHashResult::BlockStable { info } => Ok(Some(info)),
+				StableBlockByHashResult::BlockNotStable { .. }
+				| StableBlockByHashResult::BlockNotFound => Ok(None),
+			}
 		}
 	}
 

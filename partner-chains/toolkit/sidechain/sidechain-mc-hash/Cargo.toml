@@ -23,9 +23,10 @@ sp-runtime = { workspace = true, features = ["std"] }
 sp-timestamp = { workspace = true }
 thiserror = { workspace = true }
 derive-new = { workspace = true, optional = true }
+log = { workspace = true }
+tokio = { workspace = true, features = ["time"] }
 
 [dev-dependencies]
-tokio = { workspace = true }
 derive-new = { workspace = true }
 
 [features]

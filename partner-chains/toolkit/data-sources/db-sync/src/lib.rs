@@ -114,6 +114,8 @@ pub use crate::mc_hash::McHashDataSourceImpl;
 pub use crate::sidechain_rpc::SidechainRpcDataSourceImpl;
 #[cfg(feature = "block-participation")]
 pub use crate::stake_distribution::StakeDistributionDataSourceImpl;
+#[cfg(feature = "block-source")]
+pub use sidechain_mc_hash::StableBlockByHashResult;
 
 mod data_sources;
 mod db_datum;
