@@ -424,7 +424,7 @@ impl pallet_mmr::Config for Runtime {
 	type LeafData = pallet_beefy_mmr::Pallet<Runtime>;
 	type OnNewRoot = pallet_beefy_mmr::DepositBeefyDigest<Runtime>;
 	type BlockHashProvider = pallet_mmr::DefaultBlockHashProvider<Runtime>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_mmr::WeightInfo<Runtime>;
 	#[cfg(feature = "runtime-benchmarks")]
 	type BenchmarkHelper = ();
 }
@@ -1152,6 +1152,7 @@ mod benches {
 		[pallet_beefy_mmr, BeefyMmrLeaf]
 		[pallet_grandpa, Grandpa]
 		[pallet_timestamp, Timestamp]
+		[pallet_mmr, Mmr]
 		[pallet_migrations, MultiBlockMigrations]
 		[pallet_preimage, Preimage]
 		[pallet_scheduler, Scheduler]
