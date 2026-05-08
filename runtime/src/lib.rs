@@ -124,13 +124,16 @@ mod constants;
 mod currency;
 mod migrations;
 mod session_manager;
+pub mod weights;
 
 use check_call_filter::CheckCallFilter;
 use constants::time_units::DAYS;
 use pallet_federated_authority::{
 	AuthorityBody, FederatedAuthorityEnsureProportionAtLeast, FederatedAuthorityOriginManager,
 };
-use runtime_common::governance::{AlwaysNo, MembershipHandler, MembershipObservationHandler};
+#[cfg(not(feature = "runtime-benchmarks"))]
+use runtime_common::governance::AlwaysNo;
+use runtime_common::governance::{MembershipHandler, MembershipObservationHandler};
 
 use crate::beefy::{
 	compute_current_authority_set, compute_next_authority_set, current_beefy_stakes,
@@ -363,7 +366,7 @@ impl frame_system::Config for Runtime {
 	/// The data to be stored in an account.
 	type AccountData = ();
 	/// Weight information for the extrinsics of this pallet.
-	type SystemWeightInfo = ();
+	type SystemWeightInfo = weights::frame_system::WeightInfo<Runtime>;
 	/// This is used as an identifier of the chain. 42 is the generic substrate prefix.
 	type SS58Prefix = SS58Prefix;
 	/// The set code logic, just the default since we're not a parachain.
@@ -394,7 +397,7 @@ pallet_partner_chains_session::impl_pallet_session_config!(Runtime);
 impl pallet_grandpa::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_grandpa::WeightInfo<Runtime>;
 	type MaxAuthorities = MaxAuthorities;
 	type MaxNominators = ConstU32<5>;
 	type MaxSetIdSessionEntries = ConstU64<0>;
@@ -465,7 +468,7 @@ impl pallet_beefy_mmr::Config for Runtime {
 	type BeefyAuthorityToMerkleLeaf = RawBeefyId;
 	type LeafExtra = Vec<u8>;
 	type BeefyDataProvider = ();
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_beefy_mmr::WeightInfo<Runtime>;
 }
 
 impl pallet_timestamp::Config for Runtime {
@@ -473,7 +476,7 @@ impl pallet_timestamp::Config for Runtime {
 	type Moment = u64;
 	type OnTimestampSet = Aura;
 	type MinimumPeriod = ConstU64<{ SLOT_DURATION / 2 }>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_timestamp::WeightInfo<Runtime>;
 }
 
 /// Existential deposit.
@@ -495,7 +498,7 @@ impl pallet_migrations::Config for Runtime {
 	type MigrationStatusHandler = ();
 	type FailedMigrationHandler = frame_support::migrations::FreezeChainOnFailedMigration;
 	type MaxServiceWeight = MbmServiceWeight;
-	type WeightInfo = pallet_migrations::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_migrations::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -514,7 +517,7 @@ impl pallet_scheduler::Config for Runtime {
 	type MaxScheduledPerBlock = ConstU32<512>;
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type MaxScheduledPerBlock = ConstU32<50>;
-	type WeightInfo = pallet_scheduler::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_scheduler::WeightInfo<Runtime>;
 	type OriginPrivilegeCmp = EqualPrivilegeOnly;
 	type Preimages = Preimage;
 	type BlockNumberProvider = frame_system::Pallet<Runtime>;
@@ -564,8 +567,7 @@ impl pallet_session_validator_management::Config for Runtime {
 		Sidechain::current_epoch_number()
 	}
 
-	// TODO: Benchmark all pallets
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_session_validator_management::WeightInfo<Runtime>;
 
 	type CommitteeMember = CommitteeMember<CrossChainPublic, SessionKeys>;
 
@@ -666,7 +668,7 @@ impl pallet_version::Config for Runtime {
 }
 
 impl pallet_preimage::Config for Runtime {
-	type WeightInfo = pallet_preimage::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_preimage::WeightInfo<Runtime>;
 	type RuntimeEvent = RuntimeEvent;
 	type Currency = currency::CurrencyWaiver;
 	type ManagerOrigin = EnsureRoot<AccountId>;
@@ -680,7 +682,7 @@ impl pallet_tx_pause::Config for Runtime {
 	type UnpauseOrigin = EnsureRoot<AccountId>;
 	type WhitelistedCalls = Nothing;
 	type MaxNameLen = ConstU32<256>;
-	type WeightInfo = pallet_tx_pause::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_tx_pause::WeightInfo<Runtime>;
 }
 
 pub const MOTION_DURATION: BlockNumber = 5 * DAYS;
@@ -701,7 +703,10 @@ impl pallet_collective::Config<CouncilCollectiveInstance> for Runtime {
 	type MotionDuration = MotionDuration;
 	type MaxProposals = ConstU32<MAX_PROPOSALS>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>; // Should be same as `pallet_membership`
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type DefaultVote = AlwaysNo;
+	#[cfg(feature = "runtime-benchmarks")]
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	// Production: managed from `pallet_membership`. Benchmarks need an origin
 	// whose `try_successful_origin` succeeds so setup helpers can install members.
 	#[cfg(not(feature = "runtime-benchmarks"))]
@@ -712,7 +717,7 @@ impl pallet_collective::Config<CouncilCollectiveInstance> for Runtime {
 	type DisapproveOrigin = EnsureRoot<Self::AccountId>;
 	type KillOrigin = EnsureRoot<Self::AccountId>;
 	type Consideration = ();
-	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_collective_council::WeightInfo<Runtime>;
 }
 
 type CouncilMembershipInstance = pallet_membership::Instance1;
@@ -740,7 +745,7 @@ impl pallet_membership::Config<CouncilMembershipInstance> for Runtime {
 	type MembershipInitialized = MembershipHandler<Runtime, Council>;
 	type MembershipChanged = MembershipHandler<Runtime, Council>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>;
-	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_membership_council_membership::WeightInfo<Runtime>;
 }
 
 /// Technical Committee
@@ -752,7 +757,10 @@ impl pallet_collective::Config<TechnicalCommitteeCollectiveInstance> for Runtime
 	type MotionDuration = MotionDuration;
 	type MaxProposals = ConstU32<MAX_PROPOSALS>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>; // Should be same as `pallet_membership`
+	#[cfg(not(feature = "runtime-benchmarks"))]
 	type DefaultVote = AlwaysNo;
+	#[cfg(feature = "runtime-benchmarks")]
+	type DefaultVote = pallet_collective::PrimeDefaultVote;
 	// See Council instance above for rationale.
 	#[cfg(not(feature = "runtime-benchmarks"))]
 	type SetMembersOrigin = NeverEnsureOrigin<()>;
@@ -762,7 +770,7 @@ impl pallet_collective::Config<TechnicalCommitteeCollectiveInstance> for Runtime
 	type DisapproveOrigin = EnsureRoot<Self::AccountId>;
 	type KillOrigin = EnsureRoot<Self::AccountId>;
 	type Consideration = ();
-	type WeightInfo = pallet_collective::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_collective_technical_committee::WeightInfo<Runtime>;
 }
 
 type TechnicalCommitteeMembershipInstance = pallet_membership::Instance2;
@@ -789,7 +797,8 @@ impl pallet_membership::Config<TechnicalCommitteeMembershipInstance> for Runtime
 	type MembershipInitialized = MembershipHandler<Runtime, TechnicalCommittee>;
 	type MembershipChanged = MembershipHandler<Runtime, TechnicalCommittee>;
 	type MaxMembers = ConstU32<MAX_MEMBERS>;
-	type WeightInfo = pallet_membership::weights::SubstrateWeight<Runtime>;
+	type WeightInfo =
+		weights::pallet_membership_technical_committee_membership::WeightInfo<Runtime>;
 }
 
 pub const MAX_NUM_BODIES: u32 = 2; // TechnicalCommittee + Council
@@ -832,7 +841,7 @@ impl pallet_federated_authority::Config for Runtime {
 		FederatedAuthorityOriginManager<(CouncilApproval, TechnicalCommitteeApproval)>;
 	type MotionRevokeOrigin =
 		FederatedAuthorityOriginManager<(CouncilRevoke, TechnicalCommitteeRevoke)>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_federated_authority::WeightInfo<Runtime>;
 }
 
 impl pallet_federated_authority_observation::Config for Runtime {
@@ -842,12 +851,12 @@ impl pallet_federated_authority_observation::Config for Runtime {
 		MembershipObservationHandler<Runtime, CouncilMembershipInstance>;
 	type TechnicalCommitteeMembershipHandler =
 		MembershipObservationHandler<Runtime, TechnicalCommitteeMembershipInstance>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_federated_authority_observation::WeightInfo<Runtime>;
 }
 
 impl pallet_system_parameters::Config for Runtime {
 	type SystemOrigin = EnsureRoot<AccountId>;
-	type WeightInfo = ();
+	type WeightInfo = weights::pallet_system_parameters::WeightInfo<Runtime>;
 }
 
 parameter_types! {
@@ -871,7 +880,7 @@ parameter_types! {
 
 impl pallet_cnight_observation::Config for Runtime {
 	type MidnightSystemTransactionExecutor = MidnightSystem;
-	type WeightInfo = pallet_cnight_observation::weights::SubstrateWeight<Runtime>;
+	type WeightInfo = weights::pallet_cnight_observation::WeightInfo<Runtime>;
 }
 
 impl pallet_partner_chains_bridge::Config for Runtime {
@@ -1152,7 +1161,6 @@ mod benches {
 		[pallet_membership, CouncilMembership]
 		[pallet_membership, TechnicalCommitteeMembership]
 		[pallet_session_validator_management, SessionCommitteeManagement]
-		[pallet_midnight, Midnight]
 		[pallet_federated_authority, FederatedAuthority]
 		[pallet_federated_authority_observation, FederatedAuthorityObservation]
 		[pallet_system_parameters, SystemParameters]
