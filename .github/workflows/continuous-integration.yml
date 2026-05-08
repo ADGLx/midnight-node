@@ -46,11 +46,13 @@ jobs:
         with:
           version: v0.8.16
           github-token: ${{ github.token }}
-          # TEST PR — flipped from `false` so the Earthly satellite (running
-          # on the Hetzner box at tcp://127.0.0.1:8372 via EARTHLY_BUILDKIT_HOST)
-          # actually carries cache across runs. Should be the biggest single CI
-          # speedup once we're on Hetzner runners.
-          use-cache: true
+          # Keep `use-cache: false` — that flag controls whether EarthBuild
+          # caches state into GitHub Actions cache (which sets up TLS-secured
+          # buildkitd inside the runner). We don't want that path on Hetzner
+          # runners. Cache here comes from the persistent local Earthly
+          # satellite at tcp://127.0.0.1:8372 (set via EARTHLY_BUILDKIT_HOST
+          # in /opt/actions-runner/N/.env by the runner ansible role).
+          use-cache: false
 
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
