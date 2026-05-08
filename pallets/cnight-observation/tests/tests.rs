@@ -1626,15 +1626,21 @@ fn is_inherent_required_with_malformed_data_returns_error() {
 // These tests assert that the diagnostic panic emitted by
 // `pallet_cnight_observation::BuildGenesisConfig::build` for over-length address
 // fields names BOTH the dotted chain-spec field path (operator-facing) AND the
-// cap constant (developer-facing). They use `std::panic::catch_unwind` rather
-// than `#[should_panic(expected = ...)]` because that attribute supports only a
+// numeric cap (`maximum <N>`, read from the destination `BoundedVec` type via
+// `bound()`). They use `std::panic::catch_unwind` rather than
+// `#[should_panic(expected = ...)]` because that attribute supports only a
 // single substring; we want to pin two independent assertions per test.
 //
+// The field paths match the JSON keys an operator edits in chain-spec files
+// under `res/`, e.g. `cNightObservation.config.addresses.<field>` — the runtime
+// pallet name is `CNightObservation` (declared in `runtime/src/lib.rs`) which
+// Substrate's `#[runtime::*]` form renders as `cNightObservation` in JSON.
+//
 // `cnight_policy_id` is intentionally not exercised — its source type is a
-// fixed-size `[u8; 28]`, so the panic at lib.rs cannot be reached via
-// chain-spec deserialization (serde rejects mismatched lengths first). The
-// `unwrap_or_else(|_| panic!(...))` at that site is retained as defence-in-depth
-// against a future widening of the source type.
+// fixed-size `[u8; 28]`, so the panic at the corresponding call site cannot be
+// reached via chain-spec deserialization (serde rejects mismatched lengths
+// first). The diagnostic helper is invoked there as defence-in-depth against
+// a future widening of the source type.
 // -----------------------------------------------------------------------------
 
 /// Extracts the panic message string from a `catch_unwind` payload, trying both
@@ -1670,12 +1676,12 @@ fn build_panics_with_field_name_and_const_when_mapping_validator_address_too_lon
 		result.expect_err("genesis build must panic on over-length mapping_validator_address");
 	let msg = panic_message(payload);
 	assert!(
-		msg.contains("cnight_observation.addresses.mapping_validator_address"),
+		msg.contains("cNightObservation.config.addresses.mapping_validator_address"),
 		"panic message must name the chain-spec field path; got: {msg}"
 	);
 	assert!(
-		msg.contains("CARDANO_BECH32_ADDRESS_MAX_LENGTH"),
-		"panic message must name the cap constant; got: {msg}"
+		msg.contains(&format!("maximum {CARDANO_BECH32_ADDRESS_MAX_LENGTH}")),
+		"panic message must name the bound from the destination type; got: {msg}"
 	);
 }
 
@@ -1699,12 +1705,12 @@ fn build_panics_with_field_name_and_const_when_auth_token_asset_name_too_long() 
 		result.expect_err("genesis build must panic on over-length auth_token_asset_name");
 	let msg = panic_message(payload);
 	assert!(
-		msg.contains("cnight_observation.addresses.auth_token_asset_name"),
+		msg.contains("cNightObservation.config.addresses.auth_token_asset_name"),
 		"panic message must name the chain-spec field path; got: {msg}"
 	);
 	assert!(
-		msg.contains("CARDANO_ASSET_NAME_MAX_LENGTH"),
-		"panic message must name the cap constant; got: {msg}"
+		msg.contains(&format!("maximum {CARDANO_ASSET_NAME_MAX_LENGTH}")),
+		"panic message must name the bound from the destination type; got: {msg}"
 	);
 }
 
@@ -1727,11 +1733,47 @@ fn build_panics_with_field_name_and_const_when_cnight_asset_name_too_long() {
 	let payload = result.expect_err("genesis build must panic on over-length cnight_asset_name");
 	let msg = panic_message(payload);
 	assert!(
-		msg.contains("cnight_observation.addresses.cnight_asset_name"),
+		msg.contains("cNightObservation.config.addresses.cnight_asset_name"),
 		"panic message must name the chain-spec field path; got: {msg}"
 	);
 	assert!(
-		msg.contains("CARDANO_ASSET_NAME_MAX_LENGTH"),
-		"panic message must name the cap constant; got: {msg}"
+		msg.contains(&format!("maximum {CARDANO_ASSET_NAME_MAX_LENGTH}")),
+		"panic message must name the bound from the destination type; got: {msg}"
 	);
+}
+
+// -----------------------------------------------------------------------------
+// `bounded_or_panic_with_field_path` helper-level tests
+//
+// The helper is the single point through which `BuildGenesisConfig::build`
+// routes its four `Vec<u8> → BoundedVec<u8, S>` conversions. These tests pin
+// its panic shape (field path, supplied length, and `maximum N` from the
+// destination type's `bound()`) and its happy path independently of any
+// pallet-level call site, so a future refactor that changes the call sites
+// cannot mask a regression in the helper itself.
+// -----------------------------------------------------------------------------
+
+#[test]
+fn bounded_or_panic_with_field_path_panics_with_field_and_bound_for_oversized_input() {
+	let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+		// A small bound keeps the test self-contained and avoids depending on
+		// the production constants.
+		let _: BoundedVec<u8, ConstU32<4>> = bounded_or_panic_with_field_path::<ConstU32<4>>(
+			"test.path.field",
+			vec![1u8, 2, 3, 4, 5],
+		);
+	}));
+
+	let payload = result.expect_err("helper must panic on oversized input");
+	let msg = panic_message(payload);
+	assert!(msg.contains("test.path.field"), "panic must name field path; got: {msg}");
+	assert!(msg.contains("length 5"), "panic must name supplied length; got: {msg}");
+	assert!(msg.contains("maximum 4"), "panic must name the destination bound; got: {msg}");
+}
+
+#[test]
+fn bounded_or_panic_with_field_path_succeeds_when_input_fits_bound() {
+	let bv: BoundedVec<u8, ConstU32<4>> =
+		bounded_or_panic_with_field_path::<ConstU32<4>>("test.path", vec![1u8, 2]);
+	assert_eq!(bv.into_inner(), vec![1u8, 2]);
 }

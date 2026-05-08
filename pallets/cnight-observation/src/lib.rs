@@ -289,6 +289,30 @@ pub mod pallet {
 		pub _marker: PhantomData<T>,
 	}
 
+	/// Convert `bytes` into a `BoundedVec<u8, S>` or panic with a diagnostic that names
+	/// the chain-spec `field_path`, the supplied byte length, and the type's compile-time
+	/// bound.
+	///
+	/// Used by `BuildGenesisConfig::build` to enrich the genesis fail-fast panic so that
+	/// an operator reading the startup-failure log can locate and correct the offending
+	/// chain-spec field. The cap is read from the destination type via
+	/// `BoundedVec::<u8, S>::bound()`, so the panic message and the storage type cannot
+	/// drift apart on a future bound change.
+	pub fn bounded_or_panic_with_field_path<S: Get<u32>>(
+		field_path: &'static str,
+		bytes: Vec<u8>,
+	) -> BoundedVec<u8, S> {
+		let supplied_len = bytes.len();
+		BoundedVec::<u8, S>::try_from(bytes).unwrap_or_else(|_| {
+			panic!(
+				"genesis: {} length {} bytes exceeds maximum {}",
+				field_path,
+				supplied_len,
+				BoundedVec::<u8, S>::bound(),
+			)
+		})
+	}
+
 	#[pallet::genesis_build]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
@@ -296,61 +320,40 @@ pub mod pallet {
 			// cannot propagate errors via Result. Panicking on invalid configuration values
 			// is the standard Substrate genesis fail-fast convention — an invalid chain spec
 			// must halt node startup rather than silently produce incorrect chain state.
-			// Each panic message names the chain-spec field path, the supplied byte length,
-			// and the maximum permitted length expressed via a named constant, so an operator
-			// reading the failure log can locate and correct the offending field directly.
-			let mapping_validator_bytes =
-				self.config.addresses.mapping_validator_address.as_bytes().to_vec();
-			let mapping_validator_len = mapping_validator_bytes.len();
-			MainChainMappingValidatorAddress::<T>::set(
-				mapping_validator_bytes.try_into().unwrap_or_else(|_| {
-					panic!(
-						"genesis: cnight_observation.addresses.mapping_validator_address \
-						 length {} bytes exceeds maximum {} (CARDANO_BECH32_ADDRESS_MAX_LENGTH)",
-						mapping_validator_len, CARDANO_BECH32_ADDRESS_MAX_LENGTH
-					)
-				}),
-			);
+			// Each panic message names the chain-spec field path (matching the JSON keys an
+			// operator edits), the supplied byte length, and the maximum permitted length
+			// read from the destination `BoundedVec` type, so a startup-failure log points
+			// directly at the offending field.
+			MainChainMappingValidatorAddress::<T>::set(bounded_or_panic_with_field_path::<
+				ConstU32<CARDANO_BECH32_ADDRESS_MAX_LENGTH>,
+			>(
+				"cNightObservation.config.addresses.mapping_validator_address",
+				self.config.addresses.mapping_validator_address.as_bytes().to_vec(),
+			));
 
-			let cnight_policy_id_bytes = self.config.addresses.cnight_policy_id.to_vec();
-			let cnight_policy_id_len = cnight_policy_id_bytes.len();
-			let cnight_asset_name_bytes =
-				self.config.addresses.cnight_asset_name.as_bytes().to_vec();
-			let cnight_asset_name_len = cnight_asset_name_bytes.len();
 			CNightIdentifier::<T>::set((
 				// Defence-in-depth: the source field `cnight_policy_id` is a fixed-size
 				// `[u8; 28]`, so this branch is unreachable from chain-spec deserialization
 				// (serde rejects mismatched lengths before reaching genesis build). The
-				// diagnostic panic is retained so a future change to the source type does
-				// not silently lose the operator-facing failure detail.
-				cnight_policy_id_bytes.try_into().unwrap_or_else(|_| {
-					panic!(
-						"genesis: cnight_observation.addresses.cnight_policy_id \
-						 length {} bytes exceeds maximum {} (CNIGHT_POLICY_ID_LENGTH)",
-						cnight_policy_id_len, CNIGHT_POLICY_ID_LENGTH
-					)
-				}),
-				cnight_asset_name_bytes.try_into().unwrap_or_else(|_| {
-					panic!(
-						"genesis: cnight_observation.addresses.cnight_asset_name \
-						 length {} bytes exceeds maximum {} (CARDANO_ASSET_NAME_MAX_LENGTH)",
-						cnight_asset_name_len, CARDANO_ASSET_NAME_MAX_LENGTH
-					)
-				}),
+				// diagnostic helper is invoked here for symmetry with the other three
+				// sites, so a future widening of the source type does not silently lose
+				// the operator-facing failure detail.
+				bounded_or_panic_with_field_path::<ConstU32<CNIGHT_POLICY_ID_LENGTH>>(
+					"cNightObservation.config.addresses.cnight_policy_id",
+					self.config.addresses.cnight_policy_id.to_vec(),
+				),
+				bounded_or_panic_with_field_path::<ConstU32<CARDANO_ASSET_NAME_MAX_LENGTH>>(
+					"cNightObservation.config.addresses.cnight_asset_name",
+					self.config.addresses.cnight_asset_name.as_bytes().to_vec(),
+				),
 			));
 
-			let auth_token_asset_name_bytes =
-				self.config.addresses.auth_token_asset_name.as_bytes().to_vec();
-			let auth_token_asset_name_len = auth_token_asset_name_bytes.len();
-			MainChainAuthTokenAssetName::<T>::set(
-				auth_token_asset_name_bytes.try_into().unwrap_or_else(|_| {
-					panic!(
-						"genesis: cnight_observation.addresses.auth_token_asset_name \
-						 length {} bytes exceeds maximum {} (CARDANO_ASSET_NAME_MAX_LENGTH)",
-						auth_token_asset_name_len, CARDANO_ASSET_NAME_MAX_LENGTH
-					)
-				}),
-			);
+			MainChainAuthTokenAssetName::<T>::set(bounded_or_panic_with_field_path::<
+				ConstU32<CARDANO_ASSET_NAME_MAX_LENGTH>,
+			>(
+				"cNightObservation.config.addresses.auth_token_asset_name",
+				self.config.addresses.auth_token_asset_name.as_bytes().to_vec(),
+			));
 
 			for (k, v) in &self.config.mappings {
 				Mappings::<T>::insert(k, v.clone());
