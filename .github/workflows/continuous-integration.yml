@@ -27,11 +27,13 @@ concurrency:
   cancel-in-progress: true
 jobs:
   run:
-    name: Build node and images (linux/amd64, ubuntu-latest-16-core-x64, amd64)
+    name: Build node and images (linux/amd64, hetzner-tier:large, amd64)
     permissions:
       id-token: write
       contents: read
-    runs-on: ubuntu-latest-16-core-x64
+    # TEST PR — points at the new Hetzner runner pool to validate end-to-end
+    # build performance with the persistent Earthly satellite. Revert before merge.
+    runs-on: [self-hosted, hetzner, "tier:large"]
     env:
       FORCE_COLOR: 1
     outputs:
@@ -44,7 +46,11 @@ jobs:
         with:
           version: v0.8.16
           github-token: ${{ github.token }}
-          use-cache: false
+          # TEST PR — flipped from `false` so the Earthly satellite (running
+          # on the Hetzner box at tcp://127.0.0.1:8372 via EARTHLY_BUILDKIT_HOST)
+          # actually carries cache across runs. Should be the biggest single CI
+          # speedup once we're on Hetzner runners.
+          use-cache: true
 
       - name: Checkout node repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
