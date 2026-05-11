@@ -127,12 +127,15 @@ jobs:
           # earthly's sibling buildkitd container) can't see. Force earthly's
           # temp dir to live under $RUNNER_TEMP which is outside PrivateTmp.
           TMPDIR: ${{ runner.temp }}
-          # The runner's .env sets ACTIONS_CACHE_URL to our local cache server
-          # (for actions/cache speedup). Earthly auto-detects ACTIONS_CACHE_URL
-          # and tries to push build cache there using GHA's ACTIONS_RUNTIME_TOKEN,
-          # which the local server rejects (insufficient_scope). Override to
-          # empty for just this earthly invocation — actions/cache in other
-          # steps still uses the local server.
+          # Belt-and-suspenders: an older version of the runner .env set
+          # EARTHLY_REMOTE_CACHE=local, which earthly resolves to
+          # docker.io/library/local (unauthenticated, push fails). The .env
+          # has been cleaned, but force-clear in case any runner process
+          # still has the stale value cached.
+          EARTHLY_REMOTE_CACHE: ""
+          # Same belt-and-suspenders for ACTIONS_CACHE_URL — earthly auto-uses
+          # it as a cache target if set, and our local cache server doesn't
+          # accept GHA's ACTIONS_RUNTIME_TOKEN.
           ACTIONS_CACHE_URL: ""
           ACTIONS_RUNTIME_URL: ""
         run: |
