@@ -1,0 +1,15 @@
+bin.name = "midnight-node-toolkit"
+args = [
+    "contract-address",
+    "--src-file", "../../res/test-contract/contract_tx_1_deploy_undeployed.mn",
+    "--untagged",
+]
+status.code = 0
+
+stdout = """
+dd76bcd08403b3a9af64485b1f3960437e7c5872c269d6d06d32b2f298d71577
+"""
+
+stderr = """
+...--untagged is deprecated; the bare/untagged address is now the default...
+"""
