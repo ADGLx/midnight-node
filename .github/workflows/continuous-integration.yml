@@ -63,21 +63,15 @@ jobs:
         id: get_sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
-      # TEST ONLY — point earthly at the local satellite on the Hetzner runner.
-      # The repo's checked-in .earthly/config.yml sets buildkit_additional_args
-      # + cache_size_pct, which tell earthly to manage its own local buildkitd
-      # (with TLS) — overriding EARTHLY_BUILDKIT_HOST. Replace it with config
-      # that points at the local satellite over plain TCP.
-      - name: Override .earthly/config.yml to use Hetzner satellite
+      # TEST ONLY — let earthly manage its own buildkitd on the Hetzner runner,
+      # but without TLS (no certs are provisioned). Earthly defaults to TLS for
+      # its managed buildkitd, which fails on a fresh runner. Appending
+      # `tls_enabled: false` to the repo's existing .earthly/config.yml keeps
+      # the rest of midnight-node's earthly settings intact.
+      - name: Disable earthly TLS (Hetzner runner has no certs)
         run: |
-          cat > .earthly/config.yml <<'EOF'
-          global:
-              buildkit_host: tcp://127.0.0.1:8372
-              tls_enabled: false
-              disable_analytics: true
-              buildkit_max_parallelism: 16
-          EOF
-          echo "--- new .earthly/config.yml ---"
+          echo "    tls_enabled: false" >> .earthly/config.yml
+          echo "--- updated .earthly/config.yml ---"
           cat .earthly/config.yml
 
       - name: Login to GHCR
