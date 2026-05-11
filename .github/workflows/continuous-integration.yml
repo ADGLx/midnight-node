@@ -150,16 +150,20 @@ jobs:
           # with "timeout awaiting response headers". Earthly's cache means
           # retries skip everything that already succeeded — they essentially
           # only retry the failing push.
+          #
+          # No ::group:: wrapping — failures need to be visible by default in
+          # the GHA log, not collapsed.
           . ./.envrc
           for attempt in 1 2 3; do
-            echo "::group::earthly attempt $attempt/3"
+            echo "----- earthly attempt $attempt/3 -----"
             if earthly --secret GITHUB_TOKEN="$GITHUB_TOKEN" -P --push +images; then
-              echo "::endgroup::"
               exit 0
             fi
-            echo "::endgroup::"
-            echo "earthly attempt $attempt failed; sleeping 30s before retry"
-            sleep 30
+            echo "----- earthly attempt $attempt failed -----"
+            if [ $attempt -lt 3 ]; then
+              echo "sleeping 30s before retry"
+              sleep 30
+            fi
           done
           echo "earthly failed after 3 attempts"
           exit 1
