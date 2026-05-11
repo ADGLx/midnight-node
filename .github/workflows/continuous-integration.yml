@@ -415,7 +415,7 @@ jobs:
       actions: write
     name: Test Toolkit
     needs: [run]
-    runs-on: ubuntu-latest-16-core-x64
+    runs-on: [self-hosted, "tier:large"]
     env:
       FORCE_COLOR: 1
     steps:
@@ -641,7 +641,7 @@ jobs:
       packages: read
     name: Mainnet Sync (1000 blocks)
     needs: [run]
-    runs-on: ubuntu-latest-8-core-x64
+    runs-on: [self-hosted, "tier:medium"]
     steps:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd #v6.0.2
@@ -883,7 +883,7 @@ jobs:
     name: Local Environment Tests
     if: (github.event_name == 'pull_request' && github.event.pull_request.merged == false) || github.event_name == 'merge_group'
     needs: [ run, build-indexer-images ]
-    runs-on: ubuntu-latest-8-core-x64
+    runs-on: [self-hosted, "tier:medium"]
     permissions:
       pull-requests: write
       packages: read
