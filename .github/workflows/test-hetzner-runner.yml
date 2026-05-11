@@ -17,7 +17,7 @@ jobs:
       fail-fast: false
       matrix:
         tier: [tier:small, tier:medium, tier:large]
-    runs-on: [self-hosted, hetzner, "${{ matrix.tier }}"]
+    runs-on: [self-hosted, "${{ matrix.tier }}"]
     timeout-minutes: 5
     steps:
       - name: Identify runner

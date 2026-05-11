@@ -33,7 +33,7 @@ jobs:
       contents: read
     # TEST PR — points at the new Hetzner runner pool to validate end-to-end
     # build performance with the persistent Earthly satellite. Revert before merge.
-    runs-on: [self-hosted, hetzner, "tier:large"]
+    runs-on: [self-hosted, "tier:large"]
     env:
       FORCE_COLOR: 1
     outputs:
