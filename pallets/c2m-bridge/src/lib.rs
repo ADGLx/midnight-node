@@ -55,6 +55,12 @@ impl From<u128> for Stars {
 	}
 }
 
+impl From<Stars> for u128 {
+	fn from(value: Stars) -> u128 {
+		value.0
+	}
+}
+
 /// 10^6 STARS = 1 NIGHT. STAR is atomic.
 pub(crate) const STARS_PER_NIGHT: u128 = 1_000_000;
 
@@ -167,7 +173,7 @@ pub mod pallet {
 	/// denotes membership; absence denotes non-membership.
 	#[pallet::storage]
 	pub type ApprovedMcTxHashes<T: Config> =
-		StorageMap<_, Blake2_128Concat, McTxHash, (), ValueQuery>;
+		StorageMap<_, Blake2_128Concat, McTxHash, (), OptionQuery>;
 
 	/// Genesis configuration of the pallet.
 	#[pallet::genesis_config]
@@ -228,7 +234,7 @@ pub mod pallet {
 			hashes: BoundedVec<McTxHash, ConstU32<MAX_APPROVALS_PER_BATCH>>,
 		) -> DispatchResult {
 			T::GovernanceOrigin::ensure_origin(origin)?;
-			for hash in hashes.into_iter() {
+			for hash in hashes {
 				ApprovedMcTxHashes::<T>::insert(hash, ());
 			}
 			Ok(())
@@ -330,7 +336,9 @@ pub mod pallet {
 
 		fn handle_invalid_transfer(mc_tx_hash: McTxHash, amount: u64) {
 			Self::execute_serialized_tx(
-				LedgerApi::construct_distribute_treasury_system_tx(Stars::from_cnight(amount).0),
+				LedgerApi::construct_distribute_treasury_system_tx(
+					Stars::from_cnight(amount).into(),
+				),
 				|midnight_tx_hash| Event::InvalidTransfer { mc_tx_hash, amount, midnight_tx_hash },
 				&alloc::format!("'Invalid' transfer of {} from Cardano Tx: {}", amount, mc_tx_hash),
 			);
@@ -338,58 +346,61 @@ pub mod pallet {
 
 		fn handle_reserve_transfer(mc_tx_hash: McTxHash, amount: u64) {
 			Self::execute_serialized_tx(
-				LedgerApi::construct_distribute_reserve_system_tx(Stars::from_cnight(amount).0),
+				LedgerApi::construct_distribute_reserve_system_tx(
+					Stars::from_cnight(amount).into(),
+				),
 				|midnight_tx_hash| Event::ReserveTransfer { mc_tx_hash, amount, midnight_tx_hash },
 				&alloc::format!("'Reserve' transfer of {} from Cardano Tx: {}", amount, mc_tx_hash),
 			);
 		}
 
 		fn handle_user_transfer(mc_tx_hash: McTxHash, amount: u64, recipient: BridgeRecipient) {
-			if !ApprovedMcTxHashes::<T>::contains_key(mc_tx_hash) {
-				// Not pre-approved by governance — redirect funds to the Treasury.
-				Self::execute_serialized_tx(
-					LedgerApi::construct_distribute_treasury_system_tx(
-						Stars::from_cnight(amount).0,
-					),
-					|midnight_tx_hash| Event::UnapprovedTransfer {
-						mc_tx_hash,
-						amount,
-						recipient: recipient.clone(),
-						midnight_tx_hash,
-					},
-					&alloc::format!(
-						"unapproved 'User' transfer of {} to {} from Cardano Tx: {}",
-						amount,
-						HexDisplay::from(&recipient.as_ref()),
-						mc_tx_hash
-					),
-				);
-				return;
-			}
-
 			// Approval is single-use: remove before executing so a failed ledger call
 			// cannot be replayed against the same approval.
-			ApprovedMcTxHashes::<T>::remove(mc_tx_hash);
-			let nonce = Self::generate_nonce();
-			Self::execute_serialized_tx(
-				LedgerApi::construct_distribute_night_cardano_bridge_system_tx(
-					Stars::from_cnight(amount).0,
-					recipient.as_bytes(),
-					nonce,
-				),
-				|midnight_tx_hash| Event::UserTransfer {
-					mc_tx_hash,
-					amount,
-					recipient: recipient.clone(),
-					midnight_tx_hash,
+			match ApprovedMcTxHashes::<T>::take(mc_tx_hash) {
+				None => {
+					// Not pre-approved by governance — redirect funds to the Treasury.
+					Self::execute_serialized_tx(
+						LedgerApi::construct_distribute_treasury_system_tx(
+							Stars::from_cnight(amount).into(),
+						),
+						|midnight_tx_hash| Event::UnapprovedTransfer {
+							mc_tx_hash,
+							amount,
+							recipient: recipient.clone(),
+							midnight_tx_hash,
+						},
+						&alloc::format!(
+							"unapproved 'User' transfer of {} to {} from Cardano Tx: {}",
+							amount,
+							HexDisplay::from(&recipient.as_ref()),
+							mc_tx_hash
+						),
+					);
 				},
-				&alloc::format!(
-					"'User' transfer of {} NIGHT to {} from Cardano Tx: {}",
-					amount,
-					HexDisplay::from(&recipient.as_ref()),
-					mc_tx_hash
-				),
-			);
+				Some(_) => {
+					let nonce = Self::generate_nonce();
+					Self::execute_serialized_tx(
+						LedgerApi::construct_distribute_night_cardano_bridge_system_tx(
+							Stars::from_cnight(amount).into(),
+							recipient.as_bytes(),
+							nonce,
+						),
+						|midnight_tx_hash| Event::UserTransfer {
+							mc_tx_hash,
+							amount,
+							recipient: recipient.clone(),
+							midnight_tx_hash,
+						},
+						&alloc::format!(
+							"'User' transfer of {} NIGHT to {} from Cardano Tx: {}",
+							amount,
+							HexDisplay::from(&recipient.as_ref()),
+							mc_tx_hash
+						),
+					);
+				},
+			}
 		}
 	}
 

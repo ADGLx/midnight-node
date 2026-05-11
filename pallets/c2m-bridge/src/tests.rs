@@ -63,26 +63,25 @@ fn emits_events() {
 		C2MBridge::handle_incoming_transfer(reserve_transfer());
 		C2MBridge::handle_incoming_transfer(invalid_transfer());
 
-		let events: Vec<_> =
-			frame_system::Pallet::<Test>::events().into_iter().map(|e| e.event).collect();
+		let events = frame_system::Pallet::<Test>::read_events_for_pallet::<Event<Test>>();
 
-		let expected: Vec<<mock::Test as frame_system::Config>::RuntimeEvent> = vec![
-			mock::RuntimeEvent::C2MBridge(Event::UserTransfer {
+		let expected = vec![
+			Event::UserTransfer {
 				mc_tx_hash: McTxHash([1; 32]),
 				amount: 100,
 				recipient: recipient(),
 				midnight_tx_hash: [0u8; 32],
-			}),
-			mock::RuntimeEvent::C2MBridge(Event::ReserveTransfer {
+			},
+			Event::ReserveTransfer {
 				mc_tx_hash: McTxHash([2; 32]),
 				amount: 200,
 				midnight_tx_hash: [1u8; 32],
-			}),
-			mock::RuntimeEvent::C2MBridge(Event::InvalidTransfer {
+			},
+			Event::InvalidTransfer {
 				mc_tx_hash: McTxHash([3; 32]),
 				amount: 300,
 				midnight_tx_hash: [2u8; 32],
-			}),
+			},
 		];
 
 		assert_eq!(events, expected);
@@ -113,16 +112,15 @@ fn unapproved_user_transfer_routes_to_treasury() {
 		// No approval inserted for `addressed_transfer().mc_tx_hash`.
 		C2MBridge::handle_incoming_transfer(addressed_transfer());
 
-		let events: Vec<_> =
-			frame_system::Pallet::<Test>::events().into_iter().map(|e| e.event).collect();
+		let events = frame_system::Pallet::<Test>::read_events_for_pallet::<Event<Test>>();
 		assert_eq!(
 			events,
-			vec![mock::RuntimeEvent::C2MBridge(Event::UnapprovedTransfer {
+			vec![Event::UnapprovedTransfer {
 				mc_tx_hash: McTxHash([1; 32]),
 				amount: 100,
 				recipient: recipient(),
 				midnight_tx_hash: [0u8; 32],
-			})]
+			}]
 		);
 	})
 }
@@ -142,23 +140,22 @@ fn approval_is_consumed_on_user_transfer() {
 		// Second delivery of the same Cardano tx hash is unapproved.
 		C2MBridge::handle_incoming_transfer(tx);
 
-		let events: Vec<_> =
-			frame_system::Pallet::<Test>::events().into_iter().map(|e| e.event).collect();
+		let events = frame_system::Pallet::<Test>::read_events_for_pallet::<Event<Test>>();
 		assert_eq!(
 			events,
 			vec![
-				mock::RuntimeEvent::C2MBridge(Event::UserTransfer {
+				Event::UserTransfer {
 					mc_tx_hash: McTxHash([1; 32]),
 					amount: 100,
 					recipient: recipient(),
 					midnight_tx_hash: [0u8; 32],
-				}),
-				mock::RuntimeEvent::C2MBridge(Event::UnapprovedTransfer {
+				},
+				Event::UnapprovedTransfer {
 					mc_tx_hash: McTxHash([1; 32]),
 					amount: 100,
 					recipient: recipient(),
 					midnight_tx_hash: [1u8; 32],
-				}),
+				},
 			]
 		);
 	})
