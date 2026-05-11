@@ -63,6 +63,23 @@ jobs:
         id: get_sha
         run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
+      # TEST ONLY — point earthly at the local satellite on the Hetzner runner.
+      # The repo's checked-in .earthly/config.yml sets buildkit_additional_args
+      # + cache_size_pct, which tell earthly to manage its own local buildkitd
+      # (with TLS) — overriding EARTHLY_BUILDKIT_HOST. Replace it with config
+      # that points at the local satellite over plain TCP.
+      - name: Override .earthly/config.yml to use Hetzner satellite
+        run: |
+          cat > .earthly/config.yml <<'EOF'
+          global:
+              buildkit_host: tcp://127.0.0.1:8372
+              tls_enabled: false
+              disable_analytics: true
+              buildkit_max_parallelism: 16
+          EOF
+          echo "--- new .earthly/config.yml ---"
+          cat .earthly/config.yml
+
       - name: Login to GHCR
         uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
         with:
