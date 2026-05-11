@@ -8,7 +8,7 @@ This project provides a unified way to spin up Midnight resources for developmen
 
 ## Features
 
-- Launch dockerized **well-known Midnight networks** (e.g. `qanet`, `devnet`, `testnet-02`, etc.)
+- Launch dockerized **well-known Midnight networks** (e.g. `qanet`, `devnet`, `govnet`, `testnet-02`, etc.)
 - Perform **state-changing operations** such as image upgrades (runtime upgrades and hard forks planned).
 - Launch a fully **dynamic local environment** with sped-up Cardano resources for quick testing of Partner Chains/Cardano capabilities.
 
@@ -25,6 +25,7 @@ You can run different Midnight networks locally with:
 ```bash
 npm run run:qanet
 npm run run:devnet
+npm run run:govnet
 npm run run:testnet-02
 ```
 
@@ -35,6 +36,7 @@ You can also launch a network and immediately apply image upgrades:
 ```bash
 npm run image-upgrade:qanet
 npm run image-upgrade:devnet
+npm run image-upgrade:govnet
 npm run image-upgrade:testnet-02
 ```
 
@@ -45,6 +47,7 @@ To stop any running network:
 ```bash
 npm run stop:qanet
 npm run stop:devnet
+npm run stop:govnet
 npm run stop:testnet-02
 ```
 
