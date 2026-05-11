@@ -461,15 +461,46 @@ jobs:
           username: MidnightCI
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
+      # Earthfile FROMs midnightntwrk/midnight-node-ci and other docker.io
+      # images; earthly pushes inline cache back to those repos under --push,
+      # which needs Docker Hub auth.
+      - name: Login to Docker Hub
+        if: steps.guard.outputs.hit != 'true'
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121 #v4.1.0
+        with:
+          username: ${{ secrets.DOCKERHUB_MIDNIGHTNTWRK_USER }}
+          password: ${{ secrets.DOCKERHUB_MIDNIGHTNTWRK_TOKEN }}
+
       - name: Free disk space
         if: steps.guard.outputs.hit != 'true' && runner.environment != 'self-hosted'
         run: scripts/free-disk-space.sh
+
+      # Hetzner-runner-specific: earthly's managed buildkitd defaults to TLS
+      # but no certs are provisioned on the runner. Append tls_enabled: false
+      # to the workspace .earthly/config.yml so earthly skips TLS for its own
+      # buildkitd container.
+      - name: Disable earthly TLS (Hetzner runner has no certs)
+        if: steps.guard.outputs.hit != 'true'
+        run: |
+          echo "    tls_enabled: false" >> .earthly/config.yml
 
       - name: Run toolkit tests
         if: steps.guard.outputs.hit != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
           EVENT_NAME: ${{ github.event_name }}
+          # Hetzner-runner-specific: runner systemd unit has PrivateTmp=true.
+          # Force earthly's tempdir to live under $RUNNER_TEMP which is
+          # outside the per-service PrivateTmp namespace.
+          TMPDIR: ${{ runner.temp }}
+          # Force-clear in case a runner process has stale EARTHLY_REMOTE_CACHE
+          # from before we cleaned the runner .env.
+          EARTHLY_REMOTE_CACHE: ""
+          # The runner's .env redirects ACTIONS_CACHE_URL to a local cache
+          # server. Earthly auto-detects this and tries to push to it with the
+          # wrong auth; override to empty for the earthly call.
+          ACTIONS_CACHE_URL: ""
+          ACTIONS_RUNTIME_URL: ""
         run: |
           PUSH_FLAG=""
           if [ "$EVENT_NAME" = "merge_group" ]; then
