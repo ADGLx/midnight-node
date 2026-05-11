@@ -112,6 +112,11 @@ jobs:
         if: steps.check_images.outputs.skip_build != 'true'
         env:
           GITHUB_TOKEN: ${{ secrets.MIDNIGHTCI_PACKAGES_READ }}
+          # Hetzner-runner-specific: runner systemd unit has PrivateTmp=true, so
+          # /tmp is in a per-service mount namespace that dockerd (and therefore
+          # earthly's sibling buildkitd container) can't see. Force earthly's
+          # temp dir to live under $RUNNER_TEMP which is outside PrivateTmp.
+          TMPDIR: ${{ runner.temp }}
         run: |
           mkdir -p "$HOME"/.cargo
           echo "[net]" >> "$HOME"/.cargo/config
