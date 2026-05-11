@@ -414,7 +414,7 @@ jobs:
           use-cache: false
 
       - name: Free disk space
-        if: steps.guard.outputs.hit != 'true'
+        if: steps.guard.outputs.hit != 'true' && runner.environment != 'self-hosted'
         run: scripts/free-disk-space.sh
 
       - name: Run pallet fixture tests
@@ -462,7 +462,7 @@ jobs:
           password: ${{ secrets.MIDNIGHTCI_PACKAGES_WRITE }}
 
       - name: Free disk space
-        if: steps.guard.outputs.hit != 'true'
+        if: steps.guard.outputs.hit != 'true' && runner.environment != 'self-hosted'
         run: scripts/free-disk-space.sh
 
       - name: Run toolkit tests
@@ -831,7 +831,7 @@ jobs:
           fi
 
       - name: Free disk space
-        if: steps.image_meta.outputs.skip_build != 'true'
+        if: steps.image_meta.outputs.skip_build != 'true' && runner.environment != 'self-hosted'
         run: scripts/free-disk-space.sh
 
       - name: Install just
