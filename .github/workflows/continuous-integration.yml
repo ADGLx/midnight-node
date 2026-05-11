@@ -117,6 +117,14 @@ jobs:
           # earthly's sibling buildkitd container) can't see. Force earthly's
           # temp dir to live under $RUNNER_TEMP which is outside PrivateTmp.
           TMPDIR: ${{ runner.temp }}
+          # The runner's .env sets ACTIONS_CACHE_URL to our local cache server
+          # (for actions/cache speedup). Earthly auto-detects ACTIONS_CACHE_URL
+          # and tries to push build cache there using GHA's ACTIONS_RUNTIME_TOKEN,
+          # which the local server rejects (insufficient_scope). Override to
+          # empty for just this earthly invocation — actions/cache in other
+          # steps still uses the local server.
+          ACTIONS_CACHE_URL: ""
+          ACTIONS_RUNTIME_URL: ""
         run: |
           mkdir -p "$HOME"/.cargo
           echo "[net]" >> "$HOME"/.cargo/config
