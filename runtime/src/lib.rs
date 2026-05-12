@@ -484,7 +484,7 @@ parameter_types! {
 impl pallet_migrations::Config for Runtime {
 	type RuntimeEvent = RuntimeEvent;
 	#[cfg(not(feature = "runtime-benchmarks"))]
-	type Migrations = ();
+	type Migrations = (pallet_cnight_observation::migrations::v1::MigrateV0ToV1<Runtime>,);
 	// Benchmarks need mocked migrations to guarantee that they succeed.
 	#[cfg(feature = "runtime-benchmarks")]
 	type Migrations = pallet_migrations::mock_helpers::MockedMigrations;
@@ -846,8 +846,20 @@ impl pallet_partner_chains_bridge::Config for Runtime {
 	type BenchmarkHelper = ();
 }
 
+/// Provider for the minimum bridge transfer amount from the Midnight ledger.
+pub struct MidnightMinBridgeAmount;
+impl pallet_c2m_bridge::pallet::MinBridgeAmountProvider for MidnightMinBridgeAmount {
+	fn get_c_to_m_bridge_min_amount()
+	-> Result<pallet_c2m_bridge::Stars, midnight_node_ledger::types::active_version::LedgerApiError>
+	{
+		Ok(pallet_c2m_bridge::Stars::from(Midnight::get_c_to_m_bridge_min_amount()?))
+	}
+}
+
 impl pallet_c2m_bridge::Config for Runtime {
 	type MidnightSystemTransactionExecutor = MidnightSystem;
+	/// Provides access to the ledger's `c_to_m_bridge_min_amount` parameter.
+	type MinBridgeAmountProvider = MidnightMinBridgeAmount;
 	type GovernanceOrigin = EnsureRoot<Self::AccountId>;
 }
 
@@ -1000,7 +1012,7 @@ pub type Executive = frame_executive::Executive<
 /// Extrinsic type that has already been checked.
 pub type CheckedExtrinsic = generic::CheckedExtrinsic<AccountId, RuntimeCall, TxExtension>;
 /// Migrations to apply on runtime upgrade.
-pub type Migrations = pallet_throttle::migration::ClearAccountUsageV1<Runtime>;
+pub type Migrations = (pallet_throttle::migration::ClearAccountUsageV1<Runtime>,);
 
 impl<LocalCall> frame_system::offchain::CreateTransaction<LocalCall> for Runtime
 where
