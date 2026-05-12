@@ -18,11 +18,8 @@ BOLD='\033[1m'
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-# Available networks (excluding dev/undeployed which are for local development)
-AVAILABLE_NETWORKS=("mainnet" "qanet" "devnet" "govnet")
-
-# Default RNG seed (same as in Earthfile)
-DEFAULT_RNG_SEED="0000000000000000000000000000000000000000000000000000000000000037"
+# This verification script is only available for mainnet
+NETWORK="mainnet"
 
 # Function to print colored messages
 print_header() {
@@ -143,7 +140,7 @@ get_cardano_tip() {
 uses_cnight_config() {
     local network="$1"
     case "$network" in
-        qanet|undeployed|devnet|govnet|node-dev-01)
+        mainnet|qanet|undeployed|devnet|govnet)
             return 0  # true
             ;;
         *)
@@ -156,7 +153,7 @@ uses_cnight_config() {
 uses_ics_config() {
     local network="$1"
     case "$network" in
-        qanet|undeployed|devnet|govnet|node-dev-01)
+        mainnet|qanet|undeployed|devnet|govnet)
             return 0  # true
             ;;
         *)
@@ -169,7 +166,7 @@ uses_ics_config() {
 uses_reserve_config() {
     local network="$1"
     case "$network" in
-        qanet|undeployed|devnet|govnet|node-dev-01)
+        mainnet|qanet|undeployed|devnet|govnet)
             return 0  # true
             ;;
         *)
@@ -189,12 +186,14 @@ show_input_files() {
     local files=(
         "cnight-addresses.json"
         "ics-addresses.json"
+        "reserve-addresses.json"
         "ledger-parameters-config.json"
         "federated-authority-addresses.json"
         "permissioned-candidates-addresses.json"
         "pc-chain-config.json"
         "system-parameters-config.json"
         "registered-candidates-addresses.json"
+        "message-config.json"
         "chain-spec-raw.json"
     )
 
@@ -338,72 +337,92 @@ run_config_regeneration_verification() {
 
     # 1a. Regenerate cnight-config.json
     if uses_cnight_config "$network"; then
-        print_substep "Regenerating cnight-config.json..."
-        local tmp_cnight="$tmp_dir/cnight-config.json"
+        if confirm "  Verify cnight-config.json?" "y"; then
+            print_substep "Regenerating cnight-config.json..."
+            local tmp_cnight="$tmp_dir/cnight-config.json"
 
-        if "$node_binary" generate-c-night-genesis --cardano-tip "$cardano_tip" --output "$tmp_cnight" 2>/dev/null; then
-            if ! compare_json_files "$tmp_cnight" "$res_dir/cnight-config.json" "cnight-config.json"; then
+            if "$node_binary" generate-c-night-genesis --cardano-tip "$cardano_tip" --output "$tmp_cnight" 2>/dev/null; then
+                if ! compare_json_files "$tmp_cnight" "$res_dir/cnight-config.json" "cnight-config.json"; then
+                    all_passed=false
+                fi
+            else
+                print_error "Failed to regenerate cnight-config.json"
                 all_passed=false
             fi
         else
-            print_error "Failed to regenerate cnight-config.json"
-            all_passed=false
+            print_info "Skipping cnight-config.json verification."
         fi
     fi
 
     # 1b. Regenerate ics-config.json
     if uses_ics_config "$network"; then
-        print_substep "Regenerating ics-config.json..."
-        local tmp_ics="$tmp_dir/ics-config.json"
+        if confirm "  Verify ics-config.json?" "y"; then
+            print_substep "Regenerating ics-config.json..."
+            local tmp_ics="$tmp_dir/ics-config.json"
 
-        if "$node_binary" generate-ics-genesis --cardano-tip "$cardano_tip" --output "$tmp_ics" 2>/dev/null; then
-            if ! compare_json_files "$tmp_ics" "$res_dir/ics-config.json" "ics-config.json"; then
+            if "$node_binary" generate-ics-genesis --cardano-tip "$cardano_tip" --output "$tmp_ics" 2>/dev/null; then
+                if ! compare_json_files "$tmp_ics" "$res_dir/ics-config.json" "ics-config.json"; then
+                    all_passed=false
+                fi
+            else
+                print_error "Failed to regenerate ics-config.json"
                 all_passed=false
             fi
         else
-            print_error "Failed to regenerate ics-config.json"
-            all_passed=false
+            print_info "Skipping ics-config.json verification."
         fi
     fi
 
     # 1c. Regenerate federated-authority-config.json
-    print_substep "Regenerating federated-authority-config.json..."
-    local tmp_fa="$tmp_dir/federated-authority-config.json"
+    if confirm "  Verify federated-authority-config.json?" "y"; then
+        print_substep "Regenerating federated-authority-config.json..."
+        local tmp_fa="$tmp_dir/federated-authority-config.json"
 
-    if "$node_binary" generate-federated-authority-genesis --cardano-tip "$cardano_tip" --output "$tmp_fa" 2>/dev/null; then
-        if ! compare_json_files "$tmp_fa" "$res_dir/federated-authority-config.json" "federated-authority-config.json"; then
+        if "$node_binary" generate-federated-authority-genesis --cardano-tip "$cardano_tip" --output "$tmp_fa" 2>/dev/null; then
+            if ! compare_json_files "$tmp_fa" "$res_dir/federated-authority-config.json" "federated-authority-config.json"; then
+                all_passed=false
+            fi
+        else
+            print_error "Failed to regenerate federated-authority-config.json"
             all_passed=false
         fi
     else
-        print_error "Failed to regenerate federated-authority-config.json"
-        all_passed=false
+        print_info "Skipping federated-authority-config.json verification."
     fi
 
     # 1d. Regenerate permissioned-candidates-config.json
-    print_substep "Regenerating permissioned-candidates-config.json..."
-    local tmp_pc="$tmp_dir/permissioned-candidates-config.json"
+    if confirm "  Verify permissioned-candidates-config.json?" "y"; then
+        print_substep "Regenerating permissioned-candidates-config.json..."
+        local tmp_pc="$tmp_dir/permissioned-candidates-config.json"
 
-    if "$node_binary" generate-permissioned-candidates-genesis --cardano-tip "$cardano_tip" --output "$tmp_pc" 2>/dev/null; then
-        if ! compare_json_files "$tmp_pc" "$res_dir/permissioned-candidates-config.json" "permissioned-candidates-config.json"; then
+        if "$node_binary" generate-permissioned-candidates-genesis --cardano-tip "$cardano_tip" --output "$tmp_pc" 2>/dev/null; then
+            if ! compare_json_files "$tmp_pc" "$res_dir/permissioned-candidates-config.json" "permissioned-candidates-config.json"; then
+                all_passed=false
+            fi
+        else
+            print_error "Failed to regenerate permissioned-candidates-config.json"
             all_passed=false
         fi
     else
-        print_error "Failed to regenerate permissioned-candidates-config.json"
-        all_passed=false
+        print_info "Skipping permissioned-candidates-config.json verification."
     fi
 
     # 1e. Regenerate reserve-config.json
     if uses_reserve_config "$network"; then
-        print_substep "Regenerating reserve-config.json..."
-        local tmp_reserve="$tmp_dir/reserve-config.json"
+        if confirm "  Verify reserve-config.json?" "y"; then
+            print_substep "Regenerating reserve-config.json..."
+            local tmp_reserve="$tmp_dir/reserve-config.json"
 
-        if "$node_binary" generate-reserve-genesis --cardano-tip "$cardano_tip" --output "$tmp_reserve" 2>/dev/null; then
-            if ! compare_json_files "$tmp_reserve" "$res_dir/reserve-config.json" "reserve-config.json"; then
+            if "$node_binary" generate-reserve-genesis --cardano-tip "$cardano_tip" --output "$tmp_reserve" 2>/dev/null; then
+                if ! compare_json_files "$tmp_reserve" "$res_dir/reserve-config.json" "reserve-config.json"; then
+                    all_passed=false
+                fi
+            else
+                print_error "Failed to regenerate reserve-config.json"
                 all_passed=false
             fi
         else
-            print_error "Failed to regenerate reserve-config.json"
-            all_passed=false
+            print_info "Skipping reserve-config.json verification."
         fi
     fi
 
@@ -448,6 +467,7 @@ run_ledger_state_verification() {
         --chain-spec "$chain_spec" \
         --cnight-config "$res_dir/cnight-config.json" \
         --ledger-parameters-config "$res_dir/ledger-parameters-config.json" \
+        --cardano-tip-config "$res_dir/cardano-tip.json" \
         --network "$network" \
         2>&1); then
         print_error "Failed to verify genesis state"
@@ -493,6 +513,14 @@ run_ledger_state_verification() {
         print_success "2d. LedgerParameters match ledger-parameters-config.json"
     else
         print_error "2d. LedgerParameters do not match ledger-parameters-config.json"
+        all_passed=false
+    fi
+
+    # 2e. Check genesis timestamp in state root histories
+    if echo "$inspect_result" | grep -q "GENESIS_TIMESTAMP_IN_STATE_OK"; then
+        print_success "2e. Genesis timestamp verified in LedgerState root histories"
+    else
+        print_error "2e. Genesis timestamp not found in LedgerState root histories"
         all_passed=false
     fi
 
@@ -580,7 +608,7 @@ run_auth_script_verification() {
     print_step "Step 4: Verify Authorization Scripts for Upgradable Contracts"
 
     echo -e "${BOLD}This step verifies that all upgradable contracts (Federated Authority,${NC}"
-    echo -e "${BOLD}ICS, Permissioned Candidates) use the expected authorization script.${NC}"
+    echo -e "${BOLD}ICS, Permissioned Candidates, Reserve) use the expected authorization script.${NC}"
     echo ""
     echo -e "${BOLD}For each contract, it checks:${NC}"
     echo -e "  1. The compiled_code hash matches the policy_id"
@@ -607,6 +635,140 @@ run_auth_script_verification() {
     fi
 }
 
+# ===========================================================================
+# VERIFICATION STEP 5: Verify Genesis Message in Chain Spec
+# ===========================================================================
+run_message_verification() {
+    local network="$1"
+    local node_binary="$2"
+
+    print_step "Step 5: Verify Genesis Message in Chain Spec"
+
+    echo -e "${BOLD}This step verifies that the expected genesis remark message${NC}"
+    echo -e "${BOLD}from message-config.json is embedded in the chain spec.${NC}"
+    echo ""
+
+    local res_dir="$REPO_ROOT/res/$network"
+    local chain_spec="$res_dir/chain-spec-raw.json"
+    local message_config="$res_dir/message-config.json"
+
+    if [[ ! -f "$chain_spec" ]]; then
+        print_error "chain-spec-raw.json not found at $chain_spec"
+        return 1
+    fi
+
+    if [[ ! -f "$message_config" ]]; then
+        print_error "message-config.json not found at $message_config"
+        return 1
+    fi
+
+    local all_passed=true
+
+    local check_result
+    if ! check_result=$("$node_binary" verify-genesis-message \
+        --chain-spec "$chain_spec" \
+        --message-config "$message_config" \
+        2>&1); then
+        echo "$check_result"
+        print_error "Step 5: Genesis message verification failed!"
+        return 1
+    fi
+
+    echo "$check_result"
+
+    # 5a. Check message found
+    if echo "$check_result" | grep -q "GENESIS_MESSAGE_FOUND"; then
+        print_success "5a. System::remark extrinsic found in genesis_extrinsics"
+    else
+        print_error "5a. No System::remark extrinsic found in genesis_extrinsics"
+        all_passed=false
+    fi
+
+    # 5b. Check message matches
+    if echo "$check_result" | grep -q "GENESIS_MESSAGE_MATCH"; then
+        print_success "5b. Genesis remark matches message-config.json"
+    else
+        print_error "5b. Genesis remark does not match message-config.json"
+        all_passed=false
+    fi
+
+    echo ""
+    if [[ "$all_passed" == "true" ]]; then
+        print_success "Step 5: Genesis message verification passed!"
+        return 0
+    else
+        print_error "Step 5: Genesis message verification failed. See errors above."
+        return 1
+    fi
+}
+
+# ===========================================================================
+# VERIFICATION STEP 6: Verify Genesis Timestamp in Chain Spec
+# ===========================================================================
+run_timestamp_verification() {
+    local network="$1"
+    local node_binary="$2"
+
+    print_step "Step 6: Verify Genesis Timestamp in Chain Spec"
+
+    echo -e "${BOLD}This step verifies that the Timestamp::set extrinsic in the chain spec${NC}"
+    echo -e "${BOLD}matches the expected timestamp from cardano-tip.json.${NC}"
+    echo ""
+
+    local res_dir="$REPO_ROOT/res/$network"
+    local chain_spec="$res_dir/chain-spec-raw.json"
+    local cardano_tip_config="$res_dir/cardano-tip.json"
+
+    if [[ ! -f "$chain_spec" ]]; then
+        print_error "chain-spec-raw.json not found at $chain_spec"
+        return 1
+    fi
+
+    if [[ ! -f "$cardano_tip_config" ]]; then
+        print_error "cardano-tip.json not found at $cardano_tip_config"
+        return 1
+    fi
+
+    local all_passed=true
+
+    local check_result
+    if ! check_result=$("$node_binary" verify-genesis-timestamp \
+        --chain-spec "$chain_spec" \
+        --cardano-tip-config "$cardano_tip_config" \
+        2>&1); then
+        echo "$check_result"
+        print_error "Step 6: Genesis timestamp verification failed!"
+        return 1
+    fi
+
+    echo "$check_result"
+
+    # 6a. Check timestamp found
+    if echo "$check_result" | grep -q "GENESIS_TIMESTAMP_FOUND"; then
+        print_success "6a. Timestamp::set extrinsic found in genesis_extrinsics"
+    else
+        print_error "6a. No Timestamp::set extrinsic found in genesis_extrinsics"
+        all_passed=false
+    fi
+
+    # 6b. Check timestamp matches
+    if echo "$check_result" | grep -q "GENESIS_TIMESTAMP_MATCH"; then
+        print_success "6b. Genesis timestamp matches cardano-tip.json"
+    else
+        print_error "6b. Genesis timestamp does not match cardano-tip.json"
+        all_passed=false
+    fi
+
+    echo ""
+    if [[ "$all_passed" == "true" ]]; then
+        print_success "Step 6: Genesis timestamp verification passed!"
+        return 0
+    else
+        print_error "Step 6: Genesis timestamp verification failed. See errors above."
+        return 1
+    fi
+}
+
 # Main script
 main() {
     print_header "Midnight Genesis Verification Tool"
@@ -622,22 +784,14 @@ main() {
     echo -e "     c. Total NIGHT supply invariance (24B)"
     echo -e "     d. LedgerParameters match config"
     echo -e "  3. ${BOLD}Dparameter Verification${NC} - Verifies system-parameters-config.json consistency"
-    echo -e "  4. ${BOLD}Auth Script Verification${NC} - Verifies upgradable contracts share the same auth script"
+    echo -e "  4. ${BOLD}Auth Script Verification${NC} - Verifies all upgradable contracts share the same auth script"
+    echo -e "  5. ${BOLD}Genesis Message Verification${NC} - Verifies genesis remark matches message-config.json"
+    echo -e "  6. ${BOLD}Genesis Timestamp Verification${NC} - Verifies genesis timestamp matches cardano-tip.json"
     echo ""
 
-    # Select network
-    print_step "Select Network"
-
-    echo -e "${BOLD}Available networks:${NC}"
-    echo ""
-    PS3=$'\n'"Select network (1-${#AVAILABLE_NETWORKS[@]}): "
-    select network in "${AVAILABLE_NETWORKS[@]}"; do
-        if [[ -n "$network" ]]; then
-            break
-        fi
-        echo "Invalid selection. Please try again."
-    done
-    print_success "Selected network: $network"
+    # Use mainnet
+    local network="$NETWORK"
+    print_info "Network: $network"
     echo ""
 
     # Show input files
@@ -658,7 +812,7 @@ main() {
     echo ""
 
     local db_connection
-    db_connection=$(prompt_input "DB Sync PostgreSQL connection string" "postgres://cardano@localhost:54322/cexplorer")
+    db_connection=$(prompt_input "DB Sync PostgreSQL connection string" "postgres://postgres:postgres@localhost:5432/cexplorer")
     echo ""
 
     # Get default cardano tip from cardano-tip.json if available
@@ -693,31 +847,34 @@ main() {
     print_info "Using temporary directory: $tmp_dir"
     echo ""
 
-    # Track verification results
-    local step0_passed=false
-    local step1_passed=false
-    local step2_passed=false
-    local step3_passed=false
-    local step4_passed=false
+    # Track verification results: "pass", "fail", or "skip"
+    local step0_result="fail"
+    local step1_result="fail"
+    local step2_result="fail"
+    local step3_result="fail"
+    local step4_result="fail"
+    local step5_result="fail"
+    local step6_result="fail"
     local overall_passed=true
 
     # =========================================================================
-    # STEP 0: Cardano Tip Finalization Check (MANDATORY)
+    # STEP 0: Cardano Tip Finalization Check
     # =========================================================================
-    print_step "Cardano Tip Finalization Check"
-    echo -e "${BOLD}This check is mandatory before proceeding with other verifications.${NC}"
-    echo ""
-
-    if run_cardano_tip_finalization_check "$network" "$db_connection" "$cardano_tip" "$node_binary"; then
-        step0_passed=true
-    else
-        overall_passed=false
-        if ! confirm "Cardano tip is not finalized. Continue anyway?" "n"; then
-            print_error "Verification aborted. Please provide a finalized Cardano tip."
-            rm -rf "$tmp_dir"
-            exit 1
+    if confirm "Run Step 0 (Cardano Tip Finalization Check)?" "y"; then
+        if run_cardano_tip_finalization_check "$network" "$db_connection" "$cardano_tip" "$node_binary"; then
+            step0_result="pass"
+        else
+            overall_passed=false
+            if ! confirm "Cardano tip is not finalized. Continue anyway?" "n"; then
+                print_error "Verification aborted. Please provide a finalized Cardano tip."
+                rm -rf "$tmp_dir"
+                exit 1
+            fi
+            print_warning "Continuing with unfinalized Cardano tip (results may be unreliable)."
         fi
-        print_warning "Continuing with unfinalized Cardano tip (results may be unreliable)."
+    else
+        step0_result="skip"
+        print_info "Skipping Step 0."
     fi
 
     # =========================================================================
@@ -725,7 +882,7 @@ main() {
     # =========================================================================
     if confirm "Run Step 1 (Config Files Verification)?" "y"; then
         if run_config_regeneration_verification "$network" "$db_connection" "$cardano_tip" "$security_param" "$node_binary" "$tmp_dir"; then
-            step1_passed=true
+            step1_result="pass"
         else
             overall_passed=false
             if ! confirm "Continue despite Step 1 failures?" "n"; then
@@ -735,6 +892,7 @@ main() {
             fi
         fi
     else
+        step1_result="skip"
         print_info "Skipping Step 1."
     fi
 
@@ -743,7 +901,7 @@ main() {
     # =========================================================================
     if confirm "Run Step 2 (LedgerState Verification)?" "y"; then
         if run_ledger_state_verification "$network" "$node_binary" "$tmp_dir"; then
-            step2_passed=true
+            step2_result="pass"
         else
             overall_passed=false
             if ! confirm "Continue despite Step 2 failures?" "n"; then
@@ -753,6 +911,7 @@ main() {
             fi
         fi
     else
+        step2_result="skip"
         print_info "Skipping Step 2."
     fi
 
@@ -761,11 +920,12 @@ main() {
     # =========================================================================
     if confirm "Run Step 3 (Dparameter Verification)?" "y"; then
         if run_dparameter_verification "$network"; then
-            step3_passed=true
+            step3_result="pass"
         else
             overall_passed=false
         fi
     else
+        step3_result="skip"
         print_info "Skipping Step 3."
     fi
 
@@ -774,12 +934,41 @@ main() {
     # =========================================================================
     if confirm "Run Step 4 (Auth Script Verification)?" "y"; then
         if run_auth_script_verification "$network" "$db_connection" "$cardano_tip" "$node_binary"; then
-            step4_passed=true
+            step4_result="pass"
         else
             overall_passed=false
         fi
     else
+        step4_result="skip"
         print_info "Skipping Step 4."
+    fi
+
+    # =========================================================================
+    # STEP 5: Genesis Message Verification
+    # =========================================================================
+    if confirm "Run Step 5 (Genesis Message Verification)?" "y"; then
+        if run_message_verification "$network" "$node_binary"; then
+            step5_result="pass"
+        else
+            overall_passed=false
+        fi
+    else
+        step5_result="skip"
+        print_info "Skipping Step 5."
+    fi
+
+    # =========================================================================
+    # STEP 6: Genesis Timestamp Verification
+    # =========================================================================
+    if confirm "Run Step 6 (Genesis Timestamp Verification)?" "y"; then
+        if run_timestamp_verification "$network" "$node_binary"; then
+            step6_result="pass"
+        else
+            overall_passed=false
+        fi
+    else
+        step6_result="skip"
+        print_info "Skipping Step 6."
     fi
 
     # =========================================================================
@@ -790,35 +979,18 @@ main() {
     echo -e "Results for ${BOLD}$network${NC}:"
     echo ""
 
-    if [[ "$step0_passed" == "true" ]]; then
-        echo -e "  ${GREEN}[PASS]${NC} Step 0: Cardano Tip Finalization"
-    else
-        echo -e "  ${RED}[FAIL]${NC} Step 0: Cardano Tip Finalization"
-    fi
+    local steps=("0:Cardano Tip Finalization" "1:Config File Regeneration" "2:LedgerState Verification" "3:Dparameter Verification" "4:Auth Script Verification" "5:Genesis Message Verification" "6:Genesis Timestamp Verification")
+    local results=("$step0_result" "$step1_result" "$step2_result" "$step3_result" "$step4_result" "$step5_result" "$step6_result")
 
-    if [[ "$step1_passed" == "true" ]]; then
-        echo -e "  ${GREEN}[PASS]${NC} Step 1: Config File Regeneration"
-    else
-        echo -e "  ${RED}[FAIL]${NC} Step 1: Config File Regeneration"
-    fi
-
-    if [[ "$step2_passed" == "true" ]]; then
-        echo -e "  ${GREEN}[PASS]${NC} Step 2: LedgerState Verification"
-    else
-        echo -e "  ${RED}[FAIL]${NC} Step 2: LedgerState Verification"
-    fi
-
-    if [[ "$step3_passed" == "true" ]]; then
-        echo -e "  ${GREEN}[PASS]${NC} Step 3: Dparameter Verification"
-    else
-        echo -e "  ${RED}[FAIL]${NC} Step 3: Dparameter Verification"
-    fi
-
-    if [[ "$step4_passed" == "true" ]]; then
-        echo -e "  ${GREEN}[PASS]${NC} Step 4: Auth Script Verification"
-    else
-        echo -e "  ${RED}[FAIL]${NC} Step 4: Auth Script Verification"
-    fi
+    for i in "${!steps[@]}"; do
+        local label="${steps[$i]}"
+        local result="${results[$i]}"
+        case "$result" in
+            pass) echo -e "  ${GREEN}[PASS]${NC} Step $label" ;;
+            skip) echo -e "  ${YELLOW}[SKIP]${NC} Step $label" ;;
+            *)    echo -e "  ${RED}[FAIL]${NC} Step $label" ;;
+        esac
+    done
 
     echo ""
 

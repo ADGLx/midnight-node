@@ -47,7 +47,7 @@ impl ContractDeployBuilder {
 		let mut committee_seeds: Vec<WalletSeed> = args
 			.authority_seeds
 			.iter()
-			.map(|s| super::type_convert::convert_wallet_seed(*s))
+			.map(|s| super::type_convert::convert_wallet_seed(s.clone()))
 			.collect();
 
 		// Set the funding seed as the committee if none is passed
@@ -57,7 +57,7 @@ impl ContractDeployBuilder {
 
 		let committee: Vec<_> = committee_seeds
 			.iter()
-			.map(|s| UnshieldedWallet::default(*s).signing_key().verifying_key().clone())
+			.map(|s| UnshieldedWallet::default(s.clone()).signing_key().verifying_key().clone())
 			.collect();
 
 		let committee_threshold = committee_threshold.unwrap_or_else(|| committee.len() as u32);
@@ -89,7 +89,7 @@ impl BuildTxsExt for ContractDeployBuilder {
 
 impl CreateIntentInfo for ContractDeployBuilder {
 	fn create_intent_info(&self) -> Box<dyn BuildIntent<DefaultDB>> {
-		println!("Create intent info for contract deploy");
+		log::info!("Create intent info for contract deploy");
 		let deploy_contract: Box<dyn BuildContractAction<DefaultDB>> =
 			Box::new(ContractDeployInfo {
 				type_: MerkleTreeContract::new(),

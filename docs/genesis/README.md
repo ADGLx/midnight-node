@@ -6,20 +6,20 @@ This directory contains documentation for Midnight network genesis generation an
 
 | Document | Description |
 |----------|-------------|
-| [Generation Guide](generation.md) | How to generate genesis configuration and chain specifications |
+| [Construction Guide](construction.md) | How to generate genesis configuration and chain specifications |
 | [Verification Guide](verification.md) | How to verify generated chain specifications |
 
 ## Quick Start
 
-### Genesis Generation
+### Genesis Construction
 
 Generate a new chain specification for a network:
 
 ```bash
-./scripts/genesis/genesis-generation.sh
+./scripts/genesis/genesis-construction.sh
 ```
 
-See [Generation Guide](generation.md) for detailed instructions.
+See [Construction Guide](construction.md) for detailed instructions.
 
 ### Genesis Verification
 
@@ -53,14 +53,14 @@ See [Verification Guide](verification.md) for detailed instructions.
                                     ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
 │                                                                           │
-│                         GENERATION PHASE                                  │
-│                     (genesis-generation.sh)                               │
+│                         CONSTRUCTION PHASE                                │
+│                     (genesis-construction.sh)                             │
 │                                                                           │
-│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                  │
-│   │   Step 1    │───▶│   Step 2    │───▶│   Step 3    │                  │
-│   │   Config    │    │   Ledger    │    │   Chain     │                  │
-│   │   Files     │    │   State     │    │   Spec      │                  │
-│   └─────────────┘    └─────────────┘    └─────────────┘                  │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐                   │
+│   │   Step 1    │───▶│   Step 2    │───▶│   Step 3    │                   │
+│   │   Config    │    │   Ledger    │    │   Chain     │                   │
+│   │   Files     │    │   State     │    │   Spec      │                   │
+│   └─────────────┘    └─────────────┘    └─────────────┘                   │
 │                                                                           │
 └───────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -74,6 +74,13 @@ See [Verification Guide](verification.md) for detailed instructions.
                     │  - genesis_block_*.mn           │
                     │  - genesis_state_*.mn           │
                     └─────────────────────────────────┘
+                    ┌─────────────────────────────────┐
+                    │  Bootnodes                      │
+                    │                                 │
+                    │  - bootnodes-config.json        │
+                    │    Injected into chain-spec     │
+                    │    after generation             │
+                    └─────────────────────────────────┘
                                     │
                                     ▼
 ┌───────────────────────────────────────────────────────────────────────────┐
@@ -81,18 +88,18 @@ See [Verification Guide](verification.md) for detailed instructions.
 │                        VERIFICATION PHASE                                 │
 │                    (genesis-verification.sh)                              │
 │                                                                           │
-│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌───────────┐ │
-│   │   Step 0    │───▶│   Step 1    │───▶│   Step 2    │───▶│  Step 3   │ │
-│   │   Cardano   │    │   Config    │    │   Ledger    │    │  Dparam   │ │
-│   │   Tip       │    │   Regen     │    │   State     │    │  Check    │ │
-│   └─────────────┘    └─────────────┘    └─────────────┘    └───────────┘ │
+│   ┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌───────────┐  │
+│   │   Step 0    │───▶│   Step 1    │───▶│   Step 2    │───▶│  Step 3   │  │
+│   │   Cardano   │    │   Config    │    │   Ledger    │    │  Dparam   │  │
+│   │   Tip       │    │   Regen     │    │   State     │    │  Check    │  │
+│   └─────────────┘    └─────────────┘    └─────────────┘    └───────────┘  │
 │                                                                  │        │
 │                                                                  ▼        │
-│                                                            ┌───────────┐ │
-│                                                            │  Step 4   │ │
-│                                                            │  Auth     │ │
-│                                                            │  Script   │ │
-│                                                            └───────────┘ │
+│   ┌─────────────┐    ┌─────────────┐                       ┌───────────┐  │
+│   │   Step 6    │◀───│   Step 5    │◀──────────────────────│  Step 4   │  │
+│   │  Timestamp  │    │   Message   │                       │  Auth     │  │
+│   │  Verify     │    │   Verify    │                       │  Script   │  │
+│   └─────────────┘    └─────────────┘                       └───────────┘  │
 │                                                                           │
 └───────────────────────────────────────────────────────────────────────────┘
                                     │
@@ -110,14 +117,15 @@ See [Verification Guide](verification.md) for detailed instructions.
 
 ### Networks
 
-Available networks for genesis generation/verification:
+Available networks for genesis generation:
 - `mainnet` - Production network
 - `qanet` - QA testing network
 - `devnet` - Development network
 - `govnet` - Governance testing network
-- `node-dev-01` - Single node development
 - `preview` - Preview/staging network
 - `preprod` - Pre-production network
+
+The genesis verification script (`genesis-verification.sh`) targets `mainnet` only.
 
 ### Cardano Tip
 
@@ -143,7 +151,7 @@ The `cardano-tip.json` file in each network's `res/<network>/` directory stores 
    ```
 
 2. **Cardano db-sync access**:
-   - Local: `postgres://cardano@localhost:54322/cexplorer`
+   - Local: `postgres://postgres:postgres@localhost:5432/cexplorer`
    - Set `DB_SYNC_POSTGRES_CONNECTION_STRING` environment variable
 
 3. **For verification**: Generated chain specification files

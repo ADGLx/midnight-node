@@ -32,6 +32,7 @@ pub use {
 		CNightObservationDataSourceMock, CandidateDataSourceCached, CandidatesDataSourceImpl,
 		FederatedAuthorityObservationDataSourceImpl, FederatedAuthorityObservationDataSourceMock,
 		MidnightCNightObservationDataSourceImpl, get_epoch_for_block_hash,
+		metrics::MidnightDataSourceMetrics,
 	},
 	inherent_provider::*,
 	partner_chains_db_sync_data_sources,
@@ -54,7 +55,8 @@ pub mod inherent_provider {
 			config: &CNightAddresses,
 			start_position: &CardanoPosition,
 			current_tip: McBlockHash,
-			capacity: usize,
+			tx_capacity: usize,
+			utxo_overestimate: usize,
 		) -> Result<ObservedUtxos, Box<dyn std::error::Error + Send + Sync>>;
 	}
 

@@ -14,12 +14,13 @@
 use rand::Rng as _;
 
 use super::{
-	BindingKind, BuildIntent, ClaimKind, ClaimRewardsTransaction, DB, DustActions, DustPublicKey,
-	DustRegistration, DustSpend, HashMapStorage, Intent, LedgerContext, Offer, OfferInfo, Pedersen,
-	PedersenDowngradeable, PedersenRandomness, ProofKind, ProofMarker, ProofPreimage,
-	ProofPreimageMarker, ProofProvider, PureGeneratorPedersen, SeedableRng, Segment, SegmentId,
-	Serializable, Signature, SignatureKind, SigningKey, Sp, SplittableRng, StdRng, Storable,
-	Tagged, Timestamp, TokenType, Transaction, WalletSeed, WellFormedStrictness, serialize,
+	BindingKind, BuildIntent, ClaimKind, ClaimRewardsTransaction, DB, DustActions, DustLocalState,
+	DustPublicKey, DustRegistration, DustSpend, HashMapStorage, Intent, LedgerContext, Offer,
+	OfferInfo, Pedersen, PedersenDowngradeable, PedersenRandomness, ProofKind, ProofMarker,
+	ProofPreimage, ProofPreimageMarker, ProofProvider, PureGeneratorPedersen, SeedableRng, Segment,
+	SegmentId, Serializable, Signature, SignatureKind, SigningKey, Sp, SplittableRng, StdRng,
+	Storable, Tagged, Timestamp, TokenType, Transaction, WalletSeed, WellFormedStrictness,
+	serialize,
 };
 use std::{collections::HashMap, error::Error, fs, fs::File, io::Write, sync::Arc};
 
@@ -31,6 +32,9 @@ pub type FinalizedTransaction<D> = Transaction<Signature, ProofMarker, PureGener
 pub type FinalizedTransaction<D> = Transaction<Signature, (), Pedersen, D>;
 
 type Result<T, E = Box<dyn Error + Send + Sync>> = std::result::Result<T, E>;
+
+type DustSpendStates<D> = HashMap<WalletSeed, Sp<DustLocalState<D>, D>>;
+type GatheredDustSpends<D> = (Vec<DustSpend<ProofPreimageMarker, D>>, DustSpendStates<D>);
 
 pub trait FromContext<D: DB + Clone> {
 	fn new_from_context(
@@ -123,7 +127,7 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 
 	pub fn add_intent(&mut self, segment_id: SegmentId, intent: Box<dyn BuildIntent<D>>) {
 		if self.intents.insert(segment_id, intent).is_some() {
-			println!("WARN: value of segment_id({segment_id}) has been replaced.");
+			log::warn!("value of segment_id({segment_id}) has been replaced");
 		};
 	}
 
@@ -153,14 +157,19 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 		let guaranteed_offer: Option<Offer<ProofPreimage, D>> = self
 			.guaranteed_offer
 			.as_mut()
-			.map(|gc| gc.build(&mut self.rng, self.context.clone()));
+			.map(|gc| gc.build(&mut self.rng, self.context.clone()))
+			.transpose()?;
 
 		let fallible_offer = self
 			.fallible_offers
 			.iter_mut()
-			.map(|(segment_id, offer_info)| {
-				(*segment_id, offer_info.build(&mut self.rng, self.context.clone()))
-			})
+			.map(
+				|(segment_id, offer_info)| -> std::result::Result<_, Box<dyn Error + Send + Sync>> {
+					Ok((*segment_id, offer_info.build(&mut self.rng, self.context.clone())?))
+				},
+			)
+			.collect::<std::result::Result<Vec<_>, _>>()?
+			.into_iter()
 			.collect();
 
 		let mut intents = HashMapStorage::<
@@ -186,11 +195,18 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 
 		let tx = Transaction::new(network_id.clone(), intents, guaranteed_offer, fallible_offer);
 
+		log::debug!("pre-proof tx: {tx:#?}");
+		log::debug!("tx balance pre-fees: {:#?}", tx.balance(None));
+
 		// Pay the outstanding DUST balance, if we have a wallet seed or dust registrations
 		if self.funding_seeds.is_empty() && self.dust_registrations.is_empty() {
 			self.prove_tx(tx).await
 		} else {
-			Ok(self.pay_fees(tx, now, ttl).await?)
+			let tx = self.pay_fees(tx, now, ttl).await?;
+			let fees = self.context.with_ledger_state(|s| tx.fees_with_margin(&s.parameters, 3))?;
+			log::debug!("post-proof tx: {tx:#?}");
+			log::debug!("tx-balance post-prove: {:#?}", tx.balance(Some(fees))?);
+			Ok(tx)
 		}
 	}
 
@@ -203,7 +219,7 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 		let mut missing_dust = 0;
 
 		for _ in 0..10 {
-			let spends = self.gather_dust_spends(missing_dust, now)?;
+			let (spends, updated_states) = self.gather_dust_spends(missing_dust, now)?;
 			let mut paid_tx = tx.clone();
 			self.apply_dust(&mut paid_tx, &spends, self.rng.clone().split(), now, ttl);
 
@@ -213,7 +229,7 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 				if let Some(dust) = computed_missing_dust {
 					missing_dust += dust;
 				} else {
-					self.confirm_dust_spends(&spends)?;
+					self.confirm_dust_spends(&spends, updated_states)?;
 					return self.prove_tx(paid_tx).await;
 				}
 			} else {
@@ -222,7 +238,7 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 				if let Some(dust) = computed_missing_dust {
 					missing_dust += dust;
 				} else {
-					self.confirm_dust_spends(&spends)?;
+					self.confirm_dust_spends(&spends, updated_states)?;
 					return Ok(proven_tx);
 				}
 			}
@@ -322,8 +338,9 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 		&self,
 		required_amount: u128,
 		ctime: Timestamp,
-	) -> Result<Vec<DustSpend<ProofPreimageMarker, D>>> {
+	) -> Result<GatheredDustSpends<D>> {
 		let mut spends = vec![];
+		let mut updated_states = HashMap::new();
 		let mut remaining = required_amount;
 		let state = self
 			.context
@@ -338,12 +355,14 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 			.map_err(|_| "wallet lock was poisoned".to_string())?;
 		for seed in &self.funding_seeds {
 			if remaining == 0 {
-				return Ok(spends);
+				return Ok((spends, updated_states));
 			}
 			let wallet = wallets.get_mut(seed).ok_or("Unrecognized wallet seed")?;
-			let new_spends = wallet.dust.speculative_spend(remaining, ctime, params)?;
-			// We asked the wallet to spend `remaining` DUST,
-			// so the total amount spent will be <= `remaining`.
+			let (new_spends, updated_state) =
+				wallet.dust.speculative_spend(remaining, ctime, params)?;
+			if !new_spends.is_empty() {
+				updated_states.insert(seed.clone(), updated_state);
+			}
 			for spend in new_spends {
 				remaining -= spend.v_fee;
 				spends.push(spend);
@@ -355,49 +374,68 @@ impl<D: DB + Clone> StandardTrasactionInfo<D> {
 			)
 			.into())
 		} else {
-			Ok(spends)
+			Ok((spends, updated_states))
 		}
 	}
 
-	fn confirm_dust_spends(&mut self, spends: &[DustSpend<ProofPreimageMarker, D>]) -> Result<()> {
+	fn confirm_dust_spends(
+		&mut self,
+		spends: &[DustSpend<ProofPreimageMarker, D>],
+		mut updated_states: DustSpendStates<D>,
+	) -> Result<()> {
 		let mut wallets = self
 			.context
 			.wallets
 			.lock()
 			.map_err(|_| "wallet lock was poisoned".to_string())?;
-		for wallet in wallets.values_mut() {
-			wallet.dust.mark_spent(spends);
+		for (seed, wallet) in wallets.iter_mut() {
+			if let Some(updated_state) = updated_states.remove(seed) {
+				wallet.dust.mark_spent(spends, updated_state);
+			}
 		}
 		Ok(())
 	}
 
-	pub async fn save_intents_to_file(mut self, parent_dir: &str, file_name: &str) {
+	pub async fn save_intents_to_file(mut self, parent_dir: &str, file_name: &str) -> Result<()> {
 		// make sure that the dir is created, if it does not exist
-		fs::create_dir_all(parent_dir).expect("failed to create directory");
+		fs::create_dir_all(parent_dir)?;
 
 		let now = self.context.latest_block_context().tblock;
 		let ttl = now + self.context.with_ledger_state(|ls| ls.parameters.global_ttl);
 
+		let mut saved_files: Vec<String> = Vec::new();
+
 		for (segment_id, intent_info) in self.intents.iter_mut() {
 			let intent =
 				intent_info.build(&mut self.rng, ttl, self.context.clone(), *segment_id).await;
-			println!("Serializing intent...");
-			match serialize(&intent) {
-				Ok(serialized_intent) => {
-					let complete_file_name =
-						format!("{parent_dir}/{segment_id}_{file_name}_intent.mn");
+			log::debug!("Serializing intent...");
 
-					let mut file =
-						File::create(&complete_file_name).expect("failed to create file");
-					file.write_all(&serialized_intent).expect("failed to write file");
+			let serialized_intent = serialize(&intent).map_err(|e| {
+				// Clean up any files written so far
+				for path in &saved_files {
+					let _ = fs::remove_file(path);
+				}
+				format!("failed to serialize intent for segment {segment_id}: {e}")
+			})?;
 
-					println!("Saved {complete_file_name}");
-				},
-				Err(e) => {
-					println!("error({e:?}): failed to save to file {intent:#?}");
-				},
+			let complete_file_name = format!("{parent_dir}/{segment_id}_{file_name}_intent.mn");
+
+			let write_result = File::create(&complete_file_name)
+				.and_then(|mut file| file.write_all(&serialized_intent));
+
+			if let Err(e) = write_result {
+				// Clean up any files written so far
+				for path in &saved_files {
+					let _ = fs::remove_file(path);
+				}
+				return Err(format!("failed to write intent file {complete_file_name}: {e}").into());
 			}
+
+			log::info!("Saved {complete_file_name}");
+			saved_files.push(complete_file_name);
 		}
+
+		Ok(())
 	}
 
 	pub async fn erase_proof(mut self) -> Result<Transaction<(), (), Pedersen, D>> {
@@ -469,28 +507,31 @@ impl<D: DB + Clone> ClaimMintInfo<D> {
 	fn build(&mut self) -> UnprovenTransaction<D> {
 		let nonce = self.rng.r#gen();
 		self.context.with_ledger_state(|ledger_state| {
-			let claim_rewards = self.context.with_wallet_from_seed(self.coin.owner, |wallet| {
-				let unsigned_claim_mint: ClaimRewardsTransaction<(), D> = ClaimRewardsTransaction {
-					network_id: ledger_state.network_id.clone(),
-					value: self.coin.value,
-					owner: wallet.unshielded.signing_key().verifying_key(),
-					nonce,
-					signature: (),
-					kind: ClaimKind::Reward,
-				};
+			let claim_rewards =
+				self.context.with_wallet_from_seed(self.coin.owner.clone(), |wallet| {
+					let unsigned_claim_mint: ClaimRewardsTransaction<(), D> =
+						ClaimRewardsTransaction {
+							network_id: ledger_state.network_id.clone(),
+							value: self.coin.value,
+							owner: wallet.unshielded.signing_key().verifying_key(),
+							nonce,
+							signature: (),
+							kind: ClaimKind::Reward,
+						};
 
-				let data_to_sign = unsigned_claim_mint.data_to_sign();
-				let signature = wallet.unshielded.signing_key().sign(&mut self.rng, &data_to_sign);
+					let data_to_sign = unsigned_claim_mint.data_to_sign();
+					let signature =
+						wallet.unshielded.signing_key().sign(&mut self.rng, &data_to_sign);
 
-				ClaimRewardsTransaction {
-					network_id: ledger_state.network_id.clone(),
-					value: self.coin.value,
-					owner: wallet.unshielded.signing_key().verifying_key(),
-					nonce,
-					signature,
-					kind: ClaimKind::Reward,
-				}
-			});
+					ClaimRewardsTransaction {
+						network_id: ledger_state.network_id.clone(),
+						value: self.coin.value,
+						owner: wallet.unshielded.signing_key().verifying_key(),
+						nonce,
+						signature,
+						kind: ClaimKind::Reward,
+					}
+				});
 
 			Transaction::ClaimRewards(claim_rewards)
 		})
@@ -520,7 +561,7 @@ impl<D: DB + Clone> ClaimMintInfo<D> {
 	}
 
 	#[cfg(feature = "erase-proof")]
-	pub async fn prove(self) -> FinalizedTransaction<D> {
+	pub async fn prove(mut self) -> FinalizedTransaction<D> {
 		let tx_unproven = self.build();
 		tx_unproven.erase_proofs()
 	}

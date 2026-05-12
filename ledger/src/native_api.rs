@@ -33,20 +33,12 @@ type Ledger7Sig = ledger_7::base_crypto_local::signatures::Signature;
 type Ledger7Db = ledger_7::ledger_storage_local::db::ParityDb;
 type Ledger7Bridge = ledger_7::Bridge<Ledger7Sig, Ledger7Db>;
 
-type HfSig = hard_fork_test::base_crypto_local::signatures::Signature;
-type HfDb = hard_fork_test::ledger_storage_local::db::ParityDb;
-type HfBridge = hard_fork_test::Bridge<HfSig, HfDb>;
-
 fn ledger_7_version() -> Vec<u8> {
 	Ledger7Bridge::get_version()
 }
 
 fn ledger_8_version() -> Vec<u8> {
 	Ledger8Bridge::get_version()
-}
-
-fn hf_version() -> Vec<u8> {
-	HfBridge::get_version()
 }
 
 pub fn validate_transaction_verbose(
@@ -70,19 +62,6 @@ pub fn validate_transaction_verbose(
 			let error_code: u8 = e.error.into();
 			ValidationError { error_code, reason, details: e.details }
 		})
-	} else if runtime_ledger_version == hf_version() {
-		let hf_ctx = hard_fork_test::BlockContext {
-			tblock: block_context.tblock,
-			tblock_err: block_context.tblock_err,
-			parent_block_hash: block_context.parent_block_hash,
-			last_block_time: block_context.last_block_time,
-		};
-		HfBridge::validate_transaction_verbose(state_key, tx, hf_ctx, runtime_version, max_weight)
-			.map_err(|e| {
-				let reason = format!("{}", e.error);
-				let error_code: u8 = e.error.into();
-				ValidationError { error_code, reason, details: e.details }
-			})
 	} else if runtime_ledger_version == ledger_7_version() {
 		let l7_ctx = ledger_7::BlockContext {
 			tblock: block_context.tblock,

@@ -57,16 +57,16 @@ use {
 	ledger_storage_local::{
 		Storage,
 		arena::{ArenaKey, Sp, TypedArenaKey},
-		db::{DB, ParityDb},
+		db::{DB, ParityDb, paritydb::OwnedDb},
 		storage::{default_storage, set_default_storage},
 	},
-	midnight_primitives_ledger::{LedgerMetricsExt, LedgerStorageExt},
+	midnight_primitives_ledger::{LedgerMetricsExt, LedgerStorageDb, LedgerStorageExt},
 	mn_ledger_local::{
 		dust::InitialNonce,
 		structure::{
 			CNightGeneratesDustActionType, CNightGeneratesDustEvent, ClaimKind, ContractAction,
-			MaintenanceUpdate, ProofMarker, SignatureKind, SingleUpdate,
-			Transaction as LedgerTransaction, VerifiedTransaction,
+			MaintenanceUpdate, OutputInstructionUnshielded, ProofMarker, SignatureKind,
+			SingleUpdate, Transaction as LedgerTransaction, VerifiedTransaction,
 		},
 	},
 	std::{
@@ -168,13 +168,33 @@ where
 	pub fn set_default_storage(mut externalities: &mut dyn Externalities) {
 		let maybe_storage = externalities.extension::<LedgerStorageExt>();
 		if let Some(storage) = maybe_storage {
-			let res = set_default_storage(|| {
-				let db = ParityDb::<sha2::Sha256>::open(storage.0.db_path.as_path());
-				Storage::new(storage.0.cache_size, db)
-			});
-			if res.is_err() {
-				log::warn!("Warning: Failed to set default storage: {res:?}");
-			}
+			match &storage.db {
+				LedgerStorageDb::UnifiedDb(db) => {
+					let res = set_default_storage(|| {
+						let db =
+                            ParityDb::<sha2::Sha256, _, { LedgerStorageExt::COLUMN_OFFSET }>::from_existing_db(OwnedDb(db.clone()));
+						Storage::new(storage.cache_size, db)
+					});
+					if res.is_err() {
+						log::warn!(
+							target: LOG_TARGET,
+							"Warning: Failed to set default storage, already initialized (UnifiedDb)"
+						);
+					}
+				},
+				LedgerStorageDb::SeparateDb(db_path) => {
+					let res = set_default_storage(|| {
+						let db = ParityDb::<sha2::Sha256>::open(db_path.as_path());
+						Storage::new(storage.0.cache_size, db)
+					});
+					if res.is_err() {
+						log::warn!(
+							target: LOG_TARGET,
+							"Warning: Failed to set default storage, already initialized (SeparateDb)"
+						);
+					}
+				},
+			};
 		} else {
 			log::error!(
 				target: LOG_TARGET,
@@ -489,7 +509,7 @@ where
 
 		let api = api::new();
 		let tx = api.tagged_deserialize::<SystemTransaction>(tx_serialized)?;
-		let tx_type = Self::get_system_tx_type(&tx);
+		let tx_type = Self::get_system_tx_type(&tx)?;
 		log::info!(
 			target: LOG_TARGET,
 			"⚙️  Processing SystemTx {tx:?}"
@@ -667,7 +687,9 @@ where
 		let addr = api.deserialize::<ContractAddress>(contract_address)?;
 		let ledger = Self::get_ledger(api, state_key)?;
 
-		ledger.get_contract_state(addr).map_or(Ok(Vec::new()), f)
+		ledger
+			.get_contract_state(addr)
+			.map_or(Err(LedgerApiError::ContractNotPresent), f)
 	}
 
 	pub fn get_contract_state(
@@ -715,7 +737,10 @@ where
 		let night_addr = api.night_address(beneficiary)?;
 		let ledger = Self::get_ledger(&api, state_key)?;
 
-		Ok(*ledger.get_unclaimed_amount(night_addr).unwrap_or(&0))
+		ledger
+			.get_unclaimed_amount(night_addr)
+			.copied()
+			.ok_or(LedgerApiError::BeneficiaryNotFound)
 	}
 
 	pub fn get_ledger_parameters(state_key: &[u8]) -> Result<Vec<u8>, LedgerApiError> {
@@ -725,12 +750,17 @@ where
 		api.tagged_serialize(&ledger_parameters)
 	}
 
-	// TODO COST MODEL: Needs to be redone with the new ledger cost model
-	#[allow(unused_variables)]
+	pub fn get_c_to_m_bridge_min_amount(state_key: &[u8]) -> Result<u128, LedgerApiError> {
+		let api = api::new();
+		let ledger = Self::get_ledger(&api, state_key)?;
+		let ledger_parameters = Self::get_deserialized_ledger_parameters(&ledger);
+		Ok(ledger_parameters.c_to_m_bridge_min_amount)
+	}
+
 	pub fn get_transaction_cost(
 		state_key: &[u8],
 		tx: &[u8],
-		block_context: &BlockContext,
+		_block_context: &BlockContext,
 		max_weight: u64,
 	) -> Result<GasCost, LedgerApiError> {
 		let api = api::new();
@@ -842,20 +872,8 @@ where
 		}
 	}
 
-	fn get_system_tx_type(tx: &SystemTransaction) -> &'static str {
-		match tx {
-			SystemTransaction::OverwriteParameters(_) => "overwrite_parameters",
-			SystemTransaction::DistributeNight(claim_kind, _) => match claim_kind {
-				ClaimKind::Reward => "distribute_night_reward",
-				ClaimKind::CardanoBridge => "distribute_night_cardano_bridge",
-			},
-			SystemTransaction::PayBlockRewardsToTreasury { .. } => "pay_block_rewards_to_treasury",
-			SystemTransaction::PayFromTreasuryShielded { .. } => "pay_from_treasury_shielded",
-			SystemTransaction::PayFromTreasuryUnshielded { .. } => "pay_from_treasury_unshielded",
-			SystemTransaction::DistributeReserve(_) => "distribute_reserve",
-			SystemTransaction::CNightGeneratesDustUpdate { .. } => "cnight_generates_dust_update",
-			_ => "unknown",
-		}
+	fn get_system_tx_type(tx: &SystemTransaction) -> Result<&'static str, LedgerApiError> {
+		get_system_tx_type(tx)
 	}
 
 	/// Gets a VerifiedTransaction, using the strict cache when possible.
@@ -896,6 +914,10 @@ where
 				ctx.block_context.tblock,
 			)
 			.map_err(|e| {
+				log::warn!(
+					target: LOG_TARGET,
+					"Transaction malformed: {e}",
+				);
 				let details = format!("{e:?}");
 				let error =
 					LedgerApiError::Transaction(types::TransactionError::Malformed(e.into()));
@@ -1083,6 +1105,62 @@ where
 		let system_tx = SystemTransaction::CNightGeneratesDustUpdate { events: events? };
 		api.tagged_serialize(&system_tx)
 	}
+
+	pub fn construct_distribute_night_cardano_bridge_system_tx(
+		amount: u128,
+		target_address_bytes: &[u8],
+		nonce_bytes: [u8; 32],
+	) -> Result<Vec<u8>, LedgerApiError> {
+		let api = api::new();
+		let target_address = api.night_address(target_address_bytes)?;
+		let output = OutputInstructionUnshielded {
+			amount,
+			target_address,
+			nonce: Nonce(HashOutput(nonce_bytes)),
+		};
+		let system_tx = SystemTransaction::DistributeNight(ClaimKind::CardanoBridge, vec![output]);
+		api.tagged_serialize(&system_tx)
+	}
+
+	pub fn construct_distribute_reserve_system_tx(amount: u128) -> Result<Vec<u8>, LedgerApiError> {
+		let api = api::new();
+		let system_tx = SystemTransaction::DistributeReserve(amount);
+		api.tagged_serialize(&system_tx)
+	}
+
+	pub fn construct_distribute_treasury_system_tx(
+		amount: u128,
+	) -> Result<Vec<u8>, LedgerApiError> {
+		let api = api::new();
+		//TODO: this is wrong transaction, ledger is missing the correct one yet. https://github.com/midnightntwrk/midnight-node/issues/1277
+		let system_tx = SystemTransaction::PayBlockRewardsToTreasury { amount };
+		api.tagged_serialize(&system_tx)
+	}
+}
+
+#[cfg(feature = "std")]
+fn get_system_tx_type(tx: &SystemTransaction) -> Result<&'static str, LedgerApiError> {
+	match tx {
+		SystemTransaction::OverwriteParameters(_) => Ok("overwrite_parameters"),
+		SystemTransaction::DistributeNight(claim_kind, _) => match claim_kind {
+			ClaimKind::Reward => Ok("distribute_night_reward"),
+			ClaimKind::CardanoBridge => Ok("distribute_night_cardano_bridge"),
+		},
+		SystemTransaction::PayBlockRewardsToTreasury { .. } => Ok("pay_block_rewards_to_treasury"),
+		SystemTransaction::PayFromTreasuryShielded { .. } => Ok("pay_from_treasury_shielded"),
+		SystemTransaction::PayFromTreasuryUnshielded { .. } => Ok("pay_from_treasury_unshielded"),
+		SystemTransaction::DistributeReserve(_) => Ok("distribute_reserve"),
+		SystemTransaction::CNightGeneratesDustUpdate { .. } => Ok("cnight_generates_dust_update"),
+		other => {
+			log::error!(
+				target: LOG_TARGET,
+				"Unsupported system transaction type: {other:?}"
+			);
+			Err(LedgerApiError::Transaction(types::TransactionError::SystemTransaction(
+				types::SystemTransactionError::UnknownError,
+			)))
+		},
+	}
 }
 
 /// Creates a Nonce using BlakeTwo256; similar Hashing type set in the Runtime.
@@ -1123,6 +1201,7 @@ fn scale_normalized_cost(normalized: &LedgerNormalizedCost, max_weight: u64) -> 
 mod tests {
 	use super::*;
 	use base_crypto_local::cost_model::FixedPoint;
+	use coin_structure_local::coin::{ShieldedTokenType, UnshieldedTokenType};
 
 	fn normalized_all(value: FixedPoint) -> LedgerNormalizedCost {
 		LedgerNormalizedCost {
@@ -1152,5 +1231,54 @@ mod tests {
 		assert_eq!(over_one, max_weight);
 		assert!(half >= zero);
 		assert!(one >= half);
+	}
+
+	#[test]
+	fn get_system_tx_type_distribute_night_reward() {
+		let tx = SystemTransaction::DistributeNight(ClaimKind::Reward, vec![]);
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "distribute_night_reward");
+	}
+
+	#[test]
+	fn get_system_tx_type_distribute_night_cardano_bridge() {
+		let tx = SystemTransaction::DistributeNight(ClaimKind::CardanoBridge, vec![]);
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "distribute_night_cardano_bridge");
+	}
+
+	#[test]
+	fn get_system_tx_type_pay_block_rewards_to_treasury() {
+		let tx = SystemTransaction::PayBlockRewardsToTreasury { amount: 0 };
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "pay_block_rewards_to_treasury");
+	}
+
+	#[test]
+	fn get_system_tx_type_pay_from_treasury_shielded() {
+		let tx = SystemTransaction::PayFromTreasuryShielded {
+			outputs: vec![],
+			nonce: HashOutput([0u8; 32]),
+			token_type: ShieldedTokenType(HashOutput([0u8; 32])),
+		};
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "pay_from_treasury_shielded");
+	}
+
+	#[test]
+	fn get_system_tx_type_pay_from_treasury_unshielded() {
+		let tx = SystemTransaction::PayFromTreasuryUnshielded {
+			outputs: vec![],
+			token_type: UnshieldedTokenType(HashOutput([0u8; 32])),
+		};
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "pay_from_treasury_unshielded");
+	}
+
+	#[test]
+	fn get_system_tx_type_distribute_reserve() {
+		let tx = SystemTransaction::DistributeReserve(0);
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "distribute_reserve");
+	}
+
+	#[test]
+	fn get_system_tx_type_cnight_generates_dust_update() {
+		let tx = SystemTransaction::CNightGeneratesDustUpdate { events: vec![] };
+		assert_eq!(get_system_tx_type(&tx).unwrap(), "cnight_generates_dust_update");
 	}
 }

@@ -11,15 +11,15 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, sync::Mutex};
 
 use config::{Config, ConfigError, Environment, File, FileFormat};
 use documented::FieldInfo;
 use midnight_node_res::{
 	default_cfg,
 	networks::{
-		CustomNetwork, MainChainScripts, PermissionedCandidatesConfig,
-		RegisteredCandidatesAddresses, UndeployedNetwork,
+		C2MBridgeConfig, CustomNetwork, MainChainScripts, MessageConfig,
+		PermissionedCandidatesConfig, RegisteredCandidatesAddresses, UndeployedNetwork,
 	},
 };
 use midnight_primitives_federated_authority_observation::FederatedAuthorityObservationConfig;
@@ -30,7 +30,10 @@ use pallet_cnight_observation::config::CNightGenesis;
 use sc_cli::SubstrateCli;
 use serde_valid::Validate as _;
 
-use crate::chain_spec::{ChainSpecInitError, chain_config};
+use crate::{
+	cfg::validated_file::SafeReadOpts,
+	chain_spec::{ChainSpecInitError, chain_config},
+};
 
 use self::{
 	chain_spec_cfg::ChainSpecCfg, error::CfgError, memory_monitor_cfg::MemoryMonitorCfg,
@@ -46,6 +49,7 @@ pub mod meta_cfg;
 pub mod midnight_cfg;
 pub mod storage_monitor_params_cfg;
 pub mod substrate_cfg;
+pub mod validated_file;
 mod validation_utils;
 
 pub mod error;
@@ -104,40 +108,44 @@ impl SubstrateCli for Cfg {
 		let maybe_chain_spec = match id {
 			"" => {
 				// Midnight-specific pre-generated genesis values
-				let genesis_block = std::fs::read(
+				let genesis_block = validated_file::safe_read(
 					self.chain_spec_cfg
 						.chainspec_genesis_block
 						.as_ref()
 						.ok_or("chainspec_genesis_block not configured")?,
-				)
-				.map_err(|e| format!("failed to read genesis_block: {e}"))?;
-				let genesis_state = std::fs::read(
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
+				let genesis_state = validated_file::safe_read(
 					self.chain_spec_cfg
 						.chainspec_genesis_state
 						.as_ref()
 						.ok_or("chainspec_genesis_state not configured")?,
-				)
-				.map_err(|e| format!("failed to read genesis_state: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
-				let pc_chain_config_str = std::fs::read_to_string(
+				let pc_chain_config_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_pc_chain_config
 						.as_ref()
 						.ok_or("chainspec_pc_chain_config not configured")?,
-				)
-				.map_err(|e| format!("failed to read pc chain config: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let pc_chain_config: serde_json::Value = serde_json::from_str(&pc_chain_config_str)
 					.map_err(|e| format!("failed to read pc_chain_config as json: {e}"))?;
 
 				// Load permissioned candidates config
-				let permissioned_candidates_config_str = std::fs::read_to_string(
+				let permissioned_candidates_config_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_permissioned_candidates_config
 						.as_ref()
 						.ok_or("chainspec_permissioned_candidates_config not configured")?,
-				)
-				.map_err(|e| format!("failed to read permissioned candidates config: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let permissioned_candidates_config: PermissionedCandidatesConfig =
 					serde_json::from_str(&permissioned_candidates_config_str).map_err(|e| {
@@ -145,13 +153,14 @@ impl SubstrateCli for Cfg {
 					})?;
 
 				// Load registered candidates addresses
-				let registered_candidates_addresses_str = std::fs::read_to_string(
+				let registered_candidates_addresses_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_registered_candidates_addresses
 						.as_ref()
 						.ok_or("chainspec_registered_candidates_addresses not configured")?,
-				)
-				.map_err(|e| format!("failed to read registered candidates addresses: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let registered_candidates_addresses: RegisteredCandidatesAddresses =
 					serde_json::from_str(&registered_candidates_addresses_str).map_err(|e| {
@@ -161,13 +170,14 @@ impl SubstrateCli for Cfg {
 				let initial_authorities =
 					permissioned_candidates_config.initial_permissioned_candidates.clone();
 
-				let cnight_genesis_str = std::fs::read_to_string(
+				let cnight_genesis_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_cnight_genesis
 						.as_ref()
 						.ok_or("chainspec_cnight_genesis not configured")?,
-				)
-				.map_err(|e| format!("failed to read cnight-genesis: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let cnight_genesis: CNightGenesis = serde_json::from_str(&cnight_genesis_str)
 					.map_err(|e| format!("failed to read cnight-genesis as json: {e}"))?;
@@ -182,52 +192,81 @@ impl SubstrateCli for Cfg {
 					.and_then(|v| v.get("genesis_utxo").and_then(|v| v.as_str()))
 					.ok_or("failed to find genesis_utxo in pc_chain_config".to_string())?;
 
-				let federated_authority_config_str = std::fs::read_to_string(
+				let federated_authority_config_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_federated_authority_config
 						.as_ref()
 						.ok_or("chainspec_federated_authority_config not configured")?,
-				)
-				.map_err(|e| format!("failed to read federated_authority: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let federated_authority_config: FederatedAuthorityObservationConfig =
 					serde_json::from_str(&federated_authority_config_str).map_err(|e| {
 						format!("failed to parse FederatedAuthorityObservationConfig: {e}")
 					})?;
 
-				let system_parameters_config_str = std::fs::read_to_string(
+				let system_parameters_config_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_system_parameters_config
 						.as_ref()
 						.ok_or("chainspec_system_parameters_config not configured")?,
-				)
-				.map_err(|e| format!("failed to read system_parameters_config: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let system_parameters_config: SystemParametersConfig =
 					serde_json::from_str(&system_parameters_config_str)
 						.map_err(|e| format!("failed to parse SystemParametersConfig: {e}"))?;
 
-				let ics_config_str = std::fs::read_to_string(
+				let ics_config_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_ics_config
 						.as_ref()
 						.ok_or("chainspec_ics_config not configured")?,
-				)
-				.map_err(|e| format!("failed to read ics_config: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let ics_config: IcsConfig = serde_json::from_str(&ics_config_str)
 					.map_err(|e| format!("failed to parse IcsConfig: {e}"))?;
 
-				let reserve_config_str = std::fs::read_to_string(
+				let reserve_config_str = validated_file::safe_read_to_string(
 					self.chain_spec_cfg
 						.chainspec_reserve_config
 						.as_ref()
 						.ok_or("chainspec_reserve_config not configured")?,
-				)
-				.map_err(|e| format!("failed to read reserve_config: {e}"))?;
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
 
 				let reserve_config: ReserveConfig = serde_json::from_str(&reserve_config_str)
 					.map_err(|e| format!("failed to parse ReserveConfig: {e}"))?;
+
+				let message_config: Option<MessageConfig> =
+					if let Some(path) = self.chain_spec_cfg.chainspec_message_config.as_ref() {
+						let message_config_str = std::fs::read_to_string(path)
+							.map_err(|e| format!("failed to read message_config: {e}"))?;
+						Some(
+							serde_json::from_str(&message_config_str)
+								.map_err(|e| format!("failed to parse MessageConfig: {e}"))?,
+						)
+					} else {
+						None
+					};
+
+				let c2m_bridge_config_str = validated_file::safe_read_to_string(
+					self.chain_spec_cfg
+						.chainspec_c2m_bridge_config
+						.as_ref()
+						.ok_or("c2m_bridge_config not configured")?,
+					&Self::safe_read_opts()
+						.map_err(|e| format!("failed to read safe-read-opts: {e}"))?,
+				)?;
+
+				let c2m_bridge_config: C2MBridgeConfig =
+					serde_json::from_str(&c2m_bridge_config_str)
+						.map_err(|e| format!("failed to parse C2MBridgeConfig: {e}"))?;
 
 				let network: CustomNetwork = CustomNetwork {
 					name: self
@@ -258,6 +297,8 @@ impl SubstrateCli for Cfg {
 					system_parameters_config,
 					ics_config,
 					reserve_config,
+					message_config,
+					c2m_bridge_config,
 				};
 				chain_config(network)
 			},
@@ -286,6 +327,25 @@ impl Cfg {
 		let config = Self::get_all_config()?;
 		let cfg = Self::new_no_validation_from_config(config)?;
 		Ok(cfg)
+	}
+
+	pub fn safe_read_opts() -> Result<SafeReadOpts, ConfigError> {
+		static OPTS: Mutex<Option<SafeReadOpts>> = Mutex::new(None);
+
+		if let Some(ref opts) = *OPTS.lock().expect("failed to lock mutex") {
+			return Ok(opts.clone());
+		}
+
+		let meta_cfg: MetaCfg = Config::builder()
+			.add_source(File::from_str(&default_cfg(), FileFormat::Toml))
+			.add_source(Cfg::get_env_source()?)
+			.build()?
+			.try_deserialize()?;
+		let opts = SafeReadOpts::from(&meta_cfg);
+
+		*OPTS.lock().expect("failed to lock mutex") = Some(opts.clone());
+
+		Ok(opts)
 	}
 
 	/// Create a new instance from a custom config without running validation
@@ -364,7 +424,7 @@ impl Cfg {
 
 		let mut builder = Config::builder();
 		if let Some(ref env_preset) = meta_cfg.cfg_preset {
-			builder = builder.add_source(env_preset.load_config()?);
+			builder = builder.add_source(env_preset.load_config(&Self::safe_read_opts()?)?);
 		}
 		builder.build()
 	}
@@ -380,7 +440,7 @@ impl Cfg {
 		let mut builder =
 			Config::builder().add_source(File::from_str(&default_cfg(), FileFormat::Toml));
 		if let Some(ref env_preset) = preset_cfg.cfg_preset {
-			builder = builder.add_source(env_preset.load_config()?);
+			builder = builder.add_source(env_preset.load_config(&Self::safe_read_opts()?)?);
 		}
 		builder
 			.add_source(Self::get_env_source()?)
@@ -547,7 +607,7 @@ mod tests {
 			println!("loading {config}...");
 			let preset_cfg = Config::builder()
 				.add_source(File::from_str(&default_cfg(), FileFormat::Toml))
-				.add_source(CfgPreset(config).load_config().unwrap())
+				.add_source(CfgPreset(config).load_config(&Cfg::safe_read_opts().unwrap()).unwrap())
 				.build()
 				.unwrap();
 
@@ -561,7 +621,11 @@ mod tests {
 		*midnight_node_res::CFG_ROOT.lock().unwrap() = Some("../".to_string());
 		let preset_cfg = Config::builder()
 			.add_source(File::from_str(&default_cfg(), FileFormat::Toml))
-			.add_source(CfgPreset("dev".to_string()).load_config().unwrap())
+			.add_source(
+				CfgPreset("dev".to_string())
+					.load_config(&Cfg::safe_read_opts().unwrap())
+					.unwrap(),
+			)
 			.add_source(Environment::default())
 			.build()
 			.unwrap();
@@ -569,7 +633,8 @@ mod tests {
 		let cfg = Cfg::new_no_validation_from_config(preset_cfg)
 			.expect("Cfg failed to deserialize using dev preset");
 
-		let _run_cmd: sc_cli::RunCmd = cfg.substrate_cfg.try_into().unwrap();
+		let _run_cmd: sc_cli::RunCmd =
+			cfg.substrate_cfg.into_run_cmd(&Cfg::safe_read_opts().unwrap()).unwrap();
 	}
 
 	fn get_unused(preset_keys: &[String]) -> Vec<String> {
@@ -610,8 +675,10 @@ mod tests {
 		*midnight_node_res::CFG_ROOT.lock().unwrap() = Some("../".to_string());
 		for config in midnight_node_res::list_configs() {
 			let cfg = CfgPreset(config.clone());
-			let preset_cfg =
-				Config::builder().add_source(cfg.load_config().unwrap()).build().unwrap();
+			let preset_cfg = Config::builder()
+				.add_source(cfg.load_config(&Cfg::safe_read_opts().unwrap()).unwrap())
+				.build()
+				.unwrap();
 			let preset_value: serde_json::Value = preset_cfg.try_deserialize().unwrap();
 			let preset_keys = get_keys(preset_value).unwrap();
 

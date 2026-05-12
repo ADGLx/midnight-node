@@ -11,6 +11,7 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
 
@@ -21,7 +22,7 @@ use jsonrpsee::{
 };
 
 use governor::{Quota, RateLimiter, clock::DefaultClock, state::keyed::DefaultKeyedStateStore};
-use pallet_midnight::MidnightRuntimeApi;
+use pallet_midnight::{LedgerApiError, MidnightRuntimeApi};
 use parity_scale_codec::Decode;
 use sc_client_api::{BlockBackend, BlockchainEvents};
 use sp_api::{ApiExt, CallApiAt, ProvideRuntimeApi};
@@ -34,8 +35,17 @@ use std::sync::Arc;
 
 pub const API_VERSIONS: [u32; 1] = [2];
 
+/// Midnight core RPC API.
+///
+/// Provides methods for querying contract state, ledger state roots, and version
+/// information from the Midnight privacy ledger.
 #[rpc(client, server)]
 pub trait MidnightApi<BlockHash> {
+	/// Returns the state of a deployed contract.
+	///
+	/// The contract is identified by its hex-encoded address. The returned state is
+	/// also hex-encoded. Queries run against the best block unless `at` specifies
+	/// a historical block hash.
 	#[method(name = "midnight_contractState")]
 	fn get_state(
 		&self,
@@ -43,15 +53,28 @@ pub trait MidnightApi<BlockHash> {
 		at: Option<BlockHash>,
 	) -> Result<String, StateRpcError>;
 
+	/// Returns the Merkle root of the zswap (shielded transaction) state tree.
+	///
+	/// The root is returned as raw bytes. If `at` is `None`, the best block is used.
 	#[method(name = "midnight_zswapStateRoot")]
 	fn get_zswap_state_root(&self, at: Option<BlockHash>) -> Result<Vec<u8>, StateRpcError>;
 
+	/// Returns the Merkle root of the overall ledger state.
+	///
+	/// The root is returned as raw bytes. If `at` is `None`, the best block is used.
 	#[method(name = "midnight_ledgerStateRoot")]
 	fn get_ledger_state_root(&self, at: Option<BlockHash>) -> Result<Vec<u8>, StateRpcError>;
 
+	/// Returns the RPC API version(s) supported by this node.
+	///
+	/// The returned array currently contains a single element (`[2]`).
+	/// This is the RPC protocol version, distinct from the runtime API version.
 	#[method(name = "midnight_apiVersions")]
 	fn get_supported_api_versions(&self) -> RpcResult<Vec<u32>>;
 
+	/// Returns the ledger implementation version string.
+	///
+	/// If `at` is `None`, the best block is used.
 	#[method(name = "midnight_ledgerVersion")]
 	fn get_ledger_version(&self, at: Option<BlockHash>) -> Result<String, BlockRpcError>;
 
@@ -63,6 +86,7 @@ pub trait MidnightApi<BlockHash> {
 pub enum StateRpcError {
 	BadContractAddress(String),
 	BadAccountAddress(String),
+	ContractNotPresent,
 	UnableToGetContractState,
 	UnableToGetZSwapChainState,
 	UnableToGetZSwapStateRoot,
@@ -119,6 +143,9 @@ impl Display for StateRpcError {
 			},
 			StateRpcError::BadAccountAddress(malformed_address) => {
 				write!(f, "Unable to decode account address: {}", malformed_address)
+			},
+			StateRpcError::ContractNotPresent => {
+				write!(f, "Contract not present at the requested address")
 			},
 			StateRpcError::UnableToGetContractState => {
 				write!(f, "Unable to get requested contract state")
@@ -180,7 +207,7 @@ impl From<StateRpcError> for ErrorObjectOwned {
 	}
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum Operation {
 	Call { address: String, entry_point: String },
 	Deploy { address: String },
@@ -189,14 +216,15 @@ pub enum Operation {
 	Maintain { address: String },
 	ClaimRewards { value: u128 },
 }
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, JsonSchema)]
 pub struct MidnightRpcTransaction {
 	pub tx_hash: String,
 	pub operations: Vec<Operation>,
 	pub identifiers: Vec<String>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize, JsonSchema)]
 pub enum RpcTransaction {
 	MidnightTransaction {
 		#[serde(skip)]
@@ -209,6 +237,8 @@ pub enum RpcTransaction {
 	UnknownTransaction,
 }
 
+/// JSON Schema for this type is provided manually in the OpenRPC document
+/// because the generic `Header` type parameter does not implement `JsonSchema`.
 #[derive(Clone, PartialEq, Eq, Debug, Serialize, Deserialize)]
 pub struct RpcBlock<Header> {
 	pub header: Header,
@@ -345,6 +375,9 @@ where
 			.map_err(|_| StateRpcError::UnableToGetContractState)?;
 
 		let result = if api_version < 2 {
+			// Legacy path: v1 of the RPC contract predates ContractNotPresent,
+			// so callers on api_version < 2 must continue to see the generic
+			// UnableToGetContractState. Do not surface ContractNotPresent here.
 			#[allow(deprecated)]
 			api.get_contract_state_before_version_2(at, dehexed)
 				.map_err(|_e| StateRpcError::UnableToGetContractState)?
@@ -352,7 +385,10 @@ where
 			api.get_contract_state(at, dehexed)
 				.map_err(|_e| StateRpcError::UnableToGetContractState)
 				.and_then(|inner_res| {
-					inner_res.map_err(|_| StateRpcError::UnableToGetContractState)
+					inner_res.map_err(|e| match e {
+						LedgerApiError::ContractNotPresent => StateRpcError::ContractNotPresent,
+						_ => StateRpcError::UnableToGetContractState,
+					})
 				})?
 		};
 
@@ -480,7 +516,7 @@ where
 
 		let runtime_version = self
 			.client
-			.runtime_version_at(at)
+			.runtime_version_at(at, sp_core::traits::CallContext::Offchain)
 			.map_err(|e| {
 				ErrorObject::owned(
 					-32603,
