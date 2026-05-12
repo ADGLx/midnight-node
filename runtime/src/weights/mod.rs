@@ -18,13 +18,11 @@
 pub mod frame_system;
 pub mod pallet_beefy_mmr;
 pub mod pallet_cnight_observation;
-pub mod pallet_collective_council;
-pub mod pallet_collective_technical_committee;
+pub mod pallet_collective;
 pub mod pallet_federated_authority;
 pub mod pallet_federated_authority_observation;
 pub mod pallet_grandpa;
-pub mod pallet_membership_council_membership;
-pub mod pallet_membership_technical_committee_membership;
+pub mod pallet_membership;
 pub mod pallet_migrations;
 pub mod pallet_mmr;
 pub mod pallet_preimage;

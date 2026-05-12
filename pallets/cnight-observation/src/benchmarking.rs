@@ -68,7 +68,7 @@ fn generate_registration_utxos(count: u32) -> Vec<ObservedUtxo> {
 }
 
 fn reset_benchmark_state<T: Config>() {
-	let _ = Mappings::<T>::clear(u32::MAX, None);
+	let _ = Mapping::<T>::clear(u32::MAX, None);
 	let _ = UtxoOwners::<T>::clear(u32::MAX, None);
 	InherentExecutedThisBlock::<T>::kill();
 	NextCardanoPosition::<T>::set(CardanoPosition {
