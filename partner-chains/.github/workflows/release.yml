@@ -59,7 +59,7 @@ jobs:
       contents: write
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Download Artifacts from S3
         uses: ./.github/actions/artifacts/download-from-s3
         with:
@@ -87,7 +87,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Download binary
         uses: actions/download-artifact@v4
         with:
@@ -117,7 +117,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Create Draft Release
         uses: ./.github/actions/release/create-draft-release
         with:
@@ -134,7 +134,7 @@ jobs:
     runs-on: eks
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Deploy staging-preview
         uses: ./.github/actions/deploy/deploy-staging-preview
         with:
@@ -215,7 +215,7 @@ jobs:
         markers: [smoke, rpc]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup tests
         uses: ./.github/actions/tests/setup-python
         env:
@@ -241,7 +241,7 @@ jobs:
     runs-on: eks
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup tests
         uses: ./.github/actions/tests/setup-python
         env:
@@ -270,7 +270,7 @@ jobs:
     timeout-minutes: 1440
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Configure kubectl
         uses: ./.github/actions/tests/configure-kubectl
         env:
@@ -303,7 +303,7 @@ jobs:
     runs-on: eks
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup tests
         uses: ./.github/actions/tests/setup-python
         env:
@@ -339,7 +339,7 @@ jobs:
     timeout-minutes: 1450
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Configure kubectl
         uses: ./.github/actions/tests/configure-kubectl
         env:
@@ -372,7 +372,7 @@ jobs:
     runs-on: eks
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6
       - name: Setup tests
         uses: ./.github/actions/tests/setup-python
         env:
