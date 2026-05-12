@@ -45,7 +45,7 @@ jobs:
     runs-on: eks
     steps:
     - name: Acquire AWS Credentials
-      uses: aws-actions/configure-aws-credentials@v2
+      uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6
       with:
         role-to-assume: ${{ secrets.AWS_ROLE_ARN_ }}
         aws-region: "eu-central-1"
