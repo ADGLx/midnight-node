@@ -7,5 +7,5 @@ Includes GRANDPA, BEEFY MMR, timestamp, migrations, scheduler, preimage, tx-paus
 collectives and memberships, session validator management, federated authority
 and observation, system parameters, and cNIGHT observation.
 
-PR: https://github.com/midnightntwrk/midnight-node/pull/1482
+PR: https://github.com/midnightntwrk/midnight-node/pull/1495
 Issue: https://github.com/midnightntwrk/midnight-node/issues/1450
