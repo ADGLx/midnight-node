@@ -828,11 +828,13 @@ impl pallet_throttle::Config for Runtime {
 
 parameter_types! {
 	pub const BridgeMaxTransfersPerBlock: u32 = 256;
+	pub const MaxRegistrationsPerCardanoAddress: u32 = 100;
 }
 
 impl pallet_cnight_observation::Config for Runtime {
 	type MidnightSystemTransactionExecutor = MidnightSystem;
 	type WeightInfo = pallet_cnight_observation::weights::SubstrateWeight<Runtime>;
+	type MaxRegistrationsPerCardanoAddress = MaxRegistrationsPerCardanoAddress;
 }
 
 impl pallet_partner_chains_bridge::Config for Runtime {

@@ -159,6 +159,14 @@ pub mod pallet {
 		type MidnightSystemTransactionExecutor: MidnightSystemTransactionExecutor;
 		/// Weight information for extrinsics in this pallet.
 		type WeightInfo: crate::weights::WeightInfo;
+		/// Maximum number of [`MappingEntry`] rows the pallet will retain in
+		/// `Mappings` for a single Cardano reward address. Enforced as a writer
+		/// invariant inside `handle_registration`; over-cap registrations are
+		/// dropped with a `MappingCapped` event and a `log::warn!`. The cap is
+		/// per-address and applies to the raw `Vec<MappingEntry>` length —
+		/// duplicates (which are observable but invalid per `is_registered`)
+		/// count toward the cap.
+		type MaxRegistrationsPerCardanoAddress: Get<u32>;
 	}
 
 	#[pallet::event]
@@ -169,13 +177,18 @@ pub mod pallet {
 		MappingAdded(MappingEntry),
 		MappingRemoved(MappingEntry),
 		SystemTransactionApplied(SystemTransactionApplied),
+		/// A Registration UTXO was rejected because the per-address mapping
+		/// cap (`Config::MaxRegistrationsPerCardanoAddress`) was already
+		/// reached. The payload describes the rejected entry; no `Mappings`
+		/// mutation occurred and the surrounding inherent batch continues
+		/// processing.
+		MappingCapped(MappingEntry),
 	}
 
 	#[pallet::error]
 	pub enum Error<T> {
 		/// A Cardano Wallet address was sent, but was longer than expected
 		MaxCardanoAddrLengthExceeded,
-		MaxRegistrationsExceeded,
 		/// Only one inherent is allowed per block
 		InherentAlreadyExecuted,
 		/// Next Cardano position does not advance beyond current position
@@ -420,6 +433,22 @@ pub mod pallet {
 				utxo_tx_hash: header.utxo_tx_hash,
 				utxo_index: header.utxo_index.0,
 			};
+
+			// Writer-invariant cap enforcement. `Mappings` is stored as a
+			// plain `Vec<MappingEntry>` (Path A), so the cap is not enforced
+			// by the storage type and any future writer to `Mappings` MUST
+			// reproduce this check. The cap is checked before any read of
+			// `previous_registration` or mutation of `Mappings` so an
+			// over-cap registration is a pure no-op against state, observable
+			// only via the `MappingCapped` event and the `log::warn!` below.
+			let existing_len = Mappings::<T>::decode_len(cardano_reward_address).unwrap_or(0);
+			if existing_len >= T::MaxRegistrationsPerCardanoAddress::get() as usize {
+				log::warn!(
+					"Registration cap reached for {cardano_reward_address:?}, rejecting {new_reg:?}"
+				);
+				Self::deposit_event(Event::<T>::MappingCapped(new_reg));
+				return None;
+			}
 
 			let previous_registration = Self::get_registration(&cardano_reward_address);
 

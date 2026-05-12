@@ -143,12 +143,13 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxRegistrationsPerCardanoAddress: u8 = 100;
+	pub const MaxRegistrationsPerCardanoAddress: u32 = 100;
 }
 
 impl pallet_cnight_observation::Config for Test {
 	type MidnightSystemTransactionExecutor = MidnightSystem;
 	type WeightInfo = ();
+	type MaxRegistrationsPerCardanoAddress = MaxRegistrationsPerCardanoAddress;
 }
 
 impl mock_pallet::Config for Test {}

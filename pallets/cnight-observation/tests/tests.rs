@@ -1617,3 +1617,239 @@ fn is_inherent_required_with_malformed_data_returns_error() {
 		assert_eq!(result, Err(InherentError::DecodeFailed));
 	});
 }
+
+// ---- Per-address Registration cap enforcement ----------------------------
+//
+// Audit Issue AE (Least Authority Node Final Report, 10 Mar 2026) requires
+// `handle_registration` to enforce `Config::MaxRegistrationsPerCardanoAddress`
+// as a writer invariant on the `Mappings` storage map. The cap is `100` under
+// both mocks. The tests below cover:
+//   1. cap-exact accumulation  — the cap-th registration is accepted
+//   2. cap-over rejection      — the cap+1-th registration is rejected with
+//                                a `MappingCapped` event and no `Mappings`
+//                                mutation, while the inherent itself succeeds
+//   3. batch continuity        — a cap-rejected UTXO mid-batch does not
+//                                poison sibling UTXOs in the same inherent
+//
+// `init_ledger_state()` is intentionally NOT called: these tests exercise
+// the registration writer path only, which has no LedgerApi dependency.
+
+/// Deterministic `DustPublicKeyBytes` derived from a `u16` salt.
+///
+/// The cap-batch tests need ~`cap + 2` distinct dust public keys per test;
+/// the production helper `dust_public_key()` samples from system entropy
+/// and is not addressable by index. The bytes used here are not cryptographic
+/// inputs — they only have to satisfy `BoundedVec<u8, ConstU32<33>>` and be
+/// distinct across the batch so each constructed `MappingEntry` is unique.
+fn deterministic_dust_public_key(salt: u16) -> DustPublicKeyBytes {
+	let mut bytes = vec![0u8; 32];
+	bytes[0..2].copy_from_slice(&salt.to_be_bytes());
+	DustPublicKeyBytes(BoundedVec::try_from(bytes).unwrap())
+}
+
+/// Build a Registration `ObservedUtxo` from a `(cardano_addr, dust_key, idx)`
+/// triple. `idx` is the per-UTXO index inside a single test inherent; it is
+/// used both as the `utxo_index` field and to seed the `utxo_tx_hash` so
+/// every entry in the batch has a distinct `MappingEntry` shape.
+fn registration_utxo(
+	cardano_addr: CardanoRewardAddressBytes,
+	dust_key: DustPublicKeyBytes,
+	idx: u16,
+) -> ObservedUtxo {
+	ObservedUtxo {
+		header: test_header(1, idx.into(), idx, None),
+		data: ObservedUtxoData::Registration(RegistrationData {
+			cardano_reward_address: cardano_addr,
+			dust_public_key: dust_key,
+		}),
+	}
+}
+
+fn cap() -> usize {
+	<Test as pallet_cnight_observation::Config>::MaxRegistrationsPerCardanoAddress::get() as usize
+}
+
+#[test]
+fn cap_exact_accumulation_accepts_cap_th_registration() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		let cardano_addr = cardano_reward_address(b"cardano-cap-exact");
+		let cap = cap();
+
+		let utxos: Vec<ObservedUtxo> = (0..cap)
+			.map(|i| {
+				registration_utxo(cardano_addr, deterministic_dust_public_key(i as u16), i as u16)
+			})
+			.collect();
+
+		let inherent_data = create_inherent(utxos, test_position(2, 0));
+		let call = CNightObservation::create_inherent(&inherent_data)
+			.expect("Expected to create inherent call");
+		let call = RuntimeCall::CNightObservation(call);
+		assert_ok!(call.dispatch(RawOrigin::None.into()));
+
+		// All `cap` registrations stored.
+		assert_eq!(
+			Mappings::<Test>::get(cardano_addr).len(),
+			cap,
+			"the cap-th registration must be accepted (cap is inclusive on the at-cap side)"
+		);
+
+		// Event-log accounting.
+		let mut mapping_added_count = 0usize;
+		let mut mapping_capped_count = 0usize;
+		for record in frame_system::Pallet::<Test>::events() {
+			match record.event {
+				RuntimeEvent::CNightObservation(crate::Event::MappingAdded(_)) => {
+					mapping_added_count += 1
+				},
+				RuntimeEvent::CNightObservation(crate::Event::MappingCapped(_)) => {
+					mapping_capped_count += 1
+				},
+				_ => {},
+			}
+		}
+		assert_eq!(
+			mapping_added_count, cap,
+			"expected exactly cap MappingAdded events for cap accepted registrations"
+		);
+		assert_eq!(
+			mapping_capped_count, 0,
+			"no MappingCapped event should fire when storage stays at or below the cap"
+		);
+	});
+}
+
+#[test]
+fn cap_rejection_emits_mapping_capped_event() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		let cardano_addr = cardano_reward_address(b"cardano-cap-over");
+		let cap = cap();
+
+		// `cap + 1` UTXOs from a single Cardano address. The last one must be
+		// rejected; the first `cap` must accumulate cleanly.
+		let utxos: Vec<ObservedUtxo> = (0..=cap)
+			.map(|i| {
+				registration_utxo(cardano_addr, deterministic_dust_public_key(i as u16), i as u16)
+			})
+			.collect();
+
+		// The rejected entry is the `cap`-th (zero-indexed) UTXO.
+		let rejected_dust = deterministic_dust_public_key(cap as u16);
+		let rejected_header = test_header(1, cap as u32, cap as u16, None);
+		let expected_rejected_entry = MappingEntry {
+			cardano_reward_address: cardano_addr,
+			dust_public_key: rejected_dust,
+			utxo_tx_hash: rejected_header.utxo_tx_hash,
+			utxo_index: rejected_header.utxo_index.0,
+		};
+
+		let inherent_data = create_inherent(utxos, test_position(2, 0));
+		let call = CNightObservation::create_inherent(&inherent_data)
+			.expect("Expected to create inherent call");
+		let call = RuntimeCall::CNightObservation(call);
+		assert_ok!(call.dispatch(RawOrigin::None.into()));
+
+		// Storage stops at `cap`, not `cap + 1`.
+		assert_eq!(
+			Mappings::<Test>::get(cardano_addr).len(),
+			cap,
+			"cap+1-th registration must NOT mutate Mappings"
+		);
+
+		// Event-log accounting: exactly `cap` `MappingAdded`, exactly one
+		// `MappingCapped` matching the rejected entry.
+		let mut mapping_added_count = 0usize;
+		let mut mapping_capped_count = 0usize;
+		let mut captured_capped: Option<MappingEntry> = None;
+		for record in frame_system::Pallet::<Test>::events() {
+			match record.event {
+				RuntimeEvent::CNightObservation(crate::Event::MappingAdded(_)) => {
+					mapping_added_count += 1
+				},
+				RuntimeEvent::CNightObservation(crate::Event::MappingCapped(ref entry)) => {
+					mapping_capped_count += 1;
+					captured_capped = Some(entry.clone());
+				},
+				_ => {},
+			}
+		}
+		assert_eq!(mapping_added_count, cap, "expected cap MappingAdded events");
+		assert_eq!(
+			mapping_capped_count, 1,
+			"expected exactly one MappingCapped event for the rejected UTXO"
+		);
+		assert_eq!(
+			captured_capped.expect("MappingCapped event payload missing"),
+			expected_rejected_entry,
+			"MappingCapped payload must describe the rejected UTXO's MappingEntry"
+		);
+	});
+}
+
+#[test]
+fn cap_rejection_does_not_mutate_mappings_or_poison_batch() {
+	new_test_ext().execute_with(|| {
+		System::set_block_number(1);
+		let addr_a = cardano_reward_address(b"cardano-batch-A");
+		let addr_b = cardano_reward_address(b"cardano-batch-B");
+		let cap = cap();
+
+		// UTXOs 0..cap   : `addr_a` registrations that fill the cap.
+		// UTXO  cap      : `addr_a` registration that must be cap-rejected.
+		// UTXO  cap + 1  : `addr_b` registration that must still succeed —
+		//                  proves the cap-rejection in `handle_registration`
+		//                  does not abort the surrounding `process_tokens`
+		//                  per-UTXO loop.
+		let mut utxos: Vec<ObservedUtxo> = (0..cap)
+			.map(|i| registration_utxo(addr_a, deterministic_dust_public_key(i as u16), i as u16))
+			.collect();
+		utxos.push(registration_utxo(
+			addr_a,
+			deterministic_dust_public_key(cap as u16),
+			cap as u16,
+		));
+		utxos.push(registration_utxo(
+			addr_b,
+			deterministic_dust_public_key((cap + 1) as u16),
+			(cap + 1) as u16,
+		));
+
+		let inherent_data = create_inherent(utxos, test_position(2, 0));
+		let call = CNightObservation::create_inherent(&inherent_data)
+			.expect("Expected to create inherent call");
+		let call = RuntimeCall::CNightObservation(call);
+		assert_ok!(call.dispatch(RawOrigin::None.into()));
+
+		// Per-address storage state.
+		assert_eq!(
+			Mappings::<Test>::get(addr_a).len(),
+			cap,
+			"addr_a should be at cap, with the cap+1-th UTXO rejected"
+		);
+		assert_eq!(
+			Mappings::<Test>::get(addr_b).len(),
+			1,
+			"addr_b must not be poisoned by addr_a's rejection — batch continuity"
+		);
+
+		// Event-log accounting: `cap` MappingAdded for addr_a, one for addr_b,
+		// one MappingCapped (for addr_a's rejected UTXO).
+		let mut mapping_added_count = 0usize;
+		let mut mapping_capped_count = 0usize;
+		for record in frame_system::Pallet::<Test>::events() {
+			match record.event {
+				RuntimeEvent::CNightObservation(crate::Event::MappingAdded(_)) => {
+					mapping_added_count += 1
+				},
+				RuntimeEvent::CNightObservation(crate::Event::MappingCapped(_)) => {
+					mapping_capped_count += 1
+				},
+				_ => {},
+			}
+		}
+		assert_eq!(mapping_added_count, cap + 1, "cap MappingAdded for addr_a + 1 for addr_b");
+		assert_eq!(mapping_capped_count, 1, "exactly one MappingCapped event");
+	});
+}

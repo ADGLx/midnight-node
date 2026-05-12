@@ -131,7 +131,7 @@ impl frame_system::Config for Test {
 }
 
 parameter_types! {
-	pub const MaxRegistrationsPerCardanoAddress: u8 = 100;
+	pub const MaxRegistrationsPerCardanoAddress: u32 = 100;
 }
 
 pub struct MidnightSystemTx {}
@@ -156,6 +156,7 @@ impl MidnightSystemTransactionExecutor for MidnightSystemTx {
 impl pallet_cnight_observation::Config for Test {
 	type MidnightSystemTransactionExecutor = MidnightSystemTx;
 	type WeightInfo = ();
+	type MaxRegistrationsPerCardanoAddress = MaxRegistrationsPerCardanoAddress;
 }
 
 impl mock_pallet::Config for Test {}
