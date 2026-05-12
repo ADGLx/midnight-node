@@ -438,7 +438,7 @@ zeroize = { opt-level = 3 }
 yamux = { git = "https://github.com/midnightntwrk/rust-yamux", branch = "yamux-v0.12.2" }
 parity-db = { git = "https://github.com/midnightntwrk/parity-db.git", branch = "master" }
 midnight-ledger           = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "crate-ledger-8.1.0-rc.1" }
-midnight-zswap            = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "zswap-8.1.0-rc.1" }
+midnight-zswap            = { git = "https://github.com/webisoftSoftware/midnight-ledger", branch = "feature/split-prove-no-sk" }
 midnight-transient-crypto = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "transient-crypto-2.1.0-rc.1" }
 midnight-onchain-vm       = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "onchain-vm-3.1.0-rc.1" }
 midnight-onchain-state    = { git = "https://github.com/midnightntwrk/midnight-ledger", tag = "onchain-state-3.1.0-rc.1" }
