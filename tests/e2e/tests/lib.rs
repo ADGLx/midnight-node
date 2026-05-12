@@ -25,10 +25,9 @@ async fn global_faucet_manager() -> Arc<FaucetManager> {
         .get_or_init(|| async {
             let settings = Settings::default();
             let faucet_wallet =
-                CardanoClient::new_from_funded(settings.ogmios_client.clone(), settings.constants)
-                    .await;
+                CardanoClient::new_from_funded(settings.ogmios_client, settings.constants).await;
 
-            Arc::new(FaucetManager::new(settings.ogmios_client, faucet_wallet).await)
+            Arc::new(FaucetManager::new(faucet_wallet).await)
         })
         .await
         .clone()

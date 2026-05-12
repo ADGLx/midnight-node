@@ -17,9 +17,39 @@ use whisky::csl::{
 };
 use whisky::data::{constr0, constr1};
 use whisky::{
-    Asset, Budget, LanguageVersion, Network, OfflineTxEvaluator, TxBuilder, WData, WError,
-    WRedeemer, Wallet, WalletType,
+    Asset, Budget, LanguageVersion, Network, OfflineTxEvaluator, Protocol, TxBuilder,
+    TxBuilderParam, UTxO, UtxoInput, UtxoOutput, WData, WError, WRedeemer, Wallet, WalletType,
 };
+
+const OGMIOS_MAX_ATTEMPTS: u32 = 5;
+
+/// Classify an ogmios error as retriable. Returns `Some((delay, label))` if we should retry,
+/// `None` for terminal errors. The label is for logging.
+///
+/// Two retriable classes today:
+/// - WS transport task died (jsonrpsee "background task closed") — retry quickly (2s).
+/// - Cardano-node mempool refused admission because tx validation was too slow under load
+///   ("MempoolTxTooSlow", server error 3997) — tx is valid, node is just busy. Back off
+///   longer (5s) so the mempool can clear concurrent submissions.
+fn retry_delay_for(e: &OgmiosClientError) -> Option<(Duration, &'static str)> {
+    let OgmiosClientError::RequestError(s) = e else {
+        return None;
+    };
+    if s.contains("background task closed") {
+        Some((Duration::from_secs(2), "WS transient"))
+    } else if s.contains("MempoolTxTooSlow") {
+        Some((Duration::from_secs(5), "node mempool busy"))
+    } else {
+        None
+    }
+}
+
+/// Detects the "ogmios response was missing a required field" parse failure — typically the
+/// local devnet's `protocolParameters` omitting `plutus:v2`. Distinct from transport flakes:
+/// we won't get a different answer by retrying.
+fn is_partial_params_error(e: &OgmiosClientError) -> bool {
+    matches!(e, OgmiosClientError::ResponseError(s) if s.contains("missing field"))
+}
 
 #[derive(Debug)]
 pub enum GetUtxoError {
@@ -55,6 +85,7 @@ pub struct CardanoClient {
     pub wallet: Wallet,
     pub network: Network,
     pub network_info: NetworkInfo,
+    pub protocol: Protocol,
 }
 
 impl CardanoClient {
@@ -78,7 +109,7 @@ impl CardanoClient {
         wallet: Wallet,
     ) -> Self {
         let network_info = Self::network_info(&ogmios_settings.network);
-        let network = Self::fetch_network(&ogmios_settings).await;
+        let (network, protocol) = Self::fetch_chain_params(&ogmios_settings, &constants).await;
 
         Self {
             ogmios_settings: ogmios_settings.clone(),
@@ -86,21 +117,105 @@ impl CardanoClient {
             wallet,
             network,
             network_info,
+            protocol,
         }
     }
 
-    async fn fetch_network(config: &OgmiosClientSettings) -> Network {
+    async fn fetch_chain_params(
+        config: &OgmiosClientSettings,
+        constants: &Constants,
+    ) -> (Network, Protocol) {
+        let mut last_err = None;
+        for attempt in 1..=OGMIOS_MAX_ATTEMPTS {
+            match Self::fetch_chain_params_once(config).await {
+                Ok(v) => return v,
+                Err(e) => match retry_delay_for(&e) {
+                    Some((delay, label)) => {
+                        println!(
+                            "ogmios protocol-params query: {} on attempt {}/{}; retry in {:?}",
+                            label, attempt, OGMIOS_MAX_ATTEMPTS, delay,
+                        );
+                        last_err = Some(e);
+                        sleep(delay).await;
+                    }
+                    None if is_partial_params_error(&e) => {
+                        return Self::fallback_chain_params(constants, &e);
+                    }
+                    None => panic!("Failed to query protocol parameters: {:?}", e),
+                },
+            }
+        }
+        panic!(
+            "Failed to query protocol parameters after {} attempts: {:?}",
+            OGMIOS_MAX_ATTEMPTS,
+            last_err.unwrap(),
+        );
+    }
+
+    /// Some environments (e.g. the local devnet's ogmios) return a `queryLedgerState/
+    /// protocolParameters` response without all three Plutus cost-model versions, which the
+    /// strongly-typed `ogmios-client` deserializer rejects whole. When that happens we fall
+    /// back to the cost models baked into `Constants` and whisky's default fee/size params —
+    /// fine for local dev where the node runs with mainnet-default protocol params anyway.
+    fn fallback_chain_params(constants: &Constants, err: &OgmiosClientError) -> (Network, Protocol) {
+        println!(
+            "ogmios returned incomplete protocol params ({:?}); falling back to \
+             Constants.cost_model + whisky defaults (intended for local dev)",
+            err,
+        );
+        (
+            Network::Custom(constants.cost_model.clone()),
+            Protocol::default(),
+        )
+    }
+
+    async fn fetch_chain_params_once(
+        config: &OgmiosClientSettings,
+    ) -> Result<(Network, Protocol), OgmiosClientError> {
         let client = client_for_url(
             &config.base_url,
             Duration::from_secs(config.timeout_seconds),
         )
         .await
-        .expect("Failed to connect to ogmios");
-        let params = client
-            .query_protocol_parameters()
-            .await
-            .expect("Failed to query protocol parameters");
-        Network::Custom(convert_cost_models(&params.plutus_cost_models))
+        .map_err(|e| OgmiosClientError::RequestError(format!("connect: {}", e)))?;
+        let params = client.query_protocol_parameters().await?;
+
+        let network = Network::Custom(convert_cost_models(&params.plutus_cost_models));
+
+        let price_mem = *params.script_execution_prices.memory.numer() as f64
+            / *params.script_execution_prices.memory.denom() as f64;
+        let price_step = *params.script_execution_prices.cpu.numer() as f64
+            / *params.script_execution_prices.cpu.denom() as f64;
+        let protocol = Protocol {
+            min_fee_a: params.min_fee_coefficient as u64,
+            min_fee_b: params.min_fee_constant.lovelace,
+            max_tx_size: params.max_transaction_size.bytes,
+            max_val_size: params.max_value_size.bytes,
+            coins_per_utxo_size: params.min_utxo_deposit_coefficient,
+            key_deposit: params.stake_credential_deposit.lovelace,
+            pool_deposit: params.stake_pool_deposit.lovelace,
+            max_collateral_inputs: params.max_collateral_inputs as i32,
+            collateral_percent: params.collateral_percentage as f64,
+            min_fee_ref_script_cost_per_byte: params.min_fee_reference_scripts.base as u64,
+            price_mem,
+            price_step,
+            ..Default::default()
+        };
+
+        Ok((network, protocol))
+    }
+
+    /// Build a fresh whisky `TxBuilder` pre-loaded with the protocol params we fetched from
+    /// ogmios. Use this instead of `TxBuilder::new_core()` so fee / size / utxo-min computation
+    /// matches the connected network (preview, preprod, mainnet, etc.) rather than whisky's
+    /// hard-coded mainnet defaults.
+    fn new_tx_builder(&self) -> TxBuilder {
+        TxBuilder::new(TxBuilderParam {
+            evaluator: None,
+            fetcher: None,
+            submitter: None,
+            params: Some(self.protocol.clone()),
+        })
     }
 
     fn network_info(network: &Network) -> NetworkInfo {
@@ -211,30 +326,48 @@ impl CardanoClient {
         config: &OgmiosClientSettings,
         req: OgmiosRequest,
     ) -> Result<OgmiosResponse, OgmiosClientError> {
+        let mut last_err = None;
+        for attempt in 1..=OGMIOS_MAX_ATTEMPTS {
+            match Self::ogmios_request_once(config, req.clone()).await {
+                Ok(v) => return Ok(v),
+                Err(e) => match retry_delay_for(&e) {
+                    Some((delay, label)) => {
+                        println!(
+                            "ogmios request: {} on attempt {}/{}; retry in {:?}",
+                            label, attempt, OGMIOS_MAX_ATTEMPTS, delay,
+                        );
+                        last_err = Some(e);
+                        sleep(delay).await;
+                    }
+                    None => return Err(e),
+                },
+            }
+        }
+        Err(last_err.unwrap())
+    }
+
+    async fn ogmios_request_once(
+        config: &OgmiosClientSettings,
+        req: OgmiosRequest,
+    ) -> Result<OgmiosResponse, OgmiosClientError> {
         let client = client_for_url(
             &config.base_url,
             Duration::from_secs(config.timeout_seconds),
         )
         .await
-        .expect("Failed to connecto to ogmios");
+        .map_err(|e| OgmiosClientError::RequestError(format!("connect: {}", e)))?;
         match req {
             OgmiosRequest::QueryTip => {
-                let ledger_state = client.get_tip().await.expect("Failed to get chain tip");
-                Ok(OgmiosResponse::QueryTip(ledger_state))
+                let tip = client.get_tip().await?;
+                Ok(OgmiosResponse::QueryTip(tip))
             }
             OgmiosRequest::QueryUtxo { address } => {
-                let utxos = client
-                    .query_utxos(&[address])
-                    .await
-                    .expect("Failed to get utxos");
+                let utxos = client.query_utxos(&[address]).await?;
                 Ok(OgmiosResponse::QueryUtxo(utxos))
             }
             OgmiosRequest::SubmitTx { tx_bytes } => {
-                let response = client.submit_transaction(&tx_bytes).await;
-                match response {
-                    Err(e) => Err(e),
-                    Ok(res) => Ok(OgmiosResponse::SubmitTx(res)),
-                }
+                let response = client.submit_transaction(&tx_bytes).await?;
+                Ok(OgmiosResponse::SubmitTx(response))
             }
         }
     }
@@ -289,7 +422,7 @@ impl CardanoClient {
             Asset::new_from_str(&mapping_validator_policy_id, "1"),
         ];
         let minting_script = policies.mapping_validator_cbor_double_encoding();
-        let mut tx_builder = TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         tx_builder
             .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
@@ -374,7 +507,7 @@ impl CardanoClient {
         let script_hash = whisky::get_script_hash(&mapping_validator_cbor, LanguageVersion::V2);
         println!("Mapping validator script hash: {:?}", script_hash);
 
-        let mut tx_builder = TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         tx_builder
             .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
@@ -495,7 +628,7 @@ impl CardanoClient {
             Asset::new_from_str(&policy_id, amount.to_string().as_str()),
         ];
 
-        let mut tx_builder = whisky::TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         tx_builder
             .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
@@ -548,7 +681,7 @@ impl CardanoClient {
         let input_tx_hash = hex::encode(utxo.transaction.id);
         let input_index = utxo.index;
         let input_assets = &Self::build_asset_vector(utxo);
-        let mut tx_builder = whisky::TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         tx_builder
             .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
@@ -590,7 +723,7 @@ impl CardanoClient {
             tx_out_addr,
         );
 
-        let mut tx_builder = TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         for tx_in in tx_ins {
             tx_builder.tx_in(
                 &hex::encode(tx_in.transaction.id),
@@ -642,7 +775,7 @@ impl CardanoClient {
                 continue;
             }
 
-            let mut tx_builder = TxBuilder::new_core();
+            let mut tx_builder = self.new_tx_builder();
             for utxo in chunk {
                 tx_builder.tx_in(
                     &hex::encode(utxo.transaction.id),
@@ -722,6 +855,98 @@ impl CardanoClient {
             sleep(PAUSE).await;
         }
         None
+    }
+
+    pub async fn find_utxos_by_tx_id(&self, address: &str, tx_id_hex: String) -> Vec<OgmiosUtxo> {
+        const MAX_ATTEMPTS: u32 = 120;
+        const PAUSE: Duration = Duration::from_secs(2);
+        let tx_id_bytes = hex::decode(&tx_id_hex).expect("invalid hex tx_id");
+        let request = OgmiosRequest::QueryUtxo {
+            address: address.to_string(),
+        };
+
+        for _ in 0..MAX_ATTEMPTS {
+            let response = Self::ogmios_request(&self.ogmios_settings, request.clone())
+                .await
+                .unwrap();
+            let utxos = match response {
+                OgmiosResponse::QueryUtxo(utxos) => utxos,
+                _ => vec![],
+            };
+            let matches: Vec<_> = utxos
+                .into_iter()
+                .filter(|u| u.transaction.id.as_ref() == tx_id_bytes.as_slice())
+                .collect();
+            if !matches.is_empty() {
+                return matches;
+            }
+            sleep(PAUSE).await;
+        }
+        vec![]
+    }
+
+    pub async fn split_to_self(
+        &self,
+        candidate_utxos: &[OgmiosUtxo],
+        n_outputs: usize,
+        lovelace_per_output: u64,
+    ) -> Result<[u8; 32], OgmiosClientError> {
+        const SELECTION_THRESHOLD_LOVELACE: u64 = 5_000_000;
+        let payment_addr = self.address_as_bech32();
+        let candidates: Vec<UTxO> = candidate_utxos.iter().map(Self::to_whisky_utxo).collect();
+
+        let mut tx_builder = self.new_tx_builder();
+        let output_assets = vec![Asset::new_from_str(
+            "lovelace",
+            &lovelace_per_output.to_string(),
+        )];
+        for _ in 0..n_outputs {
+            tx_builder.tx_out(&payment_addr, &output_assets);
+        }
+        // whisky's auto fee calc under-pays severely for multi-input txs (observed ~4x on
+        // Preview). Override with a worst-case fee derived from the protocol params we fetched
+        // from ogmios: enough to cover anything up to max_tx_size plus a small cushion. The
+        // change UTXO absorbs the leftover.
+        let prime_fee = self.protocol.min_fee_a * self.protocol.max_tx_size as u64
+            + self.protocol.min_fee_b
+            + 100_000;
+        tx_builder
+            .change_address(&payment_addr)
+            .select_utxos_from(&candidates, SELECTION_THRESHOLD_LOVELACE)
+            .set_fee(&prime_fee.to_string())
+            .complete_sync(None)
+            .unwrap();
+
+        let signed_tx = self
+            .wallet
+            .sign_tx(&tx_builder.tx_hex())
+            .expect("Failed to sign split tx");
+        let tx_bytes = hex::decode(signed_tx).expect("Failed to decode hex string");
+        let request = OgmiosRequest::SubmitTx { tx_bytes };
+        let response = Self::ogmios_request(&self.ogmios_settings, request).await?;
+        match response {
+            OgmiosResponse::SubmitTx(res) => Ok(res.transaction.id),
+            _ => Err(OgmiosClientError::RequestError(
+                "Unexpected response type".into(),
+            )),
+        }
+    }
+
+    fn to_whisky_utxo(u: &OgmiosUtxo) -> UTxO {
+        UTxO {
+            input: UtxoInput {
+                output_index: u.index as u32,
+                tx_hash: hex::encode(u.transaction.id),
+            },
+            output: UtxoOutput {
+                address: u.address.clone(),
+                amount: Self::build_asset_vector(u),
+                data_hash: None,
+                plutus_data: None,
+                script_ref: None,
+                script_hash: None,
+            },
+        }
     }
 
     /// Query all UTxOs at a given address
@@ -907,7 +1132,7 @@ impl CardanoClient {
             Asset::new_from_str(policy_id, "1"),        // The governance NFT
         ];
 
-        let mut tx_builder = TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         tx_builder
             .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
@@ -1044,7 +1269,7 @@ impl CardanoClient {
             Asset::new_from_str(policy_id, "1"),
         ];
 
-        let mut tx_builder = TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         tx_builder
             .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
@@ -1134,7 +1359,7 @@ impl CardanoClient {
         let input_index = utxo.index;
         let input_assets = &Self::build_asset_vector(utxo);
 
-        let mut tx_builder = whisky::TxBuilder::new_core();
+        let mut tx_builder = self.new_tx_builder();
         tx_builder
             .network(self.network.clone())
             .set_evaluator(Box::new(OfflineTxEvaluator::new()))
