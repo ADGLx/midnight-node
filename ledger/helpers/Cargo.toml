@@ -23,7 +23,7 @@ ledger-storage-ledger-8 = { workspace = true }
 zswap-ledger-8 = { workspace = true }
 
 
-rand = { version = "0.8.4", features = ["small_rng", "getrandom"] }
+rand = { version = "0.10.0", features = ["small_rng", "getrandom"] }
 rayon.workspace = true
 log.workspace = true
 lazy_static.workspace = true
