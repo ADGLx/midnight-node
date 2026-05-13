@@ -21,22 +21,14 @@ COPY deps/midnight-ledger ./deps/midnight-ledger
 WORKDIR /build/deps/midnight-node
 RUN cargo build --release -p midnight-node --locked
 
-FROM public.ecr.aws/amazonlinux/amazonlinux:2023-minimal@sha256:13bffb7de7ef4836742a6be2b09642e819aaec50ceed1d7961424e19a95da0de
+FROM debian:trixie-slim
 
 ENV BASE_PATH=/node/chain
 ENV RUST_BACKTRACE=1
 
-RUN microdnf -y update && \
-    microdnf -y install ca-certificates curl-minimal procps-ng strace gdb vim jq tree gcc gcc-c++ make git cmake wget libtool autoconf automake && \
-    git clone --depth 1 https://github.com/wolfcw/libfaketime.git && \
-    CFLAGS="-DFORCE_MONOTONIC_FIX -DFORCE_PTHREAD_NONVER" make -C /libfaketime/src install && \
-    rm -rf /libfaketime && \
-    wget -q https://github.com/koute/bytehound/releases/download/0.11.0/bytehound-x86_64-unknown-linux-gnu.tgz && \
-    [ -f bytehound-x86_64-unknown-linux-gnu.tgz ] && \
-    tar -xzvf bytehound-x86_64-unknown-linux-gnu.tgz && \
-    mv libbytehound.so /usr/lib/libbytehound.so && \
-    rm -rf bytehound* && \
-    microdnf clean all && rm -rf /var/cache/dnf /var/cache/yum
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        ca-certificates curl procps tar && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY deps/midnight-node/.envrc ./bin/.envrc
 COPY deps/midnight-node/res/ ./res/
@@ -44,7 +36,9 @@ COPY deps/midnight-node/node/bin/entrypoint.sh /entrypoint.sh
 
 COPY --from=builder /build/deps/midnight-node/target/release/midnight-node /midnight-node
 
-RUN useradd -u 10001 -d /nonexistent -s /usr/sbin/nologin -M -U -c "" appuser
+RUN useradd -u 10001 -d /nonexistent -s /usr/sbin/nologin -M -U -c "" appuser && \
+    mkdir -p /node && \
+    chown -R appuser:appuser /node
 USER appuser
 
 EXPOSE 30333 9933 9944 9615
